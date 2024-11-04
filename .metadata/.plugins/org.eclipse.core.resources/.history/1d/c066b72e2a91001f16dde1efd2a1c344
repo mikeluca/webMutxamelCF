@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Jugadores Juvenil - Mutxamel CF</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<style>
+	.persona-img {
+		height: 150px;
+		/* Ajusta la altura deseada */
+		object-fit: contain;
+		/* Ajusta la imagen para que se recorte de forma adecuada */
+		width: 100%;
+		/* Asegura que la imagen ocupe todo el ancho del contenedor */
+		padding: 10px;
+		border-radius: 10%;
+	}
+</style>
+
+<body>
+
+	<header class="bg-primary text-white text-center py-5">
+		<h1>Mutxamel CF</h1>
+		<img src="images/escudo.ico" alt="Escudo del Club" width="100">
+	</header>
+
+	<nav class="navbar navbar-expand-lg navbar-light bg-light">
+		<div class="container-fluid">
+			<a class="navbar-brand" href="/">Inicio</a>
+			<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+				<span class="navbar-toggler-icon"></span>
+			</button>
+			<div class="collapse navbar-collapse" id="navbarNav">
+				<ul class="navbar-nav">
+					<li class="nav-item">
+						<a class="nav-link" href="/sobre-nosotros">Sobre Nosotros</a>
+					</li>
+					<li class="nav-item dropdown">
+						<a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+							data-bs-toggle="dropdown">
+							Categorías
+						</a>
+						<ul class="dropdown-menu">
+							<li><a class="dropdown-item" href="/categorias/escuelita">Escuelita</a></li>
+							<li><a class="dropdown-item" href="/categorias/prebenjamin">Prebenjamín</a></li>
+							<li><a class="dropdown-item" href="/categorias/benjamin">Benjamín</a></li>
+							<li><a class="dropdown-item" href="/categorias/alevin">Alevín</a></li>
+							<li><a class="dropdown-item" href="/categorias/infantil-femenino">Infantil Femenino</a></li>
+							<li><a class="dropdown-item" href="/categorias/infantil">Infantil</a></li>
+							<li><a class="dropdown-item" href="/categorias/cadete-femenino">Cadete Femenino</a></li>
+							<li><a class="dropdown-item" href="/categorias/cadete">Cadete</a></li>
+							<li><a class="dropdown-item" href="/categorias/juvenil">Juvenil</a></li>
+							<li><a class="dropdown-item" href="/categorias/filial">Filial</a></li>
+							<li><a class="dropdown-item" href="/categorias/primer-equipo-femenino">Primer Equipo
+									Femenino</a></li>
+							<li><a class="dropdown-item" href="/categorias/primer-equipo">Primer Equipo</a></li>
+							<li><a class="dropdown-item" href="/categorias/veteranos">Veteranos</a></li>
+						</ul>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" href="/resultados">Resultados</a>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</nav>
+
+	<main class="container my-5">
+		<h2 class="text-center">Jugadores</h2>
+		<div class="row">
+			<div class="col-md-4" th:each="jugador : ${jugadores}">
+				<div class="card" style="width: 225px; margin: 15px;">
+					<img th:src=" @{'/images/' + ${jugador.foto}}" class="card-img-top persona-img"
+						alt="Imagen Jugador">
+					<div class="card-body">
+						<h5 class="card-title" th:text="${jugador.nombre}"></h5>
+						<p class="card-text">
+							Posición: <span th:text="${jugador.posicion}"></span><br>
+							Dorsal: <span th:text="${jugador.dorsal}"></span>
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<h2 class="text-center mt-5">Cuerpo Técnico</h2>
+		<div class="row">
+			<div class="col-md-4" th:each="staff : ${staff}">
+				<div class="card mb-4">
+					<img th:src="@{'/images/' + ${staff.foto}}" class="card-img-top persona-img" alt="Imagen Staff">
+					<div class="card-body">
+						<h5 class="card-title" th:text="${staff.nombre}"></h5>
+						<p class="card-text" th:text="${staff.cargo}"></p>
+					</div>
+				</div>
+			</div>
+		</div>
+	</main>
+
+	<footer class="bg-dark text-white text-center py-3">
+		&copy; 2024 Mutxamel CF
+	</footer>
+
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,19 @@
+<footer class="bg-dark text-white text-center py-3">
+	<p>Mutxamel CF © Todos los derechos reservados.</p>
+
+	<button class="btn btn-outline-primary ms-auto" data-bs-toggle="modal" data-bs-target="#loginModal">
+		Iniciar Sesión
+	</button>
+
+	<!-- Botón que abre el modal de inicio de sesión o muestra "Cerrar sesión" -->
+	<div>
+		<button id="loginButton" onclick="toggleLoginModal()"
+			th:if="${not #httpServletRequest.isUserInRole('ROLE_ADMIN')}">
+			Iniciar sesión
+		</button>
+		<button th:if="${#httpServletRequest.isUserInRole('ROLE_ADMIN')}" th:href="@{/logout}" class="logout-button">
+			Cerrar sesión
+		</button>
+	</div>
+
+</footer>

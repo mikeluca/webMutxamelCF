@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Mutxamel Club de Fútbol</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link th:href="@{/css/estilos.css}" rel="stylesheet">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+	<link href="https://fonts.googleapis.com/css2?family=Fredericka+the+Great&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+	<!-- Incluir el header -->
+	<div th:replace="~{cabecera.html}"></div>
+
+	<main>
+		<!-- Verificamos si hay resultados -->
+		<div th:if="${resultados.isEmpty()}">
+			<p>No hay resultados disponibles.</p>
+		</div>
+
+		<!-- Mostramos los resultados en una tabla si existen -->
+		<div th:if="${!resultados.isEmpty()}">
+			<table>
+				<thead>
+					<tr>
+						<th>Categoría</th>
+						<th>Rival</th>
+						<th>Resultado</th>
+						<th>Día</th>
+						<th>Hora</th>
+						<th>Campo</th>
+					</tr>
+				</thead>
+				<tbody>
+					<!-- Iteramos sobre la lista de resultados -->
+					<tr th:each="resultado : ${resultados}">
+						<td th:text="${resultado.categoria}"></td>
+						<td th:text="${resultado.rival}"></td>
+						<td th:text="${resultado.resultado}"></td>
+						<td th:text="${#dates.format(resultado.dia, 'yyyy-MM-dd')}"></td>
+						<td th:text="${resultado.hora}"></td>
+						<td th:text="${resultado.campo}"></td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</main>
+
+	<!-- Incluir el footer -->
+	<div th:replace="~{footer.html}"></div>
+
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

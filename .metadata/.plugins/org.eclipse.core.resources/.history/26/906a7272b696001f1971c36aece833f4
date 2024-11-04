@@ -1,0 +1,29 @@
+package com.mikedev.mutxamelcf.mvc.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+		http.authorizeRequests().antMatchers("/secret-menu/**").authenticated() // Protege el acceso a la ruta
+				.anyRequest().permitAll() // Permite el acceso a otras rutas
+				.and().formLogin() // Habilita el login por formulario
+				.loginPage("/login") // Página de login personalizada
+				.permitAll().and().logout().permitAll();
+		return http.build();
+	}
+
+//	@Bean
+//	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+//		http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+//		return http.build();
+//	}
+
+}

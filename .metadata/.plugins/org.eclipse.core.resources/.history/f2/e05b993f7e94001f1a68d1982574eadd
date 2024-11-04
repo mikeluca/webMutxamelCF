@@ -1,0 +1,22 @@
+package com.mikedev.mutxamelcf.dao.impl;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import com.mikedev.mutxamelcf.dao.ResultadoDao;
+import com.mikedev.mutxamelcf.model.Resultado;
+
+public class ResultadoDaoImpl implements ResultadoDao {
+
+	private final JdbcTemplate jdbcTemplate;
+
+	public ResultadoDaoImpl(JdbcTemplate jdbcTemplate) {
+		this.jdbcTemplate = jdbcTemplate;
+	}
+
+	@Override
+	public void actualizarResultado(Resultado resultado) {
+		String sql = "UPDATE RESULTADOS SET CATEGORIA = ?, RIVAL = ?, RESULTADO = ?, DIA = ?, HORA = ?, CAMPO = ? WHERE ID_RESULTADO = ?";
+		jdbcTemplate.update(sql, resultado.getCategoria(), resultado.getRival(), resultado.getResultado(),
+				new java.sql.Date(resultado.getDia().getTime()), resultado.getHora(), resultado.getCampo());
+	}
+}

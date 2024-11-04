@@ -1,0 +1,48 @@
+package com.mikedev.mutxamelcf.serviceimpl;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.security.SecurityProperties.User;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.stereotype.Service;
+
+import com.mikedev.mutxamelcf.dao.UsuarioDao;
+
+@Service
+public class UsuarioServiceImpl implements UserDetailsService {
+
+	@Autowired
+	UsuarioDao usuarioDao;
+
+//	@Override
+//	public UsuarioDTO validarUsuario(String usuario, String password) {
+//		return toDTO(usuarioDao.validarUsuario(usuario, password));
+//	}
+//
+//	// Método para mapear Usuario a UsuarioDTO
+//	private static UsuarioDTO toDTO(Usuario usuario) {
+//		if (usuario == null) {
+//			return null;
+//		}
+//
+//		UsuarioDTO usuarioDTO = new UsuarioDTO();
+//		usuarioDTO.setId(usuario.getId());
+//		usuarioDTO.setUsuario(usuario.getUsuario());
+//		usuarioDTO.setPassword(usuario.getPassword());
+//		usuarioDTO.setRole(usuario.getRole());
+//
+//		return usuarioDTO;
+//	}
+
+	@Override
+	public UserDetails loadUserByUsername(String username) {
+		UserDetails usuario = usuarioDao.loadUserByUsername(username);
+
+		List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(usuario.getRole()));
+		return new User(usuario.getUsername(), usuario.getPassword(), authorities);
+	}
+
+}

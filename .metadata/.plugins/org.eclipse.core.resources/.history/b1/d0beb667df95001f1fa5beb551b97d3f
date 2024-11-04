@@ -1,0 +1,130 @@
+package com.mikedev.mutxamelcf.dao.impl;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
+
+import com.mikedev.mutxamelcf.dao.JugadorDao;
+import com.mikedev.mutxamelcf.model.Jugador;
+
+@Repository
+public class EquipoDaoImpl implements JugadorDao {
+
+	private final JdbcTemplate jdbcTemplate;
+
+	public EquipoDaoImpl(JdbcTemplate jdbcTemplate) {
+		this.jdbcTemplate = jdbcTemplate;
+	}
+
+	@Override
+	public boolean guardarJugador(Jugador jugador) {
+		if (existeJugador(jugador.getDni())) {
+			String sql = "UPDATE jugadores SET nombre = ?, apellidos = ?, fecha_nacimiento = ?, poblacion = ?, "
+					+ "nacionalidad = ?, categoria = ?, dorsal = ?, posicion = ?, foto = ? WHERE dni = ?";
+
+			return (jdbcTemplate.update(sql, jugador.getNombre(), jugador.getApellidos(), jugador.getFechaNacimiento(),
+					jugador.getPoblacion(), jugador.getNacionalidad(), jugador.getCategoria(), jugador.getDorsal(),
+					jugador.getPosicion(), jugador.getFoto(), jugador.getDni()) == 1);
+
+		} else {
+			String sql = "INSERT INTO jugadores (dni, nombre, apellidos, fecha_nacimiento, poblacion, "
+					+ "nacionalidad, categoria, dorsal, posicion, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+			return (jdbcTemplate.update(sql, jugador.getDni(), jugador.getNombre(), jugador.getApellidos(),
+					jugador.getFechaNacimiento(), jugador.getPoblacion(), jugador.getNacionalidad(),
+					jugador.getCategoria(), jugador.getDorsal(), jugador.getPosicion(), jugador.getFoto()) == 1);
+		}
+	}
+
+	@SuppressWarnings("deprecation")
+	private boolean existeJugador(String dni) {
+		String sql = "SELECT COUNT(*) FROM jugadores WHERE dni = ?";
+
+		// Ejecutar la query y obtener el número de jugadores con ese DNI
+		Integer count = jdbcTemplate.queryForObject(sql, new Object[] { dni }, Integer.class);
+
+		// Si el count es mayor que 0, significa que existe el jugador
+		return count != null && count > 0;
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public Jugador obtenerPorId(String dni) {
+		String sql = "SELECT * FROM jugadores WHERE dni = ?";
+
+		return jdbcTemplate.queryForObject(sql, new Object[] { dni }, new RowMapper<Jugador>() {
+			@Override
+			public Jugador mapRow(ResultSet rs, int rowNum) throws SQLException {
+				Jugador jugador = new Jugador();
+				jugador.setDni(rs.getString("dni"));
+				jugador.setNombre(rs.getString("nombre"));
+				jugador.setApellidos(rs.getString("apellidos"));
+				jugador.setFechaNacimiento(rs.getDate("fecha_nacimiento"));
+				jugador.setPoblacion(rs.getString("poblacion"));
+				jugador.setNacionalidad(rs.getString("nacionalidad"));
+				jugador.setCategoria(rs.getString("categoria"));
+				jugador.setDorsal(rs.getInt("dorsal"));
+				jugador.setPosicion(rs.getString("posicion"));
+				jugador.setFoto(rs.getBytes("foto"));
+				return jugador;
+			}
+		});
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public List<Jugador> obtenerTodosPorCategoria(String categoria) {
+		String sql = "SELECT * FROM jugadores WHERE categoria = ? ORDER BY categoria, apellidos";
+
+		return jdbcTemplate.query(sql, new Object[] { categoria }, new RowMapper<Jugador>() {
+			@Override
+			public Jugador mapRow(ResultSet rs, int rowNum) throws SQLException {
+				Jugador jugador = new Jugador();
+				jugador.setDni(rs.getString("dni"));
+				jugador.setNombre(rs.getString("nombre"));
+				jugador.setApellidos(rs.getString("apellidos"));
+				jugador.setFechaNacimiento(rs.getDate("fecha_nacimiento"));
+				jugador.setPoblacion(rs.getString("poblacion"));
+				jugador.setNacionalidad(rs.getString("nacionalidad"));
+				jugador.setCategoria(rs.getString("categoria"));
+				jugador.setDorsal(rs.getInt("dorsal"));
+				jugador.setPosicion(rs.getString("posicion"));
+				jugador.setFoto(rs.getBytes("foto"));
+				return jugador;
+			}
+		});
+	}
+
+	@Override
+	public void eliminar(String dni) {
+		String sql = "DELETE FROM jugadores WHERE dni = ?";
+		jdbcTemplate.update(sql, dni);
+	}
+
+	@Override
+	public List<Jugador> obtenerTodos() {
+		String sql = "SELECT * FROM jugadores ORDER BY categoria, apellidos";
+
+		return jdbcTemplate.query(sql, new RowMapper<Jugador>() {
+			@Override
+			public Jugador mapRow(ResultSet rs, int rowNum) throws SQLException {
+				Jugador jugador = new Jugador();
+				jugador.setDni(rs.getString("dni"));
+				jugador.setNombre(rs.getString("nombre"));
+				jugador.setApellidos(rs.getString("apellidos"));
+				jugador.setFechaNacimiento(rs.getDate("fecha_nacimiento"));
+				jugador.setPoblacion(rs.getString("poblacion"));
+				jugador.setNacionalidad(rs.getString("nacionalidad"));
+				jugador.setCategoria(rs.getString("categoria"));
+				jugador.setDorsal(rs.getInt("dorsal"));
+				jugador.setPosicion(rs.getString("posicion"));
+				jugador.setFoto(rs.getBytes("foto"));
+				return jugador;
+			}
+		});
+	}
+}

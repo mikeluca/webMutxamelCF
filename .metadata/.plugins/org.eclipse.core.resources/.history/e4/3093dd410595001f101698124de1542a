@@ -1,0 +1,107 @@
+<div>
+	<header class="text-white text-center header">
+		<div class="logo-titulo">
+			<!-- Imagen del escudo -->
+			<a href="/index"><img src="/images/escudo.png" href="/index" alt="Escudo del Club" width="200px"
+					style="margin: 20px 0px;"></a>
+			<!-- Nombre del club -->
+			<h1 class="lead fw-bold grafiti-title" style="font-size: 80px;">MUTXAMEL CF</h1>
+		</div>
+	</header>
+
+	<nav class="navbar navbar-expand-lg navbar-light bg-light" style="background-color: rgb(213, 243, 253);">
+		<div class="container-fluid lead">
+			<!-- Botón de hamburguesa solo visible en pantallas pequeñas -->
+			<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+				<span class="navbar-toggler-icon"></span>
+			</button>
+			<!-- Menú de navegación -->
+			<div class="collapse navbar-collapse" id="navbarNav">
+				<ul class="navbar-nav me-auto">
+					<li class="nav-item">
+						<a class="nav-link" href="/index">Inicio</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" href="/historia">El club</a>
+					</li>
+					<li class="nav-item dropdown">
+						<a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+							data-bs-toggle="dropdown">
+							Área Deportiva
+						</a>
+						<ul class="dropdown-menu lead">
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Escuelita')}">Escuelita</a></li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Prebenjamín')}">Prebenjamín</a></li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Benjamín')}">Benjamín</a></li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Alevín')}">Alevín</a>
+							</li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Infantil Femenino')}">Infantil
+									Femenino</a></li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Infantil')}">Infantil</a></li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Cadete Femenino')}">Cadete
+									Femenino</a>
+							</li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Cadete')}">Cadete</a>
+							</li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Juvenil')}">Juvenil</a></li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Filial')}">Filial</a>
+							</li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Primer Equipo')}">Primer Equipo</a>
+							</li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Veteranos')}">Veteranos</a></li>
+						</ul>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" href="/resultados">Calendario / Resultados</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" href="/contacto">Contacto</a>
+					</li>
+					<!-- Menú Administración -- La opción requiere autenticación -->
+					<li class="nav-item dropdown">
+						<a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+							data-bs-toggle="dropdown">
+							Administración
+						</a>
+						<div class="dropdown-content">
+							<a href="/admin/jugadores">Jugadores</a>
+							<a href="/admin/cuerpo-tecnico">Cuerpo Técnico</a>
+							<a href="/admin/calendario-resultados">Calendario/Resultados</a>
+							<a href="/admin/noticias">Noticias</a>
+						</div>
+					</li>
+					<li class="nav-item" id="menu-restringido" style="display: none;">
+						<a class="nav-link" href="#">Administración</a>
+					</li>
+				</ul>
+			</div>
+			<!-- Redes Sociales siempre pegadas a la derecha -->
+			<div class="social-icons d-flex ms-auto">
+				<a href="https://x.com/mutxamelcf" target="_blank" class="mx-2">
+					<img src="/images/twitter.png" alt="Twitter" width="40" height="40">
+				</a>
+				<a href="https://facebook.com/MutxamelCF17" target="_blank" class="mx-2">
+					<img src="/images/facebook.png" alt="Facebook" width="40" height="40">
+				</a>
+				<a href="https://instagram.com/mutxamelcf.oficial/" target="_blank" class="mx-2">
+					<img src="/images/instagram.png" alt="Instagram" width="40" height="40">
+				</a>
+				<a href="https://youtube.com/@mutxamelcf355" target="_blank" class="mx-2">
+					<img src="/images/youtube.png" alt="YouTube" width="40" height="40">
+				</a>
+			</div>
+		</div>
+	</nav>
+</div>

@@ -1,0 +1,5 @@
+package com.mikedev.mutxamelcf.service;
+
+public interface ResultadoService {
+
+}

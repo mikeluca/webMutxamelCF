@@ -1,0 +1,13 @@
+package com.mikedev.mutxamelcf.dao;
+
+import org.springframework.security.core.userdetails.UserDetails;
+
+import com.mikedev.mutxamelcf.model.Usuario;
+
+public interface UsuarioDao {
+
+//	Usuario validarUsuario(String usuario, String password);
+
+	public UserDetails loadUserByUsername(String username);
+
+}

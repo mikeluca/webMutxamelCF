@@ -1,0 +1,70 @@
+package com.mikedev.mutxamelcf.controller;
+
+import java.util.Arrays;
+import java.util.List;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+
+import com.mikedev.mutxamelcf.model.CuerpoTecnico;
+import com.mikedev.mutxamelcf.model.Jugador;
+import com.mikedev.mutxamelcf.model.Noticia;
+
+@Controller
+public class MainController {
+
+	@GetMapping("/")
+	public String inicio(Model model) {
+		// Lista de noticias (simuladas)
+		List<Noticia> noticias = Arrays.asList(
+				new Noticia("Título de Noticia 1", "Esta es la descripción de la noticia 1", "noticia1.jpg"),
+				new Noticia("Título de Noticia 2", "Esta es la descripción de la noticia 2", "noticia2.jpg"),
+				new Noticia("Título de Noticia 3", "Esta es la descripción de la noticia 3", "noticia3.jpg"));
+
+		// Logos de patrocinadores (se asume que son imágenes en una carpeta)
+		List<String> patrocinadores = Arrays.asList("patrocinador1.jpg", "patrocinador2.jpg", "patrocinador3.jpg",
+				"patrocinador4.jpg", "patrocinador5.jpg", "patrocinador6.jpg", "patrocinador1.jpg",
+				"patrocinador2.jpg");
+
+		model.addAttribute("noticias", noticias);
+		model.addAttribute("patrocinadores", patrocinadores);
+		return "index";
+	}
+
+	@GetMapping("/sobre-nosotros")
+	public String sobreNosotros(Model model) {
+		// Añadir la historia del club aquí
+		String historia = "Mutxamel CF, fundado en Alicante, España, en 1922, es un club con una rica historia...";
+		model.addAttribute("historia", historia);
+
+		return "sobre-nosotros";
+	}
+
+	@GetMapping("/categorias/juvenil")
+	public String categoriaJuvenil(Model model) {
+		// Lista de jugadores (simulada)
+		List<Jugador> jugadores = Arrays.asList(new Jugador("Juan Pérez", "Delantero", 9, "man.png"),
+				new Jugador("Carlos García", "Portero", 1, "girl.png"),
+				new Jugador("Juan Pérez", "Delantero", 9, "man.png"),
+				new Jugador("Carlos García", "Portero", 1, "girl.png"),
+				new Jugador("Juan Pérez", "Delantero", 9, "man.png"),
+				new Jugador("Carlos García", "Portero", 1, "girl.png"),
+				new Jugador("Juan Pérez", "Delantero", 9, "man.png"),
+				new Jugador("Carlos García", "Portero", 1, "girl.png"),
+				new Jugador("Juan Pérez", "Delantero", 9, "man.png"),
+				new Jugador("Carlos García", "Portero", 1, "girl.png"),
+				new Jugador("Juan Pérez", "Delantero", 9, "man.png"),
+				new Jugador("Carlos García", "Portero", 1, "girl.png"),
+				new Jugador("Juan Pérez", "Delantero", 9, "man.png"),
+				new Jugador("Carlos García", "Portero", 1, "girl.png"));
+
+		// Cuerpo técnico (simulado)
+		List<CuerpoTecnico> staff = Arrays.asList(new CuerpoTecnico("Miguel López", "Entrenador", "office-man.png"),
+				new CuerpoTecnico("Javier Ruiz", "Preparador físico", "woman.png"));
+
+		model.addAttribute("jugadores", jugadores);
+		model.addAttribute("staff", staff);
+		return "plantilla";
+	}
+}

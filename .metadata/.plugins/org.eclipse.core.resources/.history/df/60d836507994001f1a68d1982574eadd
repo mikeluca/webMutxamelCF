@@ -1,0 +1,135 @@
+package com.mikedev.mutxamelcf.mvc.controller;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.mikedev.mutxamelcf.model.CuerpoTecnicoDTO;
+import com.mikedev.mutxamelcf.model.JugadorDTO;
+import com.mikedev.mutxamelcf.model.NoticiaDTO;
+import com.mikedev.mutxamelcf.model.UsuarioDTO;
+import com.mikedev.mutxamelcf.service.CuerpoTecnicoService;
+import com.mikedev.mutxamelcf.service.JugadorService;
+import com.mikedev.mutxamelcf.service.NoticiaService;
+import com.mikedev.mutxamelcf.service.UsuarioService;
+
+@Controller
+public class MainController {
+
+	@Autowired
+	private JavaMailSender emailSender;
+
+	@Autowired
+	private JugadorService jugadoresService;
+
+	@Autowired
+	private CuerpoTecnicoService cuerpoTecnicoService;
+
+	@Autowired
+	private NoticiaService noticiaService;
+
+	@Autowired
+	private UsuarioService userService;
+
+	@PostMapping("/login")
+	@ResponseBody
+	public ResponseEntity<?> login(@RequestBody UsuarioDTO loginRequest) {
+		// Validar el usuario
+		UsuarioDTO usuario = userService.validarUsuario(loginRequest.getUsuario(), loginRequest.getPassword());
+
+		if (usuario != null) {
+			return ResponseEntity.ok(Map.of("valid", true, "role", user.getRole()));
+		} else {
+			return ResponseEntity.ok(Map.of("valid", false));
+		}
+	}
+
+	@GetMapping("/")
+	public String pantallaCarga() {
+		// Sirve la pantalla splash como la primera vista
+		return "pantalla-carga";
+	}
+
+	@GetMapping("/index")
+	public String inicio(Model model) {
+		// Lista de noticias
+		List<NoticiaDTO> noticias = noticiaService.obtenerNoticiasParaMostrar();
+
+		// Logos de patrocinadores
+		List<String> patrocinadores = Arrays.asList("patrocinador1.jpg", "patrocinador2.jpg", "patrocinador3.jpg",
+				"patrocinador4.jpg", "patrocinador5.jpg", "patrocinador6.jpg", "patrocinador1.jpg",
+				"patrocinador2.jpg");
+
+		model.addAttribute("noticias", noticias);
+		model.addAttribute("patrocinadores", patrocinadores);
+		return "index";
+	}
+
+	@GetMapping("/historia")
+	public String historia(Model model) {
+		return "historia";
+	}
+
+	@GetMapping("/contacto")
+	public String contacto() {
+		return "contacto";
+	}
+
+	@GetMapping("/categorias/{categoria}")
+	public String categorias(@PathVariable String categoria, Model model) {
+		// Lista de jugadores
+		List<JugadorDTO> jugadores = jugadoresService.obtenerJugadoresPorCategoria(categoria);
+
+		// Cuerpo técnico
+		List<CuerpoTecnicoDTO> staff = cuerpoTecnicoService.obtenerCuerpoTecnicoPorCategoria(categoria);
+
+		model.addAttribute("jugadores", jugadores);
+		model.addAttribute("staff", staff);
+		model.addAttribute("categoria", categoria);
+		return "plantilla";
+	}
+
+	@GetMapping("/ampliarNoticia/{id}")
+	public String ampliarNoticia(@PathVariable int id, Model model) {
+		NoticiaDTO noticia = noticiaService.obtenerNoticiaPorId(id);
+		model.addAttribute("noticia", noticia);
+		return "noticia";
+	}
+
+	@PostMapping("/enviar-email")
+	public String enviarEmail(@RequestParam String nombre, @RequestParam String email, @RequestParam String mensaje) {
+		try {
+			// Crear mensaje MIME
+			jakarta.mail.internet.MimeMessage message = emailSender.createMimeMessage();
+			// Helper para crear el mensaje
+			MimeMessageHelper helper = new MimeMessageHelper(message, true);
+			// Configurar remitente, destinatario, asunto y cuerpo
+			helper.setFrom("marieracamarasa@gmail.com");
+			helper.setTo("marieracamarasa@gmail.com");
+			helper.setSubject("Contacto desde la WEB de: " + nombre);
+			helper.setText("De: " + nombre + "\nEmail: " + email + "\n\\nMensaje: " + mensaje);
+			// Enviar el mensaje
+			emailSender.send(message);
+			System.out.println("Correo HTML enviado correctamente.");
+
+		} catch (jakarta.mail.MessagingException e) {
+			System.out.println("Error al enviar el correo HTML: " + e.getMessage());
+			e.printStackTrace();
+		}
+		return "redirect:/"; // Redirigir a la página de inicio después de enviar
+	}
+
+}

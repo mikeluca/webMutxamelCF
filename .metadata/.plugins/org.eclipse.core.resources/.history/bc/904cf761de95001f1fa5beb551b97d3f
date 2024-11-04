@@ -1,0 +1,106 @@
+package com.mikedev.mutxamelcf.serviceimpl;
+
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.mikedev.mutxamelcf.dao.JugadorDao;
+import com.mikedev.mutxamelcf.model.Jugador;
+import com.mikedev.mutxamelcf.model.JugadorDTO;
+import com.mikedev.mutxamelcf.service.JugadorService;
+
+@Service
+public class EquipoServiceImpl implements JugadorService {
+
+	@Autowired
+	JugadorDao jugadorDao;
+
+	@Override
+	public boolean guardarJugador(JugadorDTO jugador) {
+		return jugadorDao.guardarJugador(toEntity(jugador));
+	}
+
+	@Override
+	public JugadorDTO obtenerJugadorPorDni(String dni) {
+		return toDTO(jugadorDao.obtenerPorId(dni));
+	}
+
+	@Override
+	public void eliminarJugador(String dni) {
+		jugadorDao.eliminar(dni);
+	}
+
+	@Override
+	public List<JugadorDTO> obtenerJugadoresPorCategoria(String categoria) {
+		return toDTOList(jugadorDao.obtenerTodosPorCategoria(categoria));
+	}
+
+	@Override
+	public List<JugadorDTO> obtenerTodos() {
+		return toDTOList(jugadorDao.obtenerTodos());
+	}
+
+	// Método para mapear JugadorDTO a Jugador
+	private static Jugador toEntity(JugadorDTO jugadorDTO) {
+		if (jugadorDTO == null) {
+			return null;
+		}
+
+		Jugador jugador = new Jugador();
+		jugador.setDni(jugadorDTO.getDni());
+		jugador.setNombre(jugadorDTO.getNombre());
+		jugador.setApellidos(jugadorDTO.getApellidos());
+		jugador.setFechaNacimiento(jugadorDTO.getFechaNacimiento());
+		jugador.setPoblacion(jugadorDTO.getPoblacion());
+		jugador.setNacionalidad(jugadorDTO.getNacionalidad());
+		jugador.setCategoria(jugadorDTO.getCategoria());
+		jugador.setEquipo(jugadorDTO.getEquipo());
+		jugador.setDorsal(jugadorDTO.getDorsal());
+		jugador.setPosicion(jugadorDTO.getPosicion());
+		jugador.setFoto(jugadorDTO.getFoto());
+
+		return jugador;
+	}
+
+	// Método para mapear Jugador a JugadorDTO
+	private static JugadorDTO toDTO(Jugador jugador) {
+		if (jugador == null) {
+			return null;
+		}
+
+		JugadorDTO jugadorDTO = new JugadorDTO();
+		jugadorDTO.setDni(jugador.getDni());
+		jugadorDTO.setNombre(jugador.getNombre());
+		jugadorDTO.setApellidos(jugador.getApellidos());
+		jugadorDTO.setFechaNacimiento(jugador.getFechaNacimiento());
+		jugadorDTO.setPoblacion(jugador.getPoblacion());
+		jugadorDTO.setNacionalidad(jugador.getNacionalidad());
+		jugadorDTO.setCategoria(jugador.getCategoria());
+		jugadorDTO.setEquipo(jugador.getEquipo());
+		jugadorDTO.setDorsal(jugador.getDorsal());
+		jugadorDTO.setPosicion(jugador.getPosicion());
+		jugadorDTO.setFoto(jugador.getFoto());
+
+		if (jugadorDTO.getFoto() != null && jugadorDTO.getFoto().length > 0) {
+			String imagenBase64 = Base64.getEncoder().encodeToString(jugadorDTO.getFoto());
+			jugadorDTO.setFotoBase64(imagenBase64);
+		} else {
+			jugadorDTO.setFotoBase64(null);
+		}
+
+		return jugadorDTO;
+	}
+
+	// Métodos para transformar listas de entidades a listas de DTOs
+	private static List<JugadorDTO> toDTOList(List<Jugador> jugadores) {
+		List<JugadorDTO> listaJugadores = new ArrayList<JugadorDTO>();
+		for (Jugador j : jugadores) {
+			listaJugadores.add(toDTO(j));
+		}
+		return listaJugadores;
+	}
+
+}

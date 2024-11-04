@@ -1,0 +1,33 @@
+package com.mikedev.mutxamelcf.mvc.config;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+import org.springframework.beans.propertyeditors.CustomDateEditor;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Configuration
+@EnableWebMvc
+@ComponentScan(basePackages = "com.mikedev.mutxamelcf")
+public class AppMvcConfig implements WebMvcConfigurer {
+
+	@Override
+	public void addResourceHandlers(ResourceHandlerRegistry registry) {
+		registry.addResourceHandler("/css/**").addResourceLocations("classpath:/static/css/");
+		registry.addResourceHandler("/images/**").addResourceLocations("classpath:/static/images/");
+	}
+
+	@InitBinder
+	public void initBinder(WebDataBinder binder) {
+		SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+		dateFormat.setLenient(false);
+		binder.registerCustomEditor(Date.class, new CustomDateEditor(dateFormat, true));
+	}
+
+}

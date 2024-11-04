@@ -1,0 +1,7 @@
+package com.mikedev.mutxamelcf.serviceimpl;
+
+import com.mikedev.mutxamelcf.service.ResultadoService;
+
+public class ResultadoServiceImpl implements ResultadoService {
+
+}

@@ -1,0 +1,81 @@
+<footer class="bg-dark text-white text-center py-3">
+	<p>Mutxamel CF © Todos los derechos reservados.</p>
+
+	<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#loginModal">
+		Iniciar Sesión
+	</button>
+	<!-- Modal de Login -->
+	<div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title text-black text-center" id="loginModalLabel">Iniciar Sesión</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<form id="loginForm">
+						<div class="mb-3">
+							<label for="usuario" class="form-label text-black text-center">Usuario</label>
+							<input type="text" class="form-control" id="username" required>
+						</div>
+						<div class="mb-3">
+							<label for="password" class="form-label text-black text-center">Contraseña</label>
+							<input type="password" class="form-control" id="password" required>
+						</div>
+						<button type="submit" class="btn btn-primary">Ingresar</button>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script>
+		document.getElementById("loginForm").addEventListener("submit", function (event) {
+			event.preventDefault();  // Evita que el formulario se envíe por defecto
+
+			// Recoger los datos del formulario
+			const usuario = document.getElementById("usuario").value;
+			const password = document.getElementById("password").value;
+
+			// Crear el cuerpo del request
+			const loginData = {
+				usuario: usuario,
+				password: password
+			};
+
+			// Realizar una solicitud AJAX para validar el login
+			fetch("/login", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json"
+				},
+				body: JSON.stringify(loginData)
+			})
+				.then(response => response.json())
+				.then(data => {
+					if (data && data.usuario) {
+						// Si el login es exitoso, cerrar el modal
+						var loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+						loginModal.hide();
+
+						// Actualizar la barra de navegación si el usuario es admin
+						if (data.rol === "ADMIN") {
+							const navBar = document.getElementById("navbar");
+							const adminOption = document.createElement("li");
+							adminOption.className = "nav-item";
+							adminOption.innerHTML = '<a class="nav-link" href="/admin">Panel de Administración</a>';
+							navBar.appendChild(adminOption);
+						}
+
+						// Mostrar mensaje de bienvenida
+						alert("Bienvenido " + data.username);
+					} else {
+						// Mostrar error de login
+						alert("Usuario o contraseña incorrectos.");
+					}
+				})
+				.catch(error => {
+					console.error("Error en el login:", error);
+				});
+		});
+	</script>
+</footer>

@@ -1,0 +1,7 @@
+package com.mikedev.mutxamelcf.dao;
+
+import com.mikedev.mutxamelcf.model.Resultado;
+
+public interface ResultadoDao {
+	void actualizarResultado(Resultado resultado);
+}

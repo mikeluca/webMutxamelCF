@@ -1,0 +1,116 @@
+package com.mikedev.mutxamelcf.model;
+
+import java.util.Date;
+
+public class CuerpoTecnicoDTO {
+	private String dni;
+	private String nombre;
+	private String apellidos;
+	private Date fechaNacimiento;
+	private String poblacion;
+	private String nacionalidad;
+	private String categoria;
+	private String puesto;
+	private String equipo;
+	private byte[] foto;
+
+	public CuerpoTecnicoDTO(String dni, String nombre, String apellidos, Date fechaNacimiento, String poblacion,
+			String nacionalidad, String categoria, String equipo, String puesto, byte[] foto) {
+		super();
+		this.dni = dni;
+		this.nombre = nombre;
+		this.apellidos = apellidos;
+		this.fechaNacimiento = fechaNacimiento;
+		this.poblacion = poblacion;
+		this.nacionalidad = nacionalidad;
+		this.categoria = categoria;
+		this.setEquipo(equipo);
+		this.puesto = puesto;
+		this.foto = foto;
+	}
+
+	public CuerpoTecnicoDTO() {
+		super();
+	}
+
+	public String getDni() {
+		return dni;
+	}
+
+	public void setDni(String dni) {
+		this.dni = dni;
+	}
+
+	public String getNombre() {
+		return nombre;
+	}
+
+	public void setNombre(String nombre) {
+		this.nombre = nombre;
+	}
+
+	public String getApellidos() {
+		return apellidos;
+	}
+
+	public void setApellidos(String apellidos) {
+		this.apellidos = apellidos;
+	}
+
+	public Date getFechaNacimiento() {
+		return fechaNacimiento;
+	}
+
+	public void setFechaNacimiento(Date fechaNacimiento) {
+		this.fechaNacimiento = fechaNacimiento;
+	}
+
+	public String getPoblacion() {
+		return poblacion;
+	}
+
+	public void setPoblacion(String poblacion) {
+		this.poblacion = poblacion;
+	}
+
+	public String getNacionalidad() {
+		return nacionalidad;
+	}
+
+	public void setNacionalidad(String nacionalidad) {
+		this.nacionalidad = nacionalidad;
+	}
+
+	public String getCategoria() {
+		return categoria;
+	}
+
+	public void setCategoria(String categoria) {
+		this.categoria = categoria;
+	}
+
+	public String getPuesto() {
+		return puesto;
+	}
+
+	public void setPuesto(String puesto) {
+		this.puesto = puesto;
+	}
+
+	public byte[] getFoto() {
+		return foto;
+	}
+
+	public void setFoto(byte[] foto) {
+		this.foto = foto;
+	}
+
+	public String getEquipo() {
+		return equipo;
+	}
+
+	public void setEquipo(String equipo) {
+		this.equipo = equipo;
+	}
+
+}

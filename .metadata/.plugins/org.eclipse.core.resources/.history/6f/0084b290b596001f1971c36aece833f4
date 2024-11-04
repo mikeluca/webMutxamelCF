@@ -1,0 +1,30 @@
+package com.mikedev.mutxamelcf.mvc.config;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+
+//@Configuration
+//@EnableWebSecurity
+//public class SecurityConfig {
+//
+//	@Bean
+//	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+//		http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+//		return http.build();
+//	}
+//
+//}
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+	@Override
+	protected void configure(HttpSecurity http) throws Exception {
+		http.authorizeRequests().antMatchers("/hidden-menu").authenticated() // Solo usuarios autenticados
+				.anyRequest().permitAll().and().formLogin() // Habilita el formulario de inicio de sesión
+				.loginPage("/login") // Ruta para el formulario de login
+				.permitAll().and().logout().permitAll();
+	}
+}

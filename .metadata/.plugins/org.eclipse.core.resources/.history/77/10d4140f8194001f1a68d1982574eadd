@@ -1,0 +1,13 @@
+package com.mikedev.mutxamelcf.dao;
+
+import java.util.List;
+
+import com.mikedev.mutxamelcf.model.Resultado;
+
+public interface ResultadoDao {
+
+	void actualizarResultado(Resultado resultado);
+
+	List<Resultado> obtenerNoticiasParaMostrar();
+
+}

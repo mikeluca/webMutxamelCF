@@ -1,0 +1,94 @@
+package com.mikedev.mutxamelcf.serviceimpl;
+
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.mikedev.mutxamelcf.dao.NoticiaDao;
+import com.mikedev.mutxamelcf.model.Noticia;
+import com.mikedev.mutxamelcf.model.NoticiaDTO;
+import com.mikedev.mutxamelcf.service.NoticiaService;
+
+@Service
+public class NoticiaServiceImpl implements NoticiaService {
+
+	@Autowired
+	NoticiaDao noticiaDao;
+
+	@Override
+	public boolean guardarNoticia(NoticiaDTO noticia) {
+		return noticiaDao.crearNoticia(toEntity(noticia));
+	}
+
+	@Override
+	public void eliminarNoticia(int id) {
+		noticiaDao.eliminarNoticia(id);
+	}
+
+	@Override
+	public NoticiaDTO obtenerNoticiaPorId(int id) {
+		return toDTO(noticiaDao.obtenerNoticiaPorId(id));
+	}
+
+	@Override
+	public List<NoticiaDTO> obtenerNoticiasParaMostrar() {
+		return toDTOList(noticiaDao.obtenerNoticiasParaMostrar());
+	}
+
+	@Override
+	public List<NoticiaDTO> obtenerTodas() {
+		return toDTOList(noticiaDao.obtenerTodas());
+	}
+
+	// Método para mapear Noticia a NoticiaDTO
+	private static NoticiaDTO toDTO(Noticia noticia) {
+		if (noticia == null) {
+			return null;
+		}
+
+		NoticiaDTO noticiaDTO = new NoticiaDTO();
+		noticiaDTO.setId(noticia.getId());
+		noticiaDTO.setTitulo(noticia.getTitulo());
+		noticiaDTO.setContenido(noticia.getContenido());
+		noticiaDTO.setFecha(noticia.getFecha());
+		noticiaDTO.setImagen(noticia.getImagen());
+
+		if (noticiaDTO.getImagen() != null && noticiaDTO.getImagen().length > 0) {
+			String imagenBase64 = Base64.getEncoder().encodeToString(noticiaDTO.getImagen());
+			noticiaDTO.setImagenBase64(imagenBase64);
+		} else {
+			noticiaDTO.setImagenBase64(null);
+		}
+
+		return noticiaDTO;
+	}
+
+	// Método para mapear NoticiaDTO a Noticia
+	private static Noticia toEntity(NoticiaDTO noticiaDTO) {
+		if (noticiaDTO == null) {
+			return null;
+		}
+
+		Noticia noticia = new Noticia();
+		noticia.setId(noticiaDTO.getId());
+		noticia.setTitulo(noticiaDTO.getTitulo());
+		noticia.setContenido(noticiaDTO.getContenido());
+		noticia.setFecha(noticiaDTO.getFecha());
+		noticia.setImagen(noticiaDTO.getImagen());
+
+		return noticia;
+	}
+
+	// Métodos para transformar listas de entidades a listas de DTOs
+	private static List<NoticiaDTO> toDTOList(List<Noticia> noticias) {
+		List<NoticiaDTO> listaNoticias = new ArrayList<NoticiaDTO>();
+		for (Noticia j : noticias) {
+			listaNoticias.add(toDTO(j));
+		}
+		return listaNoticias;
+	}
+
+}

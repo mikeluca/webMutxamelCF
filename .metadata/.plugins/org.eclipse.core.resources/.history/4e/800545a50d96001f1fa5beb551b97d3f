@@ -1,0 +1,92 @@
+package com.mikedev.mutxamelcf.serviceimpl;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.mikedev.mutxamelcf.dao.ResultadoDao;
+import com.mikedev.mutxamelcf.model.Resultado;
+import com.mikedev.mutxamelcf.model.ResultadoDTO;
+import com.mikedev.mutxamelcf.service.ResultadoService;
+
+@Service
+public class ResultadoServiceImpl implements ResultadoService {
+
+	@Autowired
+	private ResultadoDao resultadoDao;
+
+	@Override
+	public void actualizarResultado(ResultadoDTO resultado) {
+		resultadoDao.actualizarResultado(toEntity(resultado));
+	}
+
+	@Override
+	public List<ResultadoDTO> obtenerResultados() {
+		return toDTOList(resultadoDao.obtenerResultados());
+	}
+
+	@Override
+	public void actualizarCampos(Long id, Map<String, String> fields) {
+		resultadoDao.actualizarCampos(id, fields);
+	}
+
+	// Método para mapear Resultado a ResultadoDTO
+	private static ResultadoDTO toDTO(Resultado resultado) throws ParseException {
+		if (resultado == null) {
+			return null;
+		}
+
+		ResultadoDTO resultadoDTO = new ResultadoDTO();
+		resultadoDTO.setCategoria(resultado.getCategoria());
+		resultadoDTO.setEquipo(resultado.getEquipo());
+		resultadoDTO.setRival(resultado.getRival());
+		resultadoDTO.setResultado(resultado.getResultado());
+
+		if (resultado.getDia() != null) {
+			SimpleDateFormat newFormat = new SimpleDateFormat("dd/MM/yyyy");
+			String nuevaFechaStr = newFormat.format(resultado.getDia());
+			resultadoDTO.setDia(newFormat.parse(nuevaFechaStr));
+		} else {
+			resultadoDTO.setDia(null);
+		}
+
+//		resultadoDTO.setDia(resultado.getDia() == null ? null : resultado.getDia());
+		resultadoDTO.setHora(resultado.getHora());
+		resultadoDTO.setCampo(resultado.getCampo());
+
+		return resultadoDTO;
+	}
+
+	// Método para mapear ResultadoDTO a Resultado
+	private static Resultado toEntity(ResultadoDTO resultadoDTO) {
+		if (resultadoDTO == null) {
+			return null;
+		}
+
+		Resultado resultado = new Resultado();
+		resultado.setCategoria(resultadoDTO.getCategoria());
+		resultado.setEquipo(resultadoDTO.getEquipo());
+		resultado.setRival(resultadoDTO.getRival());
+		resultado.setResultado(resultadoDTO.getResultado());
+		resultado.setDia(resultadoDTO.getDia() == null ? null : resultadoDTO.getDia());
+		resultado.setHora(resultadoDTO.getHora());
+		resultado.setCampo(resultadoDTO.getCampo());
+
+		return resultado;
+	}
+
+	// Métodos para transformar listas de entidades a listas de DTOs
+	private static List<ResultadoDTO> toDTOList(List<Resultado> resultados) throws ParseException {
+		List<ResultadoDTO> listaResultados = new ArrayList<ResultadoDTO>();
+		for (Resultado j : resultados) {
+			listaResultados.add(toDTO(j));
+		}
+		return listaResultados;
+	}
+
+}

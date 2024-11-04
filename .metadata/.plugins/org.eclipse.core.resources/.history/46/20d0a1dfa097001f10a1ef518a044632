@@ -1,0 +1,138 @@
+package com.mikedev.mutxamelcf.dao.impl;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
+
+import com.mikedev.mutxamelcf.dao.EquipoDao;
+import com.mikedev.mutxamelcf.model.Equipo;
+
+@Repository
+public class EquipoDaoImpl implements EquipoDao {
+
+	private final JdbcTemplate jdbcTemplate;
+
+	public EquipoDaoImpl(JdbcTemplate jdbcTemplate) {
+		this.jdbcTemplate = jdbcTemplate;
+	}
+
+	@Override
+	public boolean guardar(Equipo equipo) {
+		if (!existeEquipo(equipo.getCategoria(), equipo.getGrupo())) {
+			String sql = "INSERT INTO equipo (categoria, grupo, orden, nombre, deporte) VALUES (?, ?, ?, ?, ?)";
+
+			return (jdbcTemplate.update(sql, equipo.getCategoria(), equipo.getGrupo(), equipo.getOrden(),
+					equipo.getNombre(), equipo.getDeporte()) == 1);
+		} else {
+			return false;
+		}
+	}
+
+	@SuppressWarnings("deprecation")
+	private boolean existeEquipo(String categoria, String grupo) {
+		String sql = "SELECT COUNT(*) FROM equipo WHERE categoria = ? AND grupo = ?";
+
+		// Ejecutar la query y obtener el número de jugadores con ese DNI
+		Integer count = jdbcTemplate.queryForObject(sql, new Object[] { categoria, grupo }, Integer.class);
+
+		// Si el count es mayor que 0, significa que existe el jugador
+		return count != null && count > 0;
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public Equipo obtenerEquipoPorId(Long id) {
+		String sql = "SELECT * FROM equipo WHERE id = ?";
+
+		return jdbcTemplate.queryForObject(sql, new Object[] { id }, new RowMapper<Equipo>() {
+			@Override
+			public Equipo mapRow(ResultSet rs, int rowNum) throws SQLException {
+				Equipo equipo = new Equipo();
+				equipo.setId(rs.getLong("id"));
+				equipo.setCategoria(rs.getString("categoria"));
+				equipo.setGrupo(rs.getString("grupo"));
+				equipo.setOrden(rs.getString("orden"));
+				equipo.setNombre(rs.getString("nombre"));
+				equipo.setDeporte(rs.getString("deporte"));
+				return equipo;
+			}
+		});
+	}
+
+	@Override
+	public void eliminarEquipo(Long id) {
+		String sql = "DELETE FROM equipo WHERE id = ?";
+		jdbcTemplate.update(sql, id);
+	}
+
+	@Override
+	public List<String> obtenerCategorias() {
+		String sql = "SELECT DISTINCT categoria FROM equipo";
+		return jdbcTemplate.queryForList(sql, String.class);
+	}
+
+	@Override
+	public List<Equipo> obtenerTodos() {
+		String sql = "SELECT * FROM equipo ORDER BY orden, nombre";
+
+		return jdbcTemplate.query(sql, new RowMapper<Equipo>() {
+			@Override
+			public Equipo mapRow(ResultSet rs, int rowNum) throws SQLException {
+				Equipo equipo = new Equipo();
+				equipo.setId(rs.getLong("id"));
+				equipo.setCategoria(rs.getString("categoria"));
+				equipo.setGrupo(rs.getString("grupo"));
+				equipo.setOrden(rs.getString("orden"));
+				equipo.setNombre(rs.getString("nombre"));
+				equipo.setDeporte(rs.getString("deporte"));
+				return equipo;
+			}
+		});
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public List<Equipo> obtenerTodosPorCategoria(String categoria) {
+		String sql = "SELECT * FROM equipo WHERE categoria = ? ORDER BY orden, nombre";
+
+		return jdbcTemplate.query(sql, new Object[] { categoria }, new RowMapper<Equipo>() {
+			@Override
+			public Equipo mapRow(ResultSet rs, int rowNum) throws SQLException {
+				Equipo equipo = new Equipo();
+				equipo.setId(rs.getLong("id"));
+				equipo.setCategoria(rs.getString("categoria"));
+				equipo.setGrupo(rs.getString("grupo"));
+				equipo.setOrden(rs.getString("orden"));
+				equipo.setNombre(rs.getString("nombre"));
+				equipo.setDeporte(rs.getString("deporte"));
+				return equipo;
+			}
+		});
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public Map<String, List<Equipo>> obtenerEquiposAgrupadosPorCategoria(String deporte) {
+		String sql = "SELECT id, nombre, categoria, grupo, orden, deporte FROM equipo WHERE deporte = ? ORDER BY orden, nombre";
+		List<Equipo> equipos = jdbcTemplate.query(sql, new Object[] { deporte }, (rs, rowNum) -> {
+			Equipo equipo = new Equipo();
+			equipo.setId(rs.getLong("id"));
+			equipo.setNombre(rs.getString("nombre"));
+			equipo.setCategoria(rs.getString("categoria"));
+			equipo.setOrden(rs.getString("orden"));
+			equipo.setGrupo(rs.getString("grupo"));
+			equipo.setDeporte(rs.getString("deporte"));
+			return equipo;
+		});
+
+		// Agrupar equipos por categoría
+		return equipos.stream().collect(Collectors.groupingBy(Equipo::getOrden));
+	}
+
+}

@@ -1,0 +1,5 @@
+package com.mikedev.mutxamelcf.dao;
+
+public interface ResultadoDao {
+	void actualizarResultado(Resultado resultado);
+}

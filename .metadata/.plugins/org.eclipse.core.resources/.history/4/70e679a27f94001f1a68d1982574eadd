@@ -1,0 +1,65 @@
+package com.mikedev.mutxamelcf.serviceimpl;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.mikedev.mutxamelcf.dao.ResultadoDao;
+import com.mikedev.mutxamelcf.model.Resultado;
+import com.mikedev.mutxamelcf.model.ResultadoDTO;
+import com.mikedev.mutxamelcf.service.ResultadoService;
+
+public class ResultadoServiceImpl implements ResultadoService {
+
+	@Autowired
+	private ResultadoDao resultadoDao;
+
+	@Override
+	public void actualizarResultado(ResultadoDTO resultado) {
+		resultadoDao.actualizarResultado(resultado);
+
+	}
+
+	// Método para mapear Noticia a NoticiaDTO
+	private static ResultadoDTO toDTO(Resultado noticia) {
+		if (noticia == null) {
+			return null;
+		}
+
+		ResultadoDTO noticiaDTO = new ResultadoDTO();
+		noticiaDTO.setId(noticia.getId());
+		noticiaDTO.setTitulo(noticia.getTitulo());
+		noticiaDTO.setContenido(noticia.getContenido());
+		noticiaDTO.setFecha(noticia.getFecha());
+		noticiaDTO.setImagen(noticia.getImagen());
+
+		return noticiaDTO;
+	}
+
+	// Método para mapear NoticiaDTO a Noticia
+	private static Resultado toEntity(ResultadoDTO noticiaDTO) {
+		if (noticiaDTO == null) {
+			return null;
+		}
+
+		Resultado noticia = new Resultado();
+		noticia.setId(noticiaDTO.getId());
+		noticia.setTitulo(noticiaDTO.getTitulo());
+		noticia.setContenido(noticiaDTO.getContenido());
+		noticia.setFecha(noticiaDTO.getFecha());
+		noticia.setImagen(noticiaDTO.getImagen());
+
+		return noticia;
+	}
+
+	// Métodos para transformar listas de entidades a listas de DTOs
+	private static List<ResultadoDTO> toDTOList(List<Resultado> noticias) {
+		List<ResultadoDTO> listaNoticias = new ArrayList<ResultadoDTO>();
+		for (Resultado j : noticias) {
+			listaNoticias.add(toDTO(j));
+		}
+		return listaNoticias;
+	}
+
+}

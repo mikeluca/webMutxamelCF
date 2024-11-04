@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Mutxamel Club de Fútbol</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link th:href="@{/css/estilos.css}" rel="stylesheet">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+	<link href="https://fonts.googleapis.com/css2?family=Fredericka+the+Great&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+	<!-- Incluir el header -->
+	<div th:replace="~{cabecera.html}"></div>
+
+	<main class="container my-5 lead">
+		<h1 class="text-center mb-5 fw-bold">Últimas Noticias</h1>
+		<div class="noticias-grid">
+			<div class="card h-100" th:each="noticia : ${noticias}">
+
+				<div th:if="${noticia.imagenBase64 != null}">
+					<img th:src="'data:image/jpeg;base64,' + ${noticia.imagenBase64}" class="card-img-top noticia-img"
+						alt="Imagen de Noticia" />
+				</div>
+				<div th:if="${noticia.imagenBase64 == null}">
+					<img th:src="@{/images/noticia3.jpg}" class="card-img-top noticia-img" alt="Imagen Noticia">
+				</div>
+
+				<div class="card-body">
+					<h2 class="card-title text-center" th:text="${noticia.titulo}"></h2>
+					<p class="card-text" th:text="${#strings.abbreviate(noticia.contenido, 100)}"></p>
+					<!-- Límite de 100 caracteres -->
+					<a th:href="@{/ampliarNoticia/{id}(id=${noticia.id})}" class="btn btn-primary">Leer más</a>
+					<!-- Botón de leer más -->
+				</div>
+			</div>
+		</div>
+
+		<h2 class="text-center m-5 fw-bold">Nuestros Patrocinadores</h2>
+		<div class="row">
+			<div class="col-6 col-sm-4 col-md-4 col-lg-2 mb-4" th:each="patrocinador : ${patrocinadores}">
+				<div class="text-center">
+					<img th:src="@{'/images/' + ${patrocinador}}" class="patrocinador-img" alt="Patrocinador"
+						width="100%">
+				</div>
+			</div>
+		</div>
+	</main>
+
+	<!-- Incluir el footer -->
+	<div th:replace="~{footer.html}"></div>
+
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

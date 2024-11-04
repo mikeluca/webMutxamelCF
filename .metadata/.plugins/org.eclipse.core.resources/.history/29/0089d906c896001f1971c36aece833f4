@@ -1,0 +1,12 @@
+<footer class="bg-dark text-white text-center py-3">
+	<p>Mutxamel CF © Todos los derechos reservados.</p>
+
+	<button class="btn btn-primary m-3" onclick="redirectToLogin()">Iniciar Sesión</button>
+
+	<script>
+		function redirectToLogin() {
+			window.location.href = "/login";
+		}
+	</script>
+
+</footer>

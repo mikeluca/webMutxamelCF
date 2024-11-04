@@ -1,0 +1,73 @@
+package com.mikedev.mutxamelcf.dao.impl;
+
+import java.util.List;
+
+import org.springframework.boot.autoconfigure.security.SecurityProperties.User;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Repository;
+
+import com.mikedev.mutxamelcf.dao.UsuarioDao;
+import com.mikedev.mutxamelcf.model.Usuario;
+
+@Repository
+public class UsuarioDaoImpl implements UsuarioDao {
+
+	private final JdbcTemplate jdbcTemplate;
+
+	public UsuarioDaoImpl(JdbcTemplate jdbcTemplate) {
+		this.jdbcTemplate = jdbcTemplate;
+	}
+
+	@SuppressWarnings("deprecation")
+	public Usuario validarUsuario(String usuario, String password) {
+		String sql = "SELECT id, usuario, password, rol FROM usuarios WHERE usuario = ?";
+
+		try {
+			// Mapeo de la fila de resultados a un objeto Usuario
+			Usuario usuarioBD = jdbcTemplate.queryForObject(sql, new Object[] { usuario }, usuarioRowMapper);
+
+			// Verifica la contraseña
+			if (usuarioBD != null && password.equals(usuarioBD.getPassword())) {
+				return usuarioBD; // Devuelve el objeto Usuario completo si la contraseña es correcta
+			}
+		} catch (Exception e) {
+			// Maneja la excepción en caso de que el usuario no exista
+			System.out.println("Usuario no encontrado o contraseña incorrecta.");
+		}
+
+		return null; // Retorna null si la validación falla
+	}
+
+	// RowMapper para mapear los resultados de la consulta al objeto Usuario
+	private final RowMapper<Usuario> usuarioRowMapper = (rs, rowNum) -> {
+		Usuario usuario = new Usuario();
+		usuario.setId(rs.getLong("id"));
+		usuario.setUsuario(rs.getString("usuario"));
+		usuario.setPassword(rs.getString("password"));
+		usuario.setRole(rs.getString("role"));
+		return usuario;
+	};
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+		// Consulta el usuario
+		Usuario user = jdbcTemplate.queryForObject("SELECT * FROM usuarios WHERE username = ?",
+				new Object[] { usuario }, usuarioRowMapper);
+
+		if (user == null) {
+			throw new UsernameNotFoundException("Usuario no encontrado");
+		}
+
+		// Consulta roles del usuario
+		List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(user.getRole()));
+
+		return new User(user.getUsername(), user.getPassword(), authorities);
+
+	}
+
+}

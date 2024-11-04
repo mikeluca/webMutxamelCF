@@ -1,0 +1,15 @@
+package com.mikedev.mutxamelcf.dao;
+
+import java.util.List;
+
+import com.mikedev.mutxamelcf.model.CuerpoTecnico;
+
+public interface CuerpoTecnicoDao {
+	boolean guardar(CuerpoTecnico cuerpoTecnico);
+
+	CuerpoTecnico obtenerPorId(String dni);
+
+	List<CuerpoTecnico> obtenerTodosPorCategoria(String categoria);
+
+	void eliminar(String dni);
+}

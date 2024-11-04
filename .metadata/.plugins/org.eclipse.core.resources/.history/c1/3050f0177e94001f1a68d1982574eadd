@@ -1,0 +1,22 @@
+package com.mikedev.mutxamelcf.dao.impl;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import com.mikedev.mutxamelcf.dao.ResultadoDao;
+import com.mikedev.mutxamelcf.model.Resultado;
+
+public class ResultadoDaoImpl implements ResultadoDao {
+
+	private final JdbcTemplate jdbcTemplate;
+
+	public NoticiaDaoImpl(JdbcTemplate jdbcTemplate) {
+		this.jdbcTemplate = jdbcTemplate;
+	}
+
+	@Override
+	public void actualizarResultado(Resultado resultado) {
+		// TODO Auto-generated method stub
+
+	}
+
+}

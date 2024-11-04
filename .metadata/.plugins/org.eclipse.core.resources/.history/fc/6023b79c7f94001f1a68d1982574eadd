@@ -1,0 +1,20 @@
+package com.mikedev.mutxamelcf.serviceimpl;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.mikedev.mutxamelcf.dao.ResultadoDao;
+import com.mikedev.mutxamelcf.model.ResultadoDTO;
+import com.mikedev.mutxamelcf.service.ResultadoService;
+
+public class ResultadoServiceImpl implements ResultadoService {
+
+	@Autowired
+	private ResultadoDao resultadoDao;
+
+	@Override
+	public void actualizarResultado(ResultadoDTO resultado) {
+		resultadoDao.actualizarResultado(resultado);
+
+	}
+
+}

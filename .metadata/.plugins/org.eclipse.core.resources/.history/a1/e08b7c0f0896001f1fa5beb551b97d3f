@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Mutxamel Club de Fútbol</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link th:href="@{/css/estilos.css}" rel="stylesheet">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+	<link href="https://fonts.googleapis.com/css2?family=Fredericka+the+Great&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
+</head>
+
+<body>
+
+	<!-- Incluir el header -->
+	<div th:replace="~{cabecera.html}"></div>
+
+	<div class="container mt-5 lead">
+		<h1 class="text-center">Gestión de las Noticias</h1>
+
+		<div class=" d-flex justify-content-between align-items-center mb-4"> <!-- Contenedor flex para alineación -->
+			<!-- Botón para nueva noticia -->
+			<button class="btn btn-success mb-4" data-toggle="modal" data-target="#noticiaModal"
+				onclick="limpiarFormulario()">Nueva noticia</button>
+		</div>
+
+		<!-- Tabla de noticias -->
+		<table class="table table-striped w-100">
+			<thead>
+				<tr>
+					<th style="width: 70%;">Titulo</th> <!-- Ajusta el ancho de la columna -->
+					<th style="width: 20%;">Fecha</th> <!-- Ajuste mínimo para la columna de categoría -->
+					<th style="width: 10%;"></th> <!-- Ajuste mínimo para la columna de botones -->
+				</tr>
+			</thead>
+			<tbody>
+				<tr th:each="noticia : ${listaNoticias}">
+					<td th:text="${noticia.titulo}"></td>
+					<td th:text="${noticia.fecha}"></td>
+					<td>
+						<!-- Botón para borrar noticia -->
+						<form th:action="@{'/admin/noticias/borrar/' + ${noticia.id}}" method="post"
+							style="display:inline;">
+							<button type="submit" class="btn btn-danger btn-sm"
+								onclick="return confirm('¿Estás seguro de que deseas borrar esta noticia?');">
+								<i class="bi bi-trash"></i> <!-- Ícono de eliminar -->
+							</button>
+						</form>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+
+	<!-- Modal para crear/editar noticia -->
+	<div class="modal fade lead" id="noticiaModal" tabindex="-1" role="dialog" aria-labelledby="noticiaModalLabel"
+		aria-hidden="true">
+		<div class="modal-dialog modal-lg" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 class="modal-title lead" id="noticiaModalLabel">Nueva Noticia</h3>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<form id="noticiaForm" enctype="multipart/form-data">
+					<div class="modal-body">
+						<!-- Campo para el título -->
+						<div class="form-group">
+							<label for="titulo">Titulo:</label>
+							<input type="text" class="form-control" id="titulo" name="titulo" required>
+						</div>
+						<!-- Campo para el contenido con un cuadro de texto grande -->
+						<div class="form-group">
+							<label for="contenido">Contenido:</label>
+							<textarea class="form-control" id="contenido" name="contenido" rows="10"
+								required></textarea>
+						</div>
+						<!-- Campo para subir foto-->
+						<div class="form-group">
+							<label for="imagen">Imagen</label>
+							<input type="file" class="form-control-file" id="imagen" name="imagen" accept="image/*">
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+						<button type="submit" class="btn btn-primary" onclick="guardarNoticia()">Guardar
+							Cambios</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<!-- Incluir el footer -->
+	<div th:replace="~{footer.html}"></div>
+
+	<script>
+		function guardarNoticia() {
+			// Obtén los datos del formulario
+			const formData = new FormData(document.getElementById('noticiaForm'));
+
+			// Enviar el formulario con AJAX
+			fetch('/admin/noticias/guardar', {
+				method: 'POST',
+				body: formData
+			}).catch(error => console.error('Error:', error));
+		}
+
+		function limpiarFormulario() {
+			document.getElementById('titulo').value = '';
+			document.getElementById('contenido').value = '';
+			document.getElementById('imagen').value = '';
+			document.getElementById('noticiaModalLabel').textContent = 'Nueva Noticia';
+		}
+
+	</script>
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+
+</html>

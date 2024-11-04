@@ -1,0 +1,15 @@
+<footer class="bg-dark text-white text-center py-3">
+	<p>Mutxamel CF © Todos los derechos reservados.</p>
+
+	<!--	<button class="btn btn-primary" onclick="redirectToLogin()">Cerrar Sesión</button>-->
+	<form th:action="@{/logout}" method="post" style="display: inline;">
+		<button type="submit" class="btn btn-danger">Cerrar sesión</button>
+	</form>
+
+	<script>
+		function redirectToLogin() {
+			window.location.href = "/index";
+		}
+	</script>
+
+</footer>

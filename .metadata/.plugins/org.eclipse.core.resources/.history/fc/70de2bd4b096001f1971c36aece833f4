@@ -1,0 +1,51 @@
+package com.mikedev.mutxamelcf.mvc.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+//	private final UserDetailsService userDetailsService;
+
+//	public SecurityConfig(UserDetailsService userDetailsService) {
+//		this.userDetailsService = userDetailsService;
+//	}
+
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+		http.authorizeRequests().requestMatchers("/admin").hasRole("ADMIN") // Restringe acceso /admin solo ADMIN
+				.anyRequest().permitAll() // Permite acceso a todas las demás rutas
+				.and().formLogin().loginPage("/login") // Configura tu página de login
+				.permitAll() // Permitir acceso a la página de login
+				.and().logout().permitAll(); // Permitir acceso a la página de logout
+//		http.authoriz	eHttpRequests(auth -> auth.anyRequest().permitAll() // Permitir todas las solicitudes sin
+		// restricciones
+//		);
+
+//		http.authorizeHttpRequests(auth -> auth.requestMatchers("/admin/**").hasRole("ADMIN") // Ruta protegida
+//				.anyRequest().permitAll()).formLogin(form -> form.loginPage("/index") // La página de inicio de sesión
+//						.loginProcessingUrl("/index") // Procesamiento del formulario
+//						.defaultSuccessUrl("/index") // Redirige a la página principal al iniciar sesión
+//						.failureUrl("/index?error=true").permitAll())
+//				.logout(logout -> logout.logoutUrl("/index").logoutSuccessUrl("/index") // Redirige al cerrar sesión
+//						.invalidateHttpSession(true).deleteCookies("JSESSIONID"));
+
+		return http.build();
+	}
+
+//	@Bean
+//	public PasswordEncoder passwordEncoder() {
+//		return new BCryptPasswordEncoder();
+//	}
+
+//	@Bean
+//	public void configureGlobal(AuthenticationManagerBuilder auth) throws Exception {
+//		auth.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder());
+//	}
+
+}

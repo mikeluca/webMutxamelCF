@@ -1,0 +1,7 @@
+package com.mikedev.mutxamelcf.dao.impl;
+
+import com.mikedev.mutxamelcf.dao.ResultadoDao;
+
+public class ResultadoDaoImpl implements ResultadoDao {
+
+}

@@ -1,0 +1,24 @@
+package com.mikedev.mutxamelcf.dao;
+
+import java.util.List;
+import java.util.Map;
+
+import com.mikedev.mutxamelcf.model.Equipo;
+
+public interface EquipoDao {
+
+	boolean guardar(Equipo equipo);
+
+	List<String> obtenerCategorias();
+
+	List<Equipo> obtenerTodos();
+
+	List<Equipo> obtenerTodosPorCategoria(String categoria);
+
+	Equipo obtenerEquipoPorId(Long id);
+
+	void eliminarEquipo(Long id);
+
+	Map<String, List<Equipo>> obtenerEquiposAgrupadosPorCategoria();
+
+}

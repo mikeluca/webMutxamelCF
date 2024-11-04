@@ -1,0 +1,157 @@
+package com.mikedev.mutxamelcf.dao.impl;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
+
+import com.mikedev.mutxamelcf.dao.CuerpoTecnicoDao;
+import com.mikedev.mutxamelcf.model.CuerpoTecnico;
+
+@Repository
+public class CuerpoTecnicoDaoImpl implements CuerpoTecnicoDao {
+
+	private final JdbcTemplate jdbcTemplate;
+
+	public CuerpoTecnicoDaoImpl(JdbcTemplate jdbcTemplate) {
+		this.jdbcTemplate = jdbcTemplate;
+	}
+
+	@Override
+	public boolean guardar(CuerpoTecnico cuerpoTecnico) {
+		if (existeCuerpoTecnico(cuerpoTecnico.getDni())) {
+			String sql = "UPDATE cuerpo_tecnico SET nombre = ?, apellidos = ?, fecha_nacimiento = ?, poblacion = ?, "
+					+ "nacionalidad = ?, categoria = ?, equipo = ?, puesto = ?, foto = ? WHERE dni = ?";
+
+			return (jdbcTemplate.update(sql, cuerpoTecnico.getNombre(), cuerpoTecnico.getApellidos(),
+					cuerpoTecnico.getFechaNacimiento(), cuerpoTecnico.getPoblacion(), cuerpoTecnico.getNacionalidad(),
+					cuerpoTecnico.getCategoria(), cuerpoTecnico.getEquipo(), cuerpoTecnico.getPuesto(),
+					cuerpoTecnico.getFoto(), cuerpoTecnico.getDni()) == 1);
+
+		} else {
+			String sql = "INSERT INTO cuerpo_tecnico (dni, nombre, apellidos, fecha_nacimiento, poblacion, "
+					+ "nacionalidad, categoria, equipo, puesto, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+			return (jdbcTemplate.update(sql, cuerpoTecnico.getDni(), cuerpoTecnico.getNombre(),
+					cuerpoTecnico.getApellidos(), cuerpoTecnico.getFechaNacimiento(), cuerpoTecnico.getPoblacion(),
+					cuerpoTecnico.getNacionalidad(), cuerpoTecnico.getCategoria(), cuerpoTecnico.getEquipo(),
+					cuerpoTecnico.getPuesto(), cuerpoTecnico.getFoto()) == 1);
+		}
+
+	}
+
+	@SuppressWarnings("deprecation")
+	private boolean existeCuerpoTecnico(String dni) {
+		String sql = "SELECT COUNT(*) FROM cuerpo_tecnico WHERE dni = ?";
+
+		// Ejecutar la query y obtener el número de jugadores con ese DNI
+		Integer count = jdbcTemplate.queryForObject(sql, new Object[] { dni }, Integer.class);
+
+		// Si el count es mayor que 0, significa que existe el jugador
+		return count != null && count > 0;
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public CuerpoTecnico obtenerPorId(String dni) {
+		String sql = "SELECT * FROM cuerpo_tecnico WHERE dni = ?";
+
+		return jdbcTemplate.queryForObject(sql, new Object[] { dni }, new RowMapper<CuerpoTecnico>() {
+			@Override
+			public CuerpoTecnico mapRow(ResultSet rs, int rowNum) throws SQLException {
+				CuerpoTecnico cuerpoTecnico = new CuerpoTecnico();
+				cuerpoTecnico.setDni(rs.getString("dni"));
+				cuerpoTecnico.setNombre(rs.getString("nombre"));
+				cuerpoTecnico.setApellidos(rs.getString("apellidos"));
+				cuerpoTecnico.setFechaNacimiento(rs.getDate("fecha_nacimiento"));
+				cuerpoTecnico.setPoblacion(rs.getString("poblacion"));
+				cuerpoTecnico.setNacionalidad(rs.getString("nacionalidad"));
+				cuerpoTecnico.setCategoria(rs.getString("categoria"));
+				cuerpoTecnico.setEquipo(rs.getString("equipo"));
+				cuerpoTecnico.setPuesto(rs.getString("puesto"));
+				cuerpoTecnico.setFoto(rs.getBytes("foto"));
+				return cuerpoTecnico;
+			}
+		});
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public List<CuerpoTecnico> obtenerTodosPorCategoria(String categoria) {
+		String sql = "SELECT * FROM cuerpo_tecnico WHERE categoria = ? ORDER BY equipo, apellidos";
+
+		return jdbcTemplate.query(sql, new Object[] { categoria }, new RowMapper<CuerpoTecnico>() {
+			@Override
+			public CuerpoTecnico mapRow(ResultSet rs, int rowNum) throws SQLException {
+				CuerpoTecnico cuerpoTecnico = new CuerpoTecnico();
+				cuerpoTecnico.setDni(rs.getString("dni"));
+				cuerpoTecnico.setNombre(rs.getString("nombre"));
+				cuerpoTecnico.setApellidos(rs.getString("apellidos"));
+				cuerpoTecnico.setFechaNacimiento(rs.getDate("fecha_nacimiento"));
+				cuerpoTecnico.setPoblacion(rs.getString("poblacion"));
+				cuerpoTecnico.setNacionalidad(rs.getString("nacionalidad"));
+				cuerpoTecnico.setCategoria(rs.getString("categoria"));
+				cuerpoTecnico.setEquipo(rs.getString("equipo"));
+				cuerpoTecnico.setPuesto(rs.getString("puesto"));
+				cuerpoTecnico.setFoto(rs.getBytes("foto"));
+				return cuerpoTecnico;
+			}
+		});
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public List<CuerpoTecnico> obtenerTodosPorEquipo(String equipo) {
+		String sql = "SELECT * FROM cuerpo_tecnico WHERE equipo = ? ORDER BY equipo, apellidos";
+
+		return jdbcTemplate.query(sql, new Object[] { equipo }, new RowMapper<CuerpoTecnico>() {
+			@Override
+			public CuerpoTecnico mapRow(ResultSet rs, int rowNum) throws SQLException {
+				CuerpoTecnico cuerpoTecnico = new CuerpoTecnico();
+				cuerpoTecnico.setDni(rs.getString("dni"));
+				cuerpoTecnico.setNombre(rs.getString("nombre"));
+				cuerpoTecnico.setApellidos(rs.getString("apellidos"));
+				cuerpoTecnico.setFechaNacimiento(rs.getDate("fecha_nacimiento"));
+				cuerpoTecnico.setPoblacion(rs.getString("poblacion"));
+				cuerpoTecnico.setNacionalidad(rs.getString("nacionalidad"));
+				cuerpoTecnico.setCategoria(rs.getString("categoria"));
+				cuerpoTecnico.setEquipo(rs.getString("equipo"));
+				cuerpoTecnico.setPuesto(rs.getString("puesto"));
+				cuerpoTecnico.setFoto(rs.getBytes("foto"));
+				return cuerpoTecnico;
+			}
+		});
+	}
+
+	@Override
+	public void eliminar(String dni) {
+		String sql = "DELETE FROM cuerpo_tecnico WHERE dni = ?";
+		jdbcTemplate.update(sql, dni);
+	}
+
+	@Override
+	public List<CuerpoTecnico> obtenerTodos() {
+		String sql = "SELECT * FROM cuerpo_tecnico ORDER BY equipo, apellidos";
+
+		return jdbcTemplate.query(sql, new RowMapper<CuerpoTecnico>() {
+			@Override
+			public CuerpoTecnico mapRow(ResultSet rs, int rowNum) throws SQLException {
+				CuerpoTecnico cuerpoTecnico = new CuerpoTecnico();
+				cuerpoTecnico.setDni(rs.getString("dni"));
+				cuerpoTecnico.setNombre(rs.getString("nombre"));
+				cuerpoTecnico.setApellidos(rs.getString("apellidos"));
+				cuerpoTecnico.setFechaNacimiento(rs.getDate("fecha_nacimiento"));
+				cuerpoTecnico.setPoblacion(rs.getString("poblacion"));
+				cuerpoTecnico.setNacionalidad(rs.getString("nacionalidad"));
+				cuerpoTecnico.setCategoria(rs.getString("categoria"));
+				cuerpoTecnico.setEquipo(rs.getString("equipo"));
+				cuerpoTecnico.setPuesto(rs.getString("puesto"));
+				cuerpoTecnico.setFoto(rs.getBytes("foto"));
+				return cuerpoTecnico;
+			}
+		});
+	}
+}

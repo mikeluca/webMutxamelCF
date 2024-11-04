@@ -1,0 +1,241 @@
+#
+# There is insufficient memory for the Java Runtime Environment to continue.
+# Native memory allocation (mmap) failed to map 134217728 bytes. Error detail: G1 virtual space
+# Possible reasons:
+#   The system is out of physical RAM or swap space
+#   This process is running with CompressedOops enabled, and the Java Heap may be blocking the growth of the native heap
+# Possible solutions:
+#   Reduce memory load on the system
+#   Increase physical memory or swap space
+#   Check if swap backing store is full
+#   Decrease Java heap size (-Xmx/-Xms)
+#   Decrease number of Java threads
+#   Decrease Java thread stack sizes (-Xss)
+#   Set larger code cache with -XX:ReservedCodeCacheSize=
+#   JVM is running with Unscaled Compressed Oops mode in which the Java heap is
+#     placed in the first 4GB address space. The Java Heap base address is the
+#     maximum limit for the native heap growth. Please use -XX:HeapBaseMinAddress
+#     to set the Java Heap base and to place the Java Heap above 4GB virtual address.
+# This output file may be truncated or incomplete.
+#
+#  Out of Memory Error (os_windows.cpp:3616), pid=29780, tid=21304
+#
+# JRE version:  (21.0.4+7) (build )
+# Java VM: OpenJDK 64-Bit Server VM (21.0.4+7-LTS, mixed mode, emulated-client, sharing, tiered, compressed oops, compressed class ptrs, g1 gc, windows-amd64)
+# No core dump will be written. Minidumps are not enabled by default on client versions of Windows
+#
+
+---------------  S U M M A R Y ------------
+
+Command Line: -XX:+ShowCodeDetailsInExceptionMessages -agentlib:jdwp=transport=dt_socket,suspend=y,address=localhost:50089 -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=50088 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=localhost -Dspring.jmx.enabled=true -Dmanagement.endpoints.jmx.exposure.include=* -Dspring.application.admin.enabled=true -XX:TieredStopAtLevel=1 -Dspring.boot.project.name=mvc -javaagent:C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\configuration\org.eclipse.osgi\271\0\.cp\lib\javaagent-shaded.jar -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 com.mikedev.mutxamelcf.Application --spring.output.ansi.enabled=always
+
+Host: Intel(R) Core(TM) i7-7700HQ CPU @ 2.80GHz, 8 cores, 7G,  Windows 10 , 64 bit Build 19041 (10.0.19041.4957)
+Time: Wed Oct 23 12:02:14 2024 Hora de verano romance elapsed time: 0.020556 seconds (0d 0h 0m 0s)
+
+---------------  T H R E A D  ---------------
+
+Current thread (0x000002a9b9dcd360):  JavaThread "Unknown thread" [_thread_in_vm, id=21304, stack(0x000000eef7500000,0x000000eef7600000) (1024K)]
+
+Stack: [0x000000eef7500000,0x000000eef7600000]
+Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
+V  [jvm.dll+0x6cbcf9]
+V  [jvm.dll+0x8a5551]
+V  [jvm.dll+0x8a7a7e]
+V  [jvm.dll+0x8a8153]
+V  [jvm.dll+0x27eca6]
+V  [jvm.dll+0x6c8445]
+V  [jvm.dll+0x6bd13a]
+V  [jvm.dll+0x354a0a]
+V  [jvm.dll+0x35c5b6]
+V  [jvm.dll+0x3adf3e]
+V  [jvm.dll+0x3ae1e8]
+V  [jvm.dll+0x328bcc]
+V  [jvm.dll+0x32972b]
+V  [jvm.dll+0x86e7b9]
+V  [jvm.dll+0x3bac91]
+V  [jvm.dll+0x857973]
+V  [jvm.dll+0x44f32e]
+V  [jvm.dll+0x450f71]
+C  [jli.dll+0x5278]
+C  [ucrtbase.dll+0x21bb2]
+C  [KERNEL32.DLL+0x17374]
+C  [ntdll.dll+0x4cc91]
+
+
+---------------  P R O C E S S  ---------------
+
+Threads class SMR info:
+_java_thread_list=0x00007ffb07bb3088, length=0, elements={
+}
+
+Java Threads: ( => current thread )
+Total: 0
+
+Other Threads:
+  0x000002a9bc012800 WorkerThread "GC Thread#0"                     [id=15104, stack(0x000000eef7600000,0x000000eef7700000) (1024K)]
+  0x000002a9bc0617b0 ConcurrentGCThread "G1 Main Marker"            [id=30872, stack(0x000000eef7700000,0x000000eef7800000) (1024K)]
+  0x000002a9bc0629d0 WorkerThread "G1 Conc#0"                       [id=17116, stack(0x000000eef7800000,0x000000eef7900000) (1024K)]
+
+[error occurred during error reporting (printing all threads), id 0xc0000005, EXCEPTION_ACCESS_VIOLATION (0xc0000005) at pc=0x00007ffb072bb4f7]
+VM state: not at safepoint (not fully initialized)
+
+VM Mutex/Monitor currently owned by a thread:  ([mutex/lock_event])
+[0x00007ffb07c27408] Heap_lock - owner thread: 0x000002a9b9dcd360
+
+Heap address: 0x0000000081400000, size: 2028 MB, Compressed Oops mode: 32-bit
+
+CDS archive(s) mapped at: [0x0000000000000000-0x0000000000000000-0x0000000000000000), size 0, SharedBaseAddress: 0x0000000800000000, ArchiveRelocationMode: 1.
+Narrow klass base: 0x0000000000000000, Narrow klass shift: 0, Narrow klass range: 0x0
+
+GC Precious Log:
+ CardTable entry size: 512
+ Card Set container configuration: InlinePtr #cards 5 size 8 Array Of Cards #cards 12 size 40 Howl #buckets 4 coarsen threshold 1843 Howl Bitmap #cards 512 size 80 coarsen threshold 460 Card regions per heap region 1 cards per card region 2048
+
+Heap:
+ garbage-first heap   total 0K, used 0K [0x0000000081400000, 0x0000000100000000)
+  region size 1024K, 0 young (0K), 0 survivors (0K)
+
+[error occurred during error reporting (printing heap information), id 0xc0000005, EXCEPTION_ACCESS_VIOLATION (0xc0000005) at pc=0x00007ffb076a5669]
+GC Heap History (0 events):
+No events
+
+Dll operation events (1 events):
+Event: 0.014 Loaded shared library C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551\jre\bin\java.dll
+
+Deoptimization events (0 events):
+No events
+
+Classes loaded (0 events):
+No events
+
+Classes unloaded (0 events):
+No events
+
+Classes redefined (0 events):
+No events
+
+Internal exceptions (0 events):
+No events
+
+ZGC Phase Switch (0 events):
+No events
+
+VM Operations (0 events):
+No events
+
+Memory protections (0 events):
+No events
+
+Nmethod flushes (0 events):
+No events
+
+Events (0 events):
+No events
+
+
+Dynamic libraries:
+0x00007ff670500000 - 0x00007ff67050e000 	C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551\jre\bin\javaw.exe
+0x00007ffb5fb90000 - 0x00007ffb5fd88000 	C:\WINDOWS\SYSTEM32\ntdll.dll
+0x00007ffb5ea30000 - 0x00007ffb5eaf2000 	C:\WINDOWS\System32\KERNEL32.DLL
+0x00007ffb5d910000 - 0x00007ffb5dc0e000 	C:\WINDOWS\System32\KERNELBASE.dll
+0x00007ffb5d290000 - 0x00007ffb5d390000 	C:\WINDOWS\System32\ucrtbase.dll
+0x00007ffb57670000 - 0x00007ffb5768b000 	C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551\jre\bin\VCRUNTIME140.dll
+0x00007ffb4e880000 - 0x00007ffb4e898000 	C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551\jre\bin\jli.dll
+0x00007ffb5eea0000 - 0x00007ffb5f03d000 	C:\WINDOWS\System32\USER32.dll
+0x00007ffb5d8e0000 - 0x00007ffb5d902000 	C:\WINDOWS\System32\win32u.dll
+0x00007ffb45d60000 - 0x00007ffb45ffa000 	C:\WINDOWS\WinSxS\amd64_microsoft.windows.common-controls_6595b64144ccf1df_6.0.19041.4355_none_60b8b9eb71f62e16\COMCTL32.dll
+0x00007ffb5dc90000 - 0x00007ffb5dcbb000 	C:\WINDOWS\System32\GDI32.dll
+0x00007ffb5ddf0000 - 0x00007ffb5de8e000 	C:\WINDOWS\System32\msvcrt.dll
+0x00007ffb5d430000 - 0x00007ffb5d547000 	C:\WINDOWS\System32\gdi32full.dll
+0x00007ffb5d550000 - 0x00007ffb5d5ed000 	C:\WINDOWS\System32\msvcp_win.dll
+0x00007ffb5f530000 - 0x00007ffb5f55f000 	C:\WINDOWS\System32\IMM32.DLL
+0x00007ffb58c40000 - 0x00007ffb58c4c000 	C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551\jre\bin\vcruntime140_1.dll
+0x00007ffb44800000 - 0x00007ffb4488e000 	C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551\jre\bin\msvcp140.dll
+0x00007ffb06f80000 - 0x00007ffb07d08000 	C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551\jre\bin\server\jvm.dll
+0x00007ffb5f250000 - 0x00007ffb5f302000 	C:\WINDOWS\System32\ADVAPI32.dll
+0x00007ffb5fab0000 - 0x00007ffb5fb50000 	C:\WINDOWS\System32\sechost.dll
+0x00007ffb5eb10000 - 0x00007ffb5ec33000 	C:\WINDOWS\System32\RPCRT4.dll
+0x00007ffb5d390000 - 0x00007ffb5d3b7000 	C:\WINDOWS\System32\bcrypt.dll
+0x00007ffb5f1e0000 - 0x00007ffb5f24b000 	C:\WINDOWS\System32\WS2_32.dll
+0x00007ffb5c7d0000 - 0x00007ffb5c81b000 	C:\WINDOWS\SYSTEM32\POWRPROF.dll
+0x00007ffb55990000 - 0x00007ffb5599a000 	C:\WINDOWS\SYSTEM32\VERSION.dll
+0x00007ffb50490000 - 0x00007ffb504b7000 	C:\WINDOWS\SYSTEM32\WINMM.dll
+0x00007ffb5c690000 - 0x00007ffb5c6a2000 	C:\WINDOWS\SYSTEM32\UMPDC.dll
+0x00007ffb5bab0000 - 0x00007ffb5bac2000 	C:\WINDOWS\SYSTEM32\kernel.appcore.dll
+0x00007ffb59620000 - 0x00007ffb5962a000 	C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551\jre\bin\jimage.dll
+0x00007ffb5af70000 - 0x00007ffb5b154000 	C:\WINDOWS\SYSTEM32\DBGHELP.DLL
+0x00007ffb41000000 - 0x00007ffb41034000 	C:\WINDOWS\SYSTEM32\dbgcore.DLL
+0x00007ffb5d6a0000 - 0x00007ffb5d722000 	C:\WINDOWS\System32\bcryptPrimitives.dll
+0x00007ffb43a80000 - 0x00007ffb43abc000 	C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551\jre\bin\jdwp.dll
+0x00007ffb59580000 - 0x00007ffb5958f000 	C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551\jre\bin\instrument.dll
+0x00007ffb59600000 - 0x00007ffb5961f000 	C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551\jre\bin\java.dll
+
+dbghelp: loaded successfully - version: 4.0.5 - missing functions: none
+symbol engine: initialized successfully - sym options: 0x614 - pdb path: .;C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551\jre\bin;C:\WINDOWS\SYSTEM32;C:\WINDOWS\WinSxS\amd64_microsoft.windows.common-controls_6595b64144ccf1df_6.0.19041.4355_none_60b8b9eb71f62e16;C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551\jre\bin\server
+
+VM Arguments:
+jvm_args: -XX:+ShowCodeDetailsInExceptionMessages -agentlib:jdwp=transport=dt_socket,suspend=y,address=localhost:50089 -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=50088 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=localhost -Dspring.jmx.enabled=true -Dmanagement.endpoints.jmx.exposure.include=* -Dspring.application.admin.enabled=true -XX:TieredStopAtLevel=1 -Dspring.boot.project.name=mvc -javaagent:C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\configuration\org.eclipse.osgi\271\0\.cp\lib\javaagent-shaded.jar -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 
+java_command: com.mikedev.mutxamelcf.Application --spring.output.ansi.enabled=always
+java_class_path (initial): C:\Users\Miguel A. Riera\Desktop\mvc\target\classes;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\boot\spring-boot-starter-thymeleaf\3.3.4\spring-boot-starter-thymeleaf-3.3.4.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\boot\spring-boot-starter\3.3.4\spring-boot-starter-3.3.4.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\boot\spring-boot-starter-logging\3.3.4\spring-boot-starter-logging-3.3.4.jar;C:\Users\Miguel A. Riera\.m2\repository\ch\qos\logback\logback-classic\1.5.8\logback-classic-1.5.8.jar;C:\Users\Miguel A. Riera\.m2\repository\ch\qos\logback\logback-core\1.5.8\logback-core-1.5.8.jar;C:\Users\Miguel A. Riera\.m2\repository\org\apache\logging\log4j\log4j-to-slf4j\2.23.1\log4j-to-slf4j-2.23.1.jar;C:\Users\Miguel A. Riera\.m2\repository\org\apache\logging\log4j\log4j-api\2.23.1\log4j-api-2.23.1.jar;C:\Users\Miguel A. Riera\.m2\repository\org\slf4j\jul-to-slf4j\2.0.16\jul-to-slf4j-2.0.16.jar;C:\Users\Miguel A. Riera\.m2\repository\jakarta\annotation\jakarta.annotation-api\2.1.1\jakarta.annotation-api-2.1.1.jar;C:\Users\Miguel A. Riera\.m2\repository\org\yaml\snakeyaml\2.2\snakeyaml-2.2.jar;C:\Users\Miguel A. Riera\.m2\repository\org\thymeleaf\thymeleaf-spring6\3.1.2.RELEASE\thymeleaf-spring6-3.1.2.RELEASE.jar;C:\Users\Miguel A. Riera\.m2\repository\org\thymeleaf\thymeleaf\3.1.2.RELEASE\thymeleaf-3.1.2.RELEASE.jar;C:\Users\Miguel A. Riera\.m2\repository\org\attoparser\attoparser\2.0.7.RELEASE\attoparser-2.0.7.RELEASE.jar;C:\Users\Miguel A. Riera\.m2\repository\org\unbescape\unbescape\1.1.6.RELEASE\unbescape-1.1.6.RELEASE.jar;C:\Users\Miguel A. Riera\.m2\repository\org\slf4j\slf4j-api\2.0.16\slf4j-api-2.0.16.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\boot\spring-boot-starter-web\3.3.4\spring-boot-starter-web-3.3.4.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\boot\spring-boot-starter-json\3.3.4\spring-boot-starter-json-3.3.4.jar;C:\Users\Miguel A. Riera\.m2\repository\com\fasterxml\jackson\core\jackson-databind\2.17.2\jackson-databind-2.17.2.jar;C:\Users\Miguel A. Riera\.m2\repository\com\fasterxml\jackson\core\jackson-annotations\2.17.2\jackson-annotations-2.17.2.jar;C:\Users\Miguel A. Riera\.m2\repository\com\fasterxml\jackson\core\jackson-core\2.17.2\jackson-core-2.17.2.jar;C:\Users\Miguel A. Riera\.m2\repository\com\fasterxml\jackson\datatype\jackson-datatype-jdk8\2.17.2\jackson-datatype-jdk8-2.17.2.jar;C:\Users\Miguel A. Riera\.m2\repository\com\fasterxml\jackson\datatype\jackson-datatype-jsr310\2.17.2\jackson-datatype-jsr310-2.17.2.jar;C:\Users\Miguel A. Riera\.m2\repository\com\fasterxml\jackson\module\jackson-module-parameter-names\2.17.2\jackson-module-parameter-names-2.17.2.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\boot\spring-boot-starter-tomcat\3.3.4\spring-boot-starter-tomcat-3.3.4.jar;C:\Users\Miguel A. Riera\.m2\repository\org\apache\tomcat\embed\tomcat-embed-core\10.1.30\tomcat-embed-core-10.1.30.jar;C:\Users\Miguel A. Riera\.m2\repository\org\apache\tomcat\embed\tomcat-embed-el\10.1.30\tomcat-embed-el-10.1.30.jar;C:\Users\Miguel A. Riera\.m2\repository\org\apache\tomcat\embed\tomcat-embed-websocket\10.1.30\tomcat-embed-websocket-10.1.30.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\spring-web\6.1.13\spring-web-6.1.13.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\spring-beans\6.1.13\spring-beans-6.1.13.jar;C:\Users\Miguel A. Riera\.m2\repository\io\micrometer\micrometer-observation\1.13.4\micrometer-observation-1.13.4.jar;C:\Users\Miguel A. Riera\.m2\repository\io\micrometer\micrometer-commons\1.13.4\micrometer-commons-1.13.4.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\spring-webmvc\6.1.13\spring-webmvc-6.1.13.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\spring-aop\6.1.13\spring-aop-6.1.13.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\spring-context\6.1.13\spring-context-6.1.13.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\spring-expression\6.1.13\spring-expression-6.1.13.jar;C:\Users\Miguel A. Riera\.m2\repository\org\webjars\bootstrap\5.3.0\bootstrap-5.3.0.jar;C:\Users\Miguel A. Riera\.m2\repository\org\webjars\jquery\3.6.0\jquery-3.6.0.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\boot\spring-boot-devtools\3.3.4\spring-boot-devtools-3.3.4.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\boot\spring-boot\3.3.4\spring-boot-3.3.4.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\boot\spring-boot-autoconfigure\3.3.4\spring-boot-autoconfigure-3.3.4.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\spring-core\6.1.13\spring-core-6.1.13.jar;C:\Users\Miguel A. Riera\.m2\repository\org\springframework\spring-jcl\6.1.13\spring-jcl-6.1.13.jar
+Launcher Type: SUN_STANDARD
+
+[Global flags]
+     intx CICompilerCount                          = 4                                         {product} {ergonomic}
+     uint ConcGCThreads                            = 2                                         {product} {ergonomic}
+     uint G1ConcRefinementThreads                  = 8                                         {product} {ergonomic}
+   size_t G1HeapRegionSize                         = 1048576                                   {product} {ergonomic}
+    uintx GCDrainStackTargetSize                   = 64                                        {product} {ergonomic}
+   size_t InitialHeapSize                          = 134217728                                 {product} {ergonomic}
+     bool ManagementServer                         = true                                      {product} {command line}
+   size_t MarkStackSize                            = 4194304                                   {product} {ergonomic}
+   size_t MaxHeapSize                              = 2126512128                                {product} {ergonomic}
+   size_t MinHeapDeltaBytes                        = 1048576                                   {product} {ergonomic}
+   size_t MinHeapSize                              = 8388608                                   {product} {ergonomic}
+    uintx NonNMethodCodeHeapSize                   = 4096                                   {pd product} {ergonomic}
+    uintx NonProfiledCodeHeapSize                  = 0                                      {pd product} {ergonomic}
+     bool ProfileInterpreter                       = false                                  {pd product} {command line}
+    uintx ProfiledCodeHeapSize                     = 0                                      {pd product} {ergonomic}
+     bool ShowCodeDetailsInExceptionMessages       = true                                   {manageable} {command line}
+   size_t SoftMaxHeapSize                          = 2126512128                             {manageable} {ergonomic}
+     intx TieredStopAtLevel                        = 1                                         {product} {command line}
+     bool UseCompressedOops                        = true                           {product lp64_product} {ergonomic}
+     bool UseG1GC                                  = true                                      {product} {ergonomic}
+     bool UseLargePagesIndividualAllocation        = false                                  {pd product} {ergonomic}
+
+Logging:
+Log output configuration:
+ #0: stdout all=warning uptime,level,tags foldmultilines=false
+ #1: stderr all=off uptime,level,tags foldmultilines=false
+
+Environment Variables:
+JAVA_HOME=D:\MiguelARiera\TRABAJOS\jdk-21.0.5
+PATH=C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE\plugins\org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551\jre\bin;C:/Users/Miguel A. Riera/Downloads/spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64/sts-4.26.0.RELEASE//plugins/org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551/jre/bin/server;C:/Users/Miguel A. Riera/Downloads/spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64/sts-4.26.0.RELEASE//plugins/org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.4.v20240802-1551/jre/bin;C:\Program Files (x86)\Intel\iCLS Client\;C:\Program Files\Intel\iCLS Client\;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\Program Files (x86)\Intel\Intel(R) Management Engine Components\DAL;C:\Program Files\Intel\Intel(R) Management Engine Components\DAL;C:\Program Files (x86)\Intel\Intel(R) Management Engine Components\IPT;C:\Program Files\Intel\Intel(R) Management Engine Components\IPT;C:\Program Files\Intel\WiFi\bin\;C:\Program Files\Common Files\Intel\WirelessCommon\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files\AutoFirma\AutoFirma;C:\Program Files\Intel\WiFi\bin\;C:\Program Files\Common Files\Intel\WirelessCommon\;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;;C:\Users\Miguel A. Riera\Downloads\spring-tool-suite-4-4.26.0.RELEASE-e4.33.0-win32.win32.x86_64\sts-4.26.0.RELEASE;
+USERNAME=Miguel A. Riera
+OS=Windows_NT
+PROCESSOR_IDENTIFIER=Intel64 Family 6 Model 158 Stepping 9, GenuineIntel
+TMP=C:\Users\MIGUEL~1.RIE\AppData\Local\Temp
+TEMP=C:\Users\MIGUEL~1.RIE\AppData\Local\Temp
+
+
+
+
+Periodic native trim disabled
+
+---------------  S Y S T E M  ---------------
+
+OS:
+ Windows 10 , 64 bit Build 19041 (10.0.19041.4957)
+OS uptime: 13 days 18:53 hours
+
+CPU: total 8 (initial active 8) (4 cores per cpu, 2 threads per core) family 6 model 158 stepping 9 microcode 0xb4, cx8, cmov, fxsr, ht, mmx, 3dnowpref, sse, sse2, sse3, ssse3, sse4.1, sse4.2, popcnt, lzcnt, tsc, tscinvbit, avx, avx2, aes, erms, clmul, bmi1, bmi2, adx, fma, vzeroupper, clflush, clflushopt, rdtscp, f16c
+Processor Information for all 8 processors :
+  Max Mhz: 2801, Current Mhz: 2801, Mhz Limit: 2801
+
+Memory: 4k page, system-wide physical 8109M (301M free)
+TotalPageFile size 32685M (AvailPageFile size 25M)
+current process WorkingSet (physical memory assigned to process): 10M, peak: 10M
+current process commit charge ("private bytes"): 55M, peak: 183M
+
+vm_info: OpenJDK 64-Bit Server VM (21.0.4+7-LTS) for windows-amd64 JRE (21.0.4+7-LTS), built on 2024-07-16T00:00:00Z by "admin" with MS VC++ 17.7 (VS2022)
+
+END.

@@ -1,0 +1,46 @@
+<footer class="bg-dark text-white text-center py-3">
+	<p>Mutxamel CF © Todos los derechos reservados.</p>
+
+	<button th:href="@{/login}" class="btn btn-outline-primary ms-auto">
+		Iniciar sesión
+	</button>
+	<!--	<button class="btn btn-outline-primary ms-auto" data-bs-toggle="modal" data-bs-target="#loginModal">-->
+	<!--		Iniciar Sesión-->
+	<!--	</button>-->
+
+	<!-- Botón que abre el modal de inicio de sesión o muestra "Cerrar sesión" -->
+	<!--	<div>-->
+	<!--		<button id="loginButton" onclick="toggleLoginModal()" sec:authorize="not hasRole('ROLE_ADMIN')">-->
+	<!--			Iniciar sesión-->
+	<!--		</button>-->
+	<!--		<button sec:authorize="not hasRole('ROLE_ADMIN')" th:href="@{/index}" class="logout-button">-->
+	<!--			Cerrar sesión-->
+	<!--		</button>-->
+	<!--	</div>-->
+
+	<!-- Modal de inicio de sesión -->
+	<!--	<div id="loginModal" class="modal" style="display: none;">-->
+	<!--		<div class="modal-content">-->
+	<!--			<span onclick="closeLoginModal()" class="close">&times;</span>-->
+	<!--			<h2>Iniciar sesión</h2>-->
+	<!--			<form th:action="@{/login}" method="post">-->
+	<!--				<label for="username">Usuario:</label>-->
+	<!--				<input type="text" id="username" name="username" required>-->
+	<!--				<label for="password">Contraseña:</label>-->
+	<!--				<input type="password" id="password" name="password" required>-->
+	<!--				<button type="submit">Ingresar</button>-->
+	<!--			</form>-->
+	<!--		</div>-->
+	<!--	</div>-->
+
+	<!--	<script>-->
+	<!--		function toggleLoginModal() {-->
+	<!--			document.getElementById("loginModal").style.display = "block";-->
+	<!--		}-->
+
+	<!--		function closeLoginModal() {-->
+	<!--			document.getElementById("loginModal").style.display = "none";-->
+	<!--		}-->
+	<!--	</script>-->
+
+</footer>

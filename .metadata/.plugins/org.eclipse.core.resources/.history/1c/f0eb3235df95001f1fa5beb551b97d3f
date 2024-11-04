@@ -1,0 +1,82 @@
+package com.mikedev.mutxamelcf.serviceimpl;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.mikedev.mutxamelcf.model.Equipo;
+import com.mikedev.mutxamelcf.model.EquipoDTO;
+import com.mikedev.mutxamelcf.service.EquipoService;
+
+@Service
+public class EquipoServiceImpl implements EquipoService {
+
+	@Autowired
+	EquipoDao equipoDao;
+
+	@Override
+	public boolean guardar(EquipoDTO equipo) {
+		return equipoDao.guardar(toEntity(equipo));
+	}
+
+	@Override
+	public List<EquipoDTO> obtenerEquiposPorCategoria(String categoria) {
+		return toDTOList(equipoDao.obtenerEquiposPorCategoria(categoria));
+	}
+
+	@Override
+	public EquipoDTO obtenerEquipoPorId(Long id) {
+		return toDTO(equipoDao.obtenerEquipoPorId(id));
+
+	}
+
+	@Override
+	public void eliminarEquipo(Long id) {
+		equipoDao.eliminarEquipo(id);
+
+	}
+
+	// Método para mapear EquipoDTO a Equipo
+	private static Equipo toEntity(EquipoDTO equipoDTO) {
+		if (equipoDTO == null) {
+			return null;
+		}
+
+		Equipo equipo = new Equipo();
+		equipo.setId(equipoDTO.getId());
+		equipo.setCategoria(equipoDTO.getCategoria());
+		equipo.setGrupo(equipoDTO.getGrupo());
+		equipo.setOrden(equipoDTO.getOrden());
+		equipo.setNombre(equipoDTO.getNombre());
+
+		return equipo;
+	}
+
+	// Método para mapear Equipo a EquipoDTO
+	private static EquipoDTO toDTO(Equipo equipo) {
+		if (equipo == null) {
+			return null;
+		}
+
+		EquipoDTO equipoDTO = new EquipoDTO();
+		equipo.setId(equipoDTO.getId());
+		equipo.setCategoria(equipoDTO.getCategoria());
+		equipo.setGrupo(equipoDTO.getGrupo());
+		equipo.setOrden(equipoDTO.getOrden());
+		equipo.setNombre(equipoDTO.getNombre());
+
+		return equipoDTO;
+	}
+
+	// Métodos para transformar listas de entidades a listas de DTOs
+	private static List<EquipoDTO> toDTOList(List<Equipo> equipos) {
+		List<EquipoDTO> listaEquipos = new ArrayList<EquipoDTO>();
+		for (Equipo e : equipos) {
+			listaEquipos.add(toDTO(e));
+		}
+		return listaEquipos;
+	}
+
+}

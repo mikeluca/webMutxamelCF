@@ -1,0 +1,5 @@
+package com.mikedev.mutxamelcf.mvc.config;
+
+public class CustomAuthenticationProvider {
+
+}

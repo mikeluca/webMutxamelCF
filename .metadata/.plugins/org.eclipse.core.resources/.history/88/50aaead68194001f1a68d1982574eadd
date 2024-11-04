@@ -1,0 +1,185 @@
+html,
+body {
+	height: 100%;
+	/* Aseguramos que la página ocupe todo el alto del viewport */
+	margin: 0;
+}
+
+/* Usar flexbox para que el contenido principal llene el espacio disponible */
+body {
+	display: flex;
+	flex-direction: column;
+	/* Coloca los elementos en columnas */
+}
+
+/* El contenido principal debe crecer para ocupar el espacio libre */
+main {
+	flex: 1;
+	/* Hace que el main crezca y ocupe todo el espacio disponible */
+}
+
+/* Aumentar el tamaño de la clase .lead */
+.lead {
+	font-size: 2.0rem;
+	/* Puedes ajustar este valor como desees */
+}
+
+.grafiti-title {
+	font-family: 'Fredericka the Great', cursive;
+	/* Aplicar la fuente */
+	font-size: 3rem;
+	/* Tamaño de fuente */
+	color: white;
+	/* Color del texto */
+	text-align: center;
+	/* Alinear el texto */
+}
+
+header {
+	background-image: url('/images/fondo.png');
+	/* Ruta de la imagen */
+	background-size: cover;
+	/* Ajusta la imagen para cubrir todo el encabezado */
+	background-position: bottom;
+	/* Centra la imagen */
+	background-repeat: no-repeat;
+	/* Evita que la imagen se repita */
+	height: 180px;
+	/* Altura del encabezado, ajusta según tu diseño */
+	color: white;
+	justify-content: center;
+	align-items: center;
+	padding: 20px;
+}
+
+/* Ocultar el icono del menú desplegable */
+.dropdown-toggle::after {
+	display: none;
+	/* Quita la flecha que aparece por defecto */
+}
+
+/* Cambiar el color de fondo de las opciones de la barra de navegación al pasar el ratón */
+.navbar-nav .nav-link:hover {
+	background-color: rgba(173, 216, 230, 0.5);
+	/* Cambia este color al que prefieras */
+	color: #000;
+	/* Cambia el color del texto si es necesario */
+}
+
+/* Cambiar el color de fondo del elemento activo */
+.navbar-nav .nav-link.active {
+	background-color: rgba(173, 216, 230, 0.7);
+	/* Color de fondo para el elemento activo */
+	color: #000;
+	/* Cambia el color del texto si es necesario */
+}
+
+.dropdown-submenu {
+	position: relative;
+}
+
+.dropdown-submenu .dropdown-menu {
+	left: 100%;
+	top: 0;
+	margin-left: 0;
+	margin-top: 0;
+	display: none;
+	/* Ocultamos el submenú inicialmente */
+}
+
+.dropdown-submenu:hover .dropdown-menu,
+.dropdown-submenu:focus-within .dropdown-menu {
+	display: block;
+	/* Mostramos el submenú cuando se pasa el ratón o se enfoca */
+}
+
+.logo-titulo {
+	display: flex;
+	align-items: center;
+}
+
+.logo-titulo img {
+	margin-right: 15px;
+	/* Espacio entre el logo y el texto */
+}
+
+.social-icons {
+	align-content: end;
+}
+
+.social-icons img {
+	transition: transform 0.3s;
+}
+
+.social-icons img:hover {
+	transform: scale(1.5);
+	/* Aumenta el tamaño de los íconos al pasar el mouse */
+}
+
+/* Contenedor de las noticias con CSS Grid */
+.noticias-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+	/* Las tarjetas se ajustan automáticamente */
+	gap: 15px;
+	/* Espacio entre las tarjetas */
+}
+
+.noticia-img {
+	height: 350px;
+	/* Ajusta la altura deseada */
+	object-fit: cover;
+	/* Ajusta la imagen para que se recorte de forma adecuada */
+	width: 100%;
+	/* Asegura que la imagen ocupe todo el ancho del contenedor */
+}
+
+/* Contenedor de las plantillas con CSS Grid */
+.personas-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	/* Las tarjetas se ajustan automáticamente */
+	gap: 15px;
+	/* Espacio entre las tarjetas */
+}
+
+.persona-img {
+	height: 150px;
+	/* Ajusta la altura deseada */
+	object-fit: contain;
+	/* Ajusta la imagen para que se recorte de forma adecuada */
+	width: 100%;
+	/* Asegura que la imagen ocupe todo el ancho del contenedor */
+	padding: 10px;
+	border-radius: 10%;
+}
+
+table {
+	width: 80%;
+	border-collapse: collapse;
+	margin: 20px 0;
+}
+
+table,
+th,
+td {
+	border: 1px solid #ddd;
+}
+
+th,
+td {
+	padding: 10px;
+	text-align: left;
+}
+
+th {
+	background-color: #f2f2f2;
+}
+
+tbody tr:nth-child(even) {
+	background-color: #f9f9f9;
+}
+
+tbody tr:hover {
+	background-color: #f1f1f1;
+}

@@ -1,0 +1,171 @@
+<div>
+	<header class="text-white text-center header">
+		<div class="logo-titulo">
+			<!-- Imagen del escudo -->
+			<a href="/index"><img src="/images/escudo.png" href="/index" alt="Escudo del Club" width="200px"
+					style="margin: 20px 0px;"></a>
+			<!-- Nombre del club -->
+			<h1 class="lead fw-bold grafiti-title" style="font-size: 100px;">MUTXAMEL CF</h1>
+		</div>
+	</header>
+
+	<nav class="navbar navbar-expand-lg navbar-light bg-light" style="background-color: rgb(213, 243, 253);">
+		<div class="container-fluid lead">
+			<!-- Botón de hamburguesa solo visible en pantallas pequeñas -->
+			<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+				<span class="navbar-toggler-icon"></span>
+			</button>
+			<!-- Menú de navegación -->
+			<div class="collapse navbar-collapse" id="navbarNav">
+				<ul class="navbar-nav me-auto">
+					<li class="nav-item">
+						<a class="nav-link" href="/index">Inicio</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" href="/historia">El club</a>
+					</li>
+					<li class="nav-item dropdown">
+						<a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+							data-bs-toggle="dropdown">
+							Área Deportiva
+						</a>
+						<ul class="dropdown-menu lead">
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Escuelita')}">Escuelita</a></li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Prebenjamín')}">Prebenjamín</a></li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Benjamín')}">Benjamín</a></li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Alevín')}">Alevín</a>
+							</li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Infantil Femenino')}">Infantil
+									Femenino</a></li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Infantil')}">Infantil</a></li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Cadete Femenino')}">Cadete
+									Femenino</a>
+							</li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Cadete')}">Cadete</a>
+							</li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Juvenil')}">Juvenil</a></li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Filial')}">Filial</a>
+							</li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Primer Equipo')}">Primer Equipo</a>
+							</li>
+							<li><a class="dropdown-item"
+									th:href="@{/categorias/{categoria}(categoria='Veteranos')}">Veteranos</a></li>
+						</ul>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" href="/resultados">Resultados</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" href="/contacto">Contacto</a>
+					</li>
+					<!-- La opción que requiere autenticación -->
+					<li class="nav-item" id="menu-restringido" style="display: none;">
+						<a class="nav-link" href="#">Administración</a>
+					</li>
+				</ul>
+			</div>
+			<!-- Redes Sociales siempre pegadas a la derecha -->
+			<div class="social-icons d-flex ms-auto">
+				<a href="https://x.com/mutxamelcf" target="_blank" class="mx-2">
+					<img src="/images/twitter.png" alt="Twitter" width="40" height="40">
+				</a>
+				<a href="https://facebook.com/MutxamelCF17" target="_blank" class="mx-2">
+					<img src="/images/facebook.png" alt="Facebook" width="40" height="40">
+				</a>
+				<a href="https://instagram.com/mutxamelcf.oficial/" target="_blank" class="mx-2">
+					<img src="/images/instagram.png" alt="Instagram" width="40" height="40">
+				</a>
+				<a href="https://youtube.com/@mutxamelcf355" target="_blank" class="mx-2">
+					<img src="/images/youtube.png" alt="YouTube" width="40" height="40">
+				</a>
+			</div>
+			<!-- Botón de login a la derecha -->
+			<button class="btn btn-outline-primary ms-auto ml-3" data-bs-toggle="modal" data-bs-target="#loginModal">
+				Iniciar Sesión
+			</button>
+		</div>
+	</nav>
+
+	<!-- Modal de Login -->
+	<div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="loginModalLabel">Iniciar Sesión</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<form id="loginForm">
+						<div class="mb-3">
+							<label for="usuario" class="form-label">Usuario</label>
+							<input type="text" class="form-control" id="username" required>
+						</div>
+						<div class="mb-3">
+							<label for="password" class="form-label">Contraseña</label>
+							<input type="password" class="form-control" id="password" required>
+						</div>
+						<button type="button" class="btn btn-primary" id="loginButton">Ingresar</button>
+					</form>
+					<!-- Mensaje de error si el login falla -->
+					<div id="loginError" style="color: red; display: none;">Credenciales inválidas.</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- JS de Bootstrap y Popper.js -->
+	<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+	<script>
+		document.addEventListener("DOMContentLoaded", function () {
+
+			document.getElementById('loginButton').addEventListener('click', function () {
+				event.preventDefault(); // Evita que el formulario se envíe normalmente
+
+				// Captura los valores de usuario y contraseña
+				const usuario = document.getElementById('usuario').value;
+				const password = document.getElementById('password').value;
+
+				// Hacemos una petición AJAX al backend para validar el login
+				fetch('/login', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({username: usuario, password: password}),
+				})
+					.then(response => response.json())
+					.then(data => {
+						if (data.valid) {
+							// Si el login es exitoso, cerramos el modal y mostramos la opción restringida
+							const modal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
+							modal.hide();
+
+							if (data.role === 'ROLE_ADMIN') {
+								// Muestra una opción específica si el usuario tiene el rol de admin
+								document.getElementById('menu-restringido').style.display = 'block';
+							}
+						} else {
+							// Mostrar un mensaje de error si el login falla
+							document.getElementById('loginError').style.display = 'block';
+						}
+					})
+					.catch(error => {
+						console.error('Error al validar el login:', error);
+					});
+			});
+		});
+	</script>
+
+</div>

@@ -1,0 +1,112 @@
+package com.mikedev.mutxamelcf.dao.impl;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
+
+import com.mikedev.mutxamelcf.dao.EquipoDao;
+import com.mikedev.mutxamelcf.model.Equipo;
+
+@Repository
+public class EquipoDaoImpl implements EquipoDao {
+
+	private final JdbcTemplate jdbcTemplate;
+
+	public EquipoDaoImpl(JdbcTemplate jdbcTemplate) {
+		this.jdbcTemplate = jdbcTemplate;
+	}
+
+	@Override
+	public boolean guardar(Equipo equipo) {
+		if (existeEquipo(equipo.getId())) {
+			String sql = "UPDATE equipo SET categoria = ?, grupo = ?, orden = ?, nombre = ? WHERE id = ?";
+
+			return (jdbcTemplate.update(sql, equipo.getCategoria(), equipo.getGrupo(), equipo.getOrden(),
+					equipo.getNombre(), equipo.getId()) == 1);
+
+		} else {
+			String sql = "INSERT INTO equipo (categoria, grupo, orden, nombre) VALUES (?, ?, ?, ?)";
+
+			return (jdbcTemplate.update(sql, equipo.getCategoria(), equipo.getGrupo(), equipo.getOrden(),
+					equipo.getNombre()) == 1);
+		}
+	}
+
+	@SuppressWarnings("deprecation")
+	private boolean existeEquipo(Long id) {
+		String sql = "SELECT COUNT(*) FROM equipo WHERE id = ?";
+
+		// Ejecutar la query y obtener el número de jugadores con ese DNI
+		Integer count = jdbcTemplate.queryForObject(sql, new Object[] { id }, Integer.class);
+
+		// Si el count es mayor que 0, significa que existe el jugador
+		return count != null && count > 0;
+	}
+
+//	@SuppressWarnings("deprecation")
+//	@Override
+//	public List<Equipo> obtenerEquipoPorNombre(String nombre) {
+//		String sql = "SELECT * FROM equipo WHERE nombre = ?";
+//
+//		return jdbcTemplate.query(sql, new Object[] { nombre }, new RowMapper<Equipo>() {
+//			@Override
+//			public Equipo mapRow(ResultSet rs, int rowNum) throws SQLException {
+//				Equipo jugador = new Equipo();
+//				jugador.setId(rs.getLong("id"));
+//				jugador.setCategoria(rs.getString("categoria"));
+//				jugador.setGrupo(rs.getString("grupo"));
+//				jugador.setOrden(rs.getString("orden"));
+//				jugador.setNombre(rs.getString("nombre"));
+//				return jugador;
+//			}
+//		});
+//	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public Equipo obtenerEquipoPorId(Long id) {
+		String sql = "SELECT * FROM equipo WHERE id = ?";
+
+		return jdbcTemplate.queryForObject(sql, new Object[] { id }, new RowMapper<Equipo>() {
+			@Override
+			public Equipo mapRow(ResultSet rs, int rowNum) throws SQLException {
+				Equipo jugador = new Equipo();
+				jugador.setId(rs.getLong("id"));
+				jugador.setCategoria(rs.getString("categoria"));
+				jugador.setGrupo(rs.getString("grupo"));
+				jugador.setOrden(rs.getString("orden"));
+				jugador.setNombre(rs.getString("nombre"));
+				return jugador;
+			}
+		});
+	}
+
+	@Override
+	public void eliminarEquipo(Long id) {
+		String sql = "DELETE FROM equipo WHERE id = ?";
+		jdbcTemplate.update(sql, id);
+	}
+
+	@Override
+	public List<Equipo> obtenerTodos() {
+		String sql = "SELECT * FROM equipo WHERE nombre = ?";
+
+		return jdbcTemplate.query(sql, new Object[] { nombre }, new RowMapper<Equipo>() {
+			@Override
+			public Equipo mapRow(ResultSet rs, int rowNum) throws SQLException {
+				Equipo jugador = new Equipo();
+				jugador.setId(rs.getLong("id"));
+				jugador.setCategoria(rs.getString("categoria"));
+				jugador.setGrupo(rs.getString("grupo"));
+				jugador.setOrden(rs.getString("orden"));
+				jugador.setNombre(rs.getString("nombre"));
+				return jugador;
+			}
+		});
+	}
+
+}

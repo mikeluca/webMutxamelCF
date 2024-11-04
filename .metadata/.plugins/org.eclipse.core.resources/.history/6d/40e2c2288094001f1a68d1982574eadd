@@ -1,0 +1,7 @@
+package com.mikedev.mutxamelcf.service;
+
+import com.mikedev.mutxamelcf.model.ResultadoDTO;
+
+public interface ResultadoService {
+	void actualizarResultado(ResultadoDTO resultado);
+}

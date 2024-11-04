@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Mutxamel Club de Fútbol</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link th:href="@{/css/estilos.css}" rel="stylesheet">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+	<link href="https://fonts.googleapis.com/css2?family=Fredericka+the+Great&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
+</head>
+
+<body>
+
+	<!-- Incluir el header -->
+	<div th:replace="~{cabecera.html}"></div>
+
+	<div class="container mt-5 lead">
+		<h1>Gestión de Jugadores</h1>
+
+		<!-- Filtro por categoría -->
+		<form class="form-inline mb-4" action="/admin/jugadores" method="get">
+			<label for="categoria" class="mr-2">Filtrar por categoría:</label>
+			<select id="categoria" name="categoria" class="form-control mr-2 w-auto">
+				<option value="">Todas</option>
+				<option value="Escuelita">Escuelita</option>
+				<option value="Benjamín">Benjamín</option>
+				<option value="Prebenjamín">Prebenjamín</option>
+				<option value="Alevín">Alevín</option>
+				<option value="Infantil Femenino">Infantil Femenino</option>
+				<option value="Infantil">Infantil</option>
+				<option value="Cadete Femenino">Cadete Femenino</option>
+				<option value="Cadete">Cadete</option>
+				<option value="Juvenil">Juvenil</option>
+				<option value="Filial">Filial</option>
+				<option value="Primer Equipo Femenino">Primer Equipo Femenino</option>
+				<option value="Primer Equipo">Primer Equipo</option>
+				<option value="Veteranos">Veteranos</option>
+				<!-- Añadir más categorías según sea necesario -->
+			</select>
+			<button type="submit" class="btn btn-primary">Filtrar</button>
+		</form>
+
+		<!-- Botón para nuevo jugador -->
+		<button class="btn btn-success mb-4" data-toggle="modal" data-target="#jugadorModal"
+			onclick="limpiarFormulario()">Nuevo Jugador</button>
+
+		<!-- Tabla de jugadores -->
+		<table class="table table-striped w-100">
+			<thead>
+				<tr>
+					<th style="width: 50%;">Nombre completo</th> <!-- Ajusta el ancho de la columna -->
+					<th style="width: 20%;">Categoría</th> <!-- Ajuste mínimo para la columna de categoría -->
+					<th style="width: 20%;">Equipo</th> <!-- Ajuste mínimo para la columna de equipo -->
+					<th style="width: 10%;"></th> <!-- Ajuste mínimo para la columna de botones -->
+				</tr>
+			</thead>
+			<tbody>
+				<tr th:each="jugador : ${jugadores}">
+					<!--					<td th:text="${jugador.dni}"></td>-->
+					<td th:text="${jugador.nombre} + ' ' + ${jugador.apellidos}"></td>
+					<td th:text="${jugador.categoria}"></td>
+					<td th:text="${jugador.equipo}"></td>
+					<td>
+						<!--						 Botón para editar jugador -->
+						<!--						<button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#jugadorModal"-->
+						<!--							th:onclick="editarJugador('${jugador.dni}')">-->
+						<!--							<i class="bi bi-pencil"></i>  Ícono de editar -->
+						<!--						</button>-->
+						<!-- Botón para borrar jugador -->
+						<form th:action="@{'/admin/jugadores/borrar/' + ${jugador.dni}}" method="post"
+							style="display:inline;">
+							<button type="submit" class="btn btn-danger btn-sm"
+								onclick="return confirm('¿Estás seguro de que deseas borrar este jugador?');">
+								<i class="bi bi-trash"></i> <!-- Ícono de eliminar -->
+							</button>
+						</form>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+
+	<!-- Modal para crear/editar jugador -->
+	<div class="modal fade lead" id="jugadorModal" tabindex="-1" role="dialog" aria-labelledby="jugadorModalLabel"
+		aria-hidden="true">
+		<div class="modal-dialog modal-lg" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 class="modal-title lead" id="jugadorModalLabel">Nuevo Jugador</h3>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<form id="jugadorForm" enctype="multipart/form-data">
+					<div class="modal-body">
+						<div class="row"> <!-- Fila para las columnas -->
+							<div class="col-md-6"> <!-- Primera columna -->
+								<div class="form-group">
+									<label for="dni">DNI:</label>
+									<input type="text" class="form-control" id="dni" name="dni" required>
+								</div>
+								<div class="form-group">
+									<label for="nombre">Nombre:</label>
+									<input type="text" class="form-control" id="nombre" name="nombre" required>
+								</div>
+								<div class="form-group">
+									<label for="categoria">Categoría:</label>
+									<select id="categoria" name="categoria" class="form-control">
+										<option value="Escuelita">Escuelita</option>
+										<option value="Benjamín">Benjamín</option>
+										<option value="Prebenjamín">Prebenjamín</option>
+										<option value="Alevín">Alevín</option>
+										<option value="Infantil Femenino">Infantil Femenino</option>
+										<option value="Infantil">Infantil</option>
+										<option value="Cadete Femenino">Cadete Femenino</option>
+										<option value="Cadete">Cadete</option>
+										<option value="Juvenil">Juvenil</option>
+										<option value="Filial">Filial</option>
+										<option value="Primer Equipo Femenino">Primer Equipo Femenino</option>
+										<option value="Primer Equipo">Primer Equipo</option>
+										<option value="Veteranos">Veteranos</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label for="posicion">Posición:</label>
+									<input type="text" class="form-control" id="posicion" name="posicion">
+								</div>
+							</div>
+							<div class="col-md-6"> <!-- Segunda columna -->
+								<div class="form-group">
+									<label for="fechaNacimiento">Fecha Nacimiento:</label>
+									<input type="date" class="form-control" id="fechaNacimiento" name="fechaNacimiento"
+										required>
+								</div>
+								<div class="form-group">
+									<label for="apellidos">Apellidos:</label>
+									<input type="text" class="form-control" id="apellidos" name="apellidos" required>
+								</div>
+								<div class="form-group">
+									<label for="equipo">Equipo:</label>
+									<input type="text" class="form-control" id="equipo" name="equipo">
+								</div>
+								<div class="form-group">
+									<label for="dorsal">Dorsal:</label>
+									<input type="number" class="form-control" id="dorsal" name="dorsal">
+								</div>
+								<!-- Campo para subir foto -->
+								<div class="form-group">
+									<label for="foto">Subir Foto</label>
+									<input type="file" class="form-control-file" id="foto" name="foto" accept="image/*">
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+						<button type="submit" class="btn btn-primary" onclick="guardarJugador()">Guardar
+							Cambios</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+
+	<!-- Incluir el footer -->
+	<div th:replace="~{footer.html}"></div>
+
+	<script>
+		function guardarJugador() {
+			// Obtén los datos del formulario
+			const formData = new FormData(document.getElementById('jugadorForm'));
+
+			// Enviar el formulario con AJAX
+			fetch('/admin/jugadores/guardar', {
+				method: 'POST',
+				body: formData
+			}).catch(error => console.error('Error:', error));
+		}
+
+		function limpiarFormulario() {
+			document.getElementById('dni').value = '';
+			document.getElementById('nombre').value = '';
+			document.getElementById('apellidos').value = '';
+			document.getElementById('posicion').value = '';
+			document.getElementById('fechaNacimiento').value = '';
+			document.getElementById('categoria').value = '';
+			document.getElementById('dorsal').value = '';
+			document.getElementById('posicion').value = '';
+			document.getElementById('equipo').value = '';
+			document.getElementById('jugadorModalLabel').textContent = 'Nuevo Jugador';
+		}
+
+		/*function editarJugador(dni) {
+			fetch(`/admin/jugadores/editar/${dni}`)
+				.then(response => {
+					if (!response.ok) {
+						throw new Error('Error en la red');
+					}
+					return response.json();
+				})
+				.then(data => {
+					document.getElementById('dni').value = data.dni;
+					document.getElementById('nombre').value = data.nombre;
+					document.getElementById('apellidos').value = data.apellidos;
+					document.getElementById('posicion').value = data.posicion;
+					document.getElementById('fechaNacimiento').value = data.fechaNacimiento;
+					document.getElementById('categoria').value = data.categoria;
+					document.getElementById('dorsal').value = data.dorsal;
+					document.getElementById('equipo').value = data.equipo;
+
+					// Cambia el título del modal
+					document.getElementById('jugadorModalLabel').textContent = 'Editar Jugador';
+
+					// Muestra el modal
+					$('#jugadorModal').modal('show');
+				})
+				.catch(error => console.error('Error:', error));
+		}*/
+
+	</script>
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+
+</html>
