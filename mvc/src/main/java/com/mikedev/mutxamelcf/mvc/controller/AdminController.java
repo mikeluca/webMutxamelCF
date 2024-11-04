@@ -172,7 +172,6 @@ public class AdminController {
 			} else {
 				jugador.setDorsal(dorsal); // Asigna el valor de dorsal si no es null
 			}
-//			jugador.setDorsal(dorsal != null ? dorsal : null);
 			jugador.setPosicion(posicion);
 
 			// Si hay una foto cargada, convertirla a byte[]
