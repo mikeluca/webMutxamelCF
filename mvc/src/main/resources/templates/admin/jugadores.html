@@ -147,6 +147,12 @@
 		function guardarJugador() {
 			// Obtén los datos del formulario
 			const formData = new FormData(document.getElementById('jugadorForm'));
+			const dorsalValue = document.getElementById('dorsal').value;
+			if (dorsalValue === "") {
+				formData.delete("dorsal"); // Asegúrate de que no se envíe este campo
+			} else {
+				formData.set("dorsal", parseInt(dorsalValue, 10)); // Convertir a número si tiene valor
+			}
 
 			// Enviar el formulario con AJAX
 			fetch('/admin/jugadores/guardar', {

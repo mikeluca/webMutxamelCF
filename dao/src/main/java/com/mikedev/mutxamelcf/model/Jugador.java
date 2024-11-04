@@ -14,7 +14,7 @@ public class Jugador {
 	private String categoria;
 	private String deporte;
 	private String equipo;
-	private int dorsal;
+	private Integer dorsal;
 	private String posicion;
 	@Lob
 	private byte[] foto;
@@ -97,11 +97,11 @@ public class Jugador {
 		this.categoria = categoria;
 	}
 
-	public int getDorsal() {
+	public Integer getDorsal() {
 		return dorsal;
 	}
 
-	public void setDorsal(int dorsal) {
+	public void setDorsal(Integer dorsal) {
 		this.dorsal = dorsal;
 	}
 

@@ -64,7 +64,7 @@ public class JugadorServiceImpl implements JugadorService {
 		jugador.setCategoria(jugadorDTO.getCategoria());
 		jugador.setDeporte(jugadorDTO.getDeporte());
 		jugador.setEquipo(jugadorDTO.getEquipo());
-		jugador.setDorsal(jugadorDTO.getDorsal());
+		jugador.setDorsal(jugadorDTO.getDorsal() == null ? null : jugadorDTO.getDorsal());
 		jugador.setPosicion(jugadorDTO.getPosicion());
 		jugador.setFoto(jugadorDTO.getFoto());
 

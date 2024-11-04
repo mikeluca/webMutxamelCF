@@ -147,7 +147,7 @@ public class AdminController {
 	@ResponseBody
 	public ResponseEntity<Map<String, String>> guardarJugador(@RequestParam String nombre,
 			@RequestParam String apellidos, @RequestParam String fechaNacimiento, @RequestParam String dni,
-			@RequestParam int dorsal, @RequestParam Long equipo, @RequestParam String posicion,
+			@RequestParam(required = false) Integer dorsal, @RequestParam Long equipo, @RequestParam String posicion,
 			@RequestParam MultipartFile foto) {
 		Map<String, String> response = new HashMap<>();
 
@@ -167,7 +167,12 @@ public class AdminController {
 			jugador.setCategoria(e.getCategoria());
 			jugador.setEquipo(e.getNombre());
 			jugador.setDeporte(e.getDeporte());
-			jugador.setDorsal(dorsal);
+			if (dorsal == null) {
+				jugador.setDorsal(null); // Si dorsal es null, simplemente asigna null
+			} else {
+				jugador.setDorsal(dorsal); // Asigna el valor de dorsal si no es null
+			}
+//			jugador.setDorsal(dorsal != null ? dorsal : null);
 			jugador.setPosicion(posicion);
 
 			// Si hay una foto cargada, convertirla a byte[]
@@ -189,7 +194,7 @@ public class AdminController {
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		} catch (Exception e) {
 			logger.error("Error al guardar el jugador: {}", e.getMessage(), e); // Registrar el error
-			response.put("error", "Error al guardar el equipo");
+			response.put("error", "Error al guardar el jugador");
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
 	}
