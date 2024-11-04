@@ -4,3 +4,4 @@
 /dao/target
 /dao/target
 /service/target
+*.class
