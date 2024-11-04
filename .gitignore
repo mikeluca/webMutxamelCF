@@ -5,3 +5,4 @@
 /dao/target
 /service/target
 *.class
+*.properties
