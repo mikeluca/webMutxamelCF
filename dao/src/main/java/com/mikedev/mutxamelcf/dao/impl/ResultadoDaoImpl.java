@@ -35,7 +35,7 @@ public class ResultadoDaoImpl implements ResultadoDao {
 	@SuppressWarnings({ "deprecation" })
 	@Override
 	public List<Resultado> obtenerResultados(String deporte) {
-		String sql = "SELECT * FROM resultados WHERE deporte = ?";
+		String sql = "SELECT * FROM resultados WHERE deporte = ? ORDER BY orden DESC, equipo";
 
 		return jdbcTemplate.query(sql, new Object[] { deporte }, new RowMapper<Resultado>() {
 			@Override
