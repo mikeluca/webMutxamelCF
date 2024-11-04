@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Mutxamel Club de Fútbol</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link th:href="@{/css/estilos.css}" rel="stylesheet">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+	<style>
+		/* Estilos específicos para la pantalla de carga */
+		body,
+		html {
+			height: 100%;
+			margin: 0;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			background-color: #0044cc;
+			/* Fondo azul */
+		}
+
+		.splash-container {
+			text-align: center;
+			color: white;
+		}
+
+		.splash-logo {
+			width: 200px;
+			height: auto;
+		}
+
+		.splash-name {
+			font-size: 3rem;
+			margin: 20px 0;
+		}
+
+		.loading-bar-container {
+			width: 80%;
+			background-color: #ffffff;
+			border-radius: 20px;
+			margin: 0 auto;
+			padding: 3px;
+		}
+
+		.loading-bar {
+			width: 0;
+			height: 20px;
+			background-color: #ffcc00;
+			border-radius: 20px;
+			animation: loading 3s forwards;
+			/* Barra cargando 3 segundos */
+		}
+
+		@keyframes loading {
+			0% {
+				width: 0;
+			}
+
+			100% {
+				width: 100%;
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div class="splash-container">
+		<img src="/images/escudo.png" alt="Logo del equipo" class="splash-logo">
+		<div class="splash-name">Mutxamel CF</div>
+		<div class="loading-bar-container">
+			<div class="loading-bar"></div>
+		</div>
+	</div>
+
+	<!-- Redirección después de 3 segundos -->
+	<script>
+		setTimeout(function () {
+			window.location.href = 'index'; // Redirige a la página principal
+		}, 3000);
+	</script>
+</body>
+
+</html>

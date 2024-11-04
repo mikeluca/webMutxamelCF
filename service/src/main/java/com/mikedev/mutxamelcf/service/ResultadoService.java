@@ -1,0 +1,13 @@
+package com.mikedev.mutxamelcf.service;
+
+import java.util.List;
+
+import com.mikedev.mutxamelcf.model.ResultadoDTO;
+
+public interface ResultadoService {
+
+	void actualizarResultado(ResultadoDTO resultado);
+
+	List<ResultadoDTO> obtenerResultados(String deporte);
+
+}
