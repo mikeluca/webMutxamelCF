@@ -2,3 +2,5 @@
 *.class
 *.class
 /dao/target
+/dao/target
+/service/target
