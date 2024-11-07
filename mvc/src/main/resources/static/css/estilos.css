@@ -155,15 +155,14 @@ header {
 }
 
 table {
-	width: 90%;
+	width: 95%;
 	border-collapse: collapse;
 	margin: 25px;
 }
 
-table,
-th,
 td {
-	border: 1px solid #ddd;
+	border-top: 1px solid rgb(0, 0, 0);
+	border-bottom: 1px solid rgb(0, 0, 0);
 }
 
 th,
@@ -173,13 +172,14 @@ td {
 }
 
 th {
-	background-color: #f2f2f2;
+	background-color: #007bff;
+	color: white;
 }
 
 tbody tr:nth-child(even) {
-	background-color: #f9f9f9;
+	background-color: rgb(242, 248, 255);
 }
 
 tbody tr:hover {
-	background-color: #f1f1f1;
+	background-color: rgb(164, 207, 255);
 }
