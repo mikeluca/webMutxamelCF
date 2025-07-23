@@ -87,6 +87,11 @@ public class MainController {
 		return "pantalla-carga";
 	}
 
+	@GetMapping("/historia")
+	public String historia(Model model) {
+		return "historia";
+	}
+
 	@GetMapping("/index")
 	public String inicio(Model model) {
 		// Lista de noticias
@@ -100,11 +105,6 @@ public class MainController {
 		model.addAttribute("noticias", noticias);
 		model.addAttribute("patrocinadores", patrocinadores);
 		return "index";
-	}
-
-	@GetMapping("/historia")
-	public String historia(Model model) {
-		return "historia";
 	}
 
 	@GetMapping("/contacto")
