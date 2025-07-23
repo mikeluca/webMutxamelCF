@@ -119,7 +119,7 @@ public class EquipoDaoImpl implements EquipoDao {
 	@SuppressWarnings("deprecation")
 	@Override
 	public Map<String, List<Equipo>> obtenerEquiposAgrupadosPorCategoria(String deporte) {
-		String sql = "SELECT id, nombre, categoria, grupo, orden, deporte FROM equipo WHERE deporte = ? ORDER BY orden, nombre";
+		String sql = "SELECT id, nombre, categoria, grupo, orden, deporte FROM equipo WHERE deporte = ? and orden <> 'I' ORDER BY orden, nombre";
 		List<Equipo> equipos = jdbcTemplate.query(sql, new Object[] { deporte }, (rs, rowNum) -> {
 			Equipo equipo = new Equipo();
 			equipo.setId(rs.getLong("id"));
