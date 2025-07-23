@@ -22,7 +22,7 @@ public class CuerpoTecnicoDaoImpl implements CuerpoTecnicoDao {
 
 	@Override
 	public boolean guardar(CuerpoTecnico cuerpoTecnico) {
-		if (existeCuerpoTecnico(cuerpoTecnico.getDni())) {
+		if (existeCuerpoTecnico(cuerpoTecnico.getDni(), cuerpoTecnico.getEquipo())) {
 			String sql = "UPDATE cuerpo_tecnico SET nombre = ?, apellidos = ?, fecha_nacimiento = ?, poblacion = ?, "
 					+ "nacionalidad = ?, categoria = ?, deporte = ?, equipo = ?, puesto = ?, foto = ? WHERE dni = ?";
 
@@ -44,11 +44,11 @@ public class CuerpoTecnicoDaoImpl implements CuerpoTecnicoDao {
 	}
 
 	@SuppressWarnings("deprecation")
-	private boolean existeCuerpoTecnico(String dni) {
-		String sql = "SELECT COUNT(*) FROM cuerpo_tecnico WHERE dni = ?";
+	private boolean existeCuerpoTecnico(String dni, String equipo) {
+		String sql = "SELECT COUNT(*) FROM cuerpo_tecnico WHERE dni = ? and equipo = ?";
 
 		// Ejecutar la query y obtener el número de jugadores con ese DNI
-		Integer count = jdbcTemplate.queryForObject(sql, new Object[] { dni }, Integer.class);
+		Integer count = jdbcTemplate.queryForObject(sql, new Object[] { dni, equipo }, Integer.class);
 
 		// Si el count es mayor que 0, significa que existe el jugador
 		return count != null && count > 0;
