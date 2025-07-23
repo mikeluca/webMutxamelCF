@@ -94,8 +94,8 @@ public class MainController {
 
 		// Logos de patrocinadores
 		List<String> patrocinadores = Arrays.asList("patrocinador1.jpg", "patrocinador2.jpg", "patrocinador3.jpg",
-				"patrocinador4.jpg", "patrocinador5.jpg", "patrocinador6.jpg", "patrocinador1.jpg",
-				"patrocinador2.jpg");
+				"patrocinador4.jpg", "patrocinador5.jpg", "patrocinador6.jpg", "patrocinador7.jpg",
+				"patrocinador8.jpg");
 
 		model.addAttribute("noticias", noticias);
 		model.addAttribute("patrocinadores", patrocinadores);

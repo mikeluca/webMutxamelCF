@@ -183,3 +183,16 @@ tbody tr:nth-child(even) {
 tbody tr:hover {
 	background-color: rgb(164, 207, 255);
 }
+
+.patrocinador-img {
+	width: 100%;
+	height: 100px;
+	/* Altura fija para todas */
+	object-fit: contain;
+	/* Escala proporcional sin recorte */
+	background-color: white;
+	/* Fondo blanco para logos transparentes */
+	padding: 10px;
+	border-radius: 8px;
+	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
