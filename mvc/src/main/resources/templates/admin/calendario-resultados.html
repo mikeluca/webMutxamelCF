@@ -70,55 +70,55 @@
 		</tbody>
 	</table>
 
-	<h1 class="text-center mt-5">Calendario / Resultados Fútbol Sala</h1>
+	<!--	<h1 class="text-center mt-5">Calendario / Resultados Fútbol Sala</h1>-->
 
-	<table>
-		<thead>
-			<tr>
-				<th style="display: none;">CATEGORIA</th>
-				<th>EQUIPO</th>
-				<th>RESULTADO</th>
-				<th>RIVAL</th>
-				<th>DÍA</th>
-				<th>HORA</th>
-				<th>CAMPO</th>
-				<th></th>
-			</tr>
-		</thead>
-		<tbody>
-			<!-- Iteramos sobre la lista de resultados -->
-			<tr th:each="resultado : ${resultadosFutbolSala}">
-				<form th:action="@{/admin/calendario-resultados/actualizar/{equipo}(equipo=${resultado.equipo})}"
-					method="post">
-					<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-					<td style="display: none;">
-						<input type="text" th:value="${resultado.categoria}" name="categoria" class="form-control" />
-					</td>
-					<td>
-						<input type="text" th:value="${resultado.equipo}" name="equipo" readonly class="form-control" />
-					</td>
-					<td>
-						<input type="text" th:value="${resultado.resultado}" name="resultado" class="form-control" />
-					</td>
-					<td>
-						<input type="text" th:value="${resultado.rival}" name="rival" class="form-control" />
-					</td>
-					<td>
-						<input type="text" th:value="${resultado.diaFormateado}" name="dia" class="form-control" />
-					</td>
-					<td>
-						<input type="text" th:value="${resultado.hora}" name="hora" class="form-control" />
-					</td>
-					<td>
-						<input type="text" th:value="${resultado.campo}" name="campo" class="form-control" />
-					</td>
-					<td>
-						<button type="submit" class="btn btn-primary">Actualizar</button>
-					</td>
-				</form>
-			</tr>
-		</tbody>
-	</table>
+	<!--	<table>-->
+	<!--		<thead>-->
+	<!--			<tr>-->
+	<!--				<th style="display: none;">CATEGORIA</th>-->
+	<!--				<th>EQUIPO</th>-->
+	<!--				<th>RESULTADO</th>-->
+	<!--				<th>RIVAL</th>-->
+	<!--				<th>DÍA</th>-->
+	<!--				<th>HORA</th>-->
+	<!--				<th>CAMPO</th>-->
+	<!--				<th></th>-->
+	<!--			</tr>-->
+	<!--		</thead>-->
+	<!--		<tbody>-->
+	<!--			 Iteramos sobre la lista de resultados -->
+	<!--			<tr th:each="resultado : ${resultadosFutbolSala}">-->
+	<!--				<form th:action="@{/admin/calendario-resultados/actualizar/{equipo}(equipo=${resultado.equipo})}"-->
+	<!--					method="post">-->
+	<!--					<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />-->
+	<!--					<td style="display: none;">-->
+	<!--						<input type="text" th:value="${resultado.categoria}" name="categoria" class="form-control" />-->
+	<!--					</td>-->
+	<!--					<td>-->
+	<!--						<input type="text" th:value="${resultado.equipo}" name="equipo" readonly class="form-control" />-->
+	<!--					</td>-->
+	<!--					<td>-->
+	<!--						<input type="text" th:value="${resultado.resultado}" name="resultado" class="form-control" />-->
+	<!--					</td>-->
+	<!--					<td>-->
+	<!--						<input type="text" th:value="${resultado.rival}" name="rival" class="form-control" />-->
+	<!--					</td>-->
+	<!--					<td>-->
+	<!--						<input type="text" th:value="${resultado.diaFormateado}" name="dia" class="form-control" />-->
+	<!--					</td>-->
+	<!--					<td>-->
+	<!--						<input type="text" th:value="${resultado.hora}" name="hora" class="form-control" />-->
+	<!--					</td>-->
+	<!--					<td>-->
+	<!--						<input type="text" th:value="${resultado.campo}" name="campo" class="form-control" />-->
+	<!--					</td>-->
+	<!--					<td>-->
+	<!--						<button type="submit" class="btn btn-primary">Actualizar</button>-->
+	<!--					</td>-->
+	<!--				</form>-->
+	<!--			</tr>-->
+	<!--		</tbody>-->
+	<!--	</table>-->
 
 	<!-- Incluir el footer -->
 	<div th:replace="~{admin/footerAdmin.html}"></div>
