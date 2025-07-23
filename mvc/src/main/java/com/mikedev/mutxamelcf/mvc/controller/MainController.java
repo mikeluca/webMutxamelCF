@@ -151,8 +151,8 @@ public class MainController {
 			// Helper para crear el mensaje
 			MimeMessageHelper helper = new MimeMessageHelper(message, true);
 			// Configurar remitente, destinatario, asunto y cuerpo
-			helper.setFrom("miguel_89_11@hotmail.com");
-			helper.setTo("miguel_89_11@gmail.com");
+			helper.setFrom(email);
+			helper.setTo("mutxamelcf.gestion@gmail.com");
 			helper.setSubject("Contacto desde la WEB de: " + nombre);
 			helper.setText("De: " + nombre + "\nEmail: " + email + "\n\\nMensaje: " + mensaje);
 			// Enviar el mensaje
@@ -163,7 +163,7 @@ public class MainController {
 			System.out.println("Error al enviar el correo HTML: " + e.getMessage());
 			e.printStackTrace();
 		}
-		return "redirect:/"; // Redirigir a la página de inicio después de enviar
+		return "redirect:/index"; // Redirigir a la página de inicio después de enviar
 	}
 
 	@GetMapping("/listaEquipos/{deporte}")

@@ -18,6 +18,8 @@
 		<div class="container">
 			<h1 class="text-center fw-bold">Contacto</h1>
 			<form action="/enviar-email" method="POST">
+				<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+				
 				<div class="col-md-6">
 					<div class="form-group mt-2">
 						<label for="nombre">Nombre:</label>
