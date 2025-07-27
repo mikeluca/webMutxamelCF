@@ -151,9 +151,9 @@ public class MainController {
 			// Helper para crear el mensaje
 			MimeMessageHelper helper = new MimeMessageHelper(message, true);
 			// Configurar remitente, destinatario, asunto y cuerpo
-			helper.setFrom(email);
+			helper.setFrom("contacto.web@mutxamelcf.es");
 			helper.setTo("mutxamelcf.gestion@gmail.com");
-			helper.setSubject("Contacto desde la WEB de: " + nombre);
+			helper.setSubject("Contacto desde la PÁGINA WEB de: " + nombre);
 			helper.setText("De: " + nombre + "\nEmail: " + email + "\n\\nMensaje: " + mensaje);
 			// Enviar el mensaje
 			emailSender.send(message);
