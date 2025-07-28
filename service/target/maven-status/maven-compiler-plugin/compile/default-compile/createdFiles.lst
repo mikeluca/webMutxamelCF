@@ -1,5 +1,6 @@
 com\mikedev\mutxamelcf\model\ResultadoDTO.class
 com\mikedev\mutxamelcf\model\JugadorDTO.class
+com\mikedev\mutxamelcf\serviceimpl\UsuarioServiceImpl.class
 com\mikedev\mutxamelcf\service\config\AppServiceConfig.class
 com\mikedev\mutxamelcf\service\JugadorService.class
 com\mikedev\mutxamelcf\service\ResultadoService.class
@@ -7,8 +8,13 @@ com\mikedev\mutxamelcf\service\CuerpoTecnicoService.class
 com\mikedev\mutxamelcf\model\NoticiaDTO.class
 com\mikedev\mutxamelcf\model\EquipoDTO.class
 com\mikedev\mutxamelcf\model\CuerpoTecnicoDTO.class
+com\mikedev\mutxamelcf\serviceimpl\NoticiaServiceImpl.class
 com\mikedev\mutxamelcf\model\UsuarioDTO.class
 com\mikedev\mutxamelcf\service\UsuarioService.class
 com\mikedev\mutxamelcf\model\EnumEquipos.class
+com\mikedev\mutxamelcf\serviceimpl\CuerpoTecnicoServiceImpl.class
 com\mikedev\mutxamelcf\service\EquipoService.class
 com\mikedev\mutxamelcf\service\NoticiaService.class
+com\mikedev\mutxamelcf\serviceimpl\EquipoServiceImpl.class
+com\mikedev\mutxamelcf\serviceimpl\JugadorServiceImpl.class
+com\mikedev\mutxamelcf\serviceimpl\ResultadoServiceImpl.class
