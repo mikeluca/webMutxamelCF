@@ -4,14 +4,11 @@ services:
   mutxamelcf:
     image: mutxamelcf-app
     container_name: mutxamelcf
-    environment:
-      DB_URL: jdbc:oracle:thin:@oracle:1521/XE
-      DB_USERNAME: user_web
-      DB_PASSWORD: mtx25WEB
     ports:
       - "8080:8080"
     networks:
       - mutxanet
+    restart: unless-stopped
 
 networks:
   mutxanet:
