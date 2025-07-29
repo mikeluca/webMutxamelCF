@@ -1,0 +1,22 @@
+version: "3.8"
+services:
+  oracle:
+    image: gvenzl/oracle-xe
+    container_name: oracle
+    ports:
+      - "1521:1521"
+    environment:
+      - ORACLE_PASSWORD=mtx25WEB
+
+  mutxamelcf:
+    image: mutxamelcf-app
+    container_name: mutxamelcf
+    depends_on:
+      - oracle
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:oracle:thin:@oracle:1521/XE
+      DB_USERNAME: user_web
+      DB_PASSWORD: mtx25WEB
+    restart: always
