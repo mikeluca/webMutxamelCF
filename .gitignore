@@ -1,4 +1,11 @@
-/target
-/.idea
+# Eclipse / STS
+/.project
 /.classpath
-/.settings
+/.settings/
+**/.classpath
+**/.project
+**/.settings/
+
+# Maven
+**/target/
+*.class
