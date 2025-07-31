@@ -83,6 +83,9 @@
 			          	</goals>
 			        </execution>
 			 	</executions>
+			 	<configuration>
+        			<mainClass>com.mikedev.mutxamelcf.mvc.Application</mainClass>
+    			</configuration>
             </plugin>
         </plugins>
     </build>
