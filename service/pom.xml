@@ -9,7 +9,7 @@
 <!--    </parent>-->
 	<parent>
 	    <groupId>com.mikedev.mutxamelcf</groupId>
-	    <artifactId>mutxamelcf-parent</artifactId>
+	    <artifactId>mutxamelcfWeb</artifactId>
 	    <version>1.0</version>
 	    <relativePath>../pom.xml</relativePath>
 	</parent>
