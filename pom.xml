@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.mikedev.mutxamelcf</groupId>
-    <artifactId>mutxamelcf-parent</artifactId>
+    <artifactId>mutxamelcfWeb</artifactId>
     <version>1.0</version>
     <packaging>pom</packaging>
 
