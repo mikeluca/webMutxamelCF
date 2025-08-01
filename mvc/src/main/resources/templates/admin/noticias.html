@@ -91,7 +91,7 @@
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
-						<button type="submit" class="btn btn-primary" onclick="guardarNoticia()">Guardar
+						<button type="submit" class="btn btn-primary" onclick="guardarNoticia(event)">Guardar
 							Cambios</button>
 					</div>
 				</form>
@@ -103,7 +103,9 @@
 	<div th:replace="~{admin/footerAdmin.html}"></div>
 
 	<script>
-		function guardarNoticia() {
+		function guardarNoticia(event) {
+			event.preventDefault();
+
 			// Obtén los datos del formulario
 			const formData = new FormData(document.getElementById('noticiaForm'));
 
