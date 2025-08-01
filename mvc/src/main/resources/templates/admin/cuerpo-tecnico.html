@@ -55,7 +55,7 @@
 					<td th:text="${staff.equipo}"></td>
 					<td>
 						<!-- Botón para borrar miembro del cuerpo técnico -->
-						<form th:action="@{'/admin/cuerpo-tecnico/borrar/' + ${staff.dni}}" method="post"
+						<form th:action="@{'/admin/cuerpo-tecnico/borrar/' + ${staff.id}}" method="post"
 							style="display:inline;">
 							<button type="submit" class="btn btn-danger btn-sm"
 								onclick="return confirm('¿Estás seguro de que deseas borrar este miembro del cuerpo técnico?');">

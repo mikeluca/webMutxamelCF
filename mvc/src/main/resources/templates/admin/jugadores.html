@@ -55,7 +55,7 @@
 					<td th:text="${jugador.nombre} + ' ' + ${jugador.apellidos}"></td>
 					<td th:text="${jugador.equipo}"></td>
 					<td>
-						<form th:action="@{'/admin/jugadores/borrar/' + ${jugador.dni}}" method="post"
+						<form th:action="@{'/admin/jugadores/borrar/' + ${jugador.id}}" method="post"
 							style="display:inline;">
 							<button type="submit" class="btn btn-danger btn-sm"
 								onclick="return confirm('¿Estás seguro de que deseas borrar este jugador?');">
@@ -145,7 +145,7 @@
 	<script>
 		function guardarJugador(event) {
 			event.preventDefault();
-			
+
 			// Obtén los datos del formulario
 			const formData = new FormData(document.getElementById('jugadorForm'));
 			const dorsalValue = document.getElementById('dorsal').value;

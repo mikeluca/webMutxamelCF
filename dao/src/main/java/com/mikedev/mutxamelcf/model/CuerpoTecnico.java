@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.model;
 import java.util.Date;
 
 public class CuerpoTecnico {
+	private Long id;
 	private String dni;
 	private String nombre;
 	private String apellidos;
@@ -15,9 +16,10 @@ public class CuerpoTecnico {
 	private String puesto;
 	private byte[] foto;
 
-	public CuerpoTecnico(String dni, String nombre, String apellidos, Date fechaNacimiento, String poblacion,
+	public CuerpoTecnico(Long id, String dni, String nombre, String apellidos, Date fechaNacimiento, String poblacion,
 			String nacionalidad, String categoria, String deporte, String equipo, String puesto, byte[] foto) {
 		super();
+		this.setId(id);
 		this.dni = dni;
 		this.nombre = nombre;
 		this.apellidos = apellidos;
@@ -121,6 +123,14 @@ public class CuerpoTecnico {
 
 	public void setDeporte(String deporte) {
 		this.deporte = deporte;
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
 	}
 
 }

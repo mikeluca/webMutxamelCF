@@ -200,10 +200,10 @@ public class AdminController {
 	}
 
 	// Método para borrar un jugador por su DNI
-	@PostMapping("/jugadores/borrar/{dni}")
-	public String borrarJugador(@PathVariable String dni) {
+	@PostMapping("/jugadores/borrar/{id}")
+	public String borrarJugador(@PathVariable Long id) {
 		try {
-			jugadoresService.eliminarJugador(dni); // Eliminar el jugador de la base de datos
+			jugadoresService.eliminarJugador(id); // Eliminar el jugador de la base de datos
 		} catch (Exception e) {
 			logger.error("Error al borrar el jugador: {}", e.getMessage(), e); // Registrar el error
 		}
@@ -279,9 +279,9 @@ public class AdminController {
 
 	// Método para borrar un miembro del cuerpo técnico por su DNI
 	@PostMapping("/cuerpo-tecnico/borrar/{dni}")
-	public String borrarCuerpoTecnico(@PathVariable String dni) {
+	public String borrarCuerpoTecnico(@PathVariable Long id) {
 		try {
-			cuerpoTecnicoService.eliminarCuerpoTecnico(dni); // Eliminar el cuerpo técnico de la base de datos
+			cuerpoTecnicoService.eliminarCuerpoTecnico(id); // Eliminar el cuerpo técnico de la base de datos
 		} catch (Exception e) {
 			logger.error("Error al borrar el cuerpo técnico: {}", e.getMessage(), e); // Registrar el error
 		}

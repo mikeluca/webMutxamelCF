@@ -8,7 +8,7 @@ public interface JugadorDao {
 	
 	boolean guardarJugador(Jugador jugador);
 
-	Jugador obtenerPorId(String dni);
+	Jugador obtenerPorId(Long id);
 
 	List<Jugador> obtenerTodosPorCategoria(String categoria);
 	
@@ -16,6 +16,6 @@ public interface JugadorDao {
 
 	List<Jugador> obtenerTodos();
 
-	void eliminar(String dni);
+	void eliminar(Long id);
 	
 }
