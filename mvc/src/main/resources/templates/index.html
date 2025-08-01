@@ -34,8 +34,8 @@
 				</div>
 
 				<div class="card-body">
-					<h2 class="card-title text-center" th:text="${noticia.titulo}"></h2>
-					<p class="card-text" th:text="${#strings.abbreviate(noticia.contenido, 100)}"></p>
+					<h2 class="card-title text-center" th:utext="${noticia.titulo}"></h2>
+					<p class="card-text" th:utext="${#strings.abbreviate(noticia.contenido, 100)}"></p>
 					<!-- Límite de 100 caracteres -->
 					<a th:href="@{/ampliarNoticia/{id}(id=${noticia.id})}" class="btn btn-primary">Leer más</a>
 					<!-- Botón de leer más -->

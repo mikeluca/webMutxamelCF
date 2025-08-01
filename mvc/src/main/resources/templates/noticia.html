@@ -23,7 +23,7 @@
 			<div th:if="${noticia.imagenBase64 == null}">
 				<img th:src="@{/images/noticia3.jpg}" class="img-fluid" alt="Imagen Noticia">
 			</div>
-			<h2 class="text-center fw-bold" th:text="${noticia.titulo}" style="margin: 20px;"></h2>
+			<h2 class="text-center fw-bold" th:utext="${noticia.titulo}" style="margin: 20px;"></h2>
 			<div class="mt-4" th:utext="${noticia.contenido}"></div>
 			<div class="text-center mt-4">
 				<a href="/index" class="btn btn-secondary">Volver a Inicio</a>
