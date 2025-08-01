@@ -127,7 +127,7 @@
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
-						<button type="submit" class="btn btn-primary" onclick="guardarCuerpoTecnico()">Guardar
+						<button type="submit" class="btn btn-primary" onclick="guardarCuerpoTecnico(event)">Guardar
 							Cambios</button>
 					</div>
 				</form>
@@ -139,7 +139,11 @@
 	<div th:replace="~{admin/footerAdmin.html}"></div>
 
 	<script>
-		function guardarCuerpoTecnico() {
+		function guardarCuerpoTecnico(event) {
+			event.preventDefault();
+
+			const token = document.querySelector('input[name="_csrf"]').value;
+
 			// Obtén los datos del formulario
 			const formData = new FormData(document.getElementById('cuerpoTecnicoForm'));
 
@@ -152,6 +156,9 @@
 			// Enviar el formulario con AJAX
 			fetch('/admin/cuerpo-tecnico/guardar', {
 				method: 'POST',
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
 				body: formData
 			})
 				.then(response => {

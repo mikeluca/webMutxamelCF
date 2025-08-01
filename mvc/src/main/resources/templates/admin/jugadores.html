@@ -131,7 +131,7 @@
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
-						<button type="submit" class="btn btn-primary" onclick="guardarJugador()">Guardar
+						<button type="submit" class="btn btn-primary" onclick="guardarJugador(event)">Guardar
 							Cambios</button>
 					</div>
 				</form>
@@ -143,7 +143,9 @@
 	<div th:replace="~{admin/footerAdmin.html}"></div>
 
 	<script>
-		function guardarJugador() {
+		function guardarJugador(event) {
+			event.preventDefault();
+			
 			// Obtén los datos del formulario
 			const formData = new FormData(document.getElementById('jugadorForm'));
 			const dorsalValue = document.getElementById('dorsal').value;
