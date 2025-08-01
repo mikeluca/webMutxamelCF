@@ -278,7 +278,7 @@ public class AdminController {
 	}
 
 	// Método para borrar un miembro del cuerpo técnico por su DNI
-	@PostMapping("/cuerpo-tecnico/borrar/{dni}")
+	@PostMapping("/cuerpo-tecnico/borrar/{id}")
 	public String borrarCuerpoTecnico(@PathVariable Long id) {
 		try {
 			cuerpoTecnicoService.eliminarCuerpoTecnico(id); // Eliminar el cuerpo técnico de la base de datos
