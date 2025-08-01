@@ -148,7 +148,7 @@ public class AdminController {
 	public ResponseEntity<Map<String, String>> guardarJugador(@RequestParam String nombre,
 			@RequestParam String apellidos, @RequestParam String fechaNacimiento, @RequestParam String dni,
 			@RequestParam(required = false) Integer dorsal, @RequestParam Long equipo, @RequestParam String posicion,
-			@RequestParam MultipartFile foto) {
+			@RequestParam(required = false) MultipartFile foto) {
 		Map<String, String> response = new HashMap<>();
 
 		try {

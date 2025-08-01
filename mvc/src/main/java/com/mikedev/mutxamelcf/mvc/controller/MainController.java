@@ -154,7 +154,7 @@ public class MainController {
 			helper.setFrom("contacto.web@mutxamelcf.es");
 			helper.setTo("mutxamelcf.gestion@gmail.com");
 			helper.setSubject("Contacto desde la PÁGINA WEB de: " + nombre);
-			helper.setText("De: " + nombre + "\nEmail: " + email + "\n\\nMensaje: " + mensaje);
+			helper.setText("De: " + nombre + "\n" + "Email: " + email + "\n\n" + "Mensaje: " + mensaje);
 			// Enviar el mensaje
 			emailSender.send(message);
 			System.out.println("Correo HTML enviado correctamente.");
