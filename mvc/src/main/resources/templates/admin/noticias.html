@@ -107,6 +107,8 @@
 			// Obtén los datos del formulario
 			const formData = new FormData(document.getElementById('noticiaForm'));
 
+			const token = document.querySelector('input[name="_csrf"]').value;
+
 			// Enviar el formulario con AJAX
 			/*fetch('/admin/noticias/guardar', {
 				method: 'POST',
@@ -116,6 +118,9 @@
 			// Enviar el formulario con AJAX
 			fetch('/admin/noticias/guardar', {
 				method: 'POST',
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
 				body: formData
 			})
 				.then(response => {

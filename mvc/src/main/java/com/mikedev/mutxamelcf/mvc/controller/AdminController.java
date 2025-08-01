@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.HtmlUtils;
 
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoDTO;
@@ -30,6 +29,7 @@ import com.mikedev.mutxamelcf.model.EquipoDTO;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
 import com.mikedev.mutxamelcf.model.JugadorForm;
 import com.mikedev.mutxamelcf.model.NoticiaDTO;
+import com.mikedev.mutxamelcf.model.NoticiaForm;
 import com.mikedev.mutxamelcf.model.ResultadoDTO;
 import com.mikedev.mutxamelcf.service.CuerpoTecnicoService;
 import com.mikedev.mutxamelcf.service.EquipoService;
@@ -303,21 +303,23 @@ public class AdminController {
 	// Método para guardar una nueva noticia
 	@PostMapping("/noticias/guardar")
 	@ResponseBody
-	public ResponseEntity<Map<String, String>> guardarNoticia(@RequestParam String titulo,
-			@RequestParam String contenido, @RequestParam MultipartFile imagen) {
+	public ResponseEntity<Map<String, String>> guardarNoticia(@ModelAttribute NoticiaForm noticiaForm
+//			@RequestParam String titulo,
+//			@RequestParam String contenido, @RequestParam MultipartFile imagen
+	) {
 		Map<String, String> response = new HashMap<>();
 		try {
 			NoticiaDTO noticia = new NoticiaDTO();
-			noticia.setTitulo(titulo);
+			noticia.setTitulo(noticiaForm.getTitulo());
 
 			// Convierte el texto antes de guardarlo poniéndole saltos de línea
-			String contenidoConSaltos = HtmlUtils.htmlEscape(contenido).replaceAll("\n", "<br>");
+			String contenidoConSaltos = HtmlUtils.htmlEscape(noticiaForm.getContenido()).replaceAll("\n", "<br>");
 			noticia.setContenido(contenidoConSaltos);
 			noticia.setFecha(new Date()); // Establecer la fecha actual
 
 			// Si hay una imagen cargada, convertirla a byte[]
-			if (!imagen.isEmpty()) {
-				noticia.setImagen(imagen.getBytes());
+			if (!noticiaForm.getImagen().isEmpty()) {
+				noticia.setImagen(noticiaForm.getImagen().getBytes());
 			}
 
 			if (noticiaService.guardarNoticia(noticia)) {
