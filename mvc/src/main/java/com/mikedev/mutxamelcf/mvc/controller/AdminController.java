@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,8 +25,10 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.HtmlUtils;
 
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoDTO;
+import com.mikedev.mutxamelcf.model.CuerpoTecnicoForm;
 import com.mikedev.mutxamelcf.model.EquipoDTO;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
+import com.mikedev.mutxamelcf.model.JugadorForm;
 import com.mikedev.mutxamelcf.model.NoticiaDTO;
 import com.mikedev.mutxamelcf.model.ResultadoDTO;
 import com.mikedev.mutxamelcf.service.CuerpoTecnicoService;
@@ -145,38 +148,40 @@ public class AdminController {
 	// Método para guardar un nuevo jugador
 	@PostMapping("/jugadores/guardar")
 	@ResponseBody
-	public ResponseEntity<Map<String, String>> guardarJugador(@RequestParam String nombre,
-			@RequestParam String apellidos, @RequestParam String fechaNacimiento, @RequestParam String dni,
-			@RequestParam(required = false) Integer dorsal, @RequestParam Long equipo, @RequestParam String posicion,
-			@RequestParam(required = false) MultipartFile foto) {
+	public ResponseEntity<Map<String, String>> guardarJugador(@ModelAttribute JugadorForm jugadorForm)
+//			(@RequestParam String nombre,
+//			@RequestParam String apellidos, @RequestParam String fechaNacimiento, @RequestParam String dni,
+//			@RequestParam(required = false) Integer dorsal, @RequestParam Long equipo, @RequestParam String posicion,
+//			@RequestParam(required = false) MultipartFile foto) 
+	{
 		Map<String, String> response = new HashMap<>();
 
 		try {
 			JugadorDTO jugador = new JugadorDTO();
-			jugador.setDni(dni);
-			jugador.setNombre(nombre);
-			jugador.setApellidos(apellidos);
+//			jugador.setDni(dni);
+			jugador.setNombre(jugadorForm.getNombre());
+			jugador.setApellidos(jugadorForm.getApellidos());
 
-			// Parsear la fecha de nacimiento desde el formato "yyyy-MM-dd"
-			SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-			Date fechaNacimientoDate = formatter.parse(fechaNacimiento);
-			jugador.setFechaNacimiento(fechaNacimientoDate);
+//			// Parsear la fecha de nacimiento desde el formato "yyyy-MM-dd"
+//			SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+//			Date fechaNacimientoDate = formatter.parse(fechaNacimiento);
+//			jugador.setFechaNacimiento(fechaNacimientoDate);
 
-			EquipoDTO e = equiposService.obtenerEquipoPorId(equipo);
+			EquipoDTO e = equiposService.obtenerEquipoPorId(jugadorForm.getEquipo());
 
 			jugador.setCategoria(e.getCategoria());
 			jugador.setEquipo(e.getNombre());
 			jugador.setDeporte(e.getDeporte());
-			if (dorsal == null) {
+			if (jugadorForm.getDorsal() == null) {
 				jugador.setDorsal(null); // Si dorsal es null, simplemente asigna null
 			} else {
-				jugador.setDorsal(dorsal); // Asigna el valor de dorsal si no es null
+				jugador.setDorsal(jugadorForm.getDorsal()); // Asigna el valor de dorsal si no es null
 			}
-			jugador.setPosicion(posicion);
+			jugador.setPosicion(jugadorForm.getPosicion());
 
 			// Si hay una foto cargada, convertirla a byte[]
-			if (!foto.isEmpty()) {
-				jugador.setFoto(foto.getBytes());
+			if (!jugadorForm.getFoto().isEmpty()) {
+				jugador.setFoto(jugadorForm.getFoto().getBytes());
 			}
 
 			if (jugadoresService.guardarJugador(jugador)) {
@@ -187,10 +192,6 @@ public class AdminController {
 				return ResponseEntity.badRequest().body(response);
 			}
 
-		} catch (ParseException e) {
-			logger.error("Error al parsear la fecha de nacimiento: {}", e.getMessage(), e); // Registrar error de parseo
-			response.put("error", "Error al guardar el equipo");
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		} catch (Exception e) {
 			logger.error("Error al guardar el jugador: {}", e.getMessage(), e); // Registrar el error
 			response.put("error", "Error al guardar el jugador");
@@ -232,32 +233,34 @@ public class AdminController {
 	// Método para guardar un nuevo miembro del cuerpo técnico
 	@PostMapping("/cuerpo-tecnico/guardar")
 	@ResponseBody
-	public ResponseEntity<Map<String, String>> guardarCuerpoTecnico(@RequestParam String nombre,
-			@RequestParam String apellidos, @RequestParam String fechaNacimiento, @RequestParam String dni,
-			@RequestParam Long equipo, @RequestParam String puesto, @RequestParam MultipartFile foto) {
+	public ResponseEntity<Map<String, String>> guardarCuerpoTecnico(@ModelAttribute CuerpoTecnicoForm cuerpoTecnicoForm)
+//			@RequestParam String nombre,
+//			@RequestParam String apellidos, @RequestParam String fechaNacimiento, @RequestParam String dni,
+//			@RequestParam Long equipo, @RequestParam String puesto, @RequestParam MultipartFile foto)
+	{
 		Map<String, String> response = new HashMap<>();
 		try {
 			CuerpoTecnicoDTO staff = new CuerpoTecnicoDTO();
-			staff.setDni(dni);
-			staff.setNombre(nombre);
-			staff.setApellidos(apellidos);
+//			staff.setDni(dni);
+			staff.setNombre(cuerpoTecnicoForm.getNombre());
+			staff.setApellidos(cuerpoTecnicoForm.getApellidos());
 
 			// Parsear la fecha de nacimiento desde el formato "yyyy-MM-dd"
-			SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-			Date fechaNacimientoDate = formatter.parse(fechaNacimiento);
-			staff.setFechaNacimiento(fechaNacimientoDate);
+//			SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+//			Date fechaNacimientoDate = formatter.parse(fechaNacimiento);
+//			staff.setFechaNacimiento(fechaNacimientoDate);
 
-			EquipoDTO e = equiposService.obtenerEquipoPorId(equipo);
+			EquipoDTO e = equiposService.obtenerEquipoPorId(cuerpoTecnicoForm.getEquipo());
 
 			staff.setCategoria(e.getCategoria());
 			staff.setEquipo(e.getNombre());
 			staff.setDeporte(e.getDeporte());
 
-			staff.setPuesto(puesto);
+			staff.setPuesto(cuerpoTecnicoForm.getPuesto());
 
 			// Si hay una foto cargada, convertirla a byte[]
-			if (!foto.isEmpty()) {
-				staff.setFoto(foto.getBytes());
+			if (!cuerpoTecnicoForm.getFoto().isEmpty()) {
+				staff.setFoto(cuerpoTecnicoForm.getFoto().getBytes());
 			}
 
 			if (cuerpoTecnicoService.guardarCuerpoTecnico(staff)) {
@@ -267,10 +270,6 @@ public class AdminController {
 				response.put("error", "Error dando de alta al cuerpo técnico.");
 				return ResponseEntity.badRequest().body(response);
 			}
-		} catch (ParseException e) {
-			logger.error("Error al parsear la fecha de nacimiento: {}", e.getMessage(), e);
-			response.put("error", "Error al guardar el cuerpo técnico");
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		} catch (Exception e) {
 			logger.error("Error al guardar el cuerpo técnico: {}", e.getMessage(), e);
 			response.put("error", "Error al guardar el cuerpo técnico");

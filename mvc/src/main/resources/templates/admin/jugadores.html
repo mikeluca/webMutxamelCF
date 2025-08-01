@@ -86,13 +86,17 @@
 						<div id="mensajeModal" class="alert" style="display:none; margin: 10px;"></div>
 						<div class="row"> <!-- Fila para las columnas -->
 							<div class="col-md-6"> <!-- Primera columna -->
-								<div class="form-group">
-									<label for="dni">DNI:</label>
-									<input type="text" class="form-control" id="dni" name="dni" required>
-								</div>
+								<!--								<div class="form-group">-->
+								<!--									<label for="dni">DNI:</label>-->
+								<!--									<input type="text" class="form-control" id="dni" name="dni" required>-->
+								<!--								</div>-->
 								<div class="form-group">
 									<label for="nombre">Nombre:</label>
 									<input type="text" class="form-control" id="nombre" name="nombre" required>
+								</div>
+								<div class="form-group">
+									<label for="posicion">Posición:</label>
+									<input type="text" class="form-control" id="posicion" name="posicion">
 								</div>
 								<div class="form-group">
 									<label for="equipo">Equipo:</label>
@@ -102,11 +106,6 @@
 											th:text="${equipo.nombre}"></option>
 									</select>
 								</div>
-								<div class="form-group">
-									<label for="posicion">Posición:</label>
-									<input type="text" class="form-control" id="posicion" name="posicion">
-								</div>
-
 								<!-- Campo para subir foto -->
 								<div class="form-group">
 									<label for="foto">Subir Foto</label>
@@ -114,11 +113,11 @@
 								</div>
 							</div>
 							<div class="col-md-6"> <!-- Segunda columna -->
-								<div class="form-group">
-									<label for="fechaNacimiento">Fecha Nacimiento:</label>
-									<input type="date" class="form-control" id="fechaNacimiento" name="fechaNacimiento"
-										required>
-								</div>
+								<!--								<div class="form-group">-->
+								<!--									<label for="fechaNacimiento">Fecha Nacimiento:</label>-->
+								<!--									<input type="date" class="form-control" id="fechaNacimiento" name="fechaNacimiento"-->
+								<!--										required>-->
+								<!--								</div>-->
 								<div class="form-group">
 									<label for="apellidos">Apellidos:</label>
 									<input type="text" class="form-control" id="apellidos" name="apellidos" required>
