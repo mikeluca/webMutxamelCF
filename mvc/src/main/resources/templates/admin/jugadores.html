@@ -148,6 +148,9 @@
 			// Obtén los datos del formulario
 			const formData = new FormData(document.getElementById('jugadorForm'));
 			const dorsalValue = document.getElementById('dorsal').value;
+
+			const token = document.querySelector('input[name="_csrf"]').value;
+
 			if (dorsalValue === "") {
 				formData.delete("dorsal"); // Asegúrate de que no se envíe este campo
 			} else {
@@ -157,6 +160,9 @@
 			// Enviar el formulario con AJAX
 			fetch('/admin/jugadores/guardar', {
 				method: 'POST',
+				headers: {
+					'X-CSRF-TOKEN': token
+				},
 				body: formData
 			})
 				.then(response => {
