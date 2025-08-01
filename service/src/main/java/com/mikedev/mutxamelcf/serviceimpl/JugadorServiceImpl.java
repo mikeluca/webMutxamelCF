@@ -24,13 +24,13 @@ public class JugadorServiceImpl implements JugadorService {
 	}
 
 	@Override
-	public JugadorDTO obtenerJugadorPorDni(String dni) {
-		return toDTO(jugadorDao.obtenerPorId(dni));
+	public JugadorDTO obtenerJugadorPorId(Long id) {
+		return toDTO(jugadorDao.obtenerPorId(id));
 	}
 
 	@Override
-	public void eliminarJugador(String dni) {
-		jugadorDao.eliminar(dni);
+	public void eliminarJugador(Long id) {
+		jugadorDao.eliminar(id);
 	}
 
 	@Override
@@ -55,12 +55,9 @@ public class JugadorServiceImpl implements JugadorService {
 		}
 
 		Jugador jugador = new Jugador();
-		jugador.setDni(jugadorDTO.getDni());
+		jugador.setId(jugadorDTO.getId());
 		jugador.setNombre(jugadorDTO.getNombre());
 		jugador.setApellidos(jugadorDTO.getApellidos());
-		jugador.setFechaNacimiento(jugadorDTO.getFechaNacimiento());
-		jugador.setPoblacion(jugadorDTO.getPoblacion());
-		jugador.setNacionalidad(jugadorDTO.getNacionalidad());
 		jugador.setCategoria(jugadorDTO.getCategoria());
 		jugador.setDeporte(jugadorDTO.getDeporte());
 		jugador.setEquipo(jugadorDTO.getEquipo());
@@ -78,12 +75,9 @@ public class JugadorServiceImpl implements JugadorService {
 		}
 
 		JugadorDTO jugadorDTO = new JugadorDTO();
-		jugadorDTO.setDni(jugador.getDni());
+		jugadorDTO.setId(jugador.getId());
 		jugadorDTO.setNombre(jugador.getNombre());
 		jugadorDTO.setApellidos(jugador.getApellidos());
-		jugadorDTO.setFechaNacimiento(jugador.getFechaNacimiento());
-		jugadorDTO.setPoblacion(jugador.getPoblacion());
-		jugadorDTO.setNacionalidad(jugador.getNacionalidad());
 		jugadorDTO.setCategoria(jugador.getCategoria());
 		jugadorDTO.setDeporte(jugador.getDeporte());
 		jugadorDTO.setEquipo(jugador.getEquipo());

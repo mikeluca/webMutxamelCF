@@ -5,17 +5,17 @@ import java.util.List;
 import com.mikedev.mutxamelcf.model.CuerpoTecnico;
 
 public interface CuerpoTecnicoDao {
-	
+
 	boolean guardar(CuerpoTecnico cuerpoTecnico);
 
-	CuerpoTecnico obtenerPorId(String dni);
+	CuerpoTecnico obtenerPorId(Long id);
 
 	List<CuerpoTecnico> obtenerTodosPorCategoria(String categoria);
-	
+
 	List<CuerpoTecnico> obtenerTodosPorEquipo(String equipo);
 
 	List<CuerpoTecnico> obtenerTodos();
 
-	void eliminar(String dni);
-	
+	void eliminar(Long id);
+
 }

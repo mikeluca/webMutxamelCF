@@ -9,13 +9,13 @@ public interface JugadorService {
 	boolean guardarJugador(JugadorDTO jugador);
 
 	List<JugadorDTO> obtenerJugadoresPorCategoria(String categoria);
-	
+
 	List<JugadorDTO> obtenerJugadoresPorEquipo(String equipo);
 
 	List<JugadorDTO> obtenerTodos();
 
-	JugadorDTO obtenerJugadorPorDni(String dni);
+	JugadorDTO obtenerJugadorPorId(Long id);
 
-	void eliminarJugador(String dni);
-	
+	void eliminarJugador(Long id);
+
 }

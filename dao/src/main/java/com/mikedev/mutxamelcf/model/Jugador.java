@@ -5,6 +5,7 @@ import java.util.Date;
 import jakarta.persistence.Lob;
 
 public class Jugador {
+	private Long id;
 	private String dni;
 	private String nombre;
 	private String apellidos;
@@ -19,10 +20,11 @@ public class Jugador {
 	@Lob
 	private byte[] foto;
 
-	public Jugador(String dni, String nombre, String apellidos, Date fechaNacimiento, String poblacion,
+	public Jugador(Long id, String dni, String nombre, String apellidos, Date fechaNacimiento, String poblacion,
 			String nacionalidad, String categoria, String deporte, String equipo, int dorsal, String posicion,
 			byte[] foto) {
 		super();
+		this.setId(id);
 		this.dni = dni;
 		this.nombre = nombre;
 		this.apellidos = apellidos;
@@ -135,6 +137,14 @@ public class Jugador {
 
 	public void setDeporte(String deporte) {
 		this.deporte = deporte;
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
 	}
 
 }

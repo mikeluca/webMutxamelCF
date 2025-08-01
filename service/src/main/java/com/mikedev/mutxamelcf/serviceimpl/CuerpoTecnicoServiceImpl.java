@@ -24,13 +24,13 @@ public class CuerpoTecnicoServiceImpl implements CuerpoTecnicoService {
 	}
 
 	@Override
-	public CuerpoTecnicoDTO obtenerCuerpoTecnicoPorDni(String dni) {
-		return toDTO(cuerpoTecnicoDao.obtenerPorId(dni));
+	public CuerpoTecnicoDTO obtenerCuerpoTecnicoPorId(Long id) {
+		return toDTO(cuerpoTecnicoDao.obtenerPorId(id));
 	}
 
 	@Override
-	public void eliminarCuerpoTecnico(String dni) {
-		cuerpoTecnicoDao.eliminar(dni);
+	public void eliminarCuerpoTecnico(Long id) {
+		cuerpoTecnicoDao.eliminar(id);
 	}
 
 	@Override
@@ -55,12 +55,9 @@ public class CuerpoTecnicoServiceImpl implements CuerpoTecnicoService {
 		}
 
 		CuerpoTecnico cuerpoTecnico = new CuerpoTecnico();
-		cuerpoTecnico.setDni(cuerpoTecnicoDTO.getDni());
+		cuerpoTecnico.setId(cuerpoTecnicoDTO.getId());
 		cuerpoTecnico.setNombre(cuerpoTecnicoDTO.getNombre());
 		cuerpoTecnico.setApellidos(cuerpoTecnicoDTO.getApellidos());
-		cuerpoTecnico.setFechaNacimiento(cuerpoTecnicoDTO.getFechaNacimiento());
-		cuerpoTecnico.setPoblacion(cuerpoTecnicoDTO.getPoblacion());
-		cuerpoTecnico.setNacionalidad(cuerpoTecnicoDTO.getNacionalidad());
 		cuerpoTecnico.setCategoria(cuerpoTecnicoDTO.getCategoria());
 		cuerpoTecnico.setDeporte(cuerpoTecnicoDTO.getDeporte());
 		cuerpoTecnico.setEquipo(cuerpoTecnicoDTO.getEquipo());
@@ -77,12 +74,9 @@ public class CuerpoTecnicoServiceImpl implements CuerpoTecnicoService {
 		}
 
 		CuerpoTecnicoDTO cuerpoTecnicoDTO = new CuerpoTecnicoDTO();
-		cuerpoTecnicoDTO.setDni(cuerpoTecnico.getDni());
+		cuerpoTecnicoDTO.setId(cuerpoTecnico.getId());
 		cuerpoTecnicoDTO.setNombre(cuerpoTecnico.getNombre());
 		cuerpoTecnicoDTO.setApellidos(cuerpoTecnico.getApellidos());
-		cuerpoTecnicoDTO.setFechaNacimiento(cuerpoTecnico.getFechaNacimiento());
-		cuerpoTecnicoDTO.setPoblacion(cuerpoTecnico.getPoblacion());
-		cuerpoTecnicoDTO.setNacionalidad(cuerpoTecnico.getNacionalidad());
 		cuerpoTecnicoDTO.setCategoria(cuerpoTecnico.getCategoria());
 		cuerpoTecnicoDTO.setDeporte(cuerpoTecnico.getDeporte());
 		cuerpoTecnicoDTO.setEquipo(cuerpoTecnico.getEquipo());
