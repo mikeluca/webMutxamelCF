@@ -40,13 +40,13 @@
 		margin-bottom: 10px;
 		color: black;
 	}
-	
+
 	.team-card img.team-img {
-	    width: 100%;
-	    height: 150px;
-	    object-fit: cover;
-	    border-radius: 10px;
-	    margin-bottom: 10px;
+		width: 100%;
+		height: 150px;
+		object-fit: cover;
+		border-radius: 10px;
+		margin-bottom: 10px;
 	}
 </style>
 
@@ -70,7 +70,7 @@
 					<!-- Tarjeta para cada equipo -->
 					<div th:each="equipo : ${entry.value}" class="team-card">
 						<a th:href="@{/categorias/{nombre}(nombre=${equipo.nombre})}" style="text-decoration: none;">
-							<img src="/images/noticia1.jpg" alt="Imagen de equipo" class="team-img">
+							<img src="/images/silueta_equipo.jpg" alt="Imagen de equipo" class="team-img">
 							<h5 th:text="${equipo.nombre}">Nombre del Equipo</h5>
 						</a>
 					</div>
