@@ -2,6 +2,7 @@ package com.mikedev.mutxamelcf.mvc.controller;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -58,6 +59,10 @@ public class AdminController {
 	@Autowired
 	private EquipoService equiposService;
 
+	// Logos de patrocinadores
+	List<String> patrocinadores = Arrays.asList("patrocinador1.jpg", "patrocinador2.jpg", "patrocinador3.jpg",
+			"patrocinador4.jpg", "patrocinador5.jpg", "patrocinador6.jpg", "patrocinador7.jpg", "patrocinador8.jpg");
+	
 	@GetMapping("/admin")
 	public String login() {
 		return "admin/admin";
@@ -85,6 +90,9 @@ public class AdminController {
 
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("equipos", equipos);
+		
+		model.addAttribute("patrocinadores", patrocinadores);
+
 		return "admin/equipos"; // Retornar la vista para listar equipos
 	}
 
@@ -142,6 +150,9 @@ public class AdminController {
 		List<String> categorias = equiposService.obtenerCategorias();
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("jugadores", jugadores);
+		
+		model.addAttribute("patrocinadores", patrocinadores);
+
 		return "admin/jugadores"; // Retornar la vista para listar jugadores
 	}
 
@@ -227,6 +238,9 @@ public class AdminController {
 		List<String> categorias = equiposService.obtenerCategorias();
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("cuerpoTecnico", cuerpoTecnico);
+		
+		model.addAttribute("patrocinadores", patrocinadores);
+
 		return "admin/cuerpo-tecnico"; // Retornar la vista para listar el cuerpo técnico
 	}
 
@@ -297,6 +311,9 @@ public class AdminController {
 		List<String> categorias = equiposService.obtenerCategorias();
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("listaNoticias", listaNoticias);
+		
+		model.addAttribute("patrocinadores", patrocinadores);
+
 		return "admin/noticias"; // Retornar la vista para listar noticias
 	}
 
@@ -360,6 +377,9 @@ public class AdminController {
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("resultadosFutbol", resultadosFutbol);
 		model.addAttribute("resultadosFutbolSala", resultadosFutbolSala);
+		
+		model.addAttribute("patrocinadores", patrocinadores);
+
 		return "admin/calendario-resultados"; // Retornar la vista para listar resultados
 	}
 

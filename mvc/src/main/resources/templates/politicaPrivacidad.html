@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Mutxamel Club de Fútbol</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link th:href="@{/css/estilos.css}" rel="stylesheet">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+	<link href="https://fonts.googleapis.com/css2?family=Fredericka+the+Great&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+	<!-- Incluir el header -->
+	<div th:replace="~{cabecera.html}"></div>
+
+	<main class="container my-5 lead">
+		<h1 class="text-center mb-5 fw-bold">Política de Privacidad</h1>
+
+		<p>En cumplimiento del Reglamento (UE) 2016/679 (RGPD) y la Ley Orgánica 3/2018 (LOPDGDD), le informamos sobre
+			el tratamiento de sus datos personales en esta página web.</p>
+
+		<h2>1. Responsable del tratamiento</h2>
+		<p>
+			<strong>Nombre:</strong> Mutxamel Club de Fútbol<br>
+			<strong>CIF:</strong> [INCLUIR CIF]<br>
+			<strong>Domicilio:</strong>Calle los Olmos S/N, Muchamiel, Valenciana, Spain 03110<br>
+			<strong>Email:</strong> <a href="mailto:mutxamelcf.gestion@gmail.com">mutxamelcf.gestion@gmail.com</a>
+		</p>
+
+		<h2>2. Finalidad del tratamiento</h2>
+		<p>Usamos sus datos con fines exclusivamente informativos y promocionales relacionados con las actividades del
+			club, como la publicación de noticias, imágenes y resultados en la web y redes sociales.</p>
+
+		<h2>3. Legitimación</h2>
+		<p>Tratamos sus datos en base al consentimiento informado del usuario o, en caso de menores, de su representante
+			legal.</p>
+
+		<h2>4. Conservación de datos</h2>
+		<p>Los datos se conservarán mientras exista relación con el club o no se solicite su eliminación.</p>
+
+		<h2>5. Destinatarios</h2>
+		<p>No se cederán datos personales a terceros, salvo obligación legal.</p>
+
+		<h2>6. Derechos de los usuarios</h2>
+		<p>Usted puede ejercer sus derechos de acceso, rectificación, supresión, oposición, limitación o portabilidad
+			enviando un correo a <a href="mailto:mutxamelcf.gestion@gmail.com">mutxamelcf.gestion@gmail.com</a> o por
+			vía postal.</p>
+
+		<h2>7. Datos de menores</h2>
+		<p>No se publicará información o imagen de menores sin autorización expresa del padre/madre o tutor legal. El
+			club respeta y protege su privacidad.</p>
+
+		<h2>8. Cambios en la política</h2>
+		<p>Esta política puede actualizarse. La fecha de la última revisión es: <strong>agosto de 2025</strong>.</p>
+	</main>
+
+	<!-- Incluir el footer -->
+	<div th:replace="~{footer.html}"></div>
+
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+
+</html>
