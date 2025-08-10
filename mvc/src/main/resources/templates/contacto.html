@@ -17,26 +17,70 @@
 	<main class="container my-5 lead">
 		<div class="container">
 			<h1 class="text-center fw-bold">Contacto</h1>
-			<form action="/enviar-email" method="POST">
-				<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-				
+
+			<div class="row">
+				<!-- Columna izquierda: formulario -->
 				<div class="col-md-6">
-					<div class="form-group mt-2">
-						<label for="nombre">Nombre:</label>
-						<input type="text" class="form-control" id="nombre" name="nombre" required>
-					</div>
-					<div class="form-group mt-3">
-						<label for="email">Email:</label>
-						<input type="email" class="form-control" id="email" name="email" required>
-					</div>
+					<form action="/enviar-email" method="POST">
+						<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+						<div class="form-group mt-2">
+							<label for="nombre">Nombre:</label>
+							<input type="text" class="form-control" id="nombre" name="nombre" required>
+						</div>
+
+						<div class="form-group mt-3">
+							<label for="email">Email:</label>
+							<input type="email" class="form-control" id="email" name="email" required>
+						</div>
+
+						<div class="form-group mt-3">
+							<label for="mensaje">Mensaje:</label>
+							<textarea class="form-control" id="mensaje" name="mensaje" rows="5" required></textarea>
+						</div>
+
+						<button type="submit" class="btn btn-primary mt-3">Enviar</button>
+					</form>
 				</div>
 
-				<div class="form-group mt-3">
-					<label for="mensaje">Mensaje:</label>
-					<textarea class="form-control" id="mensaje" name="mensaje" rows="5" required></textarea>
+				<!-- Columna derecha: mapa y datos -->
+				<div class="col-md-6">
+					<h3 class="fw-bold">Dónde estamos</h3>
+					<iframe
+						src="https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d957.0062670822804!2d-0.44529438041417635!3d38.407682941178706!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zMzjCsDI0JzI5LjAiTiAwwrAyNic0MS4zIlc!5e1!3m2!1ses!2ses!4v1754845797624!5m2!1ses!2ses"
+						width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy"
+						referrerpolicy="no-referrer-when-downgrade"></iframe>
+
+					<div class="mt-3">
+						<p><strong>Dirección:</strong> Calle los Olmos S/N, Mutxamel, Alicante, Spain 03110
+						</p>
+						<p><strong>Teléfono:</strong> +34 623 17 68 18</p>
+						<p><strong>Email:</strong> <a href="mailto:mutxamelcf.gestion@gmail.com"
+								class="no-style">mutxamelcf.gestion@gmail.com</a></p>
+					</div>
 				</div>
-				<button type="submit" class="btn btn-primary mt-3">Enviar</button>
-			</form>
+			</div>
+
+			<!--			<form action="/enviar-email" method="POST">-->
+			<!--				<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />-->
+
+			<!--				<div class="col-md-6">-->
+			<!--					<div class="form-group mt-2">-->
+			<!--						<label for="nombre">Nombre:</label>-->
+			<!--						<input type="text" class="form-control" id="nombre" name="nombre" required>-->
+			<!--					</div>-->
+			<!--					<div class="form-group mt-3">-->
+			<!--						<label for="email">Email:</label>-->
+			<!--						<input type="email" class="form-control" id="email" name="email" required>-->
+			<!--					</div>-->
+			<!--				</div>-->
+
+			<!--				<div class="form-group mt-3">-->
+			<!--					<label for="mensaje">Mensaje:</label>-->
+			<!--					<textarea class="form-control" id="mensaje" name="mensaje" rows="5" required></textarea>-->
+			<!--				</div>-->
+			<!--				<button type="submit" class="btn btn-primary mt-3">Enviar</button>-->
+			<!--			</form>-->
 		</div>
 	</main>
 

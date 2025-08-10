@@ -57,6 +57,10 @@ public class MainController {
 	@Autowired
 	private EquipoService equipoService;
 
+	// Logos de patrocinadores
+	List<String> patrocinadores = Arrays.asList("patrocinador1.jpg", "patrocinador2.jpg", "patrocinador3.jpg",
+			"patrocinador4.jpg", "patrocinador5.jpg", "patrocinador6.jpg", "patrocinador7.jpg", "patrocinador8.jpg");
+
 	@GetMapping("/login")
 	public String login(@RequestParam(required = false) String error, Model model) {
 		if (error != null) {
@@ -89,6 +93,7 @@ public class MainController {
 
 	@GetMapping("/historia")
 	public String historia(Model model) {
+		model.addAttribute("patrocinadores", patrocinadores);
 		return "historia";
 	}
 
@@ -97,11 +102,6 @@ public class MainController {
 		// Lista de noticias
 		List<NoticiaDTO> noticias = noticiaService.obtenerNoticiasParaMostrar();
 
-		// Logos de patrocinadores
-		List<String> patrocinadores = Arrays.asList("patrocinador1.jpg", "patrocinador2.jpg", "patrocinador3.jpg",
-				"patrocinador4.jpg", "patrocinador5.jpg", "patrocinador6.jpg", "patrocinador7.jpg",
-				"patrocinador8.jpg");
-
 		model.addAttribute("noticias", noticias);
 		model.addAttribute("patrocinadores", patrocinadores);
 		return "index";
@@ -109,6 +109,7 @@ public class MainController {
 
 	@GetMapping("/contacto")
 	public String contacto(Model model) {
+		model.addAttribute("patrocinadores", patrocinadores);
 		return "contacto";
 	}
 
@@ -116,9 +117,10 @@ public class MainController {
 	@GetMapping("/resultados")
 	public String mostrarResultados(Model model) {
 		List<ResultadoDTO> resultadosFutbol = resultadoService.obtenerResultados("F");
-		List<ResultadoDTO> resultadosFutbolSala = resultadoService.obtenerResultados("FS");
 		model.addAttribute("resultadosFutbol", resultadosFutbol);
-		model.addAttribute("resultadosFutbolSala", resultadosFutbolSala);
+
+		model.addAttribute("patrocinadores", patrocinadores);
+
 		return "resultados";
 	}
 
@@ -133,6 +135,9 @@ public class MainController {
 		model.addAttribute("jugadores", jugadores);
 		model.addAttribute("staff", staff);
 		model.addAttribute("categoria", equipo);
+
+		model.addAttribute("patrocinadores", patrocinadores);
+
 		return "plantilla";
 	}
 
@@ -140,6 +145,9 @@ public class MainController {
 	public String ampliarNoticia(@PathVariable int id, Model model) {
 		NoticiaDTO noticia = noticiaService.obtenerNoticiaPorId(id);
 		model.addAttribute("noticia", noticia);
+
+		model.addAttribute("patrocinadores", patrocinadores);
+
 		return "noticia";
 	}
 
@@ -170,7 +178,17 @@ public class MainController {
 	public String mostrarEquiposPorCategoria(@PathVariable String deporte, Model model) {
 		Map<String, List<EquipoDTO>> equiposPorCategoria = equipoService.obtenerEquiposAgrupadosPorCategoria(deporte);
 		model.addAttribute("equiposPorCategoria", equiposPorCategoria);
+
+		model.addAttribute("patrocinadores", patrocinadores);
+
 		return "listaEquipos";
+	}
+
+	@GetMapping("/politicaPrivacidad")
+	public String politicaPrivacidad(Model model) {
+		model.addAttribute("patrocinadores", patrocinadores);
+
+		return "politicaPrivacidad";
 	}
 
 }
