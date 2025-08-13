@@ -62,7 +62,7 @@ public class AdminController {
 	// Logos de patrocinadores
 	List<String> patrocinadores = Arrays.asList("patrocinador1.jpg", "patrocinador2.jpg", "patrocinador3.jpg",
 			"patrocinador4.jpg", "patrocinador5.jpg", "patrocinador6.jpg", "patrocinador7.jpg", "patrocinador8.jpg");
-	
+
 	@GetMapping("/admin")
 	public String login() {
 		return "admin/admin";
@@ -90,7 +90,7 @@ public class AdminController {
 
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("equipos", equipos);
-		
+
 		model.addAttribute("patrocinadores", patrocinadores);
 
 		return "admin/equipos"; // Retornar la vista para listar equipos
@@ -150,7 +150,7 @@ public class AdminController {
 		List<String> categorias = equiposService.obtenerCategorias();
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("jugadores", jugadores);
-		
+
 		model.addAttribute("patrocinadores", patrocinadores);
 
 		return "admin/jugadores"; // Retornar la vista para listar jugadores
@@ -159,24 +159,13 @@ public class AdminController {
 	// Método para guardar un nuevo jugador
 	@PostMapping("/jugadores/guardar")
 	@ResponseBody
-	public ResponseEntity<Map<String, String>> guardarJugador(@ModelAttribute JugadorForm jugadorForm)
-//			(@RequestParam String nombre,
-//			@RequestParam String apellidos, @RequestParam String fechaNacimiento, @RequestParam String dni,
-//			@RequestParam(required = false) Integer dorsal, @RequestParam Long equipo, @RequestParam String posicion,
-//			@RequestParam(required = false) MultipartFile foto) 
-	{
+	public ResponseEntity<Map<String, String>> guardarJugador(@ModelAttribute JugadorForm jugadorForm) {
 		Map<String, String> response = new HashMap<>();
 
 		try {
 			JugadorDTO jugador = new JugadorDTO();
-//			jugador.setDni(dni);
 			jugador.setNombre(jugadorForm.getNombre());
 			jugador.setApellidos(jugadorForm.getApellidos());
-
-//			// Parsear la fecha de nacimiento desde el formato "yyyy-MM-dd"
-//			SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-//			Date fechaNacimientoDate = formatter.parse(fechaNacimiento);
-//			jugador.setFechaNacimiento(fechaNacimientoDate);
 
 			EquipoDTO e = equiposService.obtenerEquipoPorId(jugadorForm.getEquipo());
 
@@ -238,7 +227,7 @@ public class AdminController {
 		List<String> categorias = equiposService.obtenerCategorias();
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("cuerpoTecnico", cuerpoTecnico);
-		
+
 		model.addAttribute("patrocinadores", patrocinadores);
 
 		return "admin/cuerpo-tecnico"; // Retornar la vista para listar el cuerpo técnico
@@ -247,22 +236,13 @@ public class AdminController {
 	// Método para guardar un nuevo miembro del cuerpo técnico
 	@PostMapping("/cuerpo-tecnico/guardar")
 	@ResponseBody
-	public ResponseEntity<Map<String, String>> guardarCuerpoTecnico(@ModelAttribute CuerpoTecnicoForm cuerpoTecnicoForm)
-//			@RequestParam String nombre,
-//			@RequestParam String apellidos, @RequestParam String fechaNacimiento, @RequestParam String dni,
-//			@RequestParam Long equipo, @RequestParam String puesto, @RequestParam MultipartFile foto)
-	{
+	public ResponseEntity<Map<String, String>> guardarCuerpoTecnico(
+			@ModelAttribute CuerpoTecnicoForm cuerpoTecnicoForm) {
 		Map<String, String> response = new HashMap<>();
 		try {
 			CuerpoTecnicoDTO staff = new CuerpoTecnicoDTO();
-//			staff.setDni(dni);
 			staff.setNombre(cuerpoTecnicoForm.getNombre());
 			staff.setApellidos(cuerpoTecnicoForm.getApellidos());
-
-			// Parsear la fecha de nacimiento desde el formato "yyyy-MM-dd"
-//			SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-//			Date fechaNacimientoDate = formatter.parse(fechaNacimiento);
-//			staff.setFechaNacimiento(fechaNacimientoDate);
 
 			EquipoDTO e = equiposService.obtenerEquipoPorId(cuerpoTecnicoForm.getEquipo());
 
@@ -311,7 +291,7 @@ public class AdminController {
 		List<String> categorias = equiposService.obtenerCategorias();
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("listaNoticias", listaNoticias);
-		
+
 		model.addAttribute("patrocinadores", patrocinadores);
 
 		return "admin/noticias"; // Retornar la vista para listar noticias
@@ -320,10 +300,7 @@ public class AdminController {
 	// Método para guardar una nueva noticia
 	@PostMapping("/noticias/guardar")
 	@ResponseBody
-	public ResponseEntity<Map<String, String>> guardarNoticia(@ModelAttribute NoticiaForm noticiaForm
-//			@RequestParam String titulo,
-//			@RequestParam String contenido, @RequestParam MultipartFile imagen
-	) {
+	public ResponseEntity<Map<String, String>> guardarNoticia(@ModelAttribute NoticiaForm noticiaForm) {
 		Map<String, String> response = new HashMap<>();
 		try {
 			NoticiaDTO noticia = new NoticiaDTO();
@@ -377,7 +354,7 @@ public class AdminController {
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("resultadosFutbol", resultadosFutbol);
 		model.addAttribute("resultadosFutbolSala", resultadosFutbolSala);
-		
+
 		model.addAttribute("patrocinadores", patrocinadores);
 
 		return "admin/calendario-resultados"; // Retornar la vista para listar resultados

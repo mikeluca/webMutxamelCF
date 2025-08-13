@@ -191,4 +191,13 @@ public class MainController {
 		return "politicaPrivacidad";
 	}
 
+	@GetMapping("/todasNoticias")
+	public String todasNoticias(Model model) {
+		List<NoticiaDTO> todas = noticiaService.obtenerTodas();
+		model.addAttribute("noticias", todas);
+		model.addAttribute("patrocinadores", patrocinadores);
+
+		return "todasNoticias";
+	}
+
 }
