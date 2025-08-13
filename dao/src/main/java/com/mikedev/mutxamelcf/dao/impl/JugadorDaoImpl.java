@@ -22,16 +22,6 @@ public class JugadorDaoImpl implements JugadorDao {
 
 	@Override
 	public boolean guardarJugador(Jugador jugador) {
-//		if (existeJugador(jugador.getDni())) {
-//			String sql = "UPDATE jugadores SET nombre = ?, apellidos = ?, fecha_nacimiento = ?, poblacion = ?, "
-//					+ "nacionalidad = ?, categoria = ?, deporte = ?, dorsal = ?, posicion = ?, foto = ?, equipo = ? WHERE dni = ?";
-//
-//			return (jdbcTemplate.update(sql, jugador.getNombre(), jugador.getApellidos(), jugador.getFechaNacimiento(),
-//					jugador.getPoblacion(), jugador.getNacionalidad(), jugador.getCategoria(), jugador.getDeporte(),
-//					jugador.getDorsal(), jugador.getPosicion(), jugador.getFoto(), jugador.getEquipo(),
-//					jugador.getDni()) == 1);
-//
-//		} else {
 		String sql = "INSERT INTO jugadores (dni, nombre, apellidos, fecha_nacimiento, poblacion, "
 				+ "nacionalidad, categoria, deporte, dorsal, posicion, equipo, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
@@ -39,19 +29,7 @@ public class JugadorDaoImpl implements JugadorDao {
 				jugador.getFechaNacimiento(), jugador.getPoblacion(), jugador.getNacionalidad(), jugador.getCategoria(),
 				jugador.getDeporte(), jugador.getDorsal(), jugador.getPosicion(), jugador.getEquipo(),
 				jugador.getFoto()) == 1);
-//		}
 	}
-
-//	@SuppressWarnings("deprecation")
-//	private boolean existeJugador(Long id) {
-//		String sql = "SELECT COUNT(*) FROM jugadores WHERE id = ?";
-//
-//		// Ejecutar la query y obtener el número de jugadores con ese DNI
-//		Integer count = jdbcTemplate.queryForObject(sql, new Object[] { id }, Integer.class);
-//
-//		// Si el count es mayor que 0, significa que existe el jugador
-//		return count != null && count > 0;
-//	}
 
 	@SuppressWarnings("deprecation")
 	@Override
