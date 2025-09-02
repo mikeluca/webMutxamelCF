@@ -97,6 +97,12 @@ public class MainController {
 		return "historia";
 	}
 
+	@GetMapping("/estadisticasPalmares")
+	public String estadisticasPalmares(Model model) {
+		model.addAttribute("patrocinadores", patrocinadores);
+		return "estadisticasPalmares";
+	}
+
 	@GetMapping("/index")
 	public String inicio(Model model) {
 		// Lista de noticias
