@@ -24,9 +24,9 @@
 	<!-- Incluir el header -->
 	<div th:replace="~{cabecera.html}"></div>
 
-	<main>
+	<main class="container my-5 lead">
 		<!-- Mostramos los resultadosFutbol en una tabla si existen -->
-		<div th:if="${!resultadosFutbol.isEmpty()}">
+		<div>
 			<h1 class="text-center my-5 fw-bold">Calendario / Restultados Fútbol</h1>
 			<table>
 				<thead>
@@ -52,33 +52,33 @@
 				</tbody>
 			</table>
 		</div>
-		<!-- Mostramos los resultadosFutbol en una tabla si existen -->
-		<div th:if="${!resultadosFutbolSala.isEmpty()}">
-			<h1 class="text-center my-5 fw-bold">Calendario / Restultados Fútbol Sala</h1>
-			<table>
-				<thead>
-					<tr>
-						<th>EQUIPO</th>
-						<th>RESULTADO</th>
-						<th>RIVAL</th>
-						<th>DIA</th>
-						<th>HORA</th>
-						<th>CAMPO</th>
-					</tr>
-				</thead>
-				<tbody>
-					<!-- Iteramos sobre la lista de resultados -->
-					<tr th:each="resultado : ${resultadosFutbolSala}">
-						<td th:text="${resultado.equipo}" style="width: auto;"></td>
-						<td th:text="${resultado.resultado}" style="width: 80px;"></td>
-						<td th:text="${resultado.rival}" style="width: auto;"></td>
-						<td th:text="${#dates.format(resultado.dia, 'dd/MM/yyyy')}" style="width: 80px; "></td>
-						<td th:text="${resultado.hora}" style="width: 80px;"></td>
-						<td th:text="${resultado.campo}" style="width: auto;"></td>
-					</tr>
-				</tbody>
-			</table>
-		</div>
+		<!--		 Mostramos los resultadosFutbol en una tabla si existen -->
+		<!--		<div th:if="${!resultadosFutbolSala.isEmpty()}">-->
+		<!--			<h1 class="text-center my-5 fw-bold">Calendario / Restultados Fútbol Sala</h1>-->
+		<!--			<table>-->
+		<!--				<thead>-->
+		<!--					<tr>-->
+		<!--						<th>EQUIPO</th>-->
+		<!--						<th>RESULTADO</th>-->
+		<!--						<th>RIVAL</th>-->
+		<!--						<th>DIA</th>-->
+		<!--						<th>HORA</th>-->
+		<!--						<th>CAMPO</th>-->
+		<!--					</tr>-->
+		<!--				</thead>-->
+		<!--				<tbody>-->
+		<!--					 Iteramos sobre la lista de resultados -->
+		<!--					<tr th:each="resultado : ${resultadosFutbolSala}">-->
+		<!--						<td th:text="${resultado.equipo}" style="width: auto;"></td>-->
+		<!--						<td th:text="${resultado.resultado}" style="width: 80px;"></td>-->
+		<!--						<td th:text="${resultado.rival}" style="width: auto;"></td>-->
+		<!--						<td th:text="${#dates.format(resultado.dia, 'dd/MM/yyyy')}" style="width: 80px; "></td>-->
+		<!--						<td th:text="${resultado.hora}" style="width: 80px;"></td>-->
+		<!--						<td th:text="${resultado.campo}" style="width: auto;"></td>-->
+		<!--					</tr>-->
+		<!--				</tbody>-->
+		<!--			</table>-->
+		<!--		</div>-->
 	</main>
 
 	<!-- Incluir el footer -->
