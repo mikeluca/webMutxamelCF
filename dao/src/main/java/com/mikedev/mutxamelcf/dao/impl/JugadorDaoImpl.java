@@ -80,7 +80,7 @@ public class JugadorDaoImpl implements JugadorDao {
 	@SuppressWarnings("deprecation")
 	@Override
 	public List<Jugador> obtenerTodosPorEquipo(String equipo) {
-		String sql = "SELECT * FROM jugadores WHERE equipo = ? ORDER BY equipo, apellidos";
+		String sql = "SELECT * FROM jugadores WHERE equipo = ? ORDER BY equipo, dorsal";
 
 		return jdbcTemplate.query(sql, new Object[] { equipo }, new RowMapper<Jugador>() {
 			@Override

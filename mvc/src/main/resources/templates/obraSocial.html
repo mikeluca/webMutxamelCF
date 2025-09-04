@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Mutxamel Club de Fútbol</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link th:href="@{/css/estilos.css}" rel="stylesheet">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+	<link href="https://fonts.googleapis.com/css2?family=Fredericka+the+Great&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
+</head>
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-K1DNQTT2X3"></script>
+<script>
+	window.dataLayer = window.dataLayer || [];
+	function gtag() {dataLayer.push(arguments);}
+	gtag('js', new Date());
+
+	gtag('config', 'G-K1DNQTT2X3');
+</script>
+
+<body>
+
+	<!-- Incluir el header -->
+	<div th:replace="~{cabecera.html}"></div>
+
+	<main class="container my-5 lead">
+		<a href="/images/entregaCaritas.jpg" target="_blank">
+			<img src="/images/entregaCaritas.jpg" class="img-thumbnail mb-5 mx-auto d-block">
+		</a>
+		<h1 class="fw-bold text-center mb-5">🤝💙 ORGULLO DE PUEBLO 💙🤝</h1>
+		<p class="text-center mb-5">
+			El pasado viernes hicimos entrega del cheque con la recaudación del partido benéfico, con la
+			entrada/donativo, entre el Mutxamel C.F. y el Hércules C.F. a Cáritas Mutxamel, por un valor de 10.910
+			€.</br>
+
+			El acto tuvo lugar en la Parroquia El Salvador de Mutxamel, símbolo de unión y solidaridad con nuestro
+			pueblo.</br>
+
+			Gracias a todos los que lo habéis hecho posible: afición, voluntarios, colaboradores, patrocinadores y todas
+			las personas que con su entrada/donativo, donación o ayuda han contribuido a esta causa.</br></br>
+
+			💙 Mutxamel es fútbol. Mutxamel es solidaridad. 💙</br>
+
+			——</br>
+			🤝💙 ORGULL DE POBLE 💙🤝</br>
+
+			El passat divendres vam fer entrega del xec amb la recaptació del partit benèfic, amb l’entrada/donatiu,
+			entre el Mutxamel C.F. i l’Hércules C.F. a Càritas Mutxamel, per un valor de 10.910 €.</br>
+
+			L’acte va tindre lloc a la Parròquia El Salvador de Mutxamel, símbol d’unió i solidaritat amb el nostre
+			poble.</br>
+
+			Gràcies a tots els que ho heu fet possible: afició, voluntaris, col·laboradors, patrocinadors i totes les
+			persones que amb la seua entrada/donatiu, donació o ajuda han contribuït a aquesta causa.</br></br>
+
+			💙 Mutxamel és futbol. Mutxamel és solidaritat. 💙</br>
+		</p>
+
+		<hr class="modern-separator my-5">
+
+		<a href="/images/MaliMutxamel.jpg" target="_blank">
+			<img src="/images/MaliMutxamel.jpg" class="img-thumbnail mb-5 mx-auto d-block">
+		</a>
+		<h1 class="fw-bold text-center mb-5">💙🌍 El fútbol va más allá del campo… y también de nuestras fronteras.</h1>
+		<p class="text-center mb-5">
+			Desde el Mutxamel C.F. hemos donado ropa deportiva a la asociación de niños del barrio de Faladie, en Bamako
+			(Malí). Un pequeño gesto con un gran impacto: gracias a este material, están dando forma a un sueño… crear
+			un club federado bajo el nombre C.F. Mutxamel – Faladie. ⚽️✨</br>
+
+			Nos llena de orgullo saber que nuestro escudo cruzará continentes para seguir uniendo, ilusionando y
+			formando personas a través del deporte. 🔵🔵</br>
+
+			🙏 Gracias de corazón a Óscar, guardia civil y gran amigo del club, por encargarse de llevar todo hasta allí
+			con tanto cariño y compromiso.</br></br>
+
+			Esto no es solo fútbol. Es Mutxamel C.F. 💙</br>
+
+			——</br>
+			💙🌍 El futbol va més enllà del camp… i també de les nostres fronteres.</br>
+
+			Des del Mutxamel C.F. hem donat roba esportiva a l’associació de xiquets del barri de Faladie, a Bamako
+			(Malí). Un xicotet gest amb un gran impacte: gràcies a aquest material, estan donant forma a un somni… crear
+			un club federat sota el nom de C.F. Mutxamel – Faladie. ⚽️✨</br>
+
+			Ens ompli d’orgull saber que el nostre escut travessarà continents per a continuar unint, il·lusionant i
+			formant persones a través de l’esport. 🔵🔵</br>
+
+			🙏 Gràcies de tot cor a Óscar, guàrdia civil i gran amic del club, per encarregar-se de fer arribar tot el
+			material amb tanta dedicació i compromís.</br></br>
+
+			Això no és només futbol. És Mutxamel C.F. 💙</br>
+		</p>
+
+		<hr class="modern-separator my-5">
+
+		<a href="/images/ayudaDana.jpg" target="_blank">
+			<img src="/images/ayudaDana.jpg" class="img-thumbnail mb-5 mx-auto d-block">
+		</a>
+		<h1 class="fw-bold text-center mb-5">💙 AYUDA DANA 💙</h1>
+		<p class="text-center mb-5">
+			✨ Queremos dar las gracias a uno de nuestros patrocinadores, Aresala, por dejarnos una furgoneta. Gracias a
+			ello, el Mutxamel CF, con todas sus secciones, ha podido aportar nuestro granito de arena con un palet de
+			agua y otro de leche.</br>
+
+			🤝 Además, esto nos ha permitido colaborar con el ayuntamiento de Mutxamel en el trabajo logístico para
+			hacer llegar toda la ayuda que el pueblo ha donado.</br>
+
+			❤️ Es un orgullo ver cómo Mutxamel se ha volcado, con tantas personas participando, tanto en las donaciones
+			como en la coordinación para que todo llegue a donde más se necesita.</br>
+
+			En momentos como estos, se demuestra la grandeza de nuestro pueblo. Formar parte de esta historia es un
+			orgullo para el Mutxamel CF.</br></br>
+
+			🙌 ¡GRACIAS MUTXAMEL!</br>
+
+			—</br>
+
+			✨ Volem donar les gràcies a un dels nostres patrocinadors, Aresala, per deixar-nos una furgoneta. Gràcies a
+			això, el Mutxamel CF, amb totes les seues seccions, ha pogut aportar el nostre granet d’arena amb un palet
+			d’aigua i un altre de llet.</br>
+
+			🤝 A més, això ens ha permés col·laborar amb l’ajuntament de Mutxamel en el treball logístic per a fer
+			arribar tota l’ajuda que el poble ha donat.</br>
+
+			❤️ És un orgull veure com Mutxamel s’ha bolcat, amb tantes persones participant, tant en les donacions com
+			en la coordinació perquè tot arribe allà on més es necessita.</br>
+
+			En moments com aquests, es demostra la grandesa del nostre poble. Ser part d’aquesta història és un orgull
+			per al Mutxamel CF.</br></br>
+
+			🙌 GRÀCIES MUTXAMEL!</br>
+		</p>
+
+	</main>
+
+	<style>
+		.modern-separator {
+			border: 0;
+			height: 4px;
+			width: 60%;
+			margin: 2rem auto;
+			background: linear-gradient(to right, transparent, #0d6efd, transparent);
+			border-radius: 5px;
+		}
+	</style>
+	<!-- Incluir el footer -->
+	<div th:replace="~{footer.html}"></div>
+
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

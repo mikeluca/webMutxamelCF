@@ -102,6 +102,12 @@ public class MainController {
 		model.addAttribute("patrocinadores", patrocinadores);
 		return "estadisticasPalmares";
 	}
+	
+	@GetMapping("/obraSocial")
+	public String obraSocial(Model model) {
+		model.addAttribute("patrocinadores", patrocinadores);
+		return "obraSocial";
+	}
 
 	@GetMapping("/index")
 	public String inicio(Model model) {
