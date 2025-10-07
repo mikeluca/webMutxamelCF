@@ -311,8 +311,12 @@ public class AdminController {
 			noticia.setContenido(contenidoConSaltos);
 			noticia.setFecha(new Date()); // Establecer la fecha actual
 
-			// Si hay una imagen cargada, convertirla a byte[]
 			if (!noticiaForm.getImagen().isEmpty()) {
+				long maxSize = 2 * 1024 * 1024; // 2 MB (puedes ajustar el límite)
+				if (noticiaForm.getImagen().getSize() > maxSize) {
+					response.put("error", "La imagen excede el tamaño máximo permitido (2 MB).");
+					return ResponseEntity.badRequest().body(response);
+				}
 				noticia.setImagen(noticiaForm.getImagen().getBytes());
 			}
 
