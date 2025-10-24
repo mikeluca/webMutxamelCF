@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.model;
 import org.springframework.web.multipart.MultipartFile;
 
 public class JugadorForm {
+	private Long id;
 	private String nombre;
 	private String apellidos;
 	private Long equipo;
@@ -10,14 +11,23 @@ public class JugadorForm {
 	private String posicion;
 	private MultipartFile foto;
 
-	public JugadorForm(String nombre, String apellidos, Long equipo, int dorsal, String posicion, MultipartFile foto) {
+	public JugadorForm(Long id, String nombre, String apellidos, Long equipo, int dorsal, String posicion, MultipartFile foto) {
 		super();
+		this.id = id;
 		this.nombre = nombre;
 		this.apellidos = apellidos;
 		this.equipo = equipo;
 		this.dorsal = dorsal;
 		this.posicion = posicion;
 		this.setFoto(foto);
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
 	}
 
 	public JugadorForm() {

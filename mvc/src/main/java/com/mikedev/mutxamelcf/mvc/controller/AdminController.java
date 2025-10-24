@@ -164,11 +164,13 @@ public class AdminController {
 
 		try {
 			JugadorDTO jugador = new JugadorDTO();
+			if (jugadorForm.getId() != null) {
+				jugador.setId(jugadorForm.getId());
+			}
 			jugador.setNombre(jugadorForm.getNombre());
 			jugador.setApellidos(jugadorForm.getApellidos());
 
 			EquipoDTO e = equiposService.obtenerEquipoPorId(jugadorForm.getEquipo());
-
 			jugador.setCategoria(e.getCategoria());
 			jugador.setEquipo(e.getNombre());
 			jugador.setDeporte(e.getDeporte());
