@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -22,6 +23,14 @@ public class JugadorDaoImpl implements JugadorDao {
 
 	@Override
 	public boolean guardarJugador(Jugador jugador) {
+		if (obtenerPorId(jugador.getId()) != null) {
+			return actualizarJugador(jugador);
+		} else {
+			return insertarJugador(jugador);
+		}
+	}
+
+	public boolean insertarJugador(Jugador jugador) {
 		String sql = "INSERT INTO jugadores (dni, nombre, apellidos, fecha_nacimiento, poblacion, "
 				+ "nacionalidad, categoria, deporte, dorsal, posicion, equipo, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
@@ -31,27 +40,40 @@ public class JugadorDaoImpl implements JugadorDao {
 				jugador.getFoto()) == 1);
 	}
 
+	public boolean actualizarJugador(Jugador jugador) {
+		String sql = " UPDATE JUGADORES SET NOMBRE = ?, APELLIDOS = ?, DORSAL = ?, POSICION = ?, EQUIPO = ?, "
+				+ "CATEGORIA = ?, DEPORTE = ?, FOTO = ? WHERE ID = ? ";
+
+		return jdbcTemplate.update(sql, jugador.getNombre(), jugador.getApellidos(), jugador.getDorsal(),
+				jugador.getPosicion(), jugador.getEquipo(), jugador.getCategoria(), jugador.getDeporte(),
+				jugador.getFoto(), jugador.getId()) == 1;
+	}
+
 	@SuppressWarnings("deprecation")
 	@Override
 	public Jugador obtenerPorId(Long id) {
 		String sql = "SELECT * FROM jugadores WHERE id = ?";
 
-		return jdbcTemplate.queryForObject(sql, new Object[] { id }, new RowMapper<Jugador>() {
-			@Override
-			public Jugador mapRow(ResultSet rs, int rowNum) throws SQLException {
-				Jugador jugador = new Jugador();
-				jugador.setId(rs.getLong("id"));
-				jugador.setNombre(rs.getString("nombre"));
-				jugador.setApellidos(rs.getString("apellidos"));
-				jugador.setCategoria(rs.getString("categoria"));
-				jugador.setDeporte(rs.getString("deporte"));
-				jugador.setEquipo(rs.getString("equipo"));
-				jugador.setDorsal(rs.getInt("dorsal"));
-				jugador.setPosicion(rs.getString("posicion"));
-				jugador.setFoto(rs.getBytes("foto"));
-				return jugador;
-			}
-		});
+		try {
+			return jdbcTemplate.queryForObject(sql, new Object[] { id }, new RowMapper<Jugador>() {
+				@Override
+				public Jugador mapRow(ResultSet rs, int rowNum) throws SQLException {
+					Jugador jugador = new Jugador();
+					jugador.setId(rs.getLong("id"));
+					jugador.setNombre(rs.getString("nombre"));
+					jugador.setApellidos(rs.getString("apellidos"));
+					jugador.setCategoria(rs.getString("categoria"));
+					jugador.setDeporte(rs.getString("deporte"));
+					jugador.setEquipo(rs.getString("equipo"));
+					jugador.setDorsal(rs.getInt("dorsal"));
+					jugador.setPosicion(rs.getString("posicion"));
+					jugador.setFoto(rs.getBytes("foto"));
+					return jugador;
+				}
+			});
+		} catch (EmptyResultDataAccessException e) {
+			return null; // No se encontró ningún jugador con ese id
+		}
 	}
 
 	@SuppressWarnings("deprecation")
