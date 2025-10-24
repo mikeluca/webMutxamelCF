@@ -63,12 +63,12 @@
 			</thead>
 			<tbody>
 				<tr th:each="jugador : ${jugadores}">
-					<td
+					<td class="align-middle"
 						th:text="${jugador.deporte} == 'F' ? 'Fútbol' : (${jugador.deporte} == 'FS' ? 'Fútbol Sala' : '')">
 					</td>
-					<td th:text="${jugador.nombre} + ' ' + ${jugador.apellidos}"></td>
-					<td th:text="${jugador.equipo}"></td>
-					<td>
+					<td class="align-middle" th:text="${jugador.nombre} + ' ' + ${jugador.apellidos}"></td>
+					<td class="align-middle" th:text="${jugador.equipo}"></td>
+					<td class="align-middle">
 						<div class="d-flex justify-content-center align-items-center gap-2">
 							<!-- Botón Editar -->
 							<button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
@@ -82,7 +82,7 @@
 							</button>
 							<!-- Botón Borrar -->
 							<form th:action="@{'/admin/jugadores/borrar/' + ${jugador.id}}" method="post"
-								style="display:inline;">
+								class="d-inline-flex align-items-center m-0 p-0">
 								<button type="submit" class="btn btn-danger btn-sm"
 									onclick="return confirm('¿Estás seguro de que deseas borrar este jugador?');"
 									title="Borrar jugador">

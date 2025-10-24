@@ -243,6 +243,9 @@ public class AdminController {
 		Map<String, String> response = new HashMap<>();
 		try {
 			CuerpoTecnicoDTO staff = new CuerpoTecnicoDTO();
+			if (staff.getId() != null) {
+				staff.setId(cuerpoTecnicoForm.getId());
+			}
 			staff.setNombre(cuerpoTecnicoForm.getNombre());
 			staff.setApellidos(cuerpoTecnicoForm.getApellidos());
 

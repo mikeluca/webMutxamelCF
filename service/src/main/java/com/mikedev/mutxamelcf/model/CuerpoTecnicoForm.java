@@ -3,19 +3,29 @@ package com.mikedev.mutxamelcf.model;
 import org.springframework.web.multipart.MultipartFile;
 
 public class CuerpoTecnicoForm {
+	private Long id;
 	private String nombre;
 	private String apellidos;
 	private Long equipo;
 	private String puesto;
 	private MultipartFile foto;
 
-	public CuerpoTecnicoForm(String nombre, String apellidos, Long equipo, String puesto, MultipartFile foto) {
+	public CuerpoTecnicoForm(Long id, String nombre, String apellidos, Long equipo, String puesto, MultipartFile foto) {
 		super();
+		this.id = id;
 		this.nombre = nombre;
 		this.apellidos = apellidos;
 		this.equipo = equipo;
 		this.puesto = puesto;
 		this.setFoto(foto);
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
 	}
 
 	public CuerpoTecnicoForm() {
