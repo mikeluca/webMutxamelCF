@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -22,6 +23,14 @@ public class CuerpoTecnicoDaoImpl implements CuerpoTecnicoDao {
 
 	@Override
 	public boolean guardar(CuerpoTecnico cuerpoTecnico) {
+		if (obtenerPorId(cuerpoTecnico.getId()) != null) {
+			return actualizarCuerpoTecnico(cuerpoTecnico);
+		} else {
+			return insertarCuerpoTecnico(cuerpoTecnico);
+		}
+	}
+
+	public boolean insertarCuerpoTecnico(CuerpoTecnico cuerpoTecnico) {
 		String sql = "INSERT INTO cuerpo_tecnico (dni, nombre, apellidos, fecha_nacimiento, poblacion, "
 				+ "nacionalidad, categoria, deporte, equipo, puesto, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
@@ -31,26 +40,39 @@ public class CuerpoTecnicoDaoImpl implements CuerpoTecnicoDao {
 				cuerpoTecnico.getEquipo(), cuerpoTecnico.getPuesto(), cuerpoTecnico.getFoto()) == 1);
 	}
 
+	public boolean actualizarCuerpoTecnico(CuerpoTecnico cuerpoTecnico) {
+		String sql = " UPDATE cuerpo_tecnico SET NOMBRE = ?, APELLIDOS = ?, PUESTO = ?, EQUIPO = ?, "
+				+ "CATEGORIA = ?, DEPORTE = ?, FOTO = ? WHERE ID = ? ";
+
+		return jdbcTemplate.update(sql, cuerpoTecnico.getNombre(), cuerpoTecnico.getApellidos(),
+				cuerpoTecnico.getPuesto(), cuerpoTecnico.getEquipo(), cuerpoTecnico.getCategoria(),
+				cuerpoTecnico.getDeporte(), cuerpoTecnico.getFoto(), cuerpoTecnico.getId()) == 1;
+	}
+
 	@SuppressWarnings("deprecation")
 	@Override
 	public CuerpoTecnico obtenerPorId(Long id) {
 		String sql = "SELECT * FROM cuerpo_tecnico WHERE id = ?";
 
-		return jdbcTemplate.queryForObject(sql, new Object[] { id }, new RowMapper<CuerpoTecnico>() {
-			@Override
-			public CuerpoTecnico mapRow(ResultSet rs, int rowNum) throws SQLException {
-				CuerpoTecnico cuerpoTecnico = new CuerpoTecnico();
-				cuerpoTecnico.setId(rs.getLong("id"));
-				cuerpoTecnico.setNombre(rs.getString("nombre"));
-				cuerpoTecnico.setApellidos(rs.getString("apellidos"));
-				cuerpoTecnico.setCategoria(rs.getString("categoria"));
-				cuerpoTecnico.setDeporte(rs.getString("deporte"));
-				cuerpoTecnico.setEquipo(rs.getString("equipo"));
-				cuerpoTecnico.setPuesto(rs.getString("puesto"));
-				cuerpoTecnico.setFoto(rs.getBytes("foto"));
-				return cuerpoTecnico;
-			}
-		});
+		try {
+			return jdbcTemplate.queryForObject(sql, new Object[] { id }, new RowMapper<CuerpoTecnico>() {
+				@Override
+				public CuerpoTecnico mapRow(ResultSet rs, int rowNum) throws SQLException {
+					CuerpoTecnico cuerpoTecnico = new CuerpoTecnico();
+					cuerpoTecnico.setId(rs.getLong("id"));
+					cuerpoTecnico.setNombre(rs.getString("nombre"));
+					cuerpoTecnico.setApellidos(rs.getString("apellidos"));
+					cuerpoTecnico.setCategoria(rs.getString("categoria"));
+					cuerpoTecnico.setDeporte(rs.getString("deporte"));
+					cuerpoTecnico.setEquipo(rs.getString("equipo"));
+					cuerpoTecnico.setPuesto(rs.getString("puesto"));
+					cuerpoTecnico.setFoto(rs.getBytes("foto"));
+					return cuerpoTecnico;
+				}
+			});
+		} catch (EmptyResultDataAccessException e) {
+			return null; // No se encontró ningún jugador con ese id
+		}
 	}
 
 	@SuppressWarnings("deprecation")
