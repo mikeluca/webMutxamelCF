@@ -102,7 +102,7 @@ public class MainController {
 		model.addAttribute("patrocinadores", patrocinadores);
 		return "estadisticasPalmares";
 	}
-	
+
 	@GetMapping("/obraSocial")
 	public String obraSocial(Model model) {
 		model.addAttribute("patrocinadores", patrocinadores);
@@ -138,19 +138,34 @@ public class MainController {
 
 	@GetMapping("/categorias/{equipo}")
 	public String categorias(@PathVariable String equipo, Model model) {
-		// Lista de jugadores
-		List<JugadorDTO> jugadores = jugadoresService.obtenerJugadoresPorEquipo(equipo);
+		String pantalla;
 
-		// Cuerpo técnico
-		List<CuerpoTecnicoDTO> staff = cuerpoTecnicoService.obtenerCuerpoTecnicoPorEquipo(equipo);
+		if (equipo.contains("Esc")) {
+			// Las escuelitas tienen una foto en comun del equipo, no jugadores individuales
+			List<JugadorDTO> jugadores = jugadoresService.obtenerJugadoresPorEquipo(equipo);
+			if (jugadores != null & !jugadores.isEmpty()) {
+				JugadorDTO equipoEscuelita = jugadores.getFirst();
+				model.addAttribute("equipoEscuelita", equipoEscuelita);
+			} else {
+				model.addAttribute("equipoEscuelita", new JugadorDTO());
+			}
 
-		model.addAttribute("jugadores", jugadores);
-		model.addAttribute("staff", staff);
+			pantalla = "plantillasEscuelas";
+		} else {
+			// Lista de jugadores
+			List<JugadorDTO> jugadores = jugadoresService.obtenerJugadoresPorEquipo(equipo);
+			model.addAttribute("jugadores", jugadores);
+			// Cuerpo técnico
+			List<CuerpoTecnicoDTO> staff = cuerpoTecnicoService.obtenerCuerpoTecnicoPorEquipo(equipo);
+			model.addAttribute("staff", staff);
+
+			pantalla = "plantilla";
+		}
+
 		model.addAttribute("categoria", equipo);
-
 		model.addAttribute("patrocinadores", patrocinadores);
 
-		return "plantilla";
+		return pantalla;
 	}
 
 	@GetMapping("/ampliarNoticia/{id}")

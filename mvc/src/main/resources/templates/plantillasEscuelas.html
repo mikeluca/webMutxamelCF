@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Mutxamel Club de Fútbol</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link th:href="@{/css/estilos.css}" rel="stylesheet">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+	<link href="https://fonts.googleapis.com/css2?family=Fredericka+the+Great&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
+</head>
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-K1DNQTT2X3"></script>
+<script>
+	window.dataLayer = window.dataLayer || [];
+	function gtag() {dataLayer.push(arguments);}
+	gtag('js', new Date());
+
+	gtag('config', 'G-K1DNQTT2X3');
+</script>
+
+<body>
+
+	<!-- Incluir el header -->
+	<div th:replace="~{cabecera.html}"></div>
+
+	<main class="container my-5">
+		<h2 class="text-center mb-5">Jugadores - <span th:text="${categoria}"></h2>
+		<div class="personas-grid">
+			<div th:if="${equipoEscuelita.fotoBase64 != null}" class="text-center">
+				<img th:src="'data:image/jpeg;base64,' + ${equipoEscuelita.fotoBase64}" class="card-img-top"
+					alt="Imagen del equipo" style="width: 100%; max-width: 500px; height: auto; margin: 0 auto;" />
+			</div>
+			<div th:if="${equipoEscuelita.fotoBase64 == null}" class="text-center">
+				<img th:src="@{/images/silueta_equipo.jpg}" class="card-img-top" alt="Imagen por defecto"
+					style="width: 100%; max-width: 500px; height: auto; margin: 0 auto;" />
+			</div>
+		</div>
+	</main>
+
+	<!-- Incluir el footer -->
+	<div th:replace="~{footer.html}"></div>
+
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
