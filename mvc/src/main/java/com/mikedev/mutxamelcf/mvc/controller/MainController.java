@@ -144,7 +144,7 @@ public class MainController {
 			// Las escuelitas tienen una foto en comun del equipo, no jugadores individuales
 			List<JugadorDTO> jugadores = jugadoresService.obtenerJugadoresPorEquipo(equipo);
 			if (jugadores != null & !jugadores.isEmpty()) {
-				JugadorDTO equipoEscuelita = jugadores.getFirst();
+				JugadorDTO equipoEscuelita = jugadores.get(0);
 				model.addAttribute("equipoEscuelita", equipoEscuelita);
 			} else {
 				model.addAttribute("equipoEscuelita", new JugadorDTO());
