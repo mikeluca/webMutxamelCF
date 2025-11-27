@@ -50,7 +50,7 @@ public class NoticiaDaoImpl implements NoticiaDao {
 
 	@Override
 	public List<Noticia> obtenerNoticiasParaMostrar() {
-		String sql = "SELECT * FROM (SELECT * FROM noticias ORDER BY fecha DESC) WHERE ROWNUM <= 3";
+		String sql = "SELECT * FROM (SELECT * FROM noticias ORDER BY fecha DESC) WHERE ROWNUM <= 4";
 
 		return jdbcTemplate.query(sql, new RowMapper<Noticia>() {
 			@Override
