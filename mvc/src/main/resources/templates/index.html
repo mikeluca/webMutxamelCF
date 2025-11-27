@@ -31,7 +31,7 @@
 		<p th:text="${param.error}"></p>
 	</div>
 
-	<main class="container my-5 lead">
+	<main class="container-fluid my-5 lead">
 		<h1 class="text-center mb-5 fw-bold">Últimas Noticias</h1>
 		<div class="noticias-grid">
 			<div class="card h-100" th:each="noticia : ${noticias}">
@@ -46,10 +46,11 @@
 
 				<div class="card-body">
 					<h2 class="card-title text-center" th:utext="${noticia.titulo}"></h2>
+					<p class="text-center text-muted mb-2" th:text="${#dates.format(noticia.fecha,'dd/MM/yyyy')}"
+						style="font-size: 0.9rem;"></p>
+					</p>
 					<p class="card-text" th:utext="${#strings.abbreviate(noticia.contenido, 100)}"></p>
-					<!-- Límite de 100 caracteres -->
 					<a th:href="@{/ampliarNoticia/{id}(id=${noticia.id})}" class="btn btn-primary">Leer más</a>
-					<!-- Botón de leer más -->
 				</div>
 			</div>
 		</div>

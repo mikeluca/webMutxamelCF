@@ -35,6 +35,8 @@
 				<img th:src="@{/images/noticia3.jpg}" class="img-fluid" alt="Imagen Noticia">
 			</div>
 			<h2 class="text-center fw-bold" th:utext="${noticia.titulo}" style="margin: 20px;"></h2>
+			<p class="text-center text-muted mb-2" th:text="${#dates.format(noticia.fecha,'dd/MM/yyyy')}"
+				style="font-size: 1.2rem;"></p>
 			<div class="mt-4" th:utext="${noticia.contenido}"></div>
 			<div class="text-center mt-4">
 				<a href="/index" class="btn btn-secondary">Volver a Inicio</a>
