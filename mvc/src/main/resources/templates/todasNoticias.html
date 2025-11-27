@@ -25,7 +25,7 @@
 	<!-- Incluir el header -->
 	<div th:replace="~{cabecera.html}"></div>
 
-	<main class="container my-5 lead">
+	<main class="container-fluid my-5 lead">
 		<div class="row g-4">
 			<div class="col-6 col-md-4 col-lg-3" th:each="noticia : ${noticias}">
 				<div class="card noticia-card">
@@ -39,6 +39,8 @@
 
 					<div class="card-body">
 						<h5 class="card-title" th:text="${noticia.titulo}"></h5>
+						<p class="text-center text-muted mb-2" th:text="${#dates.format(noticia.fecha,'dd/MM/yyyy')}"
+							style="font-size: 0.9rem;"></p>
 						<p class="card-text" th:utext="${#strings.abbreviate(noticia.contenido, 80)}"></p>
 						<a th:href="@{/ampliarNoticia/{id}(id=${noticia.id})}" class="btn btn-sm btn-primary">Leer
 							más</a>
