@@ -3,6 +3,7 @@
 
 <head>
 	<title>Mutxamel Club de Fútbol</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 	<link th:href="@{/css/estilos.css}" rel="stylesheet">
 	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
@@ -34,7 +35,7 @@
 			<div th:if="${noticia.imagenBase64 == null}">
 				<img th:src="@{/images/noticia3.jpg}" class="img-fluid" alt="Imagen Noticia">
 			</div>
-			<h2 class="text-center fw-bold" th:utext="${noticia.titulo}" style="margin: 20px;"></h2>
+			<h1 class="page-title" th:utext="${noticia.titulo}"></h1>
 			<p class="text-center text-muted mb-2" th:text="${#dates.format(noticia.fecha,'dd/MM/yyyy')}"
 				style="font-size: 1.2rem;"></p>
 			<div class="mt-4" th:utext="${noticia.contenido}"></div>
