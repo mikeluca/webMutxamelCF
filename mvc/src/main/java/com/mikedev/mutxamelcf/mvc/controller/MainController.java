@@ -3,6 +3,8 @@ package com.mikedev.mutxamelcf.mvc.controller;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -123,6 +125,56 @@ public class MainController {
 	public String contacto(Model model) {
 		model.addAttribute("patrocinadores", patrocinadores);
 		return "contacto";
+	}
+
+	@GetMapping("/tienda")
+	public String tienda(Model model) {
+		model.addAttribute("patrocinadores", patrocinadores);
+		return "tienda";
+	}
+
+	@PostMapping("/tienda/crear-pedido")
+	public String crearPedido(@RequestParam String nombre, @RequestParam String telefono,
+			@RequestParam String email, @RequestParam(name = "prenda", required = false) List<String> prendas,
+			@RequestParam(name = "cantidad", required = false) List<String> cantidades,
+			@RequestParam(name = "talla", required = false) List<String> tallas) {
+		Set<String> prendasValidas = Set.of("Camiseta oficial", "Segunda equipacion - colaboracion AECC");
+		Set<String> tallasValidas = Set.of("2", "4", "6", "8", "10", "12", "14", "S", "M", "L", "XL", "XXL", "3XL", "4XL");
+		if (nombre.isBlank() || (telefono.isBlank() && email.isBlank()) || prendas == null || cantidades == null
+				|| tallas == null || prendas.size() != cantidades.size() || cantidades.size() != tallas.size()
+				|| prendas.isEmpty() || !prendas.stream().allMatch(prendasValidas::contains)
+				|| !tallas.stream().flatMap(talla -> Arrays.stream(talla.split(",\\s*"))).allMatch(tallasValidas::contains)) {
+			return "redirect:/tienda?error=true";
+		}
+
+		try {
+			List<Integer> cantidadesValidadas = cantidades.stream().map(Integer::parseInt)
+					.filter(cantidad -> cantidad > 0 && cantidad <= 20).collect(Collectors.toList());
+			if (cantidadesValidadas.size() != cantidades.size()) {
+				return "redirect:/tienda?error=true";
+			}
+			StringBuilder pedido = new StringBuilder("Datos del cliente\nNombre: ").append(nombre)
+					.append("\nTelefono: ").append(telefono).append("\nEmail: ").append(email)
+					.append("\n\nPrendas seleccionadas\n");
+			for (int i = 0; i < prendas.size(); i++) {
+				pedido.append("- ").append(prendas.get(i)).append(" | Cantidad: ")
+						.append(cantidadesValidadas.get(i)).append(" | Tallas: ").append(tallas.get(i)).append("\n");
+			}
+
+			jakarta.mail.internet.MimeMessage message = emailSender.createMimeMessage();
+			MimeMessageHelper helper = new MimeMessageHelper(message, true);
+			helper.setFrom("contacto.web@mutxamelcf.es");
+			helper.setTo("mutxamelcf.pedidos@gmail.com");
+			if (!email.isBlank()) {
+				helper.setReplyTo(email);
+			}
+			helper.setSubject("PEDIDO CREADO EN LA WEB");
+			helper.setText(pedido.toString());
+			emailSender.send(message);
+			return "redirect:/tienda?pedido=ok";
+		} catch (NumberFormatException | jakarta.mail.MessagingException exception) {
+			return "redirect:/tienda?error=true";
+		}
 	}
 
 	// Método para obtener la lista de resultados y mostrarlos en una página HTML

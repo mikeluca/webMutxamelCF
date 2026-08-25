@@ -2,17 +2,14 @@
 	<header class="text-white text-center header">
 		<div class="logo-titulo">
 			<!-- Imagen del escudo -->
-			<a href="/index"><img src="/images/escudo.png" href="/index" alt="Escudo del Club" width="200px"
-					style="margin: 20px 0px;"></a>
-			<!-- Nombre del club -->
-			<h1 class="lead fw-bold grafiti-title" style="font-size: 80px;">MUTXAMEL CF</h1>
+			<a href="/index"><img src="/images/escudo.png" alt="Escudo del Club"></a>
 		</div>
 	</header>
 
-	<nav class="navbar navbar-expand-lg navbar-light bg-light" style="background-color: rgb(213, 243, 253);">
+	<nav class="navbar navbar-expand-lg navbar-light">
 		<div class="container-fluid lead">
 			<!-- Botón de hamburguesa solo visible en pantallas pequeñas -->
-			<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+			<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-label="Abrir navegación">
 				<span class="navbar-toggler-icon"></span>
 			</button>
 			<!-- Menú de navegación -->
@@ -37,7 +34,7 @@
 			</div>
 			<div class="social-icons d-flex ms-auto">
 				<form th:action="@{/logout}" method="post" style="display: inline;">
-					<button type="submit" class="btn btn-danger">
+					<button type="submit" class="btn btn-admin-logout" aria-label="Cerrar sesión">
 						<i class="bi bi-box-arrow-right"></i>
 					</button>
 				</form>
