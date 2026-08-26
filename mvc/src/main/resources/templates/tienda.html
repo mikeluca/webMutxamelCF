@@ -128,7 +128,7 @@
                     </div>
                         <div class="customer-fields"><input name="nombre" type="text" placeholder="Nombre y apellidos"
                             required><input name="telefono" type="tel" placeholder="Teléfono"><input
-                            name="email" type="email" placeholder="Email"></div>
+                            name="email" type="email" placeholder="Email" required></div>
                     <div class="customer-submit"><label><input id="privacy-check" type="checkbox" required> Acepto el
                             tratamiento de mis datos según la <a href="/politicaPrivacidad" target="_blank">política de
                                 privacidad</a>.</label><button type="submit" class="store-submit">CREAR PEDIDO <i
@@ -164,9 +164,9 @@
                     ['prenda', 'cantidad', 'talla'].forEach((name, index) => { const input = document.createElement('input'); input.type = 'hidden'; input.name = name; input.value = [card.dataset.product, quantity, sizesForProduct.join(', ')][index]; fields.appendChild(input); });
                 }
             });
-            if (!telefono && !email) {
+            if (!email) {
                 event.preventDefault();
-                alert('Introduce un teléfono o un email para poder contactarte.');
+                alert('Introduce un email para poder contactarte.');
             } else if (!selected || [...document.querySelectorAll('[data-unit-size]')].some(select => !select.value && Number(select.closest('.product-card').querySelector('[data-quantity]').value) > 0)) {
                 event.preventDefault();
                 alert('Selecciona al menos una prenda y la talla de cada unidad.');
