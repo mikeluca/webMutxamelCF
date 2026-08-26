@@ -134,13 +134,13 @@ public class MainController {
 	}
 
 	@PostMapping("/tienda/crear-pedido")
-	public String crearPedido(@RequestParam String nombre, @RequestParam String telefono,
+	public String crearPedido(@RequestParam String nombre, @RequestParam(required = false, defaultValue = "") String telefono,
 			@RequestParam String email, @RequestParam(name = "prenda", required = false) List<String> prendas,
 			@RequestParam(name = "cantidad", required = false) List<String> cantidades,
 			@RequestParam(name = "talla", required = false) List<String> tallas) {
 		Set<String> prendasValidas = Set.of("Camiseta oficial", "Segunda equipacion - colaboracion AECC");
 		Set<String> tallasValidas = Set.of("2", "4", "6", "8", "10", "12", "14", "S", "M", "L", "XL", "XXL", "3XL", "4XL");
-		if (nombre.isBlank() || (telefono.isBlank() && email.isBlank()) || prendas == null || cantidades == null
+		if (nombre.isBlank() || email.isBlank() || prendas == null || cantidades == null
 				|| tallas == null || prendas.size() != cantidades.size() || cantidades.size() != tallas.size()
 				|| prendas.isEmpty() || !prendas.stream().allMatch(prendasValidas::contains)
 				|| !tallas.stream().flatMap(talla -> Arrays.stream(talla.split(",\\s*"))).allMatch(tallasValidas::contains)) {
