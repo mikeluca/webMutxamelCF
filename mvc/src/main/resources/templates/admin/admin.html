@@ -28,7 +28,62 @@
 
 	<main class="container my-5 lead">
 		<h1 class="page-title">Bienvenido a la sección de Administración</h1>
-		<p>Contenido exclusivo para administradores.</p>
+		<section class="admin-dashboard" aria-labelledby="resumen-club">
+			<div class="dashboard-heading">
+				<p class="dashboard-eyebrow">Resumen del club</p>
+				<h2 id="resumen-club">Altas actuales</h2>
+			</div>
+			<div class="dashboard-cards">
+				<a class="dashboard-card" th:href="@{/admin/cuerpo-tecnico}">
+					<span class="dashboard-card-icon" aria-hidden="true"><i class="bi bi-person-fill"></i></span>
+					<span class="dashboard-card-content">
+						<span class="dashboard-card-label">Entrenadores</span>
+						<strong class="dashboard-card-value" th:text="${totalEntrenadores}">0</strong>
+					</span>
+					<i class="bi bi-arrow-up-right dashboard-card-arrow" aria-hidden="true"></i>
+				</a>
+				<a class="dashboard-card" th:href="@{/admin/jugadores}">
+					<span class="dashboard-card-icon" aria-hidden="true"><i class="bi bi-person-fill"></i></span>
+					<span class="dashboard-card-content">
+						<span class="dashboard-card-label">Jugadores</span>
+						<strong class="dashboard-card-value" th:text="${totalJugadores}">0</strong>
+					</span>
+					<i class="bi bi-arrow-up-right dashboard-card-arrow" aria-hidden="true"></i>
+				</a>
+				<a class="dashboard-card" th:href="@{/admin/equipos}">
+					<span class="dashboard-card-icon" aria-hidden="true"><i class="bi bi-shield-fill"></i></span>
+					<span class="dashboard-card-content">
+						<span class="dashboard-card-label">Equipos</span>
+						<strong class="dashboard-card-value" th:text="${totalEquipos}">0</strong>
+					</span>
+					<i class="bi bi-arrow-up-right dashboard-card-arrow" aria-hidden="true"></i>
+				</a>
+			</div>
+			<div class="dashboard-category-list">
+				<h3>Resumen por categoría</h3>
+				<div class="dashboard-summary-table-wrapper">
+					<table class="dashboard-summary-table">
+						<thead>
+							<tr>
+								<th>Categoría</th>
+								<th>Equipos</th>
+								<th>Jugadores</th>
+								<th>Entrenadores</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr th:each="resumen : ${resumenCategorias}">
+								<td th:text="${resumen.categoria}">Categoría</td>
+								<td th:text="${resumen.equipos}">0</td>
+								<td th:text="${resumen.jugadores}">0</td>
+								<td th:text="${resumen.entrenadores}">0</td>
+							</tr>
+						</tbody>
+					</table>
+					<p class="dashboard-empty" th:if="${resumenCategorias.isEmpty()}">No hay datos registrados.</p>
+				</div>
+			</div>
+		</section>
 	</main>
 
 	<!-- Incluir el footer -->

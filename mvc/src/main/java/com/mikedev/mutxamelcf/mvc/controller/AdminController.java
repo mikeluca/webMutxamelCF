@@ -3,10 +3,15 @@ package com.mikedev.mutxamelcf.mvc.controller;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +69,46 @@ public class AdminController {
 			"patrocinador4.jpg", "patrocinador5.jpg", "patrocinador6.jpg", "patrocinador7.jpg", "patrocinador8.jpg");
 
 	@GetMapping("/admin")
-	public String login() {
+	public String login(Model model) {
+		List<JugadorDTO> jugadores = jugadoresService.obtenerTodos();
+		List<EquipoDTO> equipos = equiposService.obtenerTodos();
+		List<CuerpoTecnicoDTO> cuerpoTecnico = cuerpoTecnicoService.obtenerTodos();
+
+		long totalEntrenadores = cuerpoTecnico.stream()
+				.map(entrenador -> (entrenador.getNombre() + " " + entrenador.getApellidos()).trim())
+				.distinct()
+				.count();
+		Map<String, String> ordenPorCategoria = equipos.stream()
+				.collect(Collectors.toMap(EquipoDTO::getCategoria, EquipoDTO::getOrden, (orden, siguiente) -> orden));
+		Map<String, Long> equiposPorCategoria = equipos.stream()
+				.collect(Collectors.groupingBy(EquipoDTO::getCategoria, Collectors.counting()));
+		Map<String, Long> jugadoresPorCategoria = jugadores.stream()
+				.collect(Collectors.groupingBy(JugadorDTO::getCategoria, Collectors.counting()));
+		Map<String, Set<String>> entrenadoresPorCategoria = cuerpoTecnico.stream()
+				.collect(Collectors.groupingBy(CuerpoTecnicoDTO::getCategoria, LinkedHashMap::new,
+						Collectors.mapping(entrenador -> (entrenador.getNombre() + " " + entrenador.getApellidos()).trim(),
+								Collectors.toSet())));
+		Set<String> categorias = new LinkedHashSet<>();
+		categorias.addAll(ordenPorCategoria.keySet());
+		categorias.addAll(jugadoresPorCategoria.keySet());
+		categorias.addAll(entrenadoresPorCategoria.keySet());
+		List<Map<String, Object>> resumenCategorias = categorias.stream()
+				.sorted(Comparator.comparing(categoria -> ordenPorCategoria.get(categoria),
+						Comparator.nullsLast(String::compareTo)))
+				.map(categoria -> {
+					Map<String, Object> resumen = new LinkedHashMap<>();
+					resumen.put("categoria", categoria);
+					resumen.put("equipos", equiposPorCategoria.getOrDefault(categoria, 0L));
+					resumen.put("jugadores", jugadoresPorCategoria.getOrDefault(categoria, 0L));
+					resumen.put("entrenadores", entrenadoresPorCategoria.getOrDefault(categoria, Set.of()).size());
+					return resumen;
+				})
+				.collect(Collectors.toList());
+
+		model.addAttribute("totalJugadores", jugadores.size());
+		model.addAttribute("totalEquipos", equipos.size());
+		model.addAttribute("totalEntrenadores", totalEntrenadores);
+		model.addAttribute("resumenCategorias", resumenCategorias);
 		return "admin/admin";
 	}
 
