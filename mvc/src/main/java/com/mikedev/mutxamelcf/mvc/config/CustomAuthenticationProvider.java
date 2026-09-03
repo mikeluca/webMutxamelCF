@@ -1,7 +1,10 @@
 package com.mikedev.mutxamelcf.mvc.config;
 
 import java.util.Collections;
+import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -16,6 +19,8 @@ import com.mikedev.mutxamelcf.service.UsuarioService;
 @Component
 public class CustomAuthenticationProvider implements AuthenticationProvider {
 
+	private static final Logger logger = LoggerFactory.getLogger(CustomAuthenticationProvider.class);
+
 	@Autowired
 	private UsuarioService userService;
 
@@ -23,14 +28,20 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
 		String username = authentication.getName();
 		String password = (String) authentication.getCredentials();
+		// Nunca se registra la contraseña, solo el nombre de usuario
+		logger.debug("Inicio authenticate: username={}", username);
 
 		UsuarioDTO usuario = userService.validarUsuario(username, password);
 		if (usuario == null) {
+			logger.warn("Autenticacion fallida, credenciales incorrectas: username={}", username);
 			throw new BadCredentialsException("Credenciales incorrectas");
 		}
 
 		// Aquí podrías agregar roles y permisos si es necesario
-		return new UsernamePasswordAuthenticationToken(usuario.getUsuario(), password, Collections.emptyList());
+		logger.debug("Fin authenticate: username={}, autenticado=true", username);
+		String rol = usuario.getRol() == null ? "" : usuario.getRol().trim().toUpperCase(java.util.Locale.ROOT);
+		return new UsernamePasswordAuthenticationToken(usuario.getUsuario(), password,
+				rol.isBlank() ? Collections.emptyList() : List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + rol)));
 	}
 
 	@Override

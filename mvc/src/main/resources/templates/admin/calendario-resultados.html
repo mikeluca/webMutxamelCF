@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 
 <head>
-	<title>Mutxamel Club de Fútbol</title>
+	<title>Calendario y Resultados | Mutxamel CF</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 	<link th:href="@{/css/estilos.css}" rel="stylesheet">
@@ -31,7 +31,9 @@
 		<p th:text="${param.error}"></p>
 	</div>
 
-	<h1 class="page-title">Calendario / Resultados Fútbol</h1>
+	<main class="admin-screen-shell lead">
+		<p class="dashboard-eyebrow">Administración Deportiva</p>
+		<h1 class="page-title">Calendario / Resultados Fútbol</h1>
 
 	<table>
 		<thead>
@@ -130,6 +132,7 @@
 	<!--			</tr>-->
 	<!--		</tbody>-->
 	<!--	</table>-->
+	</main>
 
 	<!-- Incluir el footer -->
 	<div th:replace="~{admin/footerAdmin.html}"></div>

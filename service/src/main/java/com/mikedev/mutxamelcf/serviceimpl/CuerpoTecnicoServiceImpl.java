@@ -4,48 +4,110 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.CuerpoTecnicoDao;
 import com.mikedev.mutxamelcf.model.CuerpoTecnico;
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoDTO;
+import com.mikedev.mutxamelcf.model.CuerpoTecnicoPublicDTO;
 import com.mikedev.mutxamelcf.service.CuerpoTecnicoService;
+import com.mikedev.mutxamelcf.util.ImageUtils;
 
 @Service
 public class CuerpoTecnicoServiceImpl implements CuerpoTecnicoService {
+
+	private static final Logger logger = LoggerFactory.getLogger(CuerpoTecnicoServiceImpl.class);
 
 	@Autowired
 	CuerpoTecnicoDao cuerpoTecnicoDao;
 
 	@Override
 	public boolean guardarCuerpoTecnico(CuerpoTecnicoDTO cuerpoTecnico) {
-		return cuerpoTecnicoDao.guardar(toEntity(cuerpoTecnico));
+		logger.debug("Inicio guardarCuerpoTecnico: id={}", cuerpoTecnico == null ? null : cuerpoTecnico.getId());
+		boolean resultado = cuerpoTecnicoDao.guardar(toEntity(cuerpoTecnico));
+		logger.debug("Fin guardarCuerpoTecnico: resultado={}", resultado);
+		return resultado;
 	}
 
 	@Override
 	public CuerpoTecnicoDTO obtenerCuerpoTecnicoPorId(Long id) {
-		return toDTO(cuerpoTecnicoDao.obtenerPorId(id));
+		logger.debug("Inicio obtenerCuerpoTecnicoPorId: id={}", id);
+		CuerpoTecnicoDTO staff = toDTO(cuerpoTecnicoDao.obtenerPorId(id));
+		logger.debug("Fin obtenerCuerpoTecnicoPorId: id={}, encontrado={}", id, staff != null);
+		return staff;
 	}
 
 	@Override
 	public void eliminarCuerpoTecnico(Long id) {
+		logger.debug("Inicio eliminarCuerpoTecnico: id={}", id);
 		cuerpoTecnicoDao.eliminar(id);
+		logger.debug("Fin eliminarCuerpoTecnico: id={}", id);
 	}
 
 	@Override
 	public List<CuerpoTecnicoDTO> obtenerCuerpoTecnicoPorCategoria(String categoria) {
-		return toDTOList(cuerpoTecnicoDao.obtenerTodosPorCategoria(categoria));
+		logger.debug("Inicio obtenerCuerpoTecnicoPorCategoria: categoria={}", categoria);
+		List<CuerpoTecnicoDTO> lista = toDTOList(cuerpoTecnicoDao.obtenerTodosPorCategoria(categoria));
+		logger.debug("Fin obtenerCuerpoTecnicoPorCategoria: categoria={}, total={}", categoria, lista.size());
+		return lista;
 	}
 
 	@Override
 	public List<CuerpoTecnicoDTO> obtenerCuerpoTecnicoPorEquipo(String equipo) {
-		return toDTOList(cuerpoTecnicoDao.obtenerTodosPorEquipo(equipo));
+		logger.debug("Inicio obtenerCuerpoTecnicoPorEquipo: equipo={}", equipo);
+		List<CuerpoTecnicoDTO> lista = toDTOList(cuerpoTecnicoDao.obtenerTodosPorEquipo(equipo));
+		logger.debug("Fin obtenerCuerpoTecnicoPorEquipo: equipo={}, total={}", equipo, lista.size());
+		return lista;
 	}
 
 	@Override
 	public List<CuerpoTecnicoDTO> obtenerTodos() {
-		return toDTOList(cuerpoTecnicoDao.obtenerTodos());
+		logger.debug("Inicio obtenerTodos");
+		List<CuerpoTecnicoDTO> lista = toDTOList(cuerpoTecnicoDao.obtenerTodos());
+		logger.debug("Fin obtenerTodos: total={}", lista.size());
+		return lista;
+	}
+
+	@Override
+	public List<CuerpoTecnicoPublicDTO> obtenerCuerpoTecnicoPublicoPorEquipo(
+			String equipo) {
+
+		logger.debug(
+				"Inicio obtenerCuerpoTecnicoPublicoPorEquipo: equipo={}",
+				equipo);
+
+		List<CuerpoTecnico> staff = cuerpoTecnicoDao.obtenerTodosPorEquipo(equipo);
+
+		List<CuerpoTecnicoPublicDTO> resultado = new ArrayList<>();
+
+		for (CuerpoTecnico persona : staff) {
+
+			CuerpoTecnicoPublicDTO dto = new CuerpoTecnicoPublicDTO();
+
+			dto.setId(persona.getId());
+			dto.setNombre(persona.getNombre());
+			dto.setApellidos(persona.getApellidos());
+			dto.setCategoria(persona.getCategoria());
+			dto.setEquipo(persona.getEquipo());
+			dto.setDeporte(persona.getDeporte());
+			dto.setPuesto(persona.getPuesto());
+
+			dto.setFotoBase64(
+					ImageUtils.convertirAMiniaturaBase64(
+							persona.getFoto()));
+
+			resultado.add(dto);
+		}
+
+		logger.debug(
+				"Fin obtenerCuerpoTecnicoPublicoPorEquipo: equipo={}, total={}",
+				equipo,
+				resultado.size());
+
+		return resultado;
 	}
 
 	// Método para mapear CuerpoTecnicoDTO a CuerpoTecnico

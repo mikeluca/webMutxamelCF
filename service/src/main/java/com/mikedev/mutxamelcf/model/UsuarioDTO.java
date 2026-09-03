@@ -7,6 +7,7 @@ public class UsuarioDTO {
 	private String usuario;
 
 	private String password;
+	private String rol;
 
 
 	public UsuarioDTO() {
@@ -42,6 +43,14 @@ public class UsuarioDTO {
 
 	public void setPassword(String password) {
 		this.password = password;
+	}
+
+	public String getRol() {
+		return rol;
+	}
+
+	public void setRol(String rol) {
+		this.rol = rol;
 	}
 
 }

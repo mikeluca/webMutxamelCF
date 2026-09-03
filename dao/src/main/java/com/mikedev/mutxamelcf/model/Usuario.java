@@ -5,6 +5,7 @@ public class Usuario {
 	private Long id;
 	private String usuario;
 	private String password;
+	private String rol;
 
 	public Usuario() {
 		super();
@@ -39,6 +40,14 @@ public class Usuario {
 
 	public void setPassword(String password) {
 		this.password = password;
+	}
+
+	public String getRol() {
+		return rol;
+	}
+
+	public void setRol(String rol) {
+		this.rol = rol;
 	}
 
 }
