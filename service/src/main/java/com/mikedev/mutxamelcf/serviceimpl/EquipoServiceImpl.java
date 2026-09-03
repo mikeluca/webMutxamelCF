@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,42 +20,71 @@ import com.mikedev.mutxamelcf.service.EquipoService;
 @Service
 public class EquipoServiceImpl implements EquipoService {
 
+	private static final Logger logger = LoggerFactory.getLogger(EquipoServiceImpl.class);
+
 	@Autowired
 	EquipoDao equipoDao;
 
 	@Override
 	public boolean guardar(EquipoDTO equipo) {
-		return equipoDao.guardar(toEntity(equipo));
+		logger.debug("Inicio guardar: categoria={}, grupo={}", equipo == null ? null : equipo.getCategoria(),
+				equipo == null ? null : equipo.getGrupo());
+		boolean resultado = equipoDao.guardar(toEntity(equipo));
+		logger.debug("Fin guardar: resultado={}", resultado);
+		return resultado;
 	}
 
 	@Override
 	public EquipoDTO obtenerEquipoPorId(Long id) {
-		return toDTO(equipoDao.obtenerEquipoPorId(id));
+		logger.debug("Inicio obtenerEquipoPorId: id={}", id);
+		EquipoDTO equipo = toDTO(equipoDao.obtenerEquipoPorId(id));
+		logger.debug("Fin obtenerEquipoPorId: id={}", id);
+		return equipo;
 	}
 
 	@Override
 	public void eliminarEquipo(Long id) {
+		logger.debug("Inicio eliminarEquipo: id={}", id);
 		equipoDao.eliminarEquipo(id);
+		logger.debug("Fin eliminarEquipo: id={}", id);
 	}
 
 	@Override
 	public List<String> obtenerCategorias() {
-		return equipoDao.obtenerCategorias();
+		logger.debug("Inicio obtenerCategorias");
+		List<String> categorias = equipoDao.obtenerCategorias();
+		logger.debug("Fin obtenerCategorias: total={}", categorias.size());
+		return categorias;
 	}
 
 	@Override
 	public List<EquipoDTO> obtenerTodos() {
-		return toDTOList(equipoDao.obtenerTodos());
+		logger.debug("Inicio obtenerTodos");
+		List<EquipoDTO> equipos = toDTOList(equipoDao.obtenerTodos());
+		equipos.sort(Comparator
+				.comparing((EquipoDTO equipo) -> equipo.getOrden() == null ? "" : equipo.getOrden(), Comparator.nullsLast(String::compareTo))
+				.thenComparing(EquipoDTO::getNombre, Comparator.nullsLast(String::compareTo)));
+		logger.debug("Fin obtenerTodos: total={}", equipos.size());
+		return equipos;
 	}
 
 	@Override
 	public List<EquipoDTO> obtenerTodosPorCategoria(String categoria) {
-		return toDTOList(equipoDao.obtenerTodosPorCategoria(categoria));
+		logger.debug("Inicio obtenerTodosPorCategoria: categoria={}", categoria);
+		List<EquipoDTO> equipos = toDTOList(equipoDao.obtenerTodosPorCategoria(categoria));
+		equipos.sort(Comparator
+				.comparing((EquipoDTO equipo) -> equipo.getOrden() == null ? "" : equipo.getOrden(), Comparator.nullsLast(String::compareTo))
+				.thenComparing(EquipoDTO::getNombre, Comparator.nullsLast(String::compareTo)));
+		logger.debug("Fin obtenerTodosPorCategoria: categoria={}, total={}", categoria, equipos.size());
+		return equipos;
 	}
 
 	@Override
 	public Map<String, List<EquipoDTO>> obtenerEquiposAgrupadosPorCategoria(String deporte) {
-		return mapToEquipoDTO(equipoDao.obtenerEquiposAgrupadosPorCategoria(deporte));
+		logger.debug("Inicio obtenerEquiposAgrupadosPorCategoria: deporte={}", deporte);
+		Map<String, List<EquipoDTO>> agrupados = mapToEquipoDTO(equipoDao.obtenerEquiposAgrupadosPorCategoria(deporte));
+		logger.debug("Fin obtenerEquiposAgrupadosPorCategoria: deporte={}, grupos={}", deporte, agrupados.size());
+		return agrupados;
 	}
 
 	// Método para mapear EquipoDTO a Equipo
@@ -99,16 +130,15 @@ public class EquipoServiceImpl implements EquipoService {
 		return listaEquipos;
 	}
 
-	public Map<String, List<EquipoDTO>> mapToEquipoDTO(Map<String, List<Equipo>> equiposPorCategoria) {
-		return equiposPorCategoria.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, // Llave del mapa
-																									// (categoria)
-				entry -> entry.getValue().stream().sorted(Comparator.comparing(Equipo::getOrden)).map(this::toDTO) // Convierte
-																													// cada
-																													// Equipo
-																													// a
-																													// EquipoDTO
-						.collect(Collectors.toList()) // Recoge la lista ordenada
-		));
+	// Agrupa y ordena los equipos de cada categoria, convirtiendolos a DTO
+	private Map<String, List<EquipoDTO>> mapToEquipoDTO(Map<String, List<Equipo>> equiposPorCategoria) {
+		return equiposPorCategoria.entrySet().stream()
+				.collect(Collectors.toMap(
+						Map.Entry::getKey,
+						entry -> entry.getValue().stream()
+								.sorted(Comparator.comparing(Equipo::getOrden))
+								.map(this::toDTO)
+								.collect(Collectors.toList())));
 	}
 
 }

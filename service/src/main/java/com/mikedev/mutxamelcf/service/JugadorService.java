@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.service;
 import java.util.List;
 
 import com.mikedev.mutxamelcf.model.JugadorDTO;
+import com.mikedev.mutxamelcf.model.JugadorPublicDTO;
 
 public interface JugadorService {
 
@@ -17,5 +18,7 @@ public interface JugadorService {
 	JugadorDTO obtenerJugadorPorId(Long id);
 
 	void eliminarJugador(Long id);
+
+	List<JugadorPublicDTO> obtenerJugadoresPublicosPorEquipo(String equipo);
 
 }

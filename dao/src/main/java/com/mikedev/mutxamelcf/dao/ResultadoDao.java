@@ -10,4 +10,6 @@ public interface ResultadoDao {
 
 	List<Resultado> obtenerResultados(String deporte);
 
+	Resultado obtenerResultadoPrimerEquipo();
+
 }

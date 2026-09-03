@@ -4,6 +4,8 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,17 +17,39 @@ import com.mikedev.mutxamelcf.service.ResultadoService;
 @Service
 public class ResultadoServiceImpl implements ResultadoService {
 
+	private static final Logger logger = LoggerFactory.getLogger(ResultadoServiceImpl.class);
+
 	@Autowired
 	private ResultadoDao resultadoDao;
 
 	@Override
 	public void actualizarResultado(ResultadoDTO resultado) {
+		logger.debug("Inicio actualizarResultado: categoria={}, equipo={}",
+				resultado == null ? null : resultado.getCategoria(), resultado == null ? null : resultado.getEquipo());
 		resultadoDao.actualizarResultado(toEntity(resultado));
+		logger.debug("Fin actualizarResultado");
 	}
 
 	@Override
 	public List<ResultadoDTO> obtenerResultados(String deporte) {
-		return toDTOList(resultadoDao.obtenerResultados(deporte));
+		logger.debug("Inicio obtenerResultados: deporte={}", deporte);
+		List<ResultadoDTO> resultados = toDTOList(resultadoDao.obtenerResultados(deporte));
+		logger.debug("Fin obtenerResultados: deporte={}, total={}", deporte, resultados.size());
+		return resultados;
+	}
+
+	@Override
+	public ResultadoDTO obtenerResultadoPrimerEquipo() {
+		logger.debug("Inicio obtenerResultadoPrimerEquipo");
+
+		ResultadoDTO resultado = toDTO(
+				resultadoDao.obtenerResultadoPrimerEquipo());
+
+		logger.debug(
+				"Fin obtenerResultadoPrimerEquipo: encontrado={}",
+				resultado != null);
+
+		return resultado;
 	}
 
 	// Método para mapear Resultado a ResultadoDTO

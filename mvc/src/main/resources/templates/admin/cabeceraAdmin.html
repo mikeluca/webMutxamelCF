@@ -1,4 +1,4 @@
-<div>
+<div xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 	<header class="text-white text-center header">
 		<div class="logo-titulo">
 			<!-- Imagen del escudo -->
@@ -9,27 +9,43 @@
 	<nav class="navbar navbar-expand-lg navbar-light">
 		<div class="container-fluid lead">
 			<!-- Botón de hamburguesa solo visible en pantallas pequeñas -->
-			<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-label="Abrir navegación">
+			<button class="navbar-toggler" type="button" aria-controls="navbarNav" aria-expanded="false"
+				aria-label="Abrir navegación">
 				<span class="navbar-toggler-icon"></span>
 			</button>
 			<!-- Menú de navegación -->
 			<div class="collapse navbar-collapse" id="navbarNav">
 				<ul class="navbar-nav me-auto">
-					<!-- Menú Administración -- La opción requiere autenticación -->
+					<!-- Administración deportiva -->
 					<li class="nav-item dropdown">
-						<a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
-							data-bs-toggle="dropdown">
-							Administración
+						<a class="nav-link dropdown-toggle" href="#" id="navbarDropdownDeportivo" role="button"
+							aria-expanded="false">
+							Administración Deportiva
 						</a>
 						<ul class="dropdown-menu lead">
-							<li><a class="dropdown-item" href="/admin/equipos">Equipos</a></li>
+							<li><a class="dropdown-item" href="/admin/admin">Dashboard Deportivo</a></li>
 							<li><a class="dropdown-item" href="/admin/jugadores">Jugadores</a></li>
+							<li><a class="dropdown-item" href="/admin/familiares">Familiares</a></li>
+							<li><a class="dropdown-item" href="/admin/equipos">Equipos</a></li>
 							<li><a class="dropdown-item" href="/admin/cuerpo-tecnico">Cuerpo Técnico</a></li>
-							<li><a class="dropdown-item" href="/admin/calendario-resultados">Calendario/Resultados</a>
-							</li>
-							<li><a class="dropdown-item" href="/admin/noticias">Noticias</a></li>
 						</ul>
 					</li>
+					<!-- Control de pagos -->
+					<li class="nav-item dropdown" sec:authorize="hasRole('SUPER')">
+						<a class="nav-link dropdown-toggle" href="#" id="navbarDropdownPagos" role="button"
+							aria-expanded="false">
+							Administración Económica
+						</a>
+						<ul class="dropdown-menu lead">
+							<li><a class="dropdown-item" href="/admin/pagos">Pagos de Jugadores</a></li>
+							<li><a class="dropdown-item" href="/admin/pagos/asignar-cuotas">Asignar Cuotas</a></li>
+							<li><a class="dropdown-item" href="/admin/pagos/conceptos">Cuotas por Temporada</a></li>
+							<li><a class="dropdown-item" href="/admin/pagos/temporadas">Temporadas</a></li>
+						</ul>
+					</li>
+					<li class="nav-item"><a class="nav-link"
+							href="/admin/calendario-resultados">Calendario/Resultados</a></li>
+					<li class="nav-item"><a class="nav-link" href="/admin/noticias">Noticias</a></li>
 				</ul>
 			</div>
 			<div class="social-icons d-flex ms-auto">
@@ -41,5 +57,35 @@
 			</div>
 		</div>
 	</nav>
+	<script>
+		(function () {
+			const navigation = document.getElementById('navbarNav');
+			const toggler = document.querySelector('.navbar-toggler');
+			const dropdowns = document.querySelectorAll('.navbar .nav-item.dropdown');
 
+			if (toggler && navigation) {
+				toggler.addEventListener('click', function () {
+					const expanded = navigation.classList.toggle('show');
+					toggler.setAttribute('aria-expanded', String(expanded));
+				});
+			}
+
+			dropdowns.forEach(function (dropdown) {
+				const toggle = dropdown.querySelector('.dropdown-toggle');
+				const menu = dropdown.querySelector('.dropdown-menu');
+				if (!toggle || !menu) return;
+				toggle.addEventListener('click', function (event) {
+					event.preventDefault();
+					dropdowns.forEach(function (otherDropdown) {
+						if (otherDropdown !== dropdown) {
+							otherDropdown.querySelector('.dropdown-menu').classList.remove('show');
+							otherDropdown.querySelector('.dropdown-toggle').setAttribute('aria-expanded', 'false');
+						}
+					});
+					const expanded = menu.classList.toggle('show');
+					toggle.setAttribute('aria-expanded', String(expanded));
+				});
+			});
+		})();
+	</script>
 </div>
