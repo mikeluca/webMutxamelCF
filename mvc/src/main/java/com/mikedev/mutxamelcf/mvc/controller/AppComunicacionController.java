@@ -21,221 +21,239 @@ import com.mikedev.mutxamelcf.service.ComunicacionService;
 @RequestMapping("/api/app/comunicaciones")
 public class AppComunicacionController {
 
-    private final ComunicacionService comunicacionService;
+        private final ComunicacionService comunicacionService;
 
-    public AppComunicacionController(
-            ComunicacionService comunicacionService) {
+        public AppComunicacionController(
+                        ComunicacionService comunicacionService) {
 
-        this.comunicacionService = comunicacionService;
-    }
-
-    /**
-     * Crear una comunicación.
-     *
-     * POST /api/app/comunicaciones
-     */
-    @PostMapping
-    public ResponseEntity<?> crear(
-            @RequestBody ComunicacionRequest request,
-            Authentication authentication) {
-
-        if (authentication == null
-                || !authentication.isAuthenticated()) {
-
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Usuario no autenticado");
+                this.comunicacionService = comunicacionService;
         }
 
-        try {
+        /**
+         * Crear una comunicación.
+         *
+         * POST /api/app/comunicaciones
+         */
+        @PostMapping
+        public ResponseEntity<?> crear(
+                        @RequestBody ComunicacionRequest request,
+                        Authentication authentication) {
 
-            Long usuarioId = Long.parseLong(
-                    authentication.getName());
+                if (authentication == null
+                                || !authentication.isAuthenticated()) {
 
-            Comunicacion comunicacion = new Comunicacion();
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+                }
 
-            comunicacion.setTitulo(
-                    request.getTitulo());
+                try {
 
-            comunicacion.setContenido(
-                    request.getContenido());
+                        Long usuarioId = Long.parseLong(
+                                        authentication.getName());
 
-            Comunicacion creada = comunicacionService.crear(
-                    comunicacion,
-                    request.getEquipoIds(),
-                    request.getCategorias(),
-                    usuarioId);
+                        Comunicacion comunicacion = new Comunicacion();
 
-            return ResponseEntity
-                    .status(HttpStatus.CREATED)
-                    .body(creada);
+                        comunicacion.setTitulo(
+                                        request.getTitulo());
 
-        } catch (NumberFormatException e) {
+                        comunicacion.setContenido(
+                                        request.getContenido());
 
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Usuario no autenticado");
+                        Comunicacion creada = comunicacionService.crear(
+                                        comunicacion,
+                                        request.getEquipoIds(),
+                                        request.getCategorias(),
+                                        usuarioId);
 
-        } catch (SecurityException e) {
+                        return ResponseEntity
+                                        .status(HttpStatus.CREATED)
+                                        .body(creada);
 
-            return ResponseEntity
-                    .status(HttpStatus.FORBIDDEN)
-                    .body(e.getMessage());
+                } catch (NumberFormatException e) {
 
-        } catch (IllegalArgumentException e) {
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
 
-            return ResponseEntity
-                    .status(HttpStatus.BAD_REQUEST)
-                    .body(e.getMessage());
+                } catch (SecurityException e) {
 
-        } catch (Exception e) {
+                        return ResponseEntity
+                                        .status(HttpStatus.FORBIDDEN)
+                                        .body(e.getMessage());
 
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error al crear la comunicación");
-        }
-    }
+                } catch (IllegalArgumentException e) {
 
-    /**
-     * Obtener las comunicaciones del usuario autenticado.
-     *
-     * GET /api/app/comunicaciones
-     */
-    @GetMapping
-    public ResponseEntity<?> obtenerParaUsuario(
-            Authentication authentication) {
+                        return ResponseEntity
+                                        .status(HttpStatus.BAD_REQUEST)
+                                        .body(e.getMessage());
 
-        if (authentication == null
-                || !authentication.isAuthenticated()) {
+                } catch (Exception e) {
 
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Usuario no autenticado");
-        }
-
-        try {
-
-            Long usuarioId = Long.parseLong(
-                    authentication.getName());
-
-            List<Comunicacion> comunicaciones = comunicacionService.obtenerParaUsuario(
-                    usuarioId);
-
-            return ResponseEntity.ok(
-                    comunicaciones);
-
-        } catch (NumberFormatException e) {
-
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Usuario no autenticado");
-
-        } catch (SecurityException e) {
-
-            return ResponseEntity
-                    .status(HttpStatus.FORBIDDEN)
-                    .body(e.getMessage());
-
-        } catch (Exception e) {
-
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error al obtener las comunicaciones");
-        }
-    }
-
-    /**
-     * Obtener una comunicación concreta.
-     *
-     * GET /api/app/comunicaciones/{id}
-     */
-    @GetMapping("/{id}")
-    public ResponseEntity<?> obtenerPorId(
-            @PathVariable Long id,
-            Authentication authentication) {
-
-        if (authentication == null
-                || !authentication.isAuthenticated()) {
-
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Usuario no autenticado");
+                        return ResponseEntity
+                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body("Error al crear la comunicación");
+                }
         }
 
-        try {
+        /**
+         * Obtener las comunicaciones del usuario autenticado.
+         *
+         * GET /api/app/comunicaciones
+         */
+        @GetMapping
+        public ResponseEntity<?> obtenerParaUsuario(
+                        Authentication authentication) {
 
-            Comunicacion comunicacion = comunicacionService.obtenerPorId(id);
+                if (authentication == null
+                                || !authentication.isAuthenticated()) {
 
-            return ResponseEntity.ok(
-                    comunicacion);
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+                }
 
-        } catch (IllegalArgumentException e) {
+                try {
 
-            return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body(e.getMessage());
+                        Long usuarioId = Long.parseLong(
+                                        authentication.getName());
 
-        } catch (Exception e) {
+                        List<Comunicacion> comunicaciones = comunicacionService.obtenerParaUsuario(
+                                        usuarioId);
 
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error al obtener la comunicación");
+                        return ResponseEntity.ok(
+                                        comunicaciones);
+
+                } catch (NumberFormatException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+
+                } catch (SecurityException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.FORBIDDEN)
+                                        .body(e.getMessage());
+
+                } catch (Exception e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body("Error al obtener las comunicaciones");
+                }
         }
-    }
 
-    /**
-     * Eliminar una comunicación.
-     *
-     * DELETE /api/app/comunicaciones/{id}
-     */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminar(
-            @PathVariable Long id,
-            Authentication authentication) {
+        /**
+         * Obtener una comunicación concreta.
+         *
+         * GET /api/app/comunicaciones/{id}
+         */
+        @GetMapping("/{id}")
+        public ResponseEntity<?> obtenerPorId(
+                        @PathVariable Long id,
+                        Authentication authentication) {
 
-        if (authentication == null
-                || !authentication.isAuthenticated()) {
+                if (authentication == null
+                                || !authentication.isAuthenticated()) {
 
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Usuario no autenticado");
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+                }
+
+                try {
+
+                        Long usuarioId = Long.valueOf(
+                                        authentication.getName());
+
+                        if (!comunicacionService.puedeVer(
+                                        id,
+                                        usuarioId)) {
+
+                                return ResponseEntity
+                                                .status(HttpStatus.FORBIDDEN)
+                                                .body("No tienes permiso para ver esta comunicación");
+                        }
+
+                        Comunicacion comunicacion = comunicacionService.obtenerPorId(id);
+
+                        return ResponseEntity.ok(
+                                        comunicacion);
+
+                } catch (NumberFormatException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no válido");
+
+                } catch (IllegalArgumentException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.NOT_FOUND)
+                                        .body(e.getMessage());
+
+                } catch (Exception e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body("Error al obtener la comunicación");
+                }
         }
 
-        try {
+        /**
+         * Eliminar una comunicación.
+         *
+         * DELETE /api/app/comunicaciones/{id}
+         */
+        @DeleteMapping("/{id}")
+        public ResponseEntity<?> eliminar(
+                        @PathVariable Long id,
+                        Authentication authentication) {
 
-            Long usuarioId = Long.parseLong(
-                    authentication.getName());
+                if (authentication == null
+                                || !authentication.isAuthenticated()) {
 
-            comunicacionService.eliminar(
-                    id,
-                    usuarioId);
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+                }
 
-            return ResponseEntity.noContent()
-                    .build();
+                try {
 
-        } catch (NumberFormatException e) {
+                        Long usuarioId = Long.parseLong(
+                                        authentication.getName());
 
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Usuario no autenticado");
+                        comunicacionService.eliminar(
+                                        id,
+                                        usuarioId);
 
-        } catch (SecurityException e) {
+                        return ResponseEntity.noContent()
+                                        .build();
 
-            return ResponseEntity
-                    .status(HttpStatus.FORBIDDEN)
-                    .body(e.getMessage());
+                } catch (NumberFormatException e) {
 
-        } catch (IllegalArgumentException e) {
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
 
-            return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body(e.getMessage());
+                } catch (SecurityException e) {
 
-        } catch (Exception e) {
+                        return ResponseEntity
+                                        .status(HttpStatus.FORBIDDEN)
+                                        .body(e.getMessage());
 
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error al eliminar la comunicación");
+                } catch (IllegalArgumentException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.NOT_FOUND)
+                                        .body(e.getMessage());
+
+                } catch (Exception e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body("Error al eliminar la comunicación");
+                }
         }
-    }
 }

@@ -537,4 +537,125 @@ public class ComunicacionServiceImpl
                 }
         }
 
+        @Override
+        public boolean puedeVer(
+                        Long comunicacionId,
+                        Long usuarioId) {
+
+                if (comunicacionId == null || usuarioId == null) {
+                        return false;
+                }
+
+                /*
+                 * ADMIN_APP puede ver cualquier comunicación.
+                 */
+                boolean esAdmin = usuarioAppService.tieneRol(
+                                usuarioId.intValue(),
+                                "ADMIN_APP");
+
+                if (esAdmin) {
+                        return true;
+                }
+
+                /*
+                 * COORDINADOR puede ver cualquier comunicación.
+                 */
+                boolean esCoordinador = usuarioAppService.tieneRol(
+                                usuarioId.intValue(),
+                                "COORDINADOR");
+
+                if (esCoordinador) {
+                        return true;
+                }
+
+                /*
+                 * Obtenemos la comunicación.
+                 */
+                Comunicacion comunicacion = comunicacionDao.obtenerPorId(comunicacionId);
+
+                if (comunicacion == null
+                                || comunicacion.getActiva() == null
+                                || comunicacion.getActiva() != 1) {
+                        return false;
+                }
+
+                /*
+                 * ENTRENADOR:
+                 * puede ver comunicaciones dirigidas a sus equipos.
+                 */
+                boolean esEntrenador = usuarioAppService.tieneRol(
+                                usuarioId.intValue(),
+                                "ENTRENADOR");
+
+                if (esEntrenador) {
+
+                        List<Long> equipos = comunicacionDao.obtenerEquiposDeEntrenador(
+                                        usuarioId);
+
+                        if (equipos.isEmpty()) {
+                                return false;
+                        }
+
+                        List<Comunicacion> comunicaciones = comunicacionDao.obtenerPorEquiposYCategorias(
+                                        equipos);
+
+                        return comunicaciones.stream()
+                                        .anyMatch(c -> c.getId().equals(comunicacionId));
+                }
+
+                /*
+                 * JUGADOR:
+                 * puede ver comunicaciones dirigidas a sus equipos.
+                 */
+                boolean esJugador = usuarioAppService.tieneRol(
+                                usuarioId.intValue(),
+                                "JUGADOR");
+
+                if (esJugador) {
+
+                        List<Long> equipos = comunicacionDao.obtenerEquiposDeJugador(
+                                        usuarioId);
+
+                        if (equipos.isEmpty()) {
+                                return false;
+                        }
+
+                        List<Comunicacion> comunicaciones = comunicacionDao.obtenerPorEquiposYCategorias(
+                                        equipos);
+
+                        return comunicaciones.stream()
+                                        .anyMatch(c -> c.getId().equals(comunicacionId));
+                }
+
+                /*
+                 * FAMILIAR:
+                 * puede ver comunicaciones dirigidas a los equipos
+                 * de sus jugadores.
+                 */
+                boolean esFamiliar = usuarioAppService.tieneRol(
+                                usuarioId.intValue(),
+                                "FAMILIAR");
+
+                if (esFamiliar) {
+
+                        List<Long> equipos = comunicacionDao.obtenerEquiposDeFamiliar(
+                                        usuarioId);
+
+                        if (equipos.isEmpty()) {
+                                return false;
+                        }
+
+                        List<Comunicacion> comunicaciones = comunicacionDao.obtenerPorEquiposYCategorias(
+                                        equipos);
+
+                        return comunicaciones.stream()
+                                        .anyMatch(c -> c.getId().equals(comunicacionId));
+                }
+
+                /*
+                 * Cualquier otro rol no puede ver comunicaciones.
+                 */
+                return false;
+        }
+
 }
