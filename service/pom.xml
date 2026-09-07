@@ -1,35 +1,56 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <artifactId>service</artifactId>
-<!--  <parent>-->
-<!--        <groupId>org.springframework.boot</groupId>-->
-<!--        <artifactId>spring-boot-starter-parent</artifactId>-->
-<!--        <version>3.3.5</version>  Asegúrate de usar la misma versión que en tu proyecto principal -->
-<!--        <relativePath/>-->
-<!--    </parent>-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<artifactId>service</artifactId>
+
+	<!--
 	<parent>
-	    <groupId>com.mikedev.mutxamelcf</groupId>
-	    <artifactId>mutxamelcfWeb</artifactId>
-	    <version>1.0</version>
-	    <relativePath>../pom.xml</relativePath>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>3.3.5</version>
+		<relativePath/>
 	</parent>
-  <properties>
-        <spring.version>6.1.14</spring.version>
-  </properties>
-  <dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter</artifactId>
-        </dependency>
+	-->
+
+	<parent>
+		<groupId>com.mikedev.mutxamelcf</groupId>
+		<artifactId>mutxamelcfWeb</artifactId>
+		<version>1.0</version>
+		<relativePath>../pom.xml</relativePath>
+	</parent>
+
+	<properties>
+		<spring.version>6.1.14</spring.version>
+	</properties>
+
+	<dependencies>
+
 		<dependency>
-		    <groupId>com.mikedev.mutxamelcf</groupId>
-		    <artifactId>dao</artifactId>
-			<version>1.0</version> 
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter</artifactId>
 		</dependency>
+
 		<dependency>
-		    <groupId>org.springframework.boot</groupId>
-		    <artifactId>spring-boot-starter-security</artifactId>
+			<groupId>com.mikedev.mutxamelcf</groupId>
+			<artifactId>dao</artifactId>
+			<version>1.0</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<!-- Firebase Admin SDK -->
+		<dependency>
+			<groupId>com.google.firebase</groupId>
+			<artifactId>firebase-admin</artifactId>
+			<version>9.10.0</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-crypto</artifactId>
@@ -54,5 +75,7 @@
 			<version>0.12.6</version>
 			<scope>runtime</scope>
 		</dependency>
-  </dependencies>
+
+	</dependencies>
+
 </project>
