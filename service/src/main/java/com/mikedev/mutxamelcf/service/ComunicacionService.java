@@ -6,20 +6,24 @@ import com.mikedev.mutxamelcf.model.Comunicacion;
 
 public interface ComunicacionService {
 
-    Comunicacion crear(
-            Comunicacion comunicacion,
-            List<Long> equipoIds,
-            List<String> categorias,
-            Long usuarioId);
+        Comunicacion crear(
+                        Comunicacion comunicacion,
+                        List<Long> equipoIds,
+                        List<String> categorias,
+                        Long usuarioId);
 
-    Comunicacion obtenerPorId(Long id);
+        Comunicacion obtenerPorId(Long id);
 
-    List<Comunicacion> obtenerTodas();
-    
-    void eliminar(
-            Long id,
-            Long usuarioId);
+        List<Comunicacion> obtenerTodas();
 
-    List<Comunicacion> obtenerParaUsuario(
-            Long usuarioId);
+        void eliminar(
+                        Long id,
+                        Long usuarioId);
+
+        List<Comunicacion> obtenerParaUsuario(
+                        Long usuarioId);
+
+        boolean puedeVer(
+                        Long comunicacionId,
+                        Long usuarioId);
 }
