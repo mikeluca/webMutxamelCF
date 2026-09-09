@@ -1,42 +1,36 @@
 package com.mikedev.mutxamelcf.mvc.controller;
 
-import java.util.List;
+import com.mikedev.mutxamelcf.model.ConvocatoriaGuardarRequest;
+import com.mikedev.mutxamelcf.model.ConvocatoriaResponse;
+import com.mikedev.mutxamelcf.service.ConvocatoriaService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import com.mikedev.mutxamelcf.model.Comunicacion;
-import com.mikedev.mutxamelcf.model.ComunicacionRequest;
-import com.mikedev.mutxamelcf.service.ComunicacionService;
+import java.util.List;
 
 @RestController
-@RequestMapping("/api/app/comunicaciones")
-public class AppComunicacionController {
+@RequestMapping("/api/app/convocatorias")
+public class AppConvocatoriaController {
 
-        private final ComunicacionService comunicacionService;
+        private final ConvocatoriaService convocatoriaService;
 
-        public AppComunicacionController(
-                        ComunicacionService comunicacionService) {
+        public AppConvocatoriaController(
+                        ConvocatoriaService convocatoriaService) {
 
-                this.comunicacionService = comunicacionService;
+                this.convocatoriaService = convocatoriaService;
         }
 
         /**
-         * Crear una comunicación.
+         * Crear una convocatoria.
          *
-         * POST /api/app/comunicaciones
+         * POST /api/app/convocatorias
          */
         @PostMapping
         public ResponseEntity<?> crear(
-                        @RequestBody ComunicacionRequest request,
+                        @RequestBody ConvocatoriaGuardarRequest request,
                         Authentication authentication) {
 
                 if (authentication == null
@@ -49,32 +43,22 @@ public class AppComunicacionController {
 
                 try {
 
-                        Long usuarioId = Long.parseLong(
+                        Long usuarioId = Long.valueOf(
                                         authentication.getName());
 
-                        Comunicacion comunicacion = new Comunicacion();
-
-                        comunicacion.setTitulo(
-                                        request.getTitulo());
-
-                        comunicacion.setContenido(
-                                        request.getContenido());
-
-                        Comunicacion creada = comunicacionService.crear(
-                                        comunicacion,
-                                        request.getEquipoIds(),
-                                        request.getCategorias(),
-                                        usuarioId);
+                        ConvocatoriaResponse convocatoria = convocatoriaService.crear(
+                                        usuarioId,
+                                        request);
 
                         return ResponseEntity
                                         .status(HttpStatus.CREATED)
-                                        .body(creada);
+                                        .body(convocatoria);
 
                 } catch (NumberFormatException e) {
 
                         return ResponseEntity
                                         .status(HttpStatus.UNAUTHORIZED)
-                                        .body("Usuario no autenticado");
+                                        .body("Usuario no válido");
 
                 } catch (SecurityException e) {
 
@@ -85,24 +69,26 @@ public class AppComunicacionController {
                 } catch (IllegalArgumentException e) {
 
                         return ResponseEntity
-                                        .status(HttpStatus.BAD_REQUEST)
+                                        .badRequest()
                                         .body(e.getMessage());
 
                 } catch (Exception e) {
 
                         return ResponseEntity
                                         .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                        .body("Error al crear la comunicación");
+                                        .body("Error al crear la convocatoria");
                 }
         }
 
         /**
-         * Obtener las comunicaciones del usuario autenticado.
+         * Actualizar una convocatoria.
          *
-         * GET /api/app/comunicaciones
+         * PUT /api/app/convocatorias/{id}
          */
-        @GetMapping
-        public ResponseEntity<?> obtenerParaUsuario(
+        @PutMapping("/{id}")
+        public ResponseEntity<?> actualizar(
+                        @PathVariable Long id,
+                        @RequestBody ConvocatoriaGuardarRequest request,
                         Authentication authentication) {
 
                 if (authentication == null
@@ -115,20 +101,21 @@ public class AppComunicacionController {
 
                 try {
 
-                        Long usuarioId = Long.parseLong(
+                        Long usuarioId = Long.valueOf(
                                         authentication.getName());
 
-                        List<Comunicacion> comunicaciones = comunicacionService.obtenerParaUsuario(
-                                        usuarioId);
+                        ConvocatoriaResponse convocatoria = convocatoriaService.actualizar(
+                                        usuarioId,
+                                        id,
+                                        request);
 
-                        return ResponseEntity.ok(
-                                        comunicaciones);
+                        return ResponseEntity.ok(convocatoria);
 
                 } catch (NumberFormatException e) {
 
                         return ResponseEntity
                                         .status(HttpStatus.UNAUTHORIZED)
-                                        .body("Usuario no autenticado");
+                                        .body("Usuario no válido");
 
                 } catch (SecurityException e) {
 
@@ -136,18 +123,24 @@ public class AppComunicacionController {
                                         .status(HttpStatus.FORBIDDEN)
                                         .body(e.getMessage());
 
+                } catch (IllegalArgumentException e) {
+
+                        return ResponseEntity
+                                        .badRequest()
+                                        .body(e.getMessage());
+
                 } catch (Exception e) {
 
                         return ResponseEntity
                                         .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                        .body("Error al obtener las comunicaciones");
+                                        .body("Error al actualizar la convocatoria");
                 }
         }
 
         /**
-         * Obtener una comunicación concreta.
+         * Obtener una convocatoria concreta.
          *
-         * GET /api/app/comunicaciones/{id}
+         * GET /api/app/convocatorias/{id}
          */
         @GetMapping("/{id}")
         public ResponseEntity<?> obtenerPorId(
@@ -167,12 +160,11 @@ public class AppComunicacionController {
                         Long usuarioId = Long.valueOf(
                                         authentication.getName());
 
-                        Comunicacion comunicacion = comunicacionService.obtenerPorId(
-                                        id,
-                                        usuarioId);
+                        ConvocatoriaResponse convocatoria = convocatoriaService.obtenerPorId(
+                                        usuarioId,
+                                        id);
 
-                        return ResponseEntity.ok(
-                                        comunicacion);
+                        return ResponseEntity.ok(convocatoria);
 
                 } catch (NumberFormatException e) {
 
@@ -196,14 +188,76 @@ public class AppComunicacionController {
 
                         return ResponseEntity
                                         .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                        .body("Error al obtener la comunicación");
+                                        .body("Error al obtener la convocatoria");
                 }
         }
 
         /**
-         * Eliminar una comunicación.
+         * Obtener convocatorias de un equipo.
          *
-         * DELETE /api/app/comunicaciones/{id}
+         * GET /api/app/convocatorias?equipoId=...
+         */
+        @GetMapping
+        public ResponseEntity<?> obtenerPorEquipo(
+                        @RequestParam(required = false) Long equipoId,
+                        Authentication authentication) {
+
+                if (authentication == null
+                                || !authentication.isAuthenticated()) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+                }
+
+                if (equipoId == null) {
+
+                        return ResponseEntity
+                                        .badRequest()
+                                        .body("El parámetro equipoId es obligatorio");
+                }
+
+                try {
+
+                        Long usuarioId = Long.valueOf(
+                                        authentication.getName());
+
+                        List<ConvocatoriaResponse> convocatorias = convocatoriaService.obtenerPorEquipo(
+                                        usuarioId,
+                                        equipoId);
+
+                        return ResponseEntity.ok(convocatorias);
+
+                } catch (NumberFormatException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no válido");
+
+                } catch (SecurityException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.FORBIDDEN)
+                                        .body(e.getMessage());
+
+                } catch (IllegalArgumentException e) {
+
+                        return ResponseEntity
+                                        .badRequest()
+                                        .body(e.getMessage());
+
+                } catch (Exception e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body("Error al obtener las convocatorias");
+                }
+        }
+
+        /**
+         * Eliminar una convocatoria.
+         *
+         * DELETE /api/app/convocatorias/{id}
          */
         @DeleteMapping("/{id}")
         public ResponseEntity<?> eliminar(
@@ -220,21 +274,20 @@ public class AppComunicacionController {
 
                 try {
 
-                        Long usuarioId = Long.parseLong(
+                        Long usuarioId = Long.valueOf(
                                         authentication.getName());
 
-                        comunicacionService.eliminar(
-                                        id,
-                                        usuarioId);
+                        convocatoriaService.eliminar(
+                                        usuarioId,
+                                        id);
 
-                        return ResponseEntity.noContent()
-                                        .build();
+                        return ResponseEntity.noContent().build();
 
                 } catch (NumberFormatException e) {
 
                         return ResponseEntity
                                         .status(HttpStatus.UNAUTHORIZED)
-                                        .body("Usuario no autenticado");
+                                        .body("Usuario no válido");
 
                 } catch (SecurityException e) {
 
@@ -252,7 +305,7 @@ public class AppComunicacionController {
 
                         return ResponseEntity
                                         .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                        .body("Error al eliminar la comunicación");
+                                        .body("Error al eliminar la convocatoria");
                 }
         }
 }

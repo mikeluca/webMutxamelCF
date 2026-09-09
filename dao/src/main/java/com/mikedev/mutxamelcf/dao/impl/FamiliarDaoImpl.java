@@ -71,9 +71,9 @@ public class FamiliarDaoImpl implements FamiliarDao {
                 familiar.getTelefono(),
                 familiar.getEmail(),
                 familiar.getRecibeInfoClub(),
-                familiar.getWhatsappActivo()
-        ) == 1;
-        logger.info("Familiar insertado: nombre={} {}, resultado={}", familiar.getNombre(), familiar.getApellidos(), insertado);
+                familiar.getWhatsappActivo()) == 1;
+        logger.info("Familiar insertado: nombre={} {}, resultado={}", familiar.getNombre(), familiar.getApellidos(),
+                insertado);
         logger.debug("Fin insertarFamiliar: insertado={}", insertado);
         return insertado;
     }
@@ -97,8 +97,7 @@ public class FamiliarDaoImpl implements FamiliarDao {
                 familiar.getEmail(),
                 familiar.getRecibeInfoClub(),
                 familiar.getWhatsappActivo(),
-                familiar.getId()
-        ) == 1;
+                familiar.getId()) == 1;
         logger.debug("Fin actualizarFamiliar: id={}, actualizado={}", familiar.getId(), actualizado);
         return actualizado;
     }
@@ -134,4 +133,78 @@ public class FamiliarDaoImpl implements FamiliarDao {
         jdbcTemplate.update(sql, id);
         logger.debug("Fin eliminar: id={}", id);
     }
+
+    @Override
+    public List<Familiar> obtenerPorJugador(Long jugadorId) {
+
+        logger.debug(
+                "Inicio obtenerPorJugador: jugadorId={}",
+                jugadorId);
+
+        String sql = """
+                SELECT
+                    F.ID,
+                    F.NOMBRE,
+                    F.APELLIDOS,
+                    F.TELEFONO,
+                    F.EMAIL,
+                    F.RECIBE_INFO_CLUB,
+                    F.WHATSAPP_ACTIVO,
+                    FJ.PARENTESCO,
+                    FJ.ES_PRINCIPAL
+                FROM FAMILIARES F
+                INNER JOIN FAMILIARES_JUGADOR FJ
+                    ON FJ.FAMILIAR_ID = F.ID
+                WHERE FJ.JUGADOR_ID = ?
+                ORDER BY
+                    FJ.ES_PRINCIPAL DESC NULLS LAST,
+                    F.APELLIDOS,
+                    F.NOMBRE,
+                    F.ID
+                """;
+
+        List<Familiar> familiares = jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> {
+                    Familiar familiar = new Familiar();
+
+                    familiar.setId(
+                            rs.getLong("ID"));
+
+                    familiar.setNombre(
+                            rs.getString("NOMBRE"));
+
+                    familiar.setApellidos(
+                            rs.getString("APELLIDOS"));
+
+                    familiar.setTelefono(
+                            rs.getString("TELEFONO"));
+
+                    familiar.setEmail(
+                            rs.getString("EMAIL"));
+
+                    familiar.setRecibeInfoClub(
+                            rs.getInt("RECIBE_INFO_CLUB"));
+
+                    familiar.setWhatsappActivo(
+                            rs.getInt("WHATSAPP_ACTIVO"));
+
+                    familiar.setParentesco(
+                            rs.getString("PARENTESCO"));
+
+                    familiar.setEsPrincipal(
+                            rs.getInt("ES_PRINCIPAL"));
+
+                    return familiar;
+                },
+                jugadorId);
+
+        logger.debug(
+                "Fin obtenerPorJugador: jugadorId={}, total={}",
+                jugadorId,
+                familiares.size());
+
+        return familiares;
+    }
+
 }

@@ -613,4 +613,74 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                 categoria);
     }
 
+    @Override
+    public void guardarUsuario(
+            Long comunicacionId,
+            Long usuarioAppId) {
+
+        String sql = """
+                INSERT INTO COMUNICACION_USUARIO
+                (
+                    COMUNICACION_ID,
+                    USUARIO_APP_ID
+                )
+                VALUES (?, ?)
+                """;
+
+        jdbcTemplate.update(
+                sql,
+                comunicacionId,
+                usuarioAppId);
+    }
+
+    @Override
+    public List<Comunicacion> obtenerPorUsuarioDirecto(
+            Long usuarioAppId) {
+
+        String sql = """
+                SELECT DISTINCT
+                    c.ID,
+                    c.TITULO,
+                    c.CONTENIDO,
+                    c.USUARIO_AUTOR_ID,
+                    c.FECHA_CREACION,
+                    c.FECHA_PUBLICACION,
+                    c.ACTIVA
+                FROM COMUNICACIONES c
+                INNER JOIN COMUNICACION_USUARIO cu
+                    ON cu.COMUNICACION_ID = c.ID
+                WHERE cu.USUARIO_APP_ID = ?
+                  AND c.ACTIVA = 1
+                ORDER BY
+                    c.FECHA_PUBLICACION DESC NULLS LAST,
+                    c.FECHA_CREACION DESC
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                COMUNICACION_ROW_MAPPER,
+                usuarioAppId);
+    }
+
+    @Override
+    public boolean usuarioPuedeVerDirectamente(
+            Long comunicacionId,
+            Long usuarioAppId) {
+
+        String sql = """
+                SELECT COUNT(*)
+                FROM COMUNICACION_USUARIO
+                WHERE COMUNICACION_ID = ?
+                  AND USUARIO_APP_ID = ?
+                """;
+
+        Integer count = jdbcTemplate.queryForObject(
+                sql,
+                Integer.class,
+                comunicacionId,
+                usuarioAppId);
+
+        return count != null && count > 0;
+    }
+
 }

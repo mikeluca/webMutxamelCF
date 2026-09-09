@@ -1,30 +1,34 @@
 package com.mikedev.mutxamelcf.model;
 
-public class Familiar {
+public class FamiliarContactoDTO {
 
     private Long id;
     private String nombre;
     private String apellidos;
     private String telefono;
     private String email;
-    private Integer recibeInfoClub;
     private Integer whatsappActivo;
     private String parentesco;
     private Integer esPrincipal;
 
-    public Familiar() {
-        super();
+    public FamiliarContactoDTO() {
     }
 
-    public Familiar(Long id, String nombre, String apellidos, String telefono,
-            String email, Integer recibeInfoClub, Integer whatsappActivo, String parentesco, Integer esPrincipal) {
-        super();
+    public FamiliarContactoDTO(
+            Long id,
+            String nombre,
+            String apellidos,
+            String telefono,
+            String email,
+            Integer whatsappActivo,
+            String parentesco,
+            Integer esPrincipal) {
+
         this.id = id;
         this.nombre = nombre;
         this.apellidos = apellidos;
         this.telefono = telefono;
         this.email = email;
-        this.recibeInfoClub = recibeInfoClub;
         this.whatsappActivo = whatsappActivo;
         this.parentesco = parentesco;
         this.esPrincipal = esPrincipal;
@@ -68,14 +72,6 @@ public class Familiar {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public Integer getRecibeInfoClub() {
-        return recibeInfoClub;
-    }
-
-    public void setRecibeInfoClub(Integer recibeInfoClub) {
-        this.recibeInfoClub = recibeInfoClub;
     }
 
     public Integer getWhatsappActivo() {

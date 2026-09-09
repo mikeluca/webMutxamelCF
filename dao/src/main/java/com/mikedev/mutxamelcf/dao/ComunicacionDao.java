@@ -45,5 +45,16 @@ public interface ComunicacionDao {
         List<Long> obtenerUsuariosDelEquipo(Long equipoId);
 
         List<Long> obtenerUsuariosDeCategoria(String categoria);
-        
+
+        void guardarUsuario(
+                        Long comunicacionId,
+                        Long usuarioAppId);
+
+        List<Comunicacion> obtenerPorUsuarioDirecto(
+                        Long usuarioAppId);
+
+        boolean usuarioPuedeVerDirectamente(
+                        Long comunicacionId,
+                        Long usuarioAppId);
+
 }

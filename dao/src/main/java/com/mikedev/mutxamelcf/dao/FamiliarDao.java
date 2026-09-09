@@ -13,4 +13,6 @@ public interface FamiliarDao {
     List<Familiar> obtenerTodos();
 
     void eliminar(Long id);
+
+    List<Familiar> obtenerPorJugador(Long jugadorId);
 }

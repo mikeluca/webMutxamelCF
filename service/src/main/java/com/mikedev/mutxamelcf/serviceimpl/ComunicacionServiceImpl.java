@@ -145,11 +145,18 @@ public class ComunicacionServiceImpl
         }
 
         @Override
-        public Comunicacion obtenerPorId(Long id) {
+        public Comunicacion obtenerPorId(
+                        Long id,
+                        Long usuarioId) {
 
                 if (id == null) {
                         throw new IllegalArgumentException(
                                         "El ID de la comunicación es obligatorio");
+                }
+
+                if (usuarioId == null) {
+                        throw new SecurityException(
+                                        "Usuario no autenticado");
                 }
 
                 Comunicacion comunicacion = comunicacionDao.obtenerPorId(id);
@@ -159,7 +166,85 @@ public class ComunicacionServiceImpl
                                         "La comunicación no existe");
                 }
 
-                return comunicacion;
+                /*
+                 * ADMIN_APP puede ver cualquier comunicación.
+                 */
+                boolean esAdmin = usuarioAppService.tieneRol(
+                                usuarioId.intValue(),
+                                "ADMIN_APP");
+
+                if (esAdmin) {
+                        return comunicacion;
+                }
+
+                /*
+                 * COORDINADOR puede ver cualquier comunicación.
+                 */
+                boolean esCoordinador = usuarioAppService.tieneRol(
+                                usuarioId.intValue(),
+                                "COORDINADOR");
+
+                if (esCoordinador) {
+                        return comunicacion;
+                }
+
+                /*
+                 * El autor puede ver su propia comunicación.
+                 */
+                if (comunicacion.getUsuarioAutorId() != null
+                                && comunicacion.getUsuarioAutorId().equals(usuarioId)) {
+
+                        return comunicacion;
+                }
+
+                /*
+                 * Comprobamos si es destinatario directo.
+                 */
+                if (comunicacionDao.usuarioPuedeVerDirectamente(
+                                id,
+                                usuarioId)) {
+
+                        return comunicacion;
+                }
+
+                /*
+                 * Si no es destinatario directo, comprobamos
+                 * si pertenece a uno de los equipos destinatarios.
+                 */
+                List<Long> equiposUsuario = new ArrayList<>();
+
+                equiposUsuario.addAll(
+                                comunicacionDao.obtenerEquiposDeEntrenador(
+                                                usuarioId));
+
+                equiposUsuario.addAll(
+                                comunicacionDao.obtenerEquiposDeJugador(
+                                                usuarioId));
+
+                equiposUsuario.addAll(
+                                comunicacionDao.obtenerEquiposDeFamiliar(
+                                                usuarioId));
+
+                equiposUsuario = equiposUsuario.stream()
+                                .filter(e -> e != null)
+                                .distinct()
+                                .collect(Collectors.toList());
+
+                if (!equiposUsuario.isEmpty()) {
+
+                        List<Comunicacion> comunicaciones = comunicacionDao.obtenerPorEquiposYCategorias(
+                                        equiposUsuario);
+
+                        boolean puedeVer = comunicaciones.stream()
+                                        .anyMatch(c -> c.getId().equals(id));
+
+                        if (puedeVer) {
+                                return comunicacion;
+                        }
+                }
+
+                throw new SecurityException(
+                                "No tienes permiso para ver esta comunicación");
         }
 
         @Override
@@ -267,8 +352,15 @@ public class ComunicacionServiceImpl
                                 return Collections.emptyList();
                         }
 
-                        return comunicacionDao.obtenerPorEquiposYCategorias(
+                        List<Comunicacion> comunicacionesEquipo = comunicacionDao.obtenerPorEquiposYCategorias(
                                         equipos);
+
+                        List<Comunicacion> comunicacionesDirectas = comunicacionDao.obtenerPorUsuarioDirecto(
+                                        usuarioId);
+
+                        return combinarComunicaciones(
+                                        comunicacionesEquipo,
+                                        comunicacionesDirectas);
                 }
 
                 /*
@@ -288,8 +380,15 @@ public class ComunicacionServiceImpl
                                 return Collections.emptyList();
                         }
 
-                        return comunicacionDao.obtenerPorEquiposYCategorias(
+                        List<Comunicacion> comunicacionesEquipo = comunicacionDao.obtenerPorEquiposYCategorias(
                                         equipos);
+
+                        List<Comunicacion> comunicacionesDirectas = comunicacionDao.obtenerPorUsuarioDirecto(
+                                        usuarioId);
+
+                        return combinarComunicaciones(
+                                        comunicacionesEquipo,
+                                        comunicacionesDirectas);
                 }
 
                 /*
@@ -310,8 +409,15 @@ public class ComunicacionServiceImpl
                                 return Collections.emptyList();
                         }
 
-                        return comunicacionDao.obtenerPorEquiposYCategorias(
+                        List<Comunicacion> comunicacionesEquipo = comunicacionDao.obtenerPorEquiposYCategorias(
                                         equipos);
+
+                        List<Comunicacion> comunicacionesDirectas = comunicacionDao.obtenerPorUsuarioDirecto(
+                                        usuarioId);
+
+                        return combinarComunicaciones(
+                                        comunicacionesEquipo,
+                                        comunicacionesDirectas);
                 }
 
                 /*
@@ -319,6 +425,51 @@ public class ComunicacionServiceImpl
                  * no recibe comunicaciones.
                  */
                 return Collections.emptyList();
+        }
+
+        private List<Comunicacion> combinarComunicaciones(
+                        List<Comunicacion> comunicacionesNormales,
+                        List<Comunicacion> comunicacionesDirectas) {
+
+                List<Comunicacion> resultado = new ArrayList<>();
+
+                Set<Long> ids = new HashSet<>();
+
+                for (Comunicacion comunicacion : comunicacionesNormales) {
+
+                        if (ids.add(comunicacion.getId())) {
+                                resultado.add(comunicacion);
+                        }
+                }
+
+                for (Comunicacion comunicacion : comunicacionesDirectas) {
+
+                        if (ids.add(comunicacion.getId())) {
+                                resultado.add(comunicacion);
+                        }
+                }
+
+                resultado.sort(
+                                (a, b) -> {
+
+                                        if (a.getFechaPublicacion() == null
+                                                        && b.getFechaPublicacion() == null) {
+                                                return 0;
+                                        }
+
+                                        if (a.getFechaPublicacion() == null) {
+                                                return 1;
+                                        }
+
+                                        if (b.getFechaPublicacion() == null) {
+                                                return -1;
+                                        }
+
+                                        return b.getFechaPublicacion()
+                                                        .compareTo(a.getFechaPublicacion());
+                                });
+
+                return resultado;
         }
 
         private void validarDatosBasicos(
@@ -656,6 +807,94 @@ public class ComunicacionServiceImpl
                  * Cualquier otro rol no puede ver comunicaciones.
                  */
                 return false;
+        }
+
+        @Override
+        @Transactional
+        public Comunicacion crearPrivada(
+                        Comunicacion comunicacion,
+                        List<Long> usuariosDestino,
+                        Long usuarioId) {
+
+                validarDatosBasicos(comunicacion);
+
+                if (usuarioId == null) {
+                        throw new SecurityException(
+                                        "Usuario no autenticado");
+                }
+
+                if (usuariosDestino == null
+                                || usuariosDestino.isEmpty()) {
+
+                        throw new IllegalArgumentException(
+                                        "Debe existir al menos un destinatario");
+                }
+
+                List<Long> destinatarios = usuariosDestino.stream()
+                                .filter(id -> id != null)
+                                .distinct()
+                                .collect(Collectors.toList());
+
+                if (destinatarios.isEmpty()) {
+                        throw new IllegalArgumentException(
+                                        "Debe existir al menos un destinatario");
+                }
+
+                comunicacion.setUsuarioAutorId(usuarioId);
+
+                if (comunicacion.getFechaPublicacion() == null) {
+                        comunicacion.setFechaPublicacion(
+                                        LocalDateTime.now());
+                }
+
+                comunicacion.setActiva(1);
+
+                /*
+                 * 1. Crear COMUNICACION.
+                 */
+                Long comunicacionId = comunicacionDao.guardar(
+                                comunicacion);
+
+                /*
+                 * 2. Asociarla directamente a cada usuario.
+                 */
+                for (Long destinatarioId : destinatarios) {
+
+                        comunicacionDao.guardarUsuario(
+                                        comunicacionId,
+                                        destinatarioId);
+                }
+
+                /*
+                 * 3. Crear NOTIFICACION_APP y enviar FCM.
+                 */
+                for (Long destinatarioId : destinatarios) {
+
+                        if (!notificacionAppService.puedeRecibir(
+                                        destinatarioId,
+                                        "COMUNICACION")) {
+
+                                continue;
+                        }
+
+                        notificacionAppService.crear(
+                                        destinatarioId,
+                                        "COMUNICACION",
+                                        comunicacion.getTitulo(),
+                                        comunicacion.getContenido(),
+                                        comunicacionId);
+
+                        fcmPushService.enviarNotificacionAUsuario(
+                                        destinatarioId,
+                                        "COMUNICACION",
+                                        comunicacion.getTitulo(),
+                                        comunicacion.getContenido(),
+                                        comunicacionId);
+                }
+
+                comunicacion.setId(comunicacionId);
+
+                return comunicacion;
         }
 
 }
