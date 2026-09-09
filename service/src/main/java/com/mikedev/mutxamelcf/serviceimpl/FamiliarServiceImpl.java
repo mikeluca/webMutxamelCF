@@ -14,6 +14,7 @@ import com.mikedev.mutxamelcf.model.FamiliarDTO;
 import com.mikedev.mutxamelcf.model.FamiliarJugadorDTO;
 import com.mikedev.mutxamelcf.service.FamiliarJugadorService;
 import com.mikedev.mutxamelcf.service.FamiliarService;
+import com.mikedev.mutxamelcf.model.FamiliarContactoDTO;
 
 @Service
 public class FamiliarServiceImpl implements FamiliarService {
@@ -128,6 +129,31 @@ public class FamiliarServiceImpl implements FamiliarService {
 
         FamiliarDTO resultado = obtenerFamiliarPorId(relacion.getFamiliarId());
         logger.debug("Fin obtenerFamiliarPrincipalDeJugador: encontrado={}", resultado != null);
+        return resultado;
+    }
+
+    @Override
+    public List<FamiliarContactoDTO> obtenerFamiliaresPorJugador(
+            Long jugadorId) {
+
+        List<Familiar> familiares = familiarDao.obtenerPorJugador(jugadorId);
+
+        List<FamiliarContactoDTO> resultado = new ArrayList<>();
+
+        for (Familiar familiar : familiares) {
+
+            resultado.add(
+                    new FamiliarContactoDTO(
+                            familiar.getId(),
+                            familiar.getNombre(),
+                            familiar.getApellidos(),
+                            familiar.getTelefono(),
+                            familiar.getEmail(),
+                            familiar.getWhatsappActivo(),
+                            familiar.getParentesco(),
+                            familiar.getEsPrincipal()));
+        }
+
         return resultado;
     }
 }

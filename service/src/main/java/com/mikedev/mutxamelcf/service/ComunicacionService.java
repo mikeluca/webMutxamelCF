@@ -12,7 +12,9 @@ public interface ComunicacionService {
                         List<String> categorias,
                         Long usuarioId);
 
-        Comunicacion obtenerPorId(Long id);
+        Comunicacion obtenerPorId(
+                        Long id,
+                        Long usuarioId);
 
         List<Comunicacion> obtenerTodas();
 
@@ -25,5 +27,10 @@ public interface ComunicacionService {
 
         boolean puedeVer(
                         Long comunicacionId,
+                        Long usuarioId);
+
+        Comunicacion crearPrivada(
+                        Comunicacion comunicacion,
+                        List<Long> usuariosDestino,
                         Long usuarioId);
 }
