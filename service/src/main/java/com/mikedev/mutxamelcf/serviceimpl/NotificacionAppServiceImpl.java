@@ -158,4 +158,9 @@ public class NotificacionAppServiceImpl
                                 usuarioId,
                                 tipo);
         }
+
+        @Override
+        public int contarComunicacionesNoLeidas(Long usuarioId) {
+                return notificacionAppDao.contarComunicacionesNoLeidas(usuarioId);
+        }
 }

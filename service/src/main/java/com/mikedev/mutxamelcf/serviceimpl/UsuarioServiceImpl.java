@@ -2,7 +2,6 @@ package com.mikedev.mutxamelcf.serviceimpl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.UsuarioDao;
@@ -15,8 +14,11 @@ public class UsuarioServiceImpl implements UsuarioService {
 
 	private static final Logger logger = LoggerFactory.getLogger(UsuarioServiceImpl.class);
 
-	@Autowired
-	UsuarioDao usuarioDao;
+	private final UsuarioDao usuarioDao;
+
+	public UsuarioServiceImpl(UsuarioDao usuarioDao) {
+		this.usuarioDao = usuarioDao;
+	}
 
 	@Override
 	public UsuarioDTO validarUsuario(String usuario, String password) {

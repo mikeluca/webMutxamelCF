@@ -5,7 +5,6 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.FamiliarDao;
@@ -22,14 +21,18 @@ public class FamiliarJugadorServiceImpl implements FamiliarJugadorService {
 
     private static final Logger logger = LoggerFactory.getLogger(FamiliarJugadorServiceImpl.class);
 
-    @Autowired
-    private FamiliarJugadorDao familiarJugadorDao;
+    private final FamiliarJugadorDao familiarJugadorDao;
 
-    @Autowired
-    private FamiliarDao familiarDao;
+    private final FamiliarDao familiarDao;
 
-    @Autowired
-    private JugadorDao jugadorDao;
+    private final JugadorDao jugadorDao;
+
+    public FamiliarJugadorServiceImpl(FamiliarJugadorDao familiarJugadorDao, FamiliarDao familiarDao,
+            JugadorDao jugadorDao) {
+        this.familiarJugadorDao = familiarJugadorDao;
+        this.familiarDao = familiarDao;
+        this.jugadorDao = jugadorDao;
+    }
 
     @Override
     public boolean guardarFamiliarJugador(FamiliarJugadorDTO familiarJugador) {
@@ -38,7 +41,8 @@ public class FamiliarJugadorServiceImpl implements FamiliarJugadorService {
                 familiarJugador != null ? familiarJugador.getFamiliarId() : null,
                 familiarJugador != null ? familiarJugador.getJugadorId() : null);
 
-        if (familiarJugador == null || familiarJugador.getFamiliarId() == null || familiarJugador.getJugadorId() == null) {
+        if (familiarJugador == null || familiarJugador.getFamiliarId() == null
+                || familiarJugador.getJugadorId() == null) {
             logger.warn("guardarFamiliarJugador fallido: datos incompletos");
             return false;
         }

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.ComunicacionRequest;
+import com.mikedev.mutxamelcf.model.DestinatarioComunicacionResponse;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 
 @RestController
@@ -64,6 +65,7 @@ public class AppComunicacionController {
                                         comunicacion,
                                         request.getEquipoIds(),
                                         request.getCategorias(),
+                                        request.getDestinatariosIds(),
                                         usuarioId);
 
                         return ResponseEntity
@@ -253,6 +255,90 @@ public class AppComunicacionController {
                         return ResponseEntity
                                         .status(HttpStatus.INTERNAL_SERVER_ERROR)
                                         .body("Error al eliminar la comunicación");
+                }
+        }
+
+        /**
+         * Obtener las comunicaciones enviadas por el usuario autenticado.
+         *
+         * GET /api/app/comunicaciones/enviadas
+         */
+        @GetMapping("/enviadas")
+        public ResponseEntity<?> obtenerEnviadas(
+                        Authentication authentication) {
+
+                if (authentication == null
+                                || !authentication.isAuthenticated()) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+                }
+
+                try {
+
+                        Long usuarioId = Long.parseLong(
+                                        authentication.getName());
+
+                        List<Comunicacion> comunicaciones = comunicacionService.obtenerEnviadasPorUsuario(
+                                        usuarioId);
+
+                        return ResponseEntity.ok(
+                                        comunicaciones);
+
+                } catch (NumberFormatException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+
+                } catch (SecurityException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.FORBIDDEN)
+                                        .body(e.getMessage());
+
+                } catch (Exception e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body("Error al obtener las comunicaciones enviadas");
+                }
+        }
+
+        @GetMapping("/destinatarios")
+        public ResponseEntity<?> obtenerDestinatarios(
+                        Authentication authentication) {
+
+                if (authentication == null
+                                || !authentication.isAuthenticated()) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+                }
+
+                try {
+
+                        Long usuarioId = Long.parseLong(authentication.getName());
+
+                        List<DestinatarioComunicacionResponse> destinatarios = comunicacionService
+                                        .obtenerDestinatariosDirectos(
+                                                        usuarioId);
+
+                        return ResponseEntity.ok(destinatarios);
+
+                } catch (NumberFormatException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+
+                } catch (Exception e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body("Error al obtener los destinatarios");
                 }
         }
 }

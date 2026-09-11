@@ -195,4 +195,30 @@ public class AppNotificacionController {
                 .status(HttpStatus.UNAUTHORIZED)
                 .body("Usuario no autenticado");
     }
+
+    @GetMapping("/comunicaciones/no-leidas/count")
+    public ResponseEntity<?> contarComunicacionesNoLeidas(
+            Authentication authentication) {
+
+        if (!autenticado(authentication)) {
+            return unauthorized();
+        }
+
+        try {
+            Long usuarioId = obtenerUsuarioId(authentication);
+
+            int cantidad = notificacionService.contarComunicacionesNoLeidas(
+                    usuarioId);
+
+            return ResponseEntity.ok(cantidad);
+
+        } catch (NumberFormatException e) {
+            return unauthorized();
+
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error al contar las comunicaciones no leídas");
+        }
+    }
 }

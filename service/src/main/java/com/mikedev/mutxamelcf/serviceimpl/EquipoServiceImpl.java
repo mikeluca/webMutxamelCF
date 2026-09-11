@@ -8,7 +8,6 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.EquipoDao;
@@ -22,8 +21,11 @@ public class EquipoServiceImpl implements EquipoService {
 
 	private static final Logger logger = LoggerFactory.getLogger(EquipoServiceImpl.class);
 
-	@Autowired
-	EquipoDao equipoDao;
+	private final EquipoDao equipoDao;
+
+	public EquipoServiceImpl(EquipoDao equipoDao) {
+		this.equipoDao = equipoDao;
+	}
 
 	@Override
 	public boolean guardar(EquipoDTO equipo) {
@@ -62,7 +64,8 @@ public class EquipoServiceImpl implements EquipoService {
 		logger.debug("Inicio obtenerTodos");
 		List<EquipoDTO> equipos = toDTOList(equipoDao.obtenerTodos());
 		equipos.sort(Comparator
-				.comparing((EquipoDTO equipo) -> equipo.getOrden() == null ? "" : equipo.getOrden(), Comparator.nullsLast(String::compareTo))
+				.comparing((EquipoDTO equipo) -> equipo.getOrden() == null ? "" : equipo.getOrden(),
+						Comparator.nullsLast(String::compareTo))
 				.thenComparing(EquipoDTO::getNombre, Comparator.nullsLast(String::compareTo)));
 		logger.debug("Fin obtenerTodos: total={}", equipos.size());
 		return equipos;
@@ -73,7 +76,8 @@ public class EquipoServiceImpl implements EquipoService {
 		logger.debug("Inicio obtenerTodosPorCategoria: categoria={}", categoria);
 		List<EquipoDTO> equipos = toDTOList(equipoDao.obtenerTodosPorCategoria(categoria));
 		equipos.sort(Comparator
-				.comparing((EquipoDTO equipo) -> equipo.getOrden() == null ? "" : equipo.getOrden(), Comparator.nullsLast(String::compareTo))
+				.comparing((EquipoDTO equipo) -> equipo.getOrden() == null ? "" : equipo.getOrden(),
+						Comparator.nullsLast(String::compareTo))
 				.thenComparing(EquipoDTO::getNombre, Comparator.nullsLast(String::compareTo)));
 		logger.debug("Fin obtenerTodosPorCategoria: categoria={}, total={}", categoria, equipos.size());
 		return equipos;

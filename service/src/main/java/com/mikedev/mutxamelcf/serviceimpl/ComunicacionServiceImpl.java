@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.mikedev.mutxamelcf.dao.ComunicacionDao;
 import com.mikedev.mutxamelcf.model.Comunicacion;
+import com.mikedev.mutxamelcf.model.DestinatarioComunicacion;
+import com.mikedev.mutxamelcf.model.DestinatarioComunicacionResponse;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
@@ -48,6 +50,7 @@ public class ComunicacionServiceImpl
                         Comunicacion comunicacion,
                         List<Long> equipoIds,
                         List<String> categorias,
+                        List<Long> destinatariosIds,
                         Long usuarioId) {
 
                 validarDatosBasicos(comunicacion);
@@ -56,9 +59,19 @@ public class ComunicacionServiceImpl
 
                 List<String> categoriasNormalizadas = normalizarCategorias(categorias);
 
-                if (equipos.isEmpty() && categoriasNormalizadas.isEmpty()) {
+                List<Long> destinatarios = normalizarDestinatarios(destinatariosIds);
+
+                validarDestinatariosDirectos(
+                                usuarioId,
+                                destinatarios);
+
+                if (equipos.isEmpty()
+                                && categoriasNormalizadas.isEmpty()
+                                && destinatarios.isEmpty()) {
+
                         throw new IllegalArgumentException(
-                                        "Debe especificarse al menos un equipo o una categoría");
+                                        "Debe especificarse al menos un equipo, "
+                                                        + "una categoría o un destinatario");
                 }
 
                 /*
@@ -93,7 +106,8 @@ public class ComunicacionServiceImpl
                 validarPermisos(
                                 usuarioId,
                                 equipos,
-                                categoriasNormalizadas);
+                                categoriasNormalizadas,
+                                destinatarios);
 
                 /*
                  * Datos automáticos de la comunicación.
@@ -132,6 +146,12 @@ public class ComunicacionServiceImpl
                                         categoria);
                 }
 
+                for (Long destinatarioId : destinatarios) {
+                        comunicacionDao.guardarUsuario(
+                                        comunicacionId,
+                                        destinatarioId);
+                }
+
                 comunicacion.setId(comunicacionId);
 
                 generarNotificaciones(
@@ -139,9 +159,35 @@ public class ComunicacionServiceImpl
                                 comunicacion.getTitulo(),
                                 comunicacion.getContenido(),
                                 equipos,
-                                categoriasNormalizadas);
+                                categoriasNormalizadas,
+                                destinatarios);
 
                 return comunicacion;
+        }
+
+        private void validarDestinatariosDirectos(
+                        Long usuarioId,
+                        List<Long> destinatarios) {
+
+                if (destinatarios == null || destinatarios.isEmpty()) {
+                        return;
+                }
+
+                List<Long> permitidos = comunicacionDao.obtenerDestinatariosDirectosPermitidos(
+                                usuarioId);
+
+                Set<Long> permitidosSet = new HashSet<>(permitidos);
+
+                for (Long destinatarioId : destinatarios) {
+
+                        if (!permitidosSet.contains(destinatarioId)) {
+
+                                throw new SecurityException(
+                                                "No tienes permiso para enviar una comunicación "
+                                                                + "al usuario con ID "
+                                                                + destinatarioId);
+                        }
+                }
         }
 
         @Override
@@ -312,8 +358,11 @@ public class ComunicacionServiceImpl
                 }
 
                 /*
-                 * ADMIN_APP:
-                 * puede ver todas las comunicaciones.
+                 * ============================================================
+                 * ADMIN_APP
+                 *
+                 * Puede ver todas las comunicaciones.
+                 * ============================================================
                  */
                 boolean esAdmin = usuarioAppService.tieneRol(
                                 usuarioId.intValue(),
@@ -324,20 +373,35 @@ public class ComunicacionServiceImpl
                 }
 
                 /*
-                 * COORDINADOR:
-                 * puede ver todas las comunicaciones.
+                 * ============================================================
+                 * COORDINADOR
+                 *
+                 * Solo puede ver comunicaciones dirigidas directamente
+                 * a él.
+                 *
+                 * NO puede ver las comunicaciones de todos los equipos.
+                 * ============================================================
                  */
                 boolean esCoordinador = usuarioAppService.tieneRol(
                                 usuarioId.intValue(),
                                 "COORDINADOR");
 
                 if (esCoordinador) {
-                        return comunicacionDao.obtenerTodas();
+                        return comunicacionDao.obtenerPorUsuarioDirecto(
+                                        usuarioId);
                 }
 
                 /*
-                 * ENTRENADOR:
-                 * recibe comunicaciones de sus equipos.
+                 * ============================================================
+                 * Comunicaciones recibidas por equipo/categoría.
+                 * ============================================================
+                 */
+                List<Comunicacion> comunicacionesEquipo = new ArrayList<>();
+
+                /*
+                 * ============================================================
+                 * ENTRENADOR
+                 * ============================================================
                  */
                 boolean esEntrenador = usuarioAppService.tieneRol(
                                 usuarioId.intValue(),
@@ -348,24 +412,18 @@ public class ComunicacionServiceImpl
                         List<Long> equipos = comunicacionDao.obtenerEquiposDeEntrenador(
                                         usuarioId);
 
-                        if (equipos.isEmpty()) {
-                                return Collections.emptyList();
+                        if (!equipos.isEmpty()) {
+
+                                comunicacionesEquipo.addAll(
+                                                comunicacionDao.obtenerPorEquiposYCategorias(
+                                                                equipos));
                         }
-
-                        List<Comunicacion> comunicacionesEquipo = comunicacionDao.obtenerPorEquiposYCategorias(
-                                        equipos);
-
-                        List<Comunicacion> comunicacionesDirectas = comunicacionDao.obtenerPorUsuarioDirecto(
-                                        usuarioId);
-
-                        return combinarComunicaciones(
-                                        comunicacionesEquipo,
-                                        comunicacionesDirectas);
                 }
 
                 /*
-                 * JUGADOR:
-                 * recibe comunicaciones de sus equipos.
+                 * ============================================================
+                 * JUGADOR
+                 * ============================================================
                  */
                 boolean esJugador = usuarioAppService.tieneRol(
                                 usuarioId.intValue(),
@@ -376,25 +434,18 @@ public class ComunicacionServiceImpl
                         List<Long> equipos = comunicacionDao.obtenerEquiposDeJugador(
                                         usuarioId);
 
-                        if (equipos.isEmpty()) {
-                                return Collections.emptyList();
+                        if (!equipos.isEmpty()) {
+
+                                comunicacionesEquipo.addAll(
+                                                comunicacionDao.obtenerPorEquiposYCategorias(
+                                                                equipos));
                         }
-
-                        List<Comunicacion> comunicacionesEquipo = comunicacionDao.obtenerPorEquiposYCategorias(
-                                        equipos);
-
-                        List<Comunicacion> comunicacionesDirectas = comunicacionDao.obtenerPorUsuarioDirecto(
-                                        usuarioId);
-
-                        return combinarComunicaciones(
-                                        comunicacionesEquipo,
-                                        comunicacionesDirectas);
                 }
 
                 /*
-                 * FAMILIAR:
-                 * recibe comunicaciones de los equipos
-                 * de sus jugadores.
+                 * ============================================================
+                 * FAMILIAR
+                 * ============================================================
                  */
                 boolean esFamiliar = usuarioAppService.tieneRol(
                                 usuarioId.intValue(),
@@ -405,26 +456,38 @@ public class ComunicacionServiceImpl
                         List<Long> equipos = comunicacionDao.obtenerEquiposDeFamiliar(
                                         usuarioId);
 
-                        if (equipos.isEmpty()) {
-                                return Collections.emptyList();
+                        if (!equipos.isEmpty()) {
+
+                                comunicacionesEquipo.addAll(
+                                                comunicacionDao.obtenerPorEquiposYCategorias(
+                                                                equipos));
                         }
-
-                        List<Comunicacion> comunicacionesEquipo = comunicacionDao.obtenerPorEquiposYCategorias(
-                                        equipos);
-
-                        List<Comunicacion> comunicacionesDirectas = comunicacionDao.obtenerPorUsuarioDirecto(
-                                        usuarioId);
-
-                        return combinarComunicaciones(
-                                        comunicacionesEquipo,
-                                        comunicacionesDirectas);
                 }
 
                 /*
-                 * Cualquier otro usuario:
-                 * no recibe comunicaciones.
+                 * ============================================================
+                 * Comunicaciones enviadas directamente a este usuario.
+                 *
+                 * Se consultan siempre para los roles receptores.
+                 * ============================================================
                  */
-                return Collections.emptyList();
+                List<Comunicacion> comunicacionesDirectas = comunicacionDao.obtenerPorUsuarioDirecto(
+                                usuarioId);
+
+                /*
+                 * Si no tiene ningún rol receptor válido,
+                 * solo devolvemos las comunicaciones directas.
+                 */
+                if (!esEntrenador
+                                && !esJugador
+                                && !esFamiliar) {
+
+                        return comunicacionesDirectas;
+                }
+
+                return combinarComunicaciones(
+                                comunicacionesEquipo,
+                                comunicacionesDirectas);
         }
 
         private List<Comunicacion> combinarComunicaciones(
@@ -504,7 +567,8 @@ public class ComunicacionServiceImpl
         private void validarPermisos(
                         Long usuarioId,
                         List<Long> equipos,
-                        List<String> categorias) {
+                        List<String> categorias,
+                        List<Long> destinatarios) {
 
                 if (usuarioId == null) {
                         throw new SecurityException(
@@ -525,27 +589,46 @@ public class ComunicacionServiceImpl
                                 id,
                                 "ENTRENADOR");
 
+                boolean esJugador = usuarioAppService.tieneRol(
+                                id,
+                                "JUGADOR");
+
+                boolean esFamiliar = usuarioAppService.tieneRol(
+                                id,
+                                "FAMILIAR");
+
                 /*
-                 * ADMIN_APP:
-                 * puede crear cualquier comunicación.
+                 * ============================================================
+                 * ADMIN_APP
+                 *
+                 * Puede crear cualquier comunicación.
+                 * ============================================================
                  */
                 if (esAdmin) {
                         return;
                 }
 
                 /*
-                 * COORDINADOR:
-                 * puede crear cualquier comunicación.
+                 * ============================================================
+                 * COORDINADOR
+                 *
+                 * Puede crear cualquier comunicación.
+                 * ============================================================
                  */
                 if (esCoordinador) {
                         return;
                 }
 
                 /*
-                 * ENTRENADOR:
-                 * únicamente puede enviar a sus propios equipos.
+                 * ============================================================
+                 * ENTRENADOR
                  *
-                 * No puede utilizar categorías como destinatario.
+                 * Puede enviar a sus propios equipos.
+                 * No puede utilizar categorías.
+                 *
+                 * También puede enviar comunicaciones directas a los
+                 * destinatarios que el DAO haya autorizado.
+                 * ============================================================
                  */
                 if (esEntrenador) {
 
@@ -563,7 +646,67 @@ public class ComunicacionServiceImpl
                 }
 
                 /*
-                 * Ningún otro rol puede crear comunicaciones.
+                 * ============================================================
+                 * JUGADOR
+                 *
+                 * Solo puede crear comunicaciones directas.
+                 *
+                 * No puede enviar comunicaciones por equipo ni categoría.
+                 * Los destinatarios directos ya han sido validados mediante
+                 * validarDestinatariosDirectos().
+                 * ============================================================
+                 */
+                if (esJugador) {
+
+                        if (!equipos.isEmpty()
+                                        || !categorias.isEmpty()) {
+
+                                throw new SecurityException(
+                                                "Los jugadores solo pueden "
+                                                                + "enviar comunicaciones directas");
+                        }
+
+                        if (destinatarios.isEmpty()) {
+                                throw new IllegalArgumentException(
+                                                "Debes seleccionar al menos un destinatario");
+                        }
+
+                        return;
+                }
+
+                /*
+                 * ============================================================
+                 * FAMILIAR
+                 *
+                 * Solo puede crear comunicaciones directas.
+                 *
+                 * No puede enviar comunicaciones por equipo ni categoría.
+                 * Los destinatarios directos ya han sido validados mediante
+                 * validarDestinatariosDirectos().
+                 * ============================================================
+                 */
+                if (esFamiliar) {
+
+                        if (!equipos.isEmpty()
+                                        || !categorias.isEmpty()) {
+
+                                throw new SecurityException(
+                                                "Los familiares solo pueden "
+                                                                + "enviar comunicaciones directas");
+                        }
+
+                        if (destinatarios.isEmpty()) {
+                                throw new IllegalArgumentException(
+                                                "Debes seleccionar al menos un destinatario");
+                        }
+
+                        return;
+                }
+
+                /*
+                 * ============================================================
+                 * Cualquier otro rol no puede crear comunicaciones.
+                 * ============================================================
                  */
                 throw new SecurityException(
                                 "No tienes permiso para crear comunicaciones");
@@ -634,12 +777,26 @@ public class ComunicacionServiceImpl
                 return resultado;
         }
 
+        private List<Long> normalizarDestinatarios(
+                        List<Long> destinatariosIds) {
+
+                if (destinatariosIds == null || destinatariosIds.isEmpty()) {
+                        return Collections.emptyList();
+                }
+
+                return destinatariosIds.stream()
+                                .filter(id -> id != null)
+                                .distinct()
+                                .collect(Collectors.toList());
+        }
+
         private void generarNotificaciones(
                         Long comunicacionId,
                         String titulo,
                         String contenido,
                         List<Long> equipoIds,
-                        List<String> categorias) {
+                        List<String> categorias,
+                        List<Long> destinatariosDirectos) {
 
                 Set<Long> usuariosDestinatarios = new HashSet<>();
 
@@ -662,13 +819,24 @@ public class ComunicacionServiceImpl
                 }
 
                 /*
-                 * Creamos una única notificación por usuario y enviamos el push.
+                 * Destinatarios directos
+                 */
+                if (destinatariosDirectos != null) {
+
+                        usuariosDestinatarios.addAll(
+                                        destinatariosDirectos);
+                }
+
+                /*
+                 * Creamos una única notificación por usuario
+                 * y enviamos el push.
                  */
                 for (Long usuarioId : usuariosDestinatarios) {
 
                         if (!notificacionAppService.puedeRecibir(
                                         usuarioId,
                                         "COMUNICACION")) {
+
                                 continue;
                         }
 
@@ -728,6 +896,25 @@ public class ComunicacionServiceImpl
                                 || comunicacion.getActiva() == null
                                 || comunicacion.getActiva() != 1) {
                         return false;
+                }
+
+                /*
+                 * El destinatario directo puede ver la comunicación.
+                 */
+                if (comunicacionDao.usuarioPuedeVerDirectamente(
+                                comunicacionId,
+                                usuarioId)) {
+
+                        return true;
+                }
+
+                /*
+                 * El autor puede ver su propia comunicación.
+                 */
+                if (comunicacion.getUsuarioAutorId() != null
+                                && comunicacion.getUsuarioAutorId().equals(usuarioId)) {
+
+                        return true;
                 }
 
                 /*
@@ -895,6 +1082,43 @@ public class ComunicacionServiceImpl
                 comunicacion.setId(comunicacionId);
 
                 return comunicacion;
+        }
+
+        @Override
+        public List<Comunicacion> obtenerEnviadasPorUsuario(
+                        Long usuarioId) {
+
+                if (usuarioId == null) {
+                        throw new SecurityException(
+                                        "Usuario no autenticado");
+                }
+
+                return comunicacionDao.obtenerEnviadasPorUsuario(
+                                usuarioId);
+        }
+
+        @Override
+        public List<DestinatarioComunicacionResponse> obtenerDestinatariosDirectos(
+                        Long usuarioId) {
+
+                if (usuarioId == null) {
+                        throw new SecurityException("Usuario no autenticado");
+                }
+
+                List<DestinatarioComunicacion> destinatarios = comunicacionDao.obtenerDestinatariosDirectos(usuarioId);
+
+                return destinatarios.stream()
+                                .map(destinatario -> {
+                                        DestinatarioComunicacionResponse response = new DestinatarioComunicacionResponse();
+
+                                        response.setId(destinatario.getId());
+                                        response.setNombre(destinatario.getNombre());
+                                        response.setApellidos(destinatario.getApellidos());
+                                        response.setRol(destinatario.getRol());
+
+                                        return response;
+                                })
+                                .toList();
         }
 
 }

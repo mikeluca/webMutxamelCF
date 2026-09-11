@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 
 import com.mikedev.mutxamelcf.dao.ComunicacionDao;
 import com.mikedev.mutxamelcf.model.Comunicacion;
+import com.mikedev.mutxamelcf.model.DestinatarioComunicacion;
 
 @Repository
 public class ComunicacionDaoImpl implements ComunicacionDao {
@@ -251,6 +252,10 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
 
         jdbcTemplate.update(
                 "DELETE FROM COMUNICACION_CATEGORIA WHERE COMUNICACION_ID = ?",
+                id);
+
+        jdbcTemplate.update(
+                "DELETE FROM COMUNICACION_USUARIO WHERE COMUNICACION_ID = ?",
                 id);
 
         jdbcTemplate.update(
@@ -681,6 +686,342 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                 usuarioAppId);
 
         return count != null && count > 0;
+    }
+
+    @Override
+    public List<Long> obtenerDestinatariosDirectosPermitidos(
+            Long usuarioAppId) {
+
+        String sql = """
+                SELECT DISTINCT ID
+                FROM (
+                    /*
+                     * ============================================================
+                     * COORDINADOR / ADMIN_APP
+                     *
+                     * Puede enviar a cualquier jugador, familiar o entrenador.
+                     * ============================================================
+                     */
+                    SELECT U.ID
+                    FROM USUARIOS_APP U
+                    INNER JOIN USUARIOS_APP_ROLES UAR
+                        ON UAR.USUARIO_APP_ID = U.ID
+                    INNER JOIN ROLES_APP R
+                        ON R.ID = UAR.ROL_ID
+                    WHERE U.ACTIVO = 1
+                      AND U.ID <> ?
+                      AND R.CODIGO IN (
+                          'JUGADOR',
+                          'FAMILIAR',
+                          'ENTRENADOR'
+                      )
+                      AND EXISTS (
+                          SELECT 1
+                          FROM USUARIOS_APP_ROLES SAR
+                          INNER JOIN ROLES_APP SR
+                              ON SR.ID = SAR.ROL_ID
+                          WHERE SAR.USUARIO_APP_ID = ?
+                            AND SR.CODIGO IN (
+                                'COORDINADOR',
+                                'ADMIN_APP'
+                            )
+                      )
+
+                    UNION
+
+                    /*
+                     * ============================================================
+                     * ENTRENADOR
+                     *
+                     * Puede enviar a:
+                     *   - coordinadores
+                     *   - jugadores de sus equipos
+                     *   - familiares de jugadores de sus equipos
+                     * ============================================================
+                     */
+                    SELECT U.ID
+                    FROM USUARIOS_APP U
+                    INNER JOIN USUARIOS_APP_ROLES UAR
+                        ON UAR.USUARIO_APP_ID = U.ID
+                    INNER JOIN ROLES_APP R
+                        ON R.ID = UAR.ROL_ID
+                    WHERE U.ACTIVO = 1
+                      AND U.ID <> ?
+                      AND (
+                            R.CODIGO = 'COORDINADOR'
+
+                            OR U.ID IN (
+                                /*
+                                 * Usuarios de jugadores de sus equipos.
+                                 */
+                                SELECT DISTINCT UAJ.USUARIO_APP_ID
+                                FROM USUARIOS_APP_JUGADORES UAJ
+                                INNER JOIN JUGADORES J
+                                    ON J.ID = UAJ.JUGADOR_ID
+                                INNER JOIN USUARIOS_APP_CUERPO_TECNICO UCT
+                                    ON UCT.USUARIO_APP_ID = ?
+                                INNER JOIN CUERPO_TECNICO CT
+                                    ON CT.ID = UCT.CUERPO_TECNICO_ID
+                                INNER JOIN EQUIPO E
+                                    ON UPPER(TRIM(E.NOMBRE)) =
+                                       UPPER(TRIM(CT.EQUIPO))
+                                WHERE UAJ.USUARIO_APP_ID = U.ID
+                                AND UPPER(TRIM(E.NOMBRE)) = UPPER(TRIM(J.EQUIPO))                            )
+
+                            OR U.ID IN (
+                                /*
+                                 * Usuarios familiares de jugadores de sus equipos.
+                                 */
+                                SELECT DISTINCT UAF.USUARIO_APP_ID
+                                FROM USUARIOS_APP_FAMILIARES UAF
+                                INNER JOIN FAMILIARES_JUGADOR FJ
+                                    ON FJ.FAMILIAR_ID = UAF.FAMILIAR_ID
+                                INNER JOIN JUGADORES J
+                                    ON J.ID = FJ.JUGADOR_ID
+                                INNER JOIN USUARIOS_APP_CUERPO_TECNICO UCT
+                                    ON UCT.USUARIO_APP_ID = ?
+                                INNER JOIN CUERPO_TECNICO CT
+                                    ON CT.ID = UCT.CUERPO_TECNICO_ID
+                                INNER JOIN EQUIPO E
+                                    ON UPPER(TRIM(E.NOMBRE)) =
+                                       UPPER(TRIM(CT.EQUIPO))
+                                WHERE UAF.USUARIO_APP_ID = U.ID
+                                  AND UPPER(TRIM(E.NOMBRE)) = UPPER(TRIM(J.EQUIPO))
+                            )
+                      )
+                      AND EXISTS (
+                          SELECT 1
+                          FROM USUARIOS_APP_ROLES SAR
+                          INNER JOIN ROLES_APP SR
+                              ON SR.ID = SAR.ROL_ID
+                          WHERE SAR.USUARIO_APP_ID = ?
+                            AND SR.CODIGO = 'ENTRENADOR'
+                      )
+
+                    UNION
+
+                    /*
+                     * ============================================================
+                     * JUGADOR
+                     *
+                     * Puede enviar a:
+                     *   - coordinadores
+                     *   - entrenadores de su equipo
+                     * ============================================================
+                     */
+                    SELECT U.ID
+                    FROM USUARIOS_APP U
+                    INNER JOIN USUARIOS_APP_ROLES UAR
+                        ON UAR.USUARIO_APP_ID = U.ID
+                    INNER JOIN ROLES_APP R
+                        ON R.ID = UAR.ROL_ID
+                    WHERE U.ACTIVO = 1
+                      AND U.ID <> ?
+                      AND (
+                            R.CODIGO = 'COORDINADOR'
+
+                            OR U.ID IN (
+                                SELECT DISTINCT UCT.USUARIO_APP_ID
+                                FROM USUARIOS_APP_CUERPO_TECNICO UCT
+                                INNER JOIN CUERPO_TECNICO CT
+                                    ON CT.ID = UCT.CUERPO_TECNICO_ID
+                                INNER JOIN USUARIOS_APP_JUGADORES UAJ
+                                    ON UAJ.USUARIO_APP_ID = ?
+                                INNER JOIN JUGADORES J
+                                    ON J.ID = UAJ.JUGADOR_ID
+                                WHERE UCT.USUARIO_APP_ID = U.ID
+                                  AND UPPER(TRIM(CT.EQUIPO)) =
+                                      UPPER(TRIM(J.EQUIPO))
+                            )
+                      )
+                      AND EXISTS (
+                          SELECT 1
+                          FROM USUARIOS_APP_ROLES SAR
+                          INNER JOIN ROLES_APP SR
+                              ON SR.ID = SAR.ROL_ID
+                          WHERE SAR.USUARIO_APP_ID = ?
+                            AND SR.CODIGO = 'JUGADOR'
+                      )
+
+                    UNION
+
+                    /*
+                     * ============================================================
+                     * FAMILIAR
+                     *
+                     * Puede enviar a:
+                     *   - coordinadores
+                     *   - entrenadores de los equipos de sus jugadores
+                     * ============================================================
+                     */
+                    SELECT U.ID
+                    FROM USUARIOS_APP U
+                    INNER JOIN USUARIOS_APP_ROLES UAR
+                        ON UAR.USUARIO_APP_ID = U.ID
+                    INNER JOIN ROLES_APP R
+                        ON R.ID = UAR.ROL_ID
+                    WHERE U.ACTIVO = 1
+                      AND U.ID <> ?
+                      AND (
+                            R.CODIGO = 'COORDINADOR'
+
+                            OR U.ID IN (
+                                SELECT DISTINCT UCT.USUARIO_APP_ID
+                                FROM USUARIOS_APP_CUERPO_TECNICO UCT
+                                INNER JOIN CUERPO_TECNICO CT
+                                    ON CT.ID = UCT.CUERPO_TECNICO_ID
+                                INNER JOIN USUARIOS_APP_FAMILIARES UAF
+                                    ON UAF.USUARIO_APP_ID = ?
+                                INNER JOIN FAMILIARES_JUGADOR FJ
+                                    ON FJ.FAMILIAR_ID = UAF.FAMILIAR_ID
+                                INNER JOIN JUGADORES J
+                                    ON J.ID = FJ.JUGADOR_ID
+                                WHERE UCT.USUARIO_APP_ID = U.ID
+                                  AND UPPER(TRIM(CT.EQUIPO)) =
+                                      UPPER(TRIM(J.EQUIPO))
+                            )
+                      )
+                      AND EXISTS (
+                          SELECT 1
+                          FROM USUARIOS_APP_ROLES SAR
+                          INNER JOIN ROLES_APP SR
+                              ON SR.ID = SAR.ROL_ID
+                          WHERE SAR.USUARIO_APP_ID = ?
+                            AND SR.CODIGO = 'FAMILIAR'
+                      )
+                )
+                ORDER BY ID
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> rs.getLong("ID"),
+
+                // COORDINADOR / ADMIN_APP
+                usuarioAppId,
+                usuarioAppId,
+
+                // ENTRENADOR
+                usuarioAppId,
+                usuarioAppId,
+                usuarioAppId,
+                usuarioAppId,
+
+                // JUGADOR
+                usuarioAppId,
+                usuarioAppId,
+                usuarioAppId,
+
+                // FAMILIAR
+                usuarioAppId,
+                usuarioAppId,
+                usuarioAppId);
+    }
+
+    @Override
+    public List<Comunicacion> obtenerEnviadasPorUsuario(
+            Long usuarioAppId) {
+
+        String sql = """
+                SELECT
+                    ID,
+                    TITULO,
+                    CONTENIDO,
+                    USUARIO_AUTOR_ID,
+                    FECHA_CREACION,
+                    FECHA_PUBLICACION,
+                    ACTIVA
+                FROM COMUNICACIONES
+                WHERE USUARIO_AUTOR_ID = ?
+                  AND ACTIVA = 1
+                ORDER BY
+                    FECHA_PUBLICACION DESC NULLS LAST,
+                    FECHA_CREACION DESC
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                COMUNICACION_ROW_MAPPER,
+                usuarioAppId);
+    }
+
+    @Override
+    public List<DestinatarioComunicacion> obtenerDestinatariosDirectos(
+            Long usuarioAppId) {
+
+        List<Long> idsPermitidos = obtenerDestinatariosDirectosPermitidos(usuarioAppId);
+
+        if (idsPermitidos.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        String placeholders = String.join(
+                ",",
+                Collections.nCopies(idsPermitidos.size(), "?"));
+
+        String sql = """
+                SELECT DISTINCT
+                    U.ID,
+                    COALESCE(
+                        J.NOMBRE,
+                        F.NOMBRE,
+                        CT.NOMBRE,
+                        U.EMAIL
+                    ) AS NOMBRE,
+                    COALESCE(
+                        J.APELLIDOS,
+                        F.APELLIDOS,
+                        CT.APELLIDOS,
+                        ''
+                    ) AS APELLIDOS,
+                    R.CODIGO AS ROL
+                FROM USUARIOS_APP U
+
+                INNER JOIN USUARIOS_APP_ROLES UAR
+                    ON UAR.USUARIO_APP_ID = U.ID
+
+                INNER JOIN ROLES_APP R
+                    ON R.ID = UAR.ROL_ID
+
+                LEFT JOIN USUARIOS_APP_JUGADORES UAJ
+                    ON UAJ.USUARIO_APP_ID = U.ID
+
+                LEFT JOIN JUGADORES J
+                    ON J.ID = UAJ.JUGADOR_ID
+
+                LEFT JOIN USUARIOS_APP_FAMILIARES UAF
+                    ON UAF.USUARIO_APP_ID = U.ID
+
+                LEFT JOIN FAMILIARES F
+                    ON F.ID = UAF.FAMILIAR_ID
+
+                LEFT JOIN USUARIOS_APP_CUERPO_TECNICO UCT
+                    ON UCT.USUARIO_APP_ID = U.ID
+
+                LEFT JOIN CUERPO_TECNICO CT
+                    ON CT.ID = UCT.CUERPO_TECNICO_ID
+
+                WHERE U.ACTIVO = 1
+                  AND U.ID IN (%s)
+                  AND R.CODIGO IN (
+                      'JUGADOR',
+                      'FAMILIAR',
+                      'ENTRENADOR',
+                      'COORDINADOR'
+                  )
+                ORDER BY
+                    NOMBRE,
+                    APELLIDOS
+                """.formatted(placeholders);
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> new DestinatarioComunicacion(
+                        rs.getLong("ID"),
+                        rs.getString("NOMBRE"),
+                        rs.getString("APELLIDOS"),
+                        rs.getString("ROL")),
+                idsPermitidos.toArray());
     }
 
 }

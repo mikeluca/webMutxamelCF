@@ -6,7 +6,6 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.CuerpoTecnicoDao;
@@ -21,8 +20,11 @@ public class CuerpoTecnicoServiceImpl implements CuerpoTecnicoService {
 
 	private static final Logger logger = LoggerFactory.getLogger(CuerpoTecnicoServiceImpl.class);
 
-	@Autowired
-	CuerpoTecnicoDao cuerpoTecnicoDao;
+	private final CuerpoTecnicoDao cuerpoTecnicoDao;
+
+	public CuerpoTecnicoServiceImpl(CuerpoTecnicoDao cuerpoTecnicoDao) {
+		this.cuerpoTecnicoDao = cuerpoTecnicoDao;
+	}
 
 	@Override
 	public boolean guardarCuerpoTecnico(CuerpoTecnicoDTO cuerpoTecnico) {

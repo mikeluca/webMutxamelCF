@@ -5,7 +5,6 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.CuotaJugadorDao;
@@ -18,8 +17,11 @@ public class CuotaJugadorServiceImpl implements CuotaJugadorService {
 
     private static final Logger logger = LoggerFactory.getLogger(CuotaJugadorServiceImpl.class);
 
-    @Autowired
-    CuotaJugadorDao cuotaJugadorDao;
+    private final CuotaJugadorDao cuotaJugadorDao;
+
+    public CuotaJugadorServiceImpl(CuotaJugadorDao cuotaJugadorDao) {
+        this.cuotaJugadorDao = cuotaJugadorDao;
+    }
 
     @Override
     public boolean guardarCuota(CuotaJugadorDTO cuota) {
@@ -85,7 +87,8 @@ public class CuotaJugadorServiceImpl implements CuotaJugadorService {
 
     private static CuotaJugador toEntity(CuotaJugadorDTO dto) {
 
-        if (dto == null) return null;
+        if (dto == null)
+            return null;
 
         CuotaJugador cuota = new CuotaJugador();
 
@@ -103,7 +106,8 @@ public class CuotaJugadorServiceImpl implements CuotaJugadorService {
 
     private static CuotaJugadorDTO toDTO(CuotaJugador cuota) {
 
-        if (cuota == null) return null;
+        if (cuota == null)
+            return null;
 
         CuotaJugadorDTO dto = new CuotaJugadorDTO();
 

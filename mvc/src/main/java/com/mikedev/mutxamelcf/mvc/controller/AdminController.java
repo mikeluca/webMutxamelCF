@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -51,23 +50,28 @@ public class AdminController {
 
 	private static final Logger logger = LoggerFactory.getLogger(AdminController.class);
 
-	@Autowired
-	private JugadorService jugadoresService;
+	private final JugadorService jugadoresService;
 
-	@Autowired
-	private FamiliarService familiarService;
+	private final FamiliarService familiarService;
 
-	@Autowired
-	private CuerpoTecnicoService cuerpoTecnicoService;
+	private final CuerpoTecnicoService cuerpoTecnicoService;
 
-	@Autowired
-	private NoticiaService noticiaService;
+	private final NoticiaService noticiaService;
 
-	@Autowired
-	private ResultadoService resultadoService;
+	private final ResultadoService resultadoService;
 
-	@Autowired
-	private EquipoService equiposService;
+	private final EquipoService equiposService;
+
+	public AdminController(JugadorService jugadoresService, FamiliarService familiarService,
+			CuerpoTecnicoService cuerpoTecnicoService, NoticiaService noticiaService,
+			ResultadoService resultadoService, EquipoService equiposService) {
+		this.jugadoresService = jugadoresService;
+		this.familiarService = familiarService;
+		this.cuerpoTecnicoService = cuerpoTecnicoService;
+		this.noticiaService = noticiaService;
+		this.resultadoService = resultadoService;
+		this.equiposService = equiposService;
+	}
 
 	// Logos de patrocinadores
 	List<String> patrocinadores = Arrays.asList("patrocinador1.jpg", "patrocinador2.jpg", "patrocinador3.jpg",
@@ -78,7 +82,8 @@ public class AdminController {
 		logger.debug("Inicio dashboardPrincipal: autenticado={}", authentication != null);
 		String destino = authentication != null && authentication.getAuthorities().stream()
 				.anyMatch(authority -> "ROLE_SUPER".equals(authority.getAuthority()))
-				? "redirect:/admin/pagos" : "redirect:/admin/admin";
+						? "redirect:/admin/pagos"
+						: "redirect:/admin/admin";
 		logger.debug("Fin dashboardPrincipal: destino={}", destino);
 		return destino;
 	}
@@ -102,7 +107,8 @@ public class AdminController {
 		return "admin/admin";
 	}
 
-	// Cuenta entrenadores distintos por nombre completo, evitando duplicados si aparecen en varias categorias
+	// Cuenta entrenadores distintos por nombre completo, evitando duplicados si
+	// aparecen en varias categorias
 	private long contarEntrenadoresUnicos(List<CuerpoTecnicoDTO> cuerpoTecnico) {
 		return cuerpoTecnico.stream()
 				.map(entrenador -> (entrenador.getNombre() + " " + entrenador.getApellidos()).trim())
@@ -110,7 +116,8 @@ public class AdminController {
 				.count();
 	}
 
-	// Construye el resumen de equipos/jugadores/entrenadores agrupados por categoria, ordenados segun EquipoDTO
+	// Construye el resumen de equipos/jugadores/entrenadores agrupados por
+	// categoria, ordenados segun EquipoDTO
 	private List<Map<String, Object>> construirResumenCategorias(List<JugadorDTO> jugadores, List<EquipoDTO> equipos,
 			List<CuerpoTecnicoDTO> cuerpoTecnico) {
 		Map<String, String> ordenPorCategoria = equipos.stream()
@@ -121,7 +128,8 @@ public class AdminController {
 				.collect(Collectors.groupingBy(JugadorDTO::getCategoria, Collectors.counting()));
 		Map<String, Set<String>> entrenadoresPorCategoria = cuerpoTecnico.stream()
 				.collect(Collectors.groupingBy(CuerpoTecnicoDTO::getCategoria, LinkedHashMap::new,
-						Collectors.mapping(entrenador -> (entrenador.getNombre() + " " + entrenador.getApellidos()).trim(),
+						Collectors.mapping(
+								entrenador -> (entrenador.getNombre() + " " + entrenador.getApellidos()).trim(),
 								Collectors.toSet())));
 
 		Set<String> categorias = new LinkedHashSet<>();
@@ -441,7 +449,8 @@ public class AdminController {
 			if (!noticiaForm.getImagen().isEmpty()) {
 				long maxSize = 2 * 1024 * 1024; // 2 MB (puedes ajustar el límite)
 				if (noticiaForm.getImagen().getSize() > maxSize) {
-					logger.warn("Imagen de noticia demasiado grande: tamano={} bytes", noticiaForm.getImagen().getSize());
+					logger.warn("Imagen de noticia demasiado grande: tamano={} bytes",
+							noticiaForm.getImagen().getSize());
 					response.put("error", "La imagen excede el tamaño máximo permitido (2 MB).");
 					logger.debug("Fin guardarNoticia: resultado=IMAGEN_DEMASIADO_GRANDE");
 					return ResponseEntity.badRequest().body(response);

@@ -19,4 +19,7 @@ public interface NotificacionAppDao {
     void marcarTodasComoLeidas(Long usuarioId);
 
     int contarNoLeidas(Long usuarioId);
+
+    int contarComunicacionesNoLeidas(Long usuarioId);
+
 }

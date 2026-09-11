@@ -34,24 +34,52 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
     }
 
     @Override
-    public boolean puedeGestionarEquipo(Long usuarioAppId, Long equipoId) {
+    public boolean puedeGestionarEquipo(
+            Long usuarioAppId,
+            Long equipoId) {
 
         String sql = """
                 SELECT COUNT(*)
-                FROM USUARIOS_APP_CUERPO_TECNICO UACT
-                INNER JOIN CUERPO_TECNICO CT
-                    ON CT.ID = UACT.CUERPO_TECNICO_ID
-                INNER JOIN EQUIPO E
-                    ON E.NOMBRE = CT.EQUIPO
-                WHERE UACT.USUARIO_APP_ID = ?
-                  AND E.ID = ?
+                FROM EQUIPO E
+                WHERE E.ID = ?
+                  AND (
+                        /*
+                         * ADMIN_APP o COORDINADOR:
+                         * pueden gestionar cualquier equipo.
+                         */
+                        EXISTS (
+                            SELECT 1
+                            FROM USUARIOS_APP_ROLES UAR
+                            INNER JOIN ROLES_APP R
+                                ON R.ID = UAR.ROL_ID
+                            WHERE UAR.USUARIO_APP_ID = ?
+                              AND R.CODIGO IN ('ADMIN_APP', 'COORDINADOR')
+                        )
+
+                        OR
+
+                        /*
+                         * ENTRENADOR:
+                         * únicamente sus equipos asignados.
+                         */
+                        EXISTS (
+                            SELECT 1
+                            FROM USUARIOS_APP_CUERPO_TECNICO UACT
+                            INNER JOIN CUERPO_TECNICO CT
+                                ON CT.ID = UACT.CUERPO_TECNICO_ID
+                            WHERE UACT.USUARIO_APP_ID = ?
+                              AND UPPER(TRIM(CT.EQUIPO))
+                                  = UPPER(TRIM(E.NOMBRE))
+                        )
+                  )
                 """;
 
         Integer count = jdbcTemplate.queryForObject(
                 sql,
                 Integer.class,
+                equipoId,
                 usuarioAppId,
-                equipoId);
+                usuarioAppId);
 
         return count != null && count > 0;
     }

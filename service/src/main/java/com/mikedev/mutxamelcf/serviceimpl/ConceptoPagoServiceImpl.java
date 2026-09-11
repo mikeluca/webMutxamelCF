@@ -5,7 +5,6 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.ConceptoPagoDao;
@@ -18,8 +17,11 @@ public class ConceptoPagoServiceImpl implements ConceptoPagoService {
 
     private static final Logger logger = LoggerFactory.getLogger(ConceptoPagoServiceImpl.class);
 
-    @Autowired
-    ConceptoPagoDao conceptoPagoDao;
+    private final ConceptoPagoDao conceptoPagoDao;
+
+    public ConceptoPagoServiceImpl(ConceptoPagoDao conceptoPagoDao) {
+        this.conceptoPagoDao = conceptoPagoDao;
+    }
 
     @Override
     public boolean guardarConceptoPago(ConceptoPagoDTO concepto) {
@@ -70,7 +72,8 @@ public class ConceptoPagoServiceImpl implements ConceptoPagoService {
 
     private static ConceptoPago toEntity(ConceptoPagoDTO dto) {
 
-        if (dto == null) return null;
+        if (dto == null)
+            return null;
 
         ConceptoPago concepto = new ConceptoPago();
 
@@ -86,7 +89,8 @@ public class ConceptoPagoServiceImpl implements ConceptoPagoService {
 
     private static ConceptoPagoDTO toDTO(ConceptoPago concepto) {
 
-        if (concepto == null) return null;
+        if (concepto == null)
+            return null;
 
         ConceptoPagoDTO dto = new ConceptoPagoDTO();
 
