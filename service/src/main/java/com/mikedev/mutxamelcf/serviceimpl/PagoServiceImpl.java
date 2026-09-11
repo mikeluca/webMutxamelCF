@@ -6,7 +6,6 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.PagoDao;
@@ -19,8 +18,11 @@ public class PagoServiceImpl implements PagoService {
 
     private static final Logger logger = LoggerFactory.getLogger(PagoServiceImpl.class);
 
-    @Autowired
-    PagoDao pagoDao;
+    private final PagoDao pagoDao;
+
+    public PagoServiceImpl(PagoDao pagoDao) {
+        this.pagoDao = pagoDao;
+    }
 
     @Override
     public boolean guardarPago(PagoDTO pago) {
@@ -29,7 +31,8 @@ public class PagoServiceImpl implements PagoService {
         Pago entidad = toEntity(pago);
         boolean guardado = pagoDao.guardarPago(entidad);
         if (guardado && pago != null && entidad != null) {
-            // El DAO genera el id en el insert; se propaga al DTO para que el llamante lo conozca
+            // El DAO genera el id en el insert; se propaga al DTO para que el llamante lo
+            // conozca
             pago.setId(entidad.getId());
             logger.info("Id de pago generado por la base de datos propagado al DTO: id={}", entidad.getId());
         }
@@ -70,7 +73,8 @@ public class PagoServiceImpl implements PagoService {
 
     private static Pago toEntity(PagoDTO dto) {
 
-        if (dto == null) return null;
+        if (dto == null)
+            return null;
 
         Pago pago = new Pago();
 
@@ -87,7 +91,8 @@ public class PagoServiceImpl implements PagoService {
 
     private static PagoDTO toDTO(Pago pago) {
 
-        if (pago == null) return null;
+        if (pago == null)
+            return null;
 
         PagoDTO dto = new PagoDTO();
 

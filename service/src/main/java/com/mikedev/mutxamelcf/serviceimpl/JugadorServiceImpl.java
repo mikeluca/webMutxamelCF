@@ -6,7 +6,6 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.mikedev.mutxamelcf.util.ImageUtils;
 
@@ -21,8 +20,11 @@ public class JugadorServiceImpl implements JugadorService {
 
 	private static final Logger logger = LoggerFactory.getLogger(JugadorServiceImpl.class);
 
-	@Autowired
-	JugadorDao jugadorDao;
+	private final JugadorDao jugadorDao;
+
+	public JugadorServiceImpl(JugadorDao jugadorDao) {
+		this.jugadorDao = jugadorDao;
+	}
 
 	@Override
 	public boolean guardarJugador(JugadorDTO jugador) {

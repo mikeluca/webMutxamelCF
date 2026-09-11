@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.dao;
 import java.util.List;
 
 import com.mikedev.mutxamelcf.model.Comunicacion;
+import com.mikedev.mutxamelcf.model.DestinatarioComunicacion;
 
 public interface ComunicacionDao {
 
@@ -55,6 +56,15 @@ public interface ComunicacionDao {
 
         boolean usuarioPuedeVerDirectamente(
                         Long comunicacionId,
+                        Long usuarioAppId);
+
+        List<Long> obtenerDestinatariosDirectosPermitidos(
+                        Long usuarioAppId);
+
+        List<Comunicacion> obtenerEnviadasPorUsuario(
+                        Long usuarioAppId);
+
+        List<DestinatarioComunicacion> obtenerDestinatariosDirectos(
                         Long usuarioAppId);
 
 }

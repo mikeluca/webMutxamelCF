@@ -34,4 +34,6 @@ public interface NotificacionAppService {
         boolean puedeRecibir(
                         Long usuarioId,
                         String tipo);
+
+        int contarComunicacionesNoLeidas(Long usuarioId);
 }

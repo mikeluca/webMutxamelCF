@@ -7,7 +7,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -16,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.mikedev.mutxamelcf.model.FamiliarDTO;
@@ -26,18 +26,23 @@ import com.mikedev.mutxamelcf.service.FamiliarService;
 import com.mikedev.mutxamelcf.service.JugadorService;
 
 @Controller
+@RequestMapping("/admin")
 public class FamiliarController {
 
     private static final Logger logger = LoggerFactory.getLogger(FamiliarController.class);
 
-    @Autowired
-    private FamiliarService familiarService;
+    private final FamiliarService familiarService;
 
-    @Autowired
-    private FamiliarJugadorService familiarJugadorService;
+    private final FamiliarJugadorService familiarJugadorService;
 
-    @Autowired
-    private JugadorService jugadorService;
+    private final JugadorService jugadorService;
+
+    public FamiliarController(FamiliarService familiarService, FamiliarJugadorService familiarJugadorService,
+            JugadorService jugadorService) {
+        this.familiarService = familiarService;
+        this.familiarJugadorService = familiarJugadorService;
+        this.jugadorService = jugadorService;
+    }
 
     private static final List<String> PATROCINADORES = Arrays.asList(
             "patrocinador1.jpg", "patrocinador2.jpg", "patrocinador3.jpg",
@@ -47,7 +52,7 @@ public class FamiliarController {
     /**
      * Mostrar listado de familiares
      */
-    @GetMapping("/admin/familiares")
+    @GetMapping("/familiares")
     public String listarFamiliares(Model model) {
         logger.debug("Inicio listarFamiliares");
         List<FamiliarDTO> familiares = familiarService.obtenerTodos();
@@ -65,7 +70,7 @@ public class FamiliarController {
     /**
      * Listado JSON de todos los familiares (para selects dinámicos).
      */
-    @GetMapping("/admin/familiares/todos")
+    @GetMapping("/familiares/todos")
     @ResponseBody
     public ResponseEntity<List<FamiliarDTO>> obtenerTodosFamiliaresJson() {
         logger.debug("Inicio obtenerTodosFamiliaresJson");
@@ -77,7 +82,7 @@ public class FamiliarController {
     /**
      * Listado JSON de todos los jugadores (para selects dinámicos).
      */
-    @GetMapping("/admin/jugadores/todos-json")
+    @GetMapping("/jugadores/todos-json")
     @ResponseBody
     public ResponseEntity<List<JugadorDTO>> obtenerTodosJugadoresJson() {
         logger.debug("Inicio obtenerTodosJugadoresJson");
@@ -89,7 +94,7 @@ public class FamiliarController {
     /**
      * Obtener un familiar por ID.
      */
-    @GetMapping("/admin/familiares/{id}")
+    @GetMapping("/familiares/{id}")
     @ResponseBody
     public ResponseEntity<FamiliarDTO> obtenerFamiliar(@PathVariable Long id) {
         logger.debug("Inicio obtenerFamiliar: id={}", id);
@@ -105,7 +110,7 @@ public class FamiliarController {
     /**
      * Obtener los jugadores asociados a un familiar por su ID.
      */
-    @GetMapping("/admin/familiares/{id}/jugadores")
+    @GetMapping("/familiares/{id}/jugadores")
     @ResponseBody
     public ResponseEntity<List<FamiliarJugadorDTO>> obtenerJugadoresDeFamiliar(@PathVariable Long id) {
         logger.debug("Inicio obtenerJugadoresDeFamiliar: familiarId={}", id);
@@ -117,7 +122,7 @@ public class FamiliarController {
     /**
      * Obtener los familiares asociados a un jugador por su ID.
      */
-    @GetMapping("/admin/jugadores/{id}/familiares")
+    @GetMapping("/jugadores/{id}/familiares")
     @ResponseBody
     public ResponseEntity<List<FamiliarJugadorDTO>> obtenerFamiliaresDeJugador(@PathVariable Long id) {
         logger.debug("Inicio obtenerFamiliaresDeJugador: jugadorId={}", id);
@@ -129,7 +134,7 @@ public class FamiliarController {
     /**
      * Guardar un familiar nuevo o modificar uno existente.
      */
-    @PostMapping("/admin/familiares/guardar")
+    @PostMapping("/familiares/guardar")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> guardarFamiliar(@ModelAttribute FamiliarDTO familiar) {
         logger.debug("Inicio guardarFamiliar: id={}, nombre={}", familiar.getId(), familiar.getNombre());
@@ -176,7 +181,7 @@ public class FamiliarController {
     /**
      * Eliminar un familiar.
      */
-    @PostMapping("/admin/familiares/borrar/{id}")
+    @PostMapping("/familiares/borrar/{id}")
     @ResponseBody
     public ResponseEntity<Map<String, String>> borrarFamiliar(@PathVariable Long id) {
         logger.debug("Inicio borrarFamiliar: id={}", id);
@@ -203,7 +208,7 @@ public class FamiliarController {
     /**
      * Asignar relación Familiar - Jugador.
      */
-    @PostMapping("/admin/familiar-jugador/asignar")
+    @PostMapping("/familiar-jugador/asignar")
     @ResponseBody
     public ResponseEntity<Map<String, String>> asignarFamiliarJugador(@ModelAttribute FamiliarJugadorDTO relacion) {
         logger.debug("Inicio asignarFamiliarJugador: familiarId={}, jugadorId={}, parentesco={}, principal={}",
@@ -245,7 +250,7 @@ public class FamiliarController {
     /**
      * Marca un familiar como contacto principal del jugador asociado.
      */
-    @PostMapping("/admin/familiar-jugador/principal/{id}")
+    @PostMapping("/familiar-jugador/principal/{id}")
     @ResponseBody
     public ResponseEntity<Map<String, String>> marcarFamiliarPrincipal(@PathVariable Long id) {
         logger.debug("Inicio marcarFamiliarPrincipal: relacionId={}", id);
@@ -280,7 +285,7 @@ public class FamiliarController {
     /**
      * Desasignar (eliminar) relación Familiar - Jugador.
      */
-    @PostMapping("/admin/familiar-jugador/desasignar/{id}")
+    @PostMapping("/familiar-jugador/desasignar/{id}")
     @ResponseBody
     public ResponseEntity<Map<String, String>> desasignarFamiliarJugador(@PathVariable Long id) {
         logger.debug("Inicio desasignarFamiliarJugador: id={}", id);

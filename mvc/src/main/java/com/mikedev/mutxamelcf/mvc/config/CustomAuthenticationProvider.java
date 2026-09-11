@@ -5,7 +5,6 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,8 +20,11 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 
 	private static final Logger logger = LoggerFactory.getLogger(CustomAuthenticationProvider.class);
 
-	@Autowired
-	private UsuarioService userService;
+	private final UsuarioService userService;
+
+	public CustomAuthenticationProvider(UsuarioService userService) {
+		this.userService = userService;
+	}
 
 	@Override
 	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
@@ -41,7 +43,9 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 		logger.debug("Fin authenticate: username={}, autenticado=true", username);
 		String rol = usuario.getRol() == null ? "" : usuario.getRol().trim().toUpperCase(java.util.Locale.ROOT);
 		return new UsernamePasswordAuthenticationToken(usuario.getUsuario(), password,
-				rol.isBlank() ? Collections.emptyList() : List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + rol)));
+				rol.isBlank() ? Collections.emptyList()
+						: List.of(
+								new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + rol)));
 	}
 
 	@Override

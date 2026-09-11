@@ -12,6 +12,8 @@ public class ComunicacionRequest {
 
     private List<String> categorias;
 
+    private List<Long> destinatariosIds;
+
     public ComunicacionRequest() {
     }
 
@@ -45,9 +47,19 @@ public class ComunicacionRequest {
         return categorias;
     }
 
+    public List<Long> getDestinatariosIds() {
+        return destinatariosIds;
+    }
+
     public void setCategorias(
             List<String> categorias) {
 
         this.categorias = categorias;
+    }
+
+    public void setDestinatariosIds(
+            List<Long> destinatariosIds) {
+
+        this.destinatariosIds = destinatariosIds;
     }
 }

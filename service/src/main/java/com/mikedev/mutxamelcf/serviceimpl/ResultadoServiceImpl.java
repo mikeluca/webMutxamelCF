@@ -6,7 +6,6 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.ResultadoDao;
@@ -19,8 +18,11 @@ public class ResultadoServiceImpl implements ResultadoService {
 
 	private static final Logger logger = LoggerFactory.getLogger(ResultadoServiceImpl.class);
 
-	@Autowired
-	private ResultadoDao resultadoDao;
+	private final ResultadoDao resultadoDao;
+
+	public ResultadoServiceImpl(ResultadoDao resultadoDao) {
+		this.resultadoDao = resultadoDao;
+	}
 
 	@Override
 	public void actualizarResultado(ResultadoDTO resultado) {

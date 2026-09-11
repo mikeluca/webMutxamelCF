@@ -5,7 +5,6 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.FamiliarDao;
@@ -21,11 +20,14 @@ public class FamiliarServiceImpl implements FamiliarService {
 
     private static final Logger logger = LoggerFactory.getLogger(FamiliarServiceImpl.class);
 
-    @Autowired
-    private FamiliarDao familiarDao;
+    private final FamiliarDao familiarDao;
 
-    @Autowired
-    private FamiliarJugadorService familiarJugadorService;
+    private final FamiliarJugadorService familiarJugadorService;
+
+    public FamiliarServiceImpl(FamiliarDao familiarDao, FamiliarJugadorService familiarJugadorService) {
+        this.familiarDao = familiarDao;
+        this.familiarJugadorService = familiarJugadorService;
+    }
 
     @Override
     public boolean guardarFamiliar(FamiliarDTO familiar) {

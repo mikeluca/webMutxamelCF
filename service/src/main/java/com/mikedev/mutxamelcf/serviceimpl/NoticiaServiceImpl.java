@@ -14,7 +14,6 @@ import javax.imageio.ImageIO;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.NoticiaDao;
@@ -28,8 +27,11 @@ public class NoticiaServiceImpl implements NoticiaService {
 
 	private static final Logger logger = LoggerFactory.getLogger(NoticiaServiceImpl.class);
 
-	@Autowired
-	NoticiaDao noticiaDao;
+	private final NoticiaDao noticiaDao;
+
+	public NoticiaServiceImpl(NoticiaDao noticiaDao) {
+		this.noticiaDao = noticiaDao;
+	}
 
 	@Override
 	public boolean guardarNoticia(NoticiaDTO noticia) {

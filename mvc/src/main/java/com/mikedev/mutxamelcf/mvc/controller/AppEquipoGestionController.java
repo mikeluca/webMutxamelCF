@@ -19,181 +19,181 @@ import com.mikedev.mutxamelcf.model.FamiliarContactoDTO;
 import com.mikedev.mutxamelcf.service.FamiliarService;
 
 @RestController
-@RequestMapping("/api/app/equipos")
+@RequestMapping("/api/app/equipos/jugadores")
 public class AppEquipoGestionController {
 
-    private final EquipoGestionDao equipoGestionDao;
-    private final JugadorService jugadorService;
-    private final FamiliarService familiarService;
+        private final EquipoGestionDao equipoGestionDao;
+        private final JugadorService jugadorService;
+        private final FamiliarService familiarService;
 
-    public AppEquipoGestionController(
-            EquipoGestionDao equipoGestionDao,
-            JugadorService jugadorService,
-            FamiliarService familiarService) {
+        public AppEquipoGestionController(
+                        EquipoGestionDao equipoGestionDao,
+                        JugadorService jugadorService,
+                        FamiliarService familiarService) {
 
-        this.equipoGestionDao = equipoGestionDao;
-        this.jugadorService = jugadorService;
-        this.familiarService = familiarService;
-    }
-
-    /**
-     * Obtener los jugadores de un equipo que el usuario puede gestionar.
-     *
-     * GET /api/app/equipos/jugadores?equipoId=...
-     */
-    @GetMapping("/jugadores")
-    public ResponseEntity<?> obtenerJugadores(
-            @RequestParam Long equipoId,
-            Authentication authentication) {
-
-        if (authentication == null
-                || !authentication.isAuthenticated()) {
-
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Usuario no autenticado");
+                this.equipoGestionDao = equipoGestionDao;
+                this.jugadorService = jugadorService;
+                this.familiarService = familiarService;
         }
 
-        try {
+        /**
+         * Obtener los jugadores de un equipo que el usuario puede gestionar.
+         *
+         * GET /api/app/equipos/jugadores?equipoId=...
+         */
+        @GetMapping
+        public ResponseEntity<?> obtenerJugadores(
+                        @RequestParam Long equipoId,
+                        Authentication authentication) {
 
-            Long usuarioId = Long.valueOf(
-                    authentication.getName());
+                if (authentication == null
+                                || !authentication.isAuthenticated()) {
 
-            if (equipoId == null || equipoId <= 0) {
-                return ResponseEntity
-                        .badRequest()
-                        .body("El ID del equipo no es válido");
-            }
-
-            if (!equipoGestionDao.existeEquipo(equipoId)) {
-                return ResponseEntity
-                        .badRequest()
-                        .body("El equipo no existe");
-            }
-
-            if (!equipoGestionDao.puedeGestionarEquipo(
-                    usuarioId,
-                    equipoId)) {
-
-                return ResponseEntity
-                        .status(HttpStatus.FORBIDDEN)
-                        .body("No tienes permiso para consultar este equipo");
-            }
-
-            List<Long> jugadoresIds = equipoGestionDao.obtenerJugadoresPorEquipo(equipoId);
-
-            List<JugadorDTO> jugadores = new ArrayList<>();
-
-            for (Long jugadorId : jugadoresIds) {
-
-                JugadorDTO jugador = jugadorService.obtenerJugadorPorId(jugadorId);
-
-                if (jugador != null) {
-                    jugadores.add(jugador);
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
                 }
-            }
 
-            return ResponseEntity.ok(jugadores);
+                try {
 
-        } catch (NumberFormatException e) {
+                        Long usuarioId = Long.valueOf(
+                                        authentication.getName());
 
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Usuario no válido");
+                        if (equipoId == null || equipoId <= 0) {
+                                return ResponseEntity
+                                                .badRequest()
+                                                .body("El ID del equipo no es válido");
+                        }
 
-        } catch (Exception e) {
+                        if (!equipoGestionDao.existeEquipo(equipoId)) {
+                                return ResponseEntity
+                                                .badRequest()
+                                                .body("El equipo no existe");
+                        }
 
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error al obtener los jugadores del equipo");
+                        if (!equipoGestionDao.puedeGestionarEquipo(
+                                        usuarioId,
+                                        equipoId)) {
+
+                                return ResponseEntity
+                                                .status(HttpStatus.FORBIDDEN)
+                                                .body("No tienes permiso para consultar este equipo");
+                        }
+
+                        List<Long> jugadoresIds = equipoGestionDao.obtenerJugadoresPorEquipo(equipoId);
+
+                        List<JugadorDTO> jugadores = new ArrayList<>();
+
+                        for (Long jugadorId : jugadoresIds) {
+
+                                JugadorDTO jugador = jugadorService.obtenerJugadorPorId(jugadorId);
+
+                                if (jugador != null) {
+                                        jugadores.add(jugador);
+                                }
+                        }
+
+                        return ResponseEntity.ok(jugadores);
+
+                } catch (NumberFormatException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no válido");
+
+                } catch (Exception e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body("Error al obtener los jugadores del equipo");
+                }
         }
-    }
 
-    @GetMapping("/jugadores/{jugadorId}/familiares")
-    public ResponseEntity<?> obtenerFamiliares(
-            @PathVariable Long jugadorId,
-            @RequestParam Long equipoId,
-            Authentication authentication) {
+        @GetMapping("/{jugadorId}/familiares")
+        public ResponseEntity<?> obtenerFamiliares(
+                        @PathVariable Long jugadorId,
+                        @RequestParam Long equipoId,
+                        Authentication authentication) {
 
-        if (authentication == null
-                || !authentication.isAuthenticated()) {
+                if (authentication == null
+                                || !authentication.isAuthenticated()) {
 
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Usuario no autenticado");
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+                }
+
+                try {
+
+                        Long usuarioId = Long.valueOf(authentication.getName());
+
+                        if (jugadorId == null || jugadorId <= 0) {
+                                return ResponseEntity.badRequest()
+                                                .body("El ID del jugador no es válido");
+                        }
+
+                        if (equipoId == null || equipoId <= 0) {
+                                return ResponseEntity.badRequest()
+                                                .body("El ID del equipo no es válido");
+                        }
+
+                        /*
+                         * El equipo debe existir.
+                         */
+                        if (!equipoGestionDao.existeEquipo(equipoId)) {
+                                return ResponseEntity.badRequest()
+                                                .body("El equipo no existe");
+                        }
+
+                        /*
+                         * El usuario debe poder gestionar el equipo.
+                         */
+                        if (!equipoGestionDao.puedeGestionarEquipo(
+                                        usuarioId,
+                                        equipoId)) {
+
+                                return ResponseEntity
+                                                .status(HttpStatus.FORBIDDEN)
+                                                .body(
+                                                                "No tienes permiso para gestionar " +
+                                                                                "este equipo");
+                        }
+
+                        /*
+                         * El jugador debe pertenecer al equipo.
+                         */
+                        if (!equipoGestionDao.perteneceJugadorAEquipo(
+                                        jugadorId,
+                                        equipoId)) {
+
+                                return ResponseEntity
+                                                .status(HttpStatus.FORBIDDEN)
+                                                .body(
+                                                                "El jugador no pertenece a este equipo");
+                        }
+
+                        /*
+                         * El Service se encarga de obtener los familiares
+                         * y convertir Familiar -> FamiliarContactoDTO.
+                         */
+                        List<FamiliarContactoDTO> familiares = familiarService.obtenerFamiliaresPorJugador(
+                                        jugadorId);
+
+                        return ResponseEntity.ok(familiares);
+
+                } catch (NumberFormatException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no válido");
+
+                } catch (Exception e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body(
+                                                        "Error al obtener los familiares " +
+                                                                        "del jugador");
+                }
         }
-
-        try {
-
-            Long usuarioId = Long.valueOf(authentication.getName());
-
-            if (jugadorId == null || jugadorId <= 0) {
-                return ResponseEntity.badRequest()
-                        .body("El ID del jugador no es válido");
-            }
-
-            if (equipoId == null || equipoId <= 0) {
-                return ResponseEntity.badRequest()
-                        .body("El ID del equipo no es válido");
-            }
-
-            /*
-             * El equipo debe existir.
-             */
-            if (!equipoGestionDao.existeEquipo(equipoId)) {
-                return ResponseEntity.badRequest()
-                        .body("El equipo no existe");
-            }
-
-            /*
-             * El usuario debe poder gestionar el equipo.
-             */
-            if (!equipoGestionDao.puedeGestionarEquipo(
-                    usuarioId,
-                    equipoId)) {
-
-                return ResponseEntity
-                        .status(HttpStatus.FORBIDDEN)
-                        .body(
-                                "No tienes permiso para gestionar " +
-                                        "este equipo");
-            }
-
-            /*
-             * El jugador debe pertenecer al equipo.
-             */
-            if (!equipoGestionDao.perteneceJugadorAEquipo(
-                    jugadorId,
-                    equipoId)) {
-
-                return ResponseEntity
-                        .status(HttpStatus.FORBIDDEN)
-                        .body(
-                                "El jugador no pertenece a este equipo");
-            }
-
-            /*
-             * El Service se encarga de obtener los familiares
-             * y convertir Familiar -> FamiliarContactoDTO.
-             */
-            List<FamiliarContactoDTO> familiares = familiarService.obtenerFamiliaresPorJugador(
-                    jugadorId);
-
-            return ResponseEntity.ok(familiares);
-
-        } catch (NumberFormatException e) {
-
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Usuario no válido");
-
-        } catch (Exception e) {
-
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(
-                            "Error al obtener los familiares " +
-                                    "del jugador");
-        }
-    }
 }

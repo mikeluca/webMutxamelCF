@@ -8,7 +8,6 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.Authentication;
@@ -42,26 +41,31 @@ public class MainController {
 
 	private static final Logger logger = LoggerFactory.getLogger(MainController.class);
 
-	@Autowired
-	private ComunicacionesService comunicacionesService;
+	private final ComunicacionesService comunicacionesService;
 
-	@Autowired
-	private JugadorService jugadoresService;
+	private final JugadorService jugadoresService;
 
-	@Autowired
-	private CuerpoTecnicoService cuerpoTecnicoService;
+	private final CuerpoTecnicoService cuerpoTecnicoService;
 
-	@Autowired
-	private NoticiaService noticiaService;
+	private final NoticiaService noticiaService;
 
-	@Autowired
-	private UsuarioService userService;
+	private final UsuarioService userService;
 
-	@Autowired
-	private ResultadoService resultadoService;
+	private final ResultadoService resultadoService;
 
-	@Autowired
-	private EquipoService equipoService;
+	private final EquipoService equipoService;
+
+	public MainController(ComunicacionesService comunicacionesService, JugadorService jugadoresService,
+			CuerpoTecnicoService cuerpoTecnicoService, NoticiaService noticiaService, UsuarioService userService,
+			ResultadoService resultadoService, EquipoService equipoService) {
+		this.comunicacionesService = comunicacionesService;
+		this.jugadoresService = jugadoresService;
+		this.cuerpoTecnicoService = cuerpoTecnicoService;
+		this.noticiaService = noticiaService;
+		this.userService = userService;
+		this.resultadoService = resultadoService;
+		this.equipoService = equipoService;
+	}
 
 	// Logos de patrocinadores
 	List<String> patrocinadores = Arrays.asList("patrocinador1.jpg", "patrocinador2.jpg", "patrocinador3.jpg",
@@ -89,7 +93,7 @@ public class MainController {
 		if (usuario != null) {
 			String rol = usuario.getRol() == null ? "" : usuario.getRol().trim().toUpperCase(java.util.Locale.ROOT);
 			Authentication auth = new UsernamePasswordAuthenticationToken(username, password,
-				rol.isBlank() ? java.util.List.of() : java.util.List.of(new SimpleGrantedAuthority("ROLE_" + rol)));
+					rol.isBlank() ? java.util.List.of() : java.util.List.of(new SimpleGrantedAuthority("ROLE_" + rol)));
 			SecurityContextHolder.getContext().setAuthentication(auth);
 			logger.debug("Fin authenticateUser: username={}, autenticado=true", username);
 			return "redirect:/admin/admin"; // Redirigir a la página protegida
@@ -161,7 +165,8 @@ public class MainController {
 	}
 
 	@PostMapping("/tienda/crear-pedido")
-	public String crearPedido(@RequestParam String nombre, @RequestParam(required = false, defaultValue = "") String telefono,
+	public String crearPedido(@RequestParam String nombre,
+			@RequestParam(required = false, defaultValue = "") String telefono,
 			@RequestParam String email, @RequestParam(name = "prenda", required = false) List<String> prendas,
 			@RequestParam(name = "cantidad", required = false) List<String> cantidades,
 			@RequestParam(name = "talla", required = false) List<String> tallas) {
@@ -198,11 +203,13 @@ public class MainController {
 		}
 	}
 
-	// Valida que el pedido tenga los datos obligatorios y que las prendas/tallas sean opciones permitidas
+	// Valida que el pedido tenga los datos obligatorios y que las prendas/tallas
+	// sean opciones permitidas
 	private boolean esPedidoValido(String nombre, String email, List<String> prendas, List<String> cantidades,
 			List<String> tallas) {
 		Set<String> prendasValidas = Set.of("Camiseta oficial", "Segunda equipacion - colaboracion AECC");
-		Set<String> tallasValidas = Set.of("2", "4", "6", "8", "10", "12", "14", "S", "M", "L", "XL", "XXL", "3XL", "4XL");
+		Set<String> tallasValidas = Set.of("2", "4", "6", "8", "10", "12", "14", "S", "M", "L", "XL", "XXL", "3XL",
+				"4XL");
 
 		if (nombre.isBlank() || email.isBlank() || prendas == null || cantidades == null || tallas == null
 				|| prendas.size() != cantidades.size() || cantidades.size() != tallas.size() || prendas.isEmpty()) {

@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.service;
 import java.util.List;
 
 import com.mikedev.mutxamelcf.model.Comunicacion;
+import com.mikedev.mutxamelcf.model.DestinatarioComunicacionResponse;
 
 public interface ComunicacionService {
 
@@ -10,6 +11,7 @@ public interface ComunicacionService {
                         Comunicacion comunicacion,
                         List<Long> equipoIds,
                         List<String> categorias,
+                        List<Long> destinatariosIds,
                         Long usuarioId);
 
         Comunicacion obtenerPorId(
@@ -32,5 +34,11 @@ public interface ComunicacionService {
         Comunicacion crearPrivada(
                         Comunicacion comunicacion,
                         List<Long> usuariosDestino,
+                        Long usuarioId);
+
+        List<Comunicacion> obtenerEnviadasPorUsuario(
+                        Long usuarioId);
+
+        List<DestinatarioComunicacionResponse> obtenerDestinatariosDirectos(
                         Long usuarioId);
 }
