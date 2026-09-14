@@ -11,9 +11,5 @@
 *.class
 /src/database
 mvc/src/main/resources/application-local.properties
-mvc/src/main/resources/application-local.properties
 .vscode/settings.json
 .vscode/launch.json
-.vscode/launch.json
-.vscode/settings.json
-mvc/src/main/resources/application-local.properties
