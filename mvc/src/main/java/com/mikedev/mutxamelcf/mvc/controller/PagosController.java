@@ -21,6 +21,7 @@ import java.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -86,7 +87,8 @@ public class PagosController {
         Map<Long, ConceptoPagoDTO> conceptosPorId = indexarPorId(conceptos, ConceptoPagoDTO::getId);
 
         ResumenCuotas resumen = construirResumenCuotas(cuotas, conceptosPorId, jugadoresPorId);
-        Map<String, Map<String, Object>> resumenPorEquipo = construirResumenPorEquipo(resumen.resumenPorJugador.values());
+        Map<String, Map<String, Object>> resumenPorEquipo = construirResumenPorEquipo(
+                resumen.resumenPorJugador.values());
 
         model.addAttribute("temporadas", temporadas);
         model.addAttribute("temporadaSeleccionada", temporada);
@@ -104,7 +106,8 @@ public class PagosController {
         return "admin/pagos";
     }
 
-    // Resuelve la temporada seleccionada: la indicada por id, si no la activa, si no la primera disponible
+    // Resuelve la temporada seleccionada: la indicada por id, si no la activa, si
+    // no la primera disponible
     private TemporadaDTO resolverTemporada(Long temporadaId, List<TemporadaDTO> temporadas) {
         TemporadaDTO temporada = temporadaId == null ? temporadaService.obtenerTemporadaActiva()
                 : temporadaService.obtenerPorId(temporadaId);
@@ -114,14 +117,16 @@ public class PagosController {
         return temporada;
     }
 
-    // Indexa una lista de elementos por su identificador para accesos O(1) posteriores
+    // Indexa una lista de elementos por su identificador para accesos O(1)
+    // posteriores
     private <T> Map<Long, T> indexarPorId(List<T> elementos, Function<T, Long> idExtractor) {
         Map<Long, T> indice = new HashMap<>();
         elementos.forEach(elemento -> indice.put(idExtractor.apply(elemento), elemento));
         return indice;
     }
 
-    // Construye la fila de una cuota con sus datos calculados: pagado, pendiente, estado y pagos asociados
+    // Construye la fila de una cuota con sus datos calculados: pagado, pendiente,
+    // estado y pagos asociados
     private Map<String, Object> construirFila(CuotaJugadorDTO cuota, ConceptoPagoDTO concepto, JugadorDTO jugador) {
         BigDecimal pagado = pagoService.obtenerTotalPagado(cuota.getId());
         BigDecimal importe = zeroIfNull(cuota.getImporte());
@@ -139,7 +144,8 @@ public class PagosController {
         return fila;
     }
 
-    // Acumula una fila de cuota en el resumen agregado del jugador correspondiente, creandolo si es necesario
+    // Acumula una fila de cuota en el resumen agregado del jugador correspondiente,
+    // creandolo si es necesario
     private void acumularEnResumenJugador(Map<Long, Map<String, Object>> resumenPorJugador, Map<String, Object> fila,
             Long jugadorId, JugadorDTO jugador, BigDecimal importe, BigDecimal pagado) {
         Map<String, Object> resumen = resumenPorJugador.computeIfAbsent(jugadorId, id -> {
@@ -158,8 +164,10 @@ public class PagosController {
         resumen.put("totalPagado", ((BigDecimal) resumen.get("totalPagado")).add(pagado));
     }
 
-    // Recorre las cuotas de la temporada construyendo las filas y el resumen agregado por jugador
-    private ResumenCuotas construirResumenCuotas(List<CuotaJugadorDTO> cuotas, Map<Long, ConceptoPagoDTO> conceptosPorId,
+    // Recorre las cuotas de la temporada construyendo las filas y el resumen
+    // agregado por jugador
+    private ResumenCuotas construirResumenCuotas(List<CuotaJugadorDTO> cuotas,
+            Map<Long, ConceptoPagoDTO> conceptosPorId,
             Map<Long, JugadorDTO> jugadoresPorId) {
         ResumenCuotas resultado = new ResumenCuotas();
         for (CuotaJugadorDTO cuota : cuotas) {
@@ -189,13 +197,16 @@ public class PagosController {
         return resultado;
     }
 
-    // Agrupa los resumenes por jugador en resumenes por equipo (o "Sin equipo" si el jugador no tiene equipo asignado)
-    private Map<String, Map<String, Object>> construirResumenPorEquipo(Collection<Map<String, Object>> resumenesJugadores) {
+    // Agrupa los resumenes por jugador en resumenes por equipo (o "Sin equipo" si
+    // el jugador no tiene equipo asignado)
+    private Map<String, Map<String, Object>> construirResumenPorEquipo(
+            Collection<Map<String, Object>> resumenesJugadores) {
         Map<String, Map<String, Object>> resumenPorEquipo = new LinkedHashMap<>();
         for (Map<String, Object> resumen : resumenesJugadores) {
             JugadorDTO jugador = (JugadorDTO) resumen.get("jugador");
             String equipo = jugador == null || jugador.getEquipo() == null || jugador.getEquipo().isBlank()
-                    ? "Sin equipo" : jugador.getEquipo();
+                    ? "Sin equipo"
+                    : jugador.getEquipo();
             Map<String, Object> equipoResumen = resumenPorEquipo.computeIfAbsent(equipo, nombre -> {
                 Map<String, Object> nuevo = new LinkedHashMap<>();
                 nuevo.put("nombre", nombre);
@@ -220,7 +231,8 @@ public class PagosController {
         return resumenPorEquipo;
     }
 
-    // Contenedor de los resultados intermedios calculados por construirResumenCuotas
+    // Contenedor de los resultados intermedios calculados por
+    // construirResumenCuotas
     private static final class ResumenCuotas {
         private final List<Map<String, Object>> filas = new ArrayList<>();
         private final Map<Long, Map<String, Object>> resumenPorJugador = new LinkedHashMap<>();
@@ -274,14 +286,15 @@ public class PagosController {
         model.addAttribute("equipos", obtenerNombresEquipos(todosLosJugadores));
         model.addAttribute("equipoSeleccionado", equipo);
         List<CuotaJugadorDTO> cuotasAsignadas = obtenerCuotasAsignadas(temporadaSeleccionadaId, equipo,
-            todosLosJugadores);
+                todosLosJugadores);
         model.addAttribute("cuotasAsignadas", cuotasAsignadas);
         model.addAttribute("cuotasPorJugador", agruparCuotasPorJugador(cuotasAsignadas,
-            indexarPorId(todosLosJugadores, JugadorDTO::getId)));
+                indexarPorId(todosLosJugadores, JugadorDTO::getId)));
         model.addAttribute("jugadores", indexarPorId(todosLosJugadores, JugadorDTO::getId));
         model.addAttribute("jugadoresDisponibles", jugadoresFiltrados);
 
-        logger.debug("Fin asignarCuotas: temporadaId={}, jugadores={}", temporadaSeleccionadaId, todosLosJugadores.size());
+        logger.debug("Fin asignarCuotas: temporadaId={}, jugadores={}", temporadaSeleccionadaId,
+                todosLosJugadores.size());
         return "admin/pagos-asignar";
     }
 
@@ -300,7 +313,8 @@ public class PagosController {
         return "redirect:" + redirect;
     }
 
-    // Extrae los nombres de equipo distintos y ordenados por la propiedad Orden del equipo
+    // Extrae los nombres de equipo distintos y ordenados por la propiedad Orden del
+    // equipo
     private List<String> obtenerNombresEquipos(List<JugadorDTO> jugadores) {
         Map<String, String> ordenPorEquipo = equipoService.obtenerTodos().stream()
                 .filter(equipo -> equipo.getNombre() != null && !equipo.getNombre().isBlank())
@@ -319,7 +333,8 @@ public class PagosController {
                 .toList();
     }
 
-    // Obtiene las cuotas ya asignadas en la temporada indicada, opcionalmente filtradas por equipo
+    // Obtiene las cuotas ya asignadas en la temporada indicada, opcionalmente
+    // filtradas por equipo
     private List<CuotaJugadorDTO> obtenerCuotasAsignadas(Long temporadaId, String equipo,
             List<JugadorDTO> todosLosJugadores) {
         if (temporadaId == null) {
@@ -416,18 +431,21 @@ public class PagosController {
             @RequestParam(required = false) String periodoInicio, @RequestParam(required = false) String periodoFin,
             @RequestParam(required = false) String fechaLimite, @RequestParam(required = false) String observaciones,
             RedirectAttributes redirect) {
-        logger.debug("Inicio guardarCuota: conceptoPagoId={}, categoria={}, equipo={}", conceptoPagoId, categoria, equipo);
+        logger.debug("Inicio guardarCuota: conceptoPagoId={}, categoria={}, equipo={}", conceptoPagoId, categoria,
+                equipo);
         ConceptoPagoDTO concepto = conceptoPagoService.obtenerPorId(conceptoPagoId);
         if (concepto == null || concepto.getImporte() == null || !temporadaId.equals(concepto.getTemporadaId())) {
-            logger.warn("Concepto de pago invalido para asignar cuotas: conceptoPagoId={}, temporadaId={}", conceptoPagoId,
+            logger.warn("Concepto de pago invalido para asignar cuotas: conceptoPagoId={}, temporadaId={}",
+                    conceptoPagoId,
                     temporadaId);
             redirect.addFlashAttribute("error", "El concepto de pago no existe o no tiene importe.");
             logger.debug("Fin guardarCuota: resultado=CONCEPTO_INVALIDO");
             return redirectAsignarCategoria(temporadaId, equipo);
         }
         String[] periodosTemporada = obtenerPeriodosTemporada(temporadaService.obtenerPorId(temporadaId));
-        List<String> periodosValidos = esCuotaMensual(concepto) ? generarPeriodos(periodosTemporada[0], periodosTemporada[1])
-            : java.util.Collections.singletonList(null);
+        List<String> periodosValidos = esCuotaMensual(concepto)
+                ? generarPeriodos(periodosTemporada[0], periodosTemporada[1])
+                : java.util.Collections.singletonList(null);
         if (esCuotaMensual(concepto) && periodosValidos.isEmpty()) {
             redirect.addFlashAttribute("error", "Selecciona al menos un mes para asignar la cuota.");
             return redirectAsignarCategoria(temporadaId, equipo);
@@ -461,18 +479,20 @@ public class PagosController {
             @RequestParam(required = false) String equipo, RedirectAttributes redirect) {
         logger.debug("Inicio guardarCuotaJugador: jugadorId={}, conceptoPagoId={}", jugadorId, conceptoPagoId);
         ConceptoPagoDTO concepto = conceptoPagoService.obtenerPorId(conceptoPagoId);
-        boolean conceptoActivo = concepto != null && conceptoPagoService.obtenerActivosPorTemporada(temporadaId).stream()
-                .anyMatch(activo -> activo.getId().equals(conceptoPagoId));
+        boolean conceptoActivo = concepto != null
+                && conceptoPagoService.obtenerActivosPorTemporada(temporadaId).stream()
+                        .anyMatch(activo -> activo.getId().equals(conceptoPagoId));
         if (concepto == null || concepto.getImporte() == null || !temporadaId.equals(concepto.getTemporadaId())
                 || !conceptoActivo || jugadorService.obtenerJugadorPorId(jugadorId) == null) {
-            logger.warn("Jugador o concepto de pago invalido: jugadorId={}, conceptoPagoId={}", jugadorId, conceptoPagoId);
+            logger.warn("Jugador o concepto de pago invalido: jugadorId={}, conceptoPagoId={}", jugadorId,
+                    conceptoPagoId);
             redirect.addFlashAttribute("error", "El jugador o el concepto de pago no existe.");
             logger.debug("Fin guardarCuotaJugador: resultado=INVALIDO");
             return redirectAsignarCategoria(temporadaId, equipo);
         }
         String[] periodosTemporada = obtenerPeriodosTemporada(temporadaService.obtenerPorId(temporadaId));
         List<String> periodos = esCuotaMensual(concepto) ? generarPeriodos(periodosTemporada[0], periodosTemporada[1])
-            : java.util.Collections.singletonList(null);
+                : java.util.Collections.singletonList(null);
         if (esCuotaMensual(concepto) && periodos.isEmpty()) {
             redirect.addFlashAttribute("error", "Selecciona un rango de meses válido.");
             return redirectAsignarCategoria(temporadaId, equipo);
@@ -533,7 +553,8 @@ public class PagosController {
     public String borrarCuotasSeleccionadas(@RequestParam(value = "cuotaIds", required = false) List<Long> cuotaIds,
             @RequestParam(required = false) Long temporadaId, @RequestParam(required = false) String equipo,
             RedirectAttributes redirect) {
-        logger.debug("Inicio borrarCuotasSeleccionadas: cuotaIds={}, temporadaId={}, equipo={}", cuotaIds, temporadaId, equipo);
+        logger.debug("Inicio borrarCuotasSeleccionadas: cuotaIds={}, temporadaId={}, equipo={}", cuotaIds, temporadaId,
+                equipo);
         if (cuotaIds == null || cuotaIds.isEmpty()) {
             redirect.addFlashAttribute("error", "No hay cuotas seleccionadas para borrar.");
             logger.debug("Fin borrarCuotasSeleccionadas: sin seleccion");
@@ -622,7 +643,8 @@ public class PagosController {
     }
 
     @PostMapping("/registrar")
-    public String registrarPago(@RequestParam(required = false) Long id, @RequestParam Long cuotaJugadorId, @RequestParam BigDecimal importe,
+    public String registrarPago(@RequestParam(required = false) Long id, @RequestParam Long cuotaJugadorId,
+            @RequestParam BigDecimal importe,
             @RequestParam String fechaPago, @RequestParam String metodoPago,
             @RequestParam(required = false) String referencia, @RequestParam(required = false) String observaciones,
             RedirectAttributes redirect) {
@@ -634,9 +656,10 @@ public class PagosController {
             pagosActuales = pagosActuales.subtract(zeroIfNull(pagoActual.getImporte()));
         }
         BigDecimal pendiente = cuota == null ? BigDecimal.ZERO
-            : zeroIfNull(cuota.getImporte()).subtract(pagosActuales);
+                : zeroIfNull(cuota.getImporte()).subtract(pagosActuales);
         if (cuota == null || importe == null || importe.signum() <= 0 || importe.compareTo(pendiente) > 0) {
-            logger.warn("Importe de pago invalido: cuotaJugadorId={}, importe={}, pendiente={}", cuotaJugadorId, importe,
+            logger.warn("Importe de pago invalido: cuotaJugadorId={}, importe={}, pendiente={}", cuotaJugadorId,
+                    importe,
                     pendiente);
             redirect.addFlashAttribute("error", "El importe supera el saldo pendiente o la cuota no existe.");
             logger.debug("Fin registrarPago: resultado=INVALIDO");
@@ -657,7 +680,7 @@ public class PagosController {
         return "redirect:/admin/pagos";
     }
 
-    @PostMapping("/registrar-ajax")
+    @PostMapping(value = "/registrar-ajax", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<Map<String, Object>> registrarPagoAjax(@RequestParam Long cuotaJugadorId,
             @RequestParam BigDecimal importe, @RequestParam String fechaPago, @RequestParam String metodoPago) {
@@ -679,7 +702,12 @@ public class PagosController {
         pago.setFechaPago(parseDate(fechaPago));
         pago.setMetodoPago(metodoPago);
         pagoService.guardarPago(pago);
-        cuotaJugadorService.actualizarEstado(cuotaJugadorId);
+        try {
+            cuotaJugadorService.actualizarEstado(cuotaJugadorId);
+        } catch (org.springframework.dao.DataIntegrityViolationException exception) {
+            logger.warn("No se pudo sincronizar el estado de la cuota tras registrar el pago: cuotaJugadorId={}",
+                    cuotaJugadorId, exception);
+        }
 
         BigDecimal pagado = pagoService.obtenerTotalPagado(cuotaJugadorId);
         Map<String, Object> respuesta = new LinkedHashMap<>();
@@ -691,7 +719,7 @@ public class PagosController {
         return ResponseEntity.ok(respuesta);
     }
 
-    @PostMapping("/editar-ajax")
+    @PostMapping(value = "/editar-ajax", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<Map<String, Object>> editarPagoAjax(@RequestParam Long id,
             @RequestParam Long cuotaJugadorId, @RequestParam BigDecimal importe,
@@ -700,15 +728,15 @@ public class PagosController {
         PagoDTO pago = pagoService.obtenerPorId(id);
         CuotaJugadorDTO cuota = cuotaJugadorService.obtenerPorId(cuotaJugadorId);
         BigDecimal totalSinPago = pagoService.obtenerTotalPagado(cuotaJugadorId)
-            .subtract(pago == null ? BigDecimal.ZERO : zeroIfNull(pago.getImporte()));
+                .subtract(pago == null ? BigDecimal.ZERO : zeroIfNull(pago.getImporte()));
         BigDecimal pendiente = cuota == null ? BigDecimal.ZERO
-            : zeroIfNull(cuota.getImporte()).subtract(totalSinPago);
+                : zeroIfNull(cuota.getImporte()).subtract(totalSinPago);
         if (pago == null || cuota == null || importe == null || importe.signum() <= 0
-            || !cuotaJugadorId.equals(pago.getCuotaJugadorId()) || importe.compareTo(pendiente) > 0) {
+                || !cuotaJugadorId.equals(pago.getCuotaJugadorId()) || importe.compareTo(pendiente) > 0) {
             logger.warn("Edicion de pago AJAX invalida: id={}, cuotaJugadorId={}", id, cuotaJugadorId);
             logger.debug("Fin editarPagoAjax: resultado=INVALIDO");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("error", "El importe supera el saldo pendiente o el pago no existe."));
+                    .body(Map.of("error", "El importe supera el saldo pendiente o el pago no existe."));
         }
         pago.setCuotaJugadorId(cuotaJugadorId);
         pago.setImporte(importe);
@@ -725,7 +753,7 @@ public class PagosController {
         return ResponseEntity.ok(respuesta);
     }
 
-    @PostMapping("/borrar-ajax")
+    @PostMapping(value = "/borrar-ajax", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<Map<String, Object>> borrarPagoAjax(@RequestParam Long id) {
         logger.debug("Inicio borrarPagoAjax: id={}", id);
@@ -733,7 +761,8 @@ public class PagosController {
         if (pago == null) {
             logger.warn("Pago no encontrado al borrar: id={}", id);
             logger.debug("Fin borrarPagoAjax: resultado=NO_ENCONTRADO");
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "El pago no existe."));
         }
         Long cuotaJugadorId = pago.getCuotaJugadorId();
         pagoService.eliminar(id);
@@ -744,7 +773,7 @@ public class PagosController {
         respuesta.put("cuotaJugadorId", cuotaJugadorId);
         respuesta.put("pagado", pagado);
         respuesta.put("pendiente", cuota == null ? BigDecimal.ZERO
-            : zeroIfNull(cuota.getImporte()).subtract(pagado).max(BigDecimal.ZERO));
+                : zeroIfNull(cuota.getImporte()).subtract(pagado).max(BigDecimal.ZERO));
         logger.debug("Fin borrarPagoAjax: id={}, cuotaJugadorId={}", id, cuotaJugadorId);
         return ResponseEntity.ok(respuesta);
     }

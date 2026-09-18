@@ -8,6 +8,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -70,7 +71,7 @@ public class FamiliarController {
     /**
      * Listado JSON de todos los familiares (para selects dinámicos).
      */
-    @GetMapping("/familiares/todos")
+    @GetMapping(value = "/familiares/todos", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<List<FamiliarDTO>> obtenerTodosFamiliaresJson() {
         logger.debug("Inicio obtenerTodosFamiliaresJson");
@@ -82,7 +83,7 @@ public class FamiliarController {
     /**
      * Listado JSON de todos los jugadores (para selects dinámicos).
      */
-    @GetMapping("/jugadores/todos-json")
+    @GetMapping(value = "/jugadores/todos-json", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<List<JugadorDTO>> obtenerTodosJugadoresJson() {
         logger.debug("Inicio obtenerTodosJugadoresJson");
@@ -94,7 +95,7 @@ public class FamiliarController {
     /**
      * Obtener un familiar por ID.
      */
-    @GetMapping("/familiares/{id}")
+    @GetMapping(value = "/familiares/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<FamiliarDTO> obtenerFamiliar(@PathVariable Long id) {
         logger.debug("Inicio obtenerFamiliar: id={}", id);
@@ -110,7 +111,7 @@ public class FamiliarController {
     /**
      * Obtener los jugadores asociados a un familiar por su ID.
      */
-    @GetMapping("/familiares/{id}/jugadores")
+    @GetMapping(value = "/familiares/{id}/jugadores", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<List<FamiliarJugadorDTO>> obtenerJugadoresDeFamiliar(@PathVariable Long id) {
         logger.debug("Inicio obtenerJugadoresDeFamiliar: familiarId={}", id);
@@ -122,7 +123,7 @@ public class FamiliarController {
     /**
      * Obtener los familiares asociados a un jugador por su ID.
      */
-    @GetMapping("/jugadores/{id}/familiares")
+    @GetMapping(value = "/jugadores/{id}/familiares", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<List<FamiliarJugadorDTO>> obtenerFamiliaresDeJugador(@PathVariable Long id) {
         logger.debug("Inicio obtenerFamiliaresDeJugador: jugadorId={}", id);
@@ -134,7 +135,7 @@ public class FamiliarController {
     /**
      * Guardar un familiar nuevo o modificar uno existente.
      */
-    @PostMapping("/familiares/guardar")
+    @PostMapping(value = "/familiares/guardar", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<Map<String, Object>> guardarFamiliar(@ModelAttribute FamiliarDTO familiar) {
         logger.debug("Inicio guardarFamiliar: id={}, nombre={}", familiar.getId(), familiar.getNombre());
@@ -181,7 +182,7 @@ public class FamiliarController {
     /**
      * Eliminar un familiar.
      */
-    @PostMapping("/familiares/borrar/{id}")
+    @PostMapping(value = "/familiares/borrar/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<Map<String, String>> borrarFamiliar(@PathVariable Long id) {
         logger.debug("Inicio borrarFamiliar: id={}", id);
@@ -208,7 +209,7 @@ public class FamiliarController {
     /**
      * Asignar relación Familiar - Jugador.
      */
-    @PostMapping("/familiar-jugador/asignar")
+    @PostMapping(value = "/familiar-jugador/asignar", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<Map<String, String>> asignarFamiliarJugador(@ModelAttribute FamiliarJugadorDTO relacion) {
         logger.debug("Inicio asignarFamiliarJugador: familiarId={}, jugadorId={}, parentesco={}, principal={}",
@@ -250,7 +251,7 @@ public class FamiliarController {
     /**
      * Marca un familiar como contacto principal del jugador asociado.
      */
-    @PostMapping("/familiar-jugador/principal/{id}")
+    @PostMapping(value = "/familiar-jugador/principal/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<Map<String, String>> marcarFamiliarPrincipal(@PathVariable Long id) {
         logger.debug("Inicio marcarFamiliarPrincipal: relacionId={}", id);
@@ -261,7 +262,7 @@ public class FamiliarController {
             if (relacion == null) {
                 response.put("error", "La relación familiar-jugador no existe.");
                 logger.debug("Fin marcarFamiliarPrincipal: relacionId={}, resultado=NO_ENCONTRADA", id);
-                return ResponseEntity.notFound().build();
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
             }
 
             relacion.setEsPrincipal(1);
@@ -285,7 +286,7 @@ public class FamiliarController {
     /**
      * Desasignar (eliminar) relación Familiar - Jugador.
      */
-    @PostMapping("/familiar-jugador/desasignar/{id}")
+    @PostMapping(value = "/familiar-jugador/desasignar/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<Map<String, String>> desasignarFamiliarJugador(@PathVariable Long id) {
         logger.debug("Inicio desasignarFamiliarJugador: id={}", id);
