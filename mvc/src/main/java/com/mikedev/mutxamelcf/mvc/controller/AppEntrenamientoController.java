@@ -15,6 +15,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import com.mikedev.mutxamelcf.model.EntrenamientoGuardarRequest;
 import com.mikedev.mutxamelcf.model.EntrenamientoResponse;
 import com.mikedev.mutxamelcf.service.EntrenamientoService;
+
+import jakarta.validation.Valid;
+
 import java.util.List;
 
 @RestController
@@ -36,7 +39,7 @@ public class AppEntrenamientoController {
          */
         @PostMapping
         public ResponseEntity<?> crear(
-                        @RequestBody EntrenamientoGuardarRequest request,
+                        @Valid @RequestBody EntrenamientoGuardarRequest request,
                         Authentication authentication) {
 
                 if (authentication == null
@@ -89,7 +92,7 @@ public class AppEntrenamientoController {
         @PutMapping("/{id}")
         public ResponseEntity<EntrenamientoResponse> actualizar(
                         @PathVariable Long id,
-                        @RequestBody EntrenamientoGuardarRequest request) {
+                        @Valid @RequestBody EntrenamientoGuardarRequest request) {
 
                 Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 

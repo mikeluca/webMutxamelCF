@@ -16,6 +16,8 @@ import java.util.List;
 
 import org.springframework.security.core.Authentication;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/app/auth")
 public class AppAuthController {
@@ -33,7 +35,7 @@ public class AppAuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<?> login(
-            @RequestBody LoginAppRequest request) {
+            @Valid @RequestBody LoginAppRequest request) {
 
         try {
 
@@ -62,7 +64,7 @@ public class AppAuthController {
      */
     @PostMapping("/activar")
     public ResponseEntity<?> activar(
-            @RequestBody ActivarCuentaAppRequest request) {
+            @Valid @RequestBody ActivarCuentaAppRequest request) {
 
         try {
 

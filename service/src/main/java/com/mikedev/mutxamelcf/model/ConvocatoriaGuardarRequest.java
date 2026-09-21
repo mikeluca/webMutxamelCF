@@ -3,15 +3,33 @@ package com.mikedev.mutxamelcf.model;
 import java.time.LocalDate;
 import java.util.List;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+
 public class ConvocatoriaGuardarRequest {
 
+    @NotNull(message = "El equipo es obligatorio")
     private Long equipoId;
+
+    @NotBlank(message = "El rival es obligatorio")
     private String rival;
+
     private String campo;
+
+    @NotNull(message = "La fecha del partido es obligatoria")
     private LocalDate fechaPartido;
+
+    @NotBlank(message = "La hora del partido es obligatoria")
     private String horaPartido;
+
+    @NotBlank(message = "La hora de convocatoria es obligatoria")
     private String horaConvocatoria;
+
+    @NotBlank(message = "El lugar de convocatoria es obligatorio")
     private String lugarConvocatoria;
+
+    @NotEmpty(message = "Debes seleccionar al menos un jugador")
     private List<Long> jugadoresIds;
 
     public ConvocatoriaGuardarRequest() {

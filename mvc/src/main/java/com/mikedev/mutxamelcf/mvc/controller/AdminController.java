@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.HtmlUtils;
 
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoDTO;
@@ -76,6 +78,23 @@ public class AdminController {
 	// Logos de patrocinadores
 	List<String> patrocinadores = Arrays.asList("patrocinador1.jpg", "patrocinador2.jpg", "patrocinador3.jpg",
 			"patrocinador4.jpg", "patrocinador5.jpg", "patrocinador6.jpg", "patrocinador7.jpg", "patrocinador8.jpg");
+
+	private static final Set<String> TIPOS_IMAGEN_PERMITIDOS = Set.of("image/jpeg", "image/png", "image/webp");
+	private static final long TAMANO_MAXIMO_FOTO = 5 * 1024 * 1024; // 5 MB
+
+	// Valida que el fichero subido sea una imagen de un tipo permitido y no
+	// supere el tamaño máximo indicado. Devuelve un mensaje de error o null si
+	// es válido.
+	private String validarImagen(MultipartFile archivo, long tamanoMaximo) {
+		if (archivo.getSize() > tamanoMaximo) {
+			return "La imagen excede el tamaño máximo permitido (" + (tamanoMaximo / (1024 * 1024)) + " MB).";
+		}
+		String contentType = archivo.getContentType();
+		if (contentType == null || !TIPOS_IMAGEN_PERMITIDOS.contains(contentType.toLowerCase(Locale.ROOT))) {
+			return "El archivo debe ser una imagen JPEG, PNG o WEBP.";
+		}
+		return null;
+	}
 
 	@GetMapping
 	public String dashboardPrincipal(org.springframework.security.core.Authentication authentication) {
@@ -286,8 +305,15 @@ public class AdminController {
 			}
 			jugador.setPosicion(jugadorForm.getPosicion());
 
-			// Si hay una foto cargada, convertirla a byte[]
+			// Si hay una foto cargada, validarla y convertirla a byte[]
 			if (!jugadorForm.getFoto().isEmpty()) {
+				String errorImagen = validarImagen(jugadorForm.getFoto(), TAMANO_MAXIMO_FOTO);
+				if (errorImagen != null) {
+					logger.warn("Foto de jugador invalida: nombre={}, motivo={}", jugadorForm.getNombre(), errorImagen);
+					response.put("error", errorImagen);
+					logger.debug("Fin guardarJugador: resultado=FOTO_INVALIDA");
+					return ResponseEntity.badRequest().body(response);
+				}
 				jugador.setFoto(jugadorForm.getFoto().getBytes());
 			}
 
@@ -378,8 +404,16 @@ public class AdminController {
 
 			staff.setPuesto(cuerpoTecnicoForm.getPuesto());
 
-			// Si hay una foto cargada, convertirla a byte[]
+			// Si hay una foto cargada, validarla y convertirla a byte[]
 			if (!cuerpoTecnicoForm.getFoto().isEmpty()) {
+				String errorImagen = validarImagen(cuerpoTecnicoForm.getFoto(), TAMANO_MAXIMO_FOTO);
+				if (errorImagen != null) {
+					logger.warn("Foto de cuerpo tecnico invalida: nombre={}, motivo={}", cuerpoTecnicoForm.getNombre(),
+							errorImagen);
+					response.put("error", errorImagen);
+					logger.debug("Fin guardarCuerpoTecnico: resultado=FOTO_INVALIDA");
+					return ResponseEntity.badRequest().body(response);
+				}
 				staff.setFoto(cuerpoTecnicoForm.getFoto().getBytes());
 			}
 
@@ -448,11 +482,11 @@ public class AdminController {
 
 			if (!noticiaForm.getImagen().isEmpty()) {
 				long maxSize = 2 * 1024 * 1024; // 2 MB (puedes ajustar el límite)
-				if (noticiaForm.getImagen().getSize() > maxSize) {
-					logger.warn("Imagen de noticia demasiado grande: tamano={} bytes",
-							noticiaForm.getImagen().getSize());
-					response.put("error", "La imagen excede el tamaño máximo permitido (2 MB).");
-					logger.debug("Fin guardarNoticia: resultado=IMAGEN_DEMASIADO_GRANDE");
+				String errorImagen = validarImagen(noticiaForm.getImagen(), maxSize);
+				if (errorImagen != null) {
+					logger.warn("Imagen de noticia invalida: titulo={}, motivo={}", noticiaForm.getTitulo(), errorImagen);
+					response.put("error", errorImagen);
+					logger.debug("Fin guardarNoticia: resultado=IMAGEN_INVALIDA");
 					return ResponseEntity.badRequest().body(response);
 				}
 				noticia.setImagen(noticiaForm.getImagen().getBytes());

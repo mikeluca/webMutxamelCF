@@ -13,6 +13,7 @@ import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.ConvocatoriaService;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -40,6 +41,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
         }
 
         @Override
+        @Transactional
         public ConvocatoriaResponse crear(
                         Long usuarioAppId,
                         ConvocatoriaGuardarRequest request) {
@@ -219,6 +221,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
         }
 
         @Override
+        @Transactional
         public ConvocatoriaResponse actualizar(
                         Long usuarioAppId,
                         Long convocatoriaId,
@@ -386,6 +389,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
         }
 
         @Override
+        @Transactional
         public void eliminar(
                         Long usuarioAppId,
                         Long convocatoriaId) {
