@@ -1,9 +1,16 @@
 package com.mikedev.mutxamelcf.model;
 
+import jakarta.validation.constraints.NotBlank;
+
 public class FcmTestRequest {
 
+    @NotBlank(message = "El token FCM es obligatorio")
     private String tokenFcm;
+
+    @NotBlank(message = "El título es obligatorio")
     private String titulo;
+
+    @NotBlank(message = "El mensaje es obligatorio")
     private String mensaje;
 
     public FcmTestRequest() {

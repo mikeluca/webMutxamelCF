@@ -1,8 +1,14 @@
 package com.mikedev.mutxamelcf.model;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public class EntrenamientoAsistenciaRequest {
 
+    @NotNull(message = "El jugador es obligatorio")
     private Long jugadorId;
+
+    @NotBlank(message = "El estado es obligatorio")
     private String estado;
 
     public EntrenamientoAsistenciaRequest() {

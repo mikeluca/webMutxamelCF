@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
+
 import java.util.List;
 
 @RestController
@@ -30,7 +32,7 @@ public class AppConvocatoriaController {
          */
         @PostMapping
         public ResponseEntity<?> crear(
-                        @RequestBody ConvocatoriaGuardarRequest request,
+                        @Valid @RequestBody ConvocatoriaGuardarRequest request,
                         Authentication authentication) {
 
                 if (authentication == null
@@ -88,7 +90,7 @@ public class AppConvocatoriaController {
         @PutMapping("/{id}")
         public ResponseEntity<?> actualizar(
                         @PathVariable Long id,
-                        @RequestBody ConvocatoriaGuardarRequest request,
+                        @Valid @RequestBody ConvocatoriaGuardarRequest request,
                         Authentication authentication) {
 
                 if (authentication == null

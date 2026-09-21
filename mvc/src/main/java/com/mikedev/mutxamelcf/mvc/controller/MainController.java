@@ -8,10 +8,6 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,16 +21,11 @@ import com.mikedev.mutxamelcf.model.EquipoDTO;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
 import com.mikedev.mutxamelcf.model.NoticiaDTO;
 import com.mikedev.mutxamelcf.model.ResultadoDTO;
-import com.mikedev.mutxamelcf.model.UsuarioDTO;
 import com.mikedev.mutxamelcf.service.CuerpoTecnicoService;
 import com.mikedev.mutxamelcf.service.EquipoService;
 import com.mikedev.mutxamelcf.service.JugadorService;
 import com.mikedev.mutxamelcf.service.NoticiaService;
 import com.mikedev.mutxamelcf.service.ResultadoService;
-import com.mikedev.mutxamelcf.service.UsuarioService;
-
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
 @Controller
 public class MainController {
@@ -49,20 +40,17 @@ public class MainController {
 
 	private final NoticiaService noticiaService;
 
-	private final UsuarioService userService;
-
 	private final ResultadoService resultadoService;
 
 	private final EquipoService equipoService;
 
 	public MainController(ComunicacionesService comunicacionesService, JugadorService jugadoresService,
-			CuerpoTecnicoService cuerpoTecnicoService, NoticiaService noticiaService, UsuarioService userService,
+			CuerpoTecnicoService cuerpoTecnicoService, NoticiaService noticiaService,
 			ResultadoService resultadoService, EquipoService equipoService) {
 		this.comunicacionesService = comunicacionesService;
 		this.jugadoresService = jugadoresService;
 		this.cuerpoTecnicoService = cuerpoTecnicoService;
 		this.noticiaService = noticiaService;
-		this.userService = userService;
 		this.resultadoService = resultadoService;
 		this.equipoService = equipoService;
 	}
@@ -79,29 +67,6 @@ public class MainController {
 		}
 		logger.debug("Fin login");
 		return "login";
-	}
-
-	@PostMapping("/login")
-	public String authenticateUser(HttpServletRequest request, HttpServletResponse response, Model model) {
-		String username = request.getParameter("username");
-		String password = request.getParameter("password");
-		// Nunca se registra la contraseña, solo el nombre de usuario
-		logger.debug("Inicio authenticateUser: username={}", username);
-
-		UsuarioDTO usuario = userService.validarUsuario(username, password);
-
-		if (usuario != null) {
-			String rol = usuario.getRol() == null ? "" : usuario.getRol().trim().toUpperCase(java.util.Locale.ROOT);
-			Authentication auth = new UsernamePasswordAuthenticationToken(username, password,
-					rol.isBlank() ? java.util.List.of() : java.util.List.of(new SimpleGrantedAuthority("ROLE_" + rol)));
-			SecurityContextHolder.getContext().setAuthentication(auth);
-			logger.debug("Fin authenticateUser: username={}, autenticado=true", username);
-			return "redirect:/admin/admin"; // Redirigir a la página protegida
-		} else {
-			logger.warn("Autenticacion fallida para el usuario: {}", username);
-			logger.debug("Fin authenticateUser: username={}, autenticado=false", username);
-			return "redirect:/login";
-		}
 	}
 
 	@GetMapping("/")

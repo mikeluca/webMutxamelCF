@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.*;
 import com.mikedev.mutxamelcf.model.DispositivoAppRequest;
 import com.mikedev.mutxamelcf.service.DispositivoAppService;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/app/dispositivos")
 public class AppDispositivoController {
@@ -21,7 +23,7 @@ public class AppDispositivoController {
 
     @PostMapping
     public ResponseEntity<Void> registrar(
-            @RequestBody DispositivoAppRequest request,
+            @Valid @RequestBody DispositivoAppRequest request,
             Authentication authentication) {
 
         if (authentication == null ||

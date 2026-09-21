@@ -18,6 +18,8 @@ import com.mikedev.mutxamelcf.model.ComunicacionRequest;
 import com.mikedev.mutxamelcf.model.DestinatarioComunicacionResponse;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/app/comunicaciones")
 public class AppComunicacionController {
@@ -37,7 +39,7 @@ public class AppComunicacionController {
          */
         @PostMapping
         public ResponseEntity<?> crear(
-                        @RequestBody ComunicacionRequest request,
+                        @Valid @RequestBody ComunicacionRequest request,
                         Authentication authentication) {
 
                 if (authentication == null

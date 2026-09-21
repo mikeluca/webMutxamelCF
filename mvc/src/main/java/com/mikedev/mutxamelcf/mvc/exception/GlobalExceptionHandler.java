@@ -1,5 +1,6 @@
 package com.mikedev.mutxamelcf.mvc.exception;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -8,6 +9,8 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -23,6 +26,18 @@ public class GlobalExceptionHandler {
         logger.warn("Peticion invalida: {}", exception.getMessage());
         logger.debug("Fin manejarPeticionInvalida: estado={}", HttpStatus.BAD_REQUEST.value());
         return ResponseEntity.badRequest().body(Map.of("error", "Los datos enviados no son validos."));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, String>> manejarValidacionInvalida(MethodArgumentNotValidException exception) {
+        logger.debug("Inicio manejarValidacionInvalida");
+        Map<String, String> errores = new LinkedHashMap<>();
+        for (FieldError error : exception.getBindingResult().getFieldErrors()) {
+            errores.put(error.getField(), error.getDefaultMessage());
+        }
+        logger.warn("Validacion de la peticion fallida: {}", errores);
+        logger.debug("Fin manejarValidacionInvalida: estado={}", HttpStatus.BAD_REQUEST.value());
+        return ResponseEntity.badRequest().body(errores);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

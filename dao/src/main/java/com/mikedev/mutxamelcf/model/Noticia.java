@@ -2,14 +2,11 @@ package com.mikedev.mutxamelcf.model;
 
 import java.util.Date;
 
-import jakarta.persistence.Lob;
-
 public class Noticia {
 	private int id;
 	private String titulo;
 	private String contenido;
 	private Date fecha;
-	@Lob
 	private byte[] imagen;
 
 	public Noticia(String titulo, String contenido, Date fecha, byte[] imagen) {

@@ -2,10 +2,14 @@ package com.mikedev.mutxamelcf.model;
 
 import java.util.List;
 
+import jakarta.validation.constraints.NotBlank;
+
 public class ComunicacionRequest {
 
+    @NotBlank(message = "El título es obligatorio")
     private String titulo;
 
+    @NotBlank(message = "El contenido es obligatorio")
     private String contenido;
 
     private List<Long> equipoIds;
