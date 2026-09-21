@@ -167,10 +167,13 @@ public class PerfilAppDaoImpl implements PerfilAppDao {
                 "Inicio obtenerCuerpoTecnicoPorUsuario: usuarioAppId={}",
                 usuarioAppId);
 
+        /*
+         * No seleccionamos DNI: el perfil de la app no lo expone y,
+         * en el esquema actual, CUERPO_TECNICO no tiene esa columna.
+         */
         String sql = """
                 SELECT
                     ct.ID,
-                    ct.DNI,
                     ct.NOMBRE,
                     ct.APELLIDOS,
                     ct.CATEGORIA,
@@ -298,7 +301,6 @@ public class PerfilAppDaoImpl implements PerfilAppDao {
         CuerpoTecnico cuerpoTecnico = new CuerpoTecnico();
 
         cuerpoTecnico.setId(rs.getLong("ID"));
-        cuerpoTecnico.setDni(rs.getString("DNI"));
         cuerpoTecnico.setNombre(rs.getString("NOMBRE"));
         cuerpoTecnico.setApellidos(rs.getString("APELLIDOS"));
         cuerpoTecnico.setCategoria(rs.getString("CATEGORIA"));

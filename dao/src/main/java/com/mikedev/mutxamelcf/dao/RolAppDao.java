@@ -21,4 +21,6 @@ public interface RolAppDao {
     void eliminarRol(
             int usuarioAppId,
             int rolId);
+
+    void eliminarTodosLosRoles(int usuarioAppId);
 }

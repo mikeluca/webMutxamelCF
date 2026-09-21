@@ -1,0 +1,670 @@
+{
+  "info": {
+    "_postman_id": "b7e4b8b2-6c1a-4f2e-9b1d-mutxamelcf-api-0001",
+    "name": "Mutxamel CF - API",
+    "description": "Colección de la API REST del backend de webMutxamelCF (módulo `mvc`), consumida por la app móvil Flutter (appMutxamelCF) y por la web pública.\n\n**Cómo usarla**\n1. Ajusta la variable de colección `baseUrl` (por defecto `http://localhost:8080/api`, o usa la IP/puerto de tu backend local).\n2. Ejecuta cualquier request de la carpeta **Público** sin más: no requieren autenticación.\n3. Para las carpetas autenticadas, ejecuta primero `Autenticación > Login`. Su script de test guarda automáticamente el token JWT devuelto en la variable de colección `token`; el resto de requests ya lo usan vía `Authorization: Bearer {{token}}` (configurado a nivel de colección).\n4. El usuario de login debe ser una cuenta de la **app móvil** (tabla `USUARIOS_APP`, activada), no un usuario del panel admin web (ese usa login por formulario/sesión, no JWT, y no está incluido en esta colección).\n\n**Alcance**: cubre `/api/public/**` (sin auth) y `/api/app/**` (JWT). No incluye los controllers del panel de administración web (Thymeleaf + sesión + CSRF: `/admin/**`), ya que no encajan en un flujo de Postman con Bearer token.\n\n**Notas de seguridad**: en `AppEntrenamientoController.obtenerPorId` el `@PathVariable` se llama `equipoId` en el código fuente pero el método se llama `obtenerPorId` y recibe realmente el ID del entrenamiento — es una posible confusión de nombres en el propio backend, documentada aquí tal cual está en el código.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080/api", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "usuarioId", "value": "", "type": "string" },
+    { "key": "equipoId", "value": "1", "type": "string" },
+    { "key": "jugadorId", "value": "1", "type": "string" },
+    { "key": "convocatoriaId", "value": "1", "type": "string" },
+    { "key": "entrenamientoId", "value": "1", "type": "string" },
+    { "key": "comunicacionId", "value": "1", "type": "string" },
+    { "key": "notificacionId", "value": "1", "type": "string" },
+    { "key": "noticiaId", "value": "1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Público (sin autenticación)",
+      "description": "Endpoints de `/api/public/**`. Usados por la web pública y por la app móvil para contenido abierto (equipos, noticias, resultados). No requieren token.",
+      "auth": { "type": "noauth" },
+      "item": [
+        {
+          "name": "Equipos - Listar todos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/equipos",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "equipos"]
+            },
+            "description": "Devuelve todos los equipos del club."
+          }
+        },
+        {
+          "name": "Equipos - Detalle por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/equipos/{{equipoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "equipos", "{{equipoId}}"]
+            },
+            "description": "Devuelve un equipo concreto. 404 si no existe."
+          }
+        },
+        {
+          "name": "Equipos - Jugadores del equipo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/equipos/{{equipoId}}/jugadores",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "equipos", "{{equipoId}}", "jugadores"]
+            },
+            "description": "Plantilla pública del equipo (sin datos sensibles de jugador)."
+          }
+        },
+        {
+          "name": "Equipos - Cuerpo técnico del equipo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/equipos/{{equipoId}}/cuerpo-tecnico",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "equipos", "{{equipoId}}", "cuerpo-tecnico"]
+            }
+          }
+        },
+        {
+          "name": "Noticias - Listar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/noticias",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "noticias"]
+            }
+          }
+        },
+        {
+          "name": "Noticias - Detalle por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/noticias/{{noticiaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "noticias", "{{noticiaId}}"]
+            }
+          }
+        },
+        {
+          "name": "Noticias - Imagen completa",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/noticias/{{noticiaId}}/imagen",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "noticias", "{{noticiaId}}", "imagen"]
+            },
+            "description": "Devuelve el binario JPEG. 404 si la noticia no tiene imagen."
+          }
+        },
+        {
+          "name": "Noticias - Imagen miniatura",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/noticias/{{noticiaId}}/imagen-mini",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "noticias", "{{noticiaId}}", "imagen-mini"]
+            }
+          }
+        },
+        {
+          "name": "Resultados - Listar (fútbol)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/resultados",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "resultados"]
+            },
+            "description": "Fijo a deporte fútbol ('F') en el propio controller."
+          }
+        },
+        {
+          "name": "Resultados - Último del Primer Equipo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/resultados/primer-equipo",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "resultados", "primer-equipo"]
+            },
+            "description": "404 si el Primer Equipo no tiene resultado registrado."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Autenticación (App)",
+      "description": "Login y activación de cuentas de la app móvil (`USUARIOS_APP`). Emite el JWT usado por el resto de la colección.",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set('token', data.token);",
+                  "    pm.collectionVariables.set('usuarioId', data.usuarioId);",
+                  "    pm.test('Token guardado en la variable de coleccion', function () {",
+                  "        pm.expect(data.token).to.be.a('string').and.not.empty;",
+                  "    });",
+                  "} else {",
+                  "    pm.test('Login fallido: ' + pm.response.code, function () {",
+                  "        pm.expect.fail(pm.response.text());",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jugador@mutxamelcf.es\",\n  \"password\": \"TuContraseña123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "auth", "login"]
+            },
+            "description": "200: devuelve {token, usuarioId, email, roles}. 401: credenciales incorrectas. 403: la cuenta existe pero no está activada."
+          }
+        },
+        {
+          "name": "Activar cuenta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set('token', data.token);",
+                  "    pm.collectionVariables.set('usuarioId', data.usuarioId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"token-recibido-por-email\",\n  \"password\": \"NuevaContraseña123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/auth/activar",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "auth", "activar"]
+            },
+            "description": "Primer acceso: el usuario recibe por email un token de invitación (ver UsuarioAppServiceImpl.generarTokenActivacion) y fija aquí su contraseña (mínimo 8 caracteres). Activa la cuenta E inicia sesión en el mismo paso: 200 devuelve {token, usuarioId, email, roles} igual que /login (el script de test ya guarda el token en la variable de colección). 409 si la cuenta ya estaba activa, 400 si el token no es válido o ha caducado."
+          }
+        },
+        {
+          "name": "Mi usuario (me)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "auth", "me"]
+            },
+            "description": "Devuelve id/email/roles del usuario dueño del token. Útil para comprobar que el JWT sigue siendo válido."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Perfil",
+      "item": [
+        {
+          "name": "Obtener mi perfil",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/perfil",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "perfil"]
+            },
+            "description": "Perfil ampliado del usuario autenticado (datos de jugador/familiar asociados, según el rol)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Convocatorias",
+      "description": "Gestión de convocatorias de partido. Requiere que el usuario autenticado pueda gestionar el equipo indicado (rol entrenador/coordinador sobre ese equipo).",
+      "item": [
+        {
+          "name": "Crear convocatoria",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"equipoId\": {{equipoId}},\n  \"rival\": \"CD Rival\",\n  \"campo\": \"Campo Municipal\",\n  \"fechaPartido\": \"2026-10-05\",\n  \"horaPartido\": \"17:00\",\n  \"horaConvocatoria\": \"16:00\",\n  \"lugarConvocatoria\": \"Vestuarios\",\n  \"jugadoresIds\": [{{jugadorId}}]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/convocatorias",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "convocatorias"]
+            },
+            "description": "201 al crear. 400 si faltan campos, ya existe convocatoria ese día para el equipo, o algún jugador no pertenece al equipo. 403 si no gestionas el equipo."
+          }
+        },
+        {
+          "name": "Actualizar convocatoria",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"equipoId\": {{equipoId}},\n  \"rival\": \"CD Rival\",\n  \"campo\": \"Campo Municipal (cambio)\",\n  \"fechaPartido\": \"2026-10-05\",\n  \"horaPartido\": \"18:00\",\n  \"horaConvocatoria\": \"17:00\",\n  \"lugarConvocatoria\": \"Vestuarios\",\n  \"jugadoresIds\": [{{jugadorId}}]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/convocatorias/{{convocatoriaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "convocatorias", "{{convocatoriaId}}"]
+            },
+            "description": "El equipo no se puede cambiar ni tampoco los jugadores convocados (el servicio los ignora si se envían); solo se actualizan los datos del partido."
+          }
+        },
+        {
+          "name": "Obtener convocatoria por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/convocatorias/{{convocatoriaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "convocatorias", "{{convocatoriaId}}"]
+            }
+          }
+        },
+        {
+          "name": "Listar convocatorias de un equipo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/convocatorias?equipoId={{equipoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "convocatorias"],
+              "query": [{ "key": "equipoId", "value": "{{equipoId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Eliminar convocatoria",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/convocatorias/{{convocatoriaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "convocatorias", "{{convocatoriaId}}"]
+            },
+            "description": "204 sin contenido si se elimina correctamente."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Entrenamientos",
+      "description": "Registro de entrenamientos y asistencia de jugadores.",
+      "item": [
+        {
+          "name": "Crear entrenamiento",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"equipoId\": {{equipoId}},\n  \"fecha\": \"2026-10-01\",\n  \"asistencias\": [\n    { \"jugadorId\": {{jugadorId}}, \"estado\": \"ASISTE\" }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/entrenamientos",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "entrenamientos"]
+            },
+            "description": "El valor de 'estado' depende de los estados válidos definidos en EntrenamientoServiceImpl (p.ej. ASISTE/FALTA/AVISADO); revisa esa clase si el backend rechaza el valor."
+          }
+        },
+        {
+          "name": "Actualizar entrenamiento",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"equipoId\": {{equipoId}},\n  \"fecha\": \"2026-10-01\",\n  \"asistencias\": [\n    { \"jugadorId\": {{jugadorId}}, \"estado\": \"FALTA\" }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/entrenamientos/{{entrenamientoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "entrenamientos", "{{entrenamientoId}}"]
+            }
+          }
+        },
+        {
+          "name": "Obtener entrenamiento por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/entrenamientos/{{entrenamientoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "entrenamientos", "{{entrenamientoId}}"]
+            },
+            "description": "Ojo: en el código fuente (AppEntrenamientoController.obtenerPorId) el @PathVariable está nombrado 'equipoId' aunque el método se llama obtenerPorId y en la práctica se usa como ID del entrenamiento. Documentado tal cual está implementado."
+          }
+        },
+        {
+          "name": "Listar entrenamientos de un equipo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/entrenamientos?equipoId={{equipoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "entrenamientos"],
+              "query": [{ "key": "equipoId", "value": "{{equipoId}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comunicaciones",
+      "description": "Mensajería/avisos del club hacia jugadores, familiares o equipos completos.",
+      "item": [
+        {
+          "name": "Crear comunicación",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Aviso de entrenamiento\",\n  \"contenido\": \"Se adelanta el entrenamiento del jueves a las 18:00.\",\n  \"equipoIds\": [{{equipoId}}],\n  \"categorias\": [],\n  \"destinatariosIds\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/comunicaciones",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "comunicaciones"]
+            },
+            "description": "Se puede dirigir por equipoIds, categorias o destinatariosIds (usuarios concretos, ver endpoint 'Destinatarios directos'). 403 si no tienes permiso para comunicar con el público elegido."
+          }
+        },
+        {
+          "name": "Mis comunicaciones (recibidas)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/comunicaciones",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "comunicaciones"]
+            }
+          }
+        },
+        {
+          "name": "Comunicación por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/comunicaciones/{{comunicacionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "comunicaciones", "{{comunicacionId}}"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar comunicación",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/comunicaciones/{{comunicacionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "comunicaciones", "{{comunicacionId}}"]
+            },
+            "description": "204 sin contenido. Solo el autor (o rol con permiso) puede eliminarla."
+          }
+        },
+        {
+          "name": "Comunicaciones enviadas por mí",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/comunicaciones/enviadas",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "comunicaciones", "enviadas"]
+            }
+          }
+        },
+        {
+          "name": "Destinatarios directos disponibles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/comunicaciones/destinatarios",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "comunicaciones", "destinatarios"]
+            },
+            "description": "Lista de usuarios a los que el autenticado puede escribir individualmente (para usar en destinatariosIds al crear una comunicación)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notificaciones",
+      "item": [
+        {
+          "name": "Listar todas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/notificaciones",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "notificaciones"]
+            }
+          }
+        },
+        {
+          "name": "Listar no leídas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/notificaciones/no-leidas",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "notificaciones", "no-leidas"]
+            }
+          }
+        },
+        {
+          "name": "Contar no leídas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/notificaciones/no-leidas/count",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "notificaciones", "no-leidas", "count"]
+            }
+          }
+        },
+        {
+          "name": "Marcar una como leída",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/notificaciones/{{notificacionId}}/leida",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "notificaciones", "{{notificacionId}}", "leida"]
+            }
+          }
+        },
+        {
+          "name": "Marcar todas como leídas",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/notificaciones/leidas",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "notificaciones", "leidas"]
+            }
+          }
+        },
+        {
+          "name": "Contar comunicaciones no leídas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/notificaciones/comunicaciones/no-leidas/count",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "notificaciones", "comunicaciones", "no-leidas", "count"]
+            },
+            "description": "Contador específico de comunicaciones pendientes (distinto del contador general de notificaciones push)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Preferencias de notificación",
+      "item": [
+        {
+          "name": "Obtener mis preferencias",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/preferencias-notificacion",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "preferencias-notificacion"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar mis preferencias",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notificacionesActivadas\": true,\n  \"noticiasActivadas\": true,\n  \"comunicacionesActivadas\": true,\n  \"mensajesActivados\": true,\n  \"resultadosActivados\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/preferencias-notificacion",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "preferencias-notificacion"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dispositivos (Push / FCM)",
+      "item": [
+        {
+          "name": "Registrar dispositivo FCM",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tokenFcm\": \"token-de-ejemplo-firebase-cloud-messaging\",\n  \"plataforma\": \"ANDROID\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/dispositivos",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "dispositivos"]
+            },
+            "description": "Asocia un token FCM al usuario autenticado para recibir notificaciones push. plataforma: ANDROID o IOS."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gestión de equipo (entrenador/coordinador)",
+      "description": "Endpoints usados por la app para la pantalla de gestión de plantilla: requieren que el usuario pueda gestionar el equipo indicado.",
+      "item": [
+        {
+          "name": "Jugadores gestionables de un equipo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/equipos/jugadores?equipoId={{equipoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "equipos", "jugadores"],
+              "query": [{ "key": "equipoId", "value": "{{equipoId}}" }]
+            },
+            "description": "Distinto del listado público: incluye datos de gestión y requiere permiso sobre el equipo (403 si no lo tienes)."
+          }
+        },
+        {
+          "name": "Familiares de un jugador",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/equipos/jugadores/{{jugadorId}}/familiares?equipoId={{equipoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "equipos", "jugadores", "{{jugadorId}}", "familiares"],
+              "query": [{ "key": "equipoId", "value": "{{equipoId}}" }]
+            },
+            "description": "El jugador debe pertenecer al equipo indicado en equipoId; el controller lo valida antes de responder."
+          }
+        }
+      ]
+    }
+  ]
+}

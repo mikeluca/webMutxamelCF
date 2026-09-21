@@ -1,5 +1,8 @@
 package com.mikedev.mutxamelcf.dao.impl;
 
+import java.sql.Timestamp;
+import java.util.List;
+
 import com.mikedev.mutxamelcf.model.UsuarioApp;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -25,7 +28,8 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        FECHA_ALTA,
                        FECHA_ACTIVACION,
                        FECHA_ULTIMO_ACCESO,
-                       TOKEN_ACTIVACION
+                       TOKEN_ACTIVACION,
+                       TOKEN_ACTIVACION_EXPIRA
                 FROM USUARIOS_APP
                 WHERE LOWER(EMAIL) = LOWER(?)
                 """;
@@ -55,7 +59,8 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        FECHA_ALTA,
                        FECHA_ACTIVACION,
                        FECHA_ULTIMO_ACCESO,
-                       TOKEN_ACTIVACION
+                       TOKEN_ACTIVACION,
+                       TOKEN_ACTIVACION_EXPIRA
                 FROM USUARIOS_APP
                 WHERE ID = ?
                 """;
@@ -86,7 +91,8 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        FECHA_ALTA,
                        FECHA_ACTIVACION,
                        FECHA_ULTIMO_ACCESO,
-                       TOKEN_ACTIVACION
+                       TOKEN_ACTIVACION,
+                       TOKEN_ACTIVACION_EXPIRA
                 FROM USUARIOS_APP
                 WHERE TOKEN_ACTIVACION = ?
                 """;
@@ -103,6 +109,28 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                     return null;
                 }
         );
+    }
+
+    @Override
+    public List<UsuarioApp> listarTodos() {
+
+        String sql = """
+                SELECT ID,
+                       EMAIL,
+                       PASSWORD_HASH,
+                       ACTIVO,
+                       FECHA_ALTA,
+                       FECHA_ACTIVACION,
+                       FECHA_ULTIMO_ACCESO,
+                       TOKEN_ACTIVACION,
+                       TOKEN_ACTIVACION_EXPIRA
+                FROM USUARIOS_APP
+                ORDER BY FECHA_ALTA DESC
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> mapearUsuario(rs));
     }
 
     @Override
@@ -173,9 +201,30 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                 UPDATE USUARIOS_APP
                 SET ACTIVO = 1,
                     FECHA_ACTIVACION = SYSTIMESTAMP,
-                    TOKEN_ACTIVACION = NULL
+                    TOKEN_ACTIVACION = NULL,
+                    TOKEN_ACTIVACION_EXPIRA = NULL
                 WHERE ID = ?
                 """;
+
+        jdbcTemplate.update(sql, id);
+    }
+
+    @Override
+    public void desactivarUsuario(int id) {
+
+        String sql = """
+                UPDATE USUARIOS_APP
+                SET ACTIVO = 0
+                WHERE ID = ?
+                """;
+
+        jdbcTemplate.update(sql, id);
+    }
+
+    @Override
+    public void eliminar(int id) {
+
+        String sql = "DELETE FROM USUARIOS_APP WHERE ID = ?";
 
         jdbcTemplate.update(sql, id);
     }
@@ -195,17 +244,20 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
     @Override
     public void actualizarTokenActivacion(
             int id,
-            String tokenHash) {
+            String tokenHash,
+            Timestamp expiracion) {
 
         String sql = """
                 UPDATE USUARIOS_APP
-                SET TOKEN_ACTIVACION = ?
+                SET TOKEN_ACTIVACION = ?,
+                    TOKEN_ACTIVACION_EXPIRA = ?
                 WHERE ID = ?
                 """;
 
         jdbcTemplate.update(
                 sql,
                 tokenHash,
+                expiracion,
                 id
         );
     }
@@ -235,6 +287,9 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
         );
         usuario.setTokenActivacion(
                 rs.getString("TOKEN_ACTIVACION")
+        );
+        usuario.setFechaExpiracionToken(
+                rs.getTimestamp("TOKEN_ACTIVACION_EXPIRA")
         );
 
         return usuario;

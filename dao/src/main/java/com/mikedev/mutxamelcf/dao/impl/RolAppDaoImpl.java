@@ -137,6 +137,17 @@ public class RolAppDaoImpl implements RolAppDao {
                 rolId);
     }
 
+    @Override
+    public void eliminarTodosLosRoles(int usuarioAppId) {
+
+        String sql = """
+                DELETE FROM USUARIOS_APP_ROLES
+                WHERE USUARIO_APP_ID = ?
+                """;
+
+        jdbcTemplate.update(sql, usuarioAppId);
+    }
+
     private RolApp mapearRol(
             java.sql.ResultSet rs)
             throws java.sql.SQLException {

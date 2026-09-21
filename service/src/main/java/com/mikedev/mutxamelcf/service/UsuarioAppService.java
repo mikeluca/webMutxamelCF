@@ -1,8 +1,12 @@
 package com.mikedev.mutxamelcf.service;
 
+import com.mikedev.mutxamelcf.model.InvitacionUsuarioApp;
+import com.mikedev.mutxamelcf.model.InvitarUsuarioAppRequest;
 import com.mikedev.mutxamelcf.model.LoginAppResponse;
+import com.mikedev.mutxamelcf.model.PersonasVinculablesResponse;
 import com.mikedev.mutxamelcf.model.RolApp;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
+import com.mikedev.mutxamelcf.model.UsuarioAppAdminResponse;
 
 import java.util.List;
 
@@ -18,7 +22,7 @@ public interface UsuarioAppService {
 
     String generarTokenActivacion(int usuarioId);
 
-    void activarCuenta(String token, String password);
+    UsuarioApp activarCuenta(String token, String password);
 
     LoginAppResponse login(String email, String password);
 
@@ -33,4 +37,22 @@ public interface UsuarioAppService {
     void asignarRol(int usuarioAppId, int rolId);
 
     void eliminarRol(int usuarioAppId, int rolId);
+
+    /*
+     * Administración desde la web (panel SUPER).
+     */
+
+    List<UsuarioAppAdminResponse> listarUsuariosAdmin();
+
+    PersonasVinculablesResponse obtenerPersonasVinculables();
+
+    InvitacionUsuarioApp invitarUsuario(InvitarUsuarioAppRequest request);
+
+    InvitacionUsuarioApp reenviarInvitacion(int usuarioAppId);
+
+    void activarUsuarioAdmin(int usuarioAppId);
+
+    void desactivarUsuarioAdmin(int usuarioAppId);
+
+    void eliminarInvitacion(int usuarioAppId);
 }

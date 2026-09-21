@@ -1,28 +1,27 @@
 package com.mikedev.mutxamelcf.model;
 
 import java.sql.Timestamp;
+import java.util.List;
 
-public class UsuarioApp {
+/**
+ * Fila del listado de cuentas de la app móvil para el panel de
+ * administración web (OFICINA/SUPER).
+ */
+public class UsuarioAppAdminResponse {
 
     private int id;
-
     private String email;
-
-    private String passwordHash;
-
     private boolean activo;
-
     private Timestamp fechaAlta;
-
     private Timestamp fechaActivacion;
-
     private Timestamp fechaUltimoAcceso;
+    private boolean tokenPendiente;
+    private boolean tokenExpirado;
+    private List<String> roles;
+    private String vinculoTipo;
+    private String vinculoNombre;
 
-    private String tokenActivacion;
-
-    private Timestamp fechaExpiracionToken;
-
-    public UsuarioApp() {
+    public UsuarioAppAdminResponse() {
     }
 
     public int getId() {
@@ -39,14 +38,6 @@ public class UsuarioApp {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getPasswordHash() {
-        return passwordHash;
-    }
-
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
     }
 
     public boolean isActivo() {
@@ -81,19 +72,43 @@ public class UsuarioApp {
         this.fechaUltimoAcceso = fechaUltimoAcceso;
     }
 
-    public String getTokenActivacion() {
-        return tokenActivacion;
+    public boolean isTokenPendiente() {
+        return tokenPendiente;
     }
 
-    public void setTokenActivacion(String tokenActivacion) {
-        this.tokenActivacion = tokenActivacion;
+    public void setTokenPendiente(boolean tokenPendiente) {
+        this.tokenPendiente = tokenPendiente;
     }
 
-    public Timestamp getFechaExpiracionToken() {
-        return fechaExpiracionToken;
+    public boolean isTokenExpirado() {
+        return tokenExpirado;
     }
 
-    public void setFechaExpiracionToken(Timestamp fechaExpiracionToken) {
-        this.fechaExpiracionToken = fechaExpiracionToken;
+    public void setTokenExpirado(boolean tokenExpirado) {
+        this.tokenExpirado = tokenExpirado;
+    }
+
+    public List<String> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(List<String> roles) {
+        this.roles = roles;
+    }
+
+    public String getVinculoTipo() {
+        return vinculoTipo;
+    }
+
+    public void setVinculoTipo(String vinculoTipo) {
+        this.vinculoTipo = vinculoTipo;
+    }
+
+    public String getVinculoNombre() {
+        return vinculoNombre;
+    }
+
+    public void setVinculoNombre(String vinculoNombre) {
+        this.vinculoNombre = vinculoNombre;
     }
 }

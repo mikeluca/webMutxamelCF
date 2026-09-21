@@ -98,6 +98,10 @@ public class SecurityConfig {
                                                 .hasRole("SUPER")
 
                                                 .requestMatchers(
+                                                                "/admin/usuarios-app/**")
+                                                .hasRole("SUPER")
+
+                                                .requestMatchers(
                                                                 "/admin/**")
                                                 .authenticated()
 

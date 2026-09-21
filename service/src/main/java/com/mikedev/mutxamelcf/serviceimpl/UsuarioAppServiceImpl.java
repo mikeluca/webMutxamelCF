@@ -2,33 +2,58 @@ package com.mikedev.mutxamelcf.serviceimpl;
 
 import com.mikedev.mutxamelcf.dao.RolAppDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppDao;
+import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
+import com.mikedev.mutxamelcf.model.InvitacionUsuarioApp;
+import com.mikedev.mutxamelcf.model.InvitarUsuarioAppRequest;
 import com.mikedev.mutxamelcf.model.LoginAppResponse;
+import com.mikedev.mutxamelcf.model.PersonasVinculablesResponse;
 import com.mikedev.mutxamelcf.model.RolApp;
+import com.mikedev.mutxamelcf.model.VinculoUsuarioApp;
 import com.mikedev.mutxamelcf.service.JwtService;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
+import com.mikedev.mutxamelcf.model.UsuarioAppAdminResponse;
 import com.mikedev.mutxamelcf.util.TokenUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @Service
 public class UsuarioAppServiceImpl implements UsuarioAppService {
 
+    private static final Logger logger = LoggerFactory.getLogger(UsuarioAppServiceImpl.class);
+
+    private static final long HORAS_VALIDEZ_TOKEN = 7 * 24;
+
+    private static final Set<String> TIPOS_VINCULO_CON_PERSONA = Set.of(
+            "JUGADOR", "FAMILIAR", "ENTRENADOR");
+
     private final UsuarioAppDao usuarioAppDao;
+    private final UsuarioAppVinculoDao usuarioAppVinculoDao;
     private final RolAppDao rolAppDao;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
     public UsuarioAppServiceImpl(
             UsuarioAppDao usuarioAppDao,
+            UsuarioAppVinculoDao usuarioAppVinculoDao,
             RolAppDao rolAppDao,
             PasswordEncoder passwordEncoder,
             JwtService jwtService) {
 
         this.usuarioAppDao = usuarioAppDao;
+        this.usuarioAppVinculoDao = usuarioAppVinculoDao;
         this.rolAppDao = rolAppDao;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -120,9 +145,13 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
 
         String tokenHash = TokenUtils.hashToken(token);
 
+        Timestamp expiracion = Timestamp.from(
+                Instant.now().plus(HORAS_VALIDEZ_TOKEN, ChronoUnit.HOURS));
+
         usuarioAppDao.actualizarTokenActivacion(
                 usuarioId,
-                tokenHash);
+                tokenHash,
+                expiracion);
 
         /*
          * Devolvemos el token original.
@@ -134,7 +163,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
     }
 
     @Override
-    public void activarCuenta(
+    public UsuarioApp activarCuenta(
             String token,
             String password) {
 
@@ -160,6 +189,16 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
                     "La cuenta ya está activa");
         }
 
+        Timestamp expiracion = usuario.getFechaExpiracionToken();
+
+        if (expiracion != null
+                && expiracion.before(Timestamp.from(Instant.now()))) {
+
+            throw new IllegalArgumentException(
+                    "El token de activación ha caducado. "
+                            + "Pide que te reenvíen la invitación.");
+        }
+
         String passwordHash = passwordEncoder.encode(password);
 
         usuarioAppDao.actualizarPassword(
@@ -168,6 +207,8 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
 
         usuarioAppDao.activarUsuario(
                 usuario.getId());
+
+        return usuario;
     }
 
     @Override
@@ -294,5 +335,287 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
         rolAppDao.eliminarRol(
                 usuarioAppId,
                 rolId);
+    }
+
+    /*
+     * ADMINISTRACIÓN DESDE LA WEB (panel SUPER).
+     */
+
+    @Override
+    public List<UsuarioAppAdminResponse> listarUsuariosAdmin() {
+
+        List<UsuarioApp> usuarios = usuarioAppDao.listarTodos();
+
+        List<UsuarioAppAdminResponse> respuesta = new ArrayList<>();
+
+        for (UsuarioApp usuario : usuarios) {
+            respuesta.add(construirRespuestaAdmin(usuario));
+        }
+
+        return respuesta;
+    }
+
+    @Override
+    public PersonasVinculablesResponse obtenerPersonasVinculables() {
+
+        return new PersonasVinculablesResponse(
+                usuarioAppVinculoDao.obtenerJugadoresSinCuenta(),
+                usuarioAppVinculoDao.obtenerFamiliaresSinCuenta(),
+                usuarioAppVinculoDao.obtenerCuerpoTecnicoSinCuenta());
+    }
+
+    @Override
+    @Transactional
+    public InvitacionUsuarioApp invitarUsuario(InvitarUsuarioAppRequest request) {
+
+        if (request == null) {
+            throw new IllegalArgumentException(
+                    "La petición no puede ser nula");
+        }
+
+        String tipo = normalizarTipo(request.getTipoVinculo());
+        String nombrePersona = null;
+
+        if (TIPOS_VINCULO_CON_PERSONA.contains(tipo)) {
+
+            if (request.getPersonaId() == null) {
+                throw new IllegalArgumentException(
+                        "Debes seleccionar a la persona a vincular");
+            }
+
+            validarPersonaSinCuenta(tipo, request.getPersonaId());
+
+            nombrePersona = usuarioAppVinculoDao.obtenerNombrePersona(
+                    tipo,
+                    request.getPersonaId());
+
+            if (nombrePersona == null) {
+                throw new IllegalArgumentException(
+                        "La persona seleccionada no existe");
+            }
+
+        } else if (!"COORDINADOR".equals(tipo)) {
+
+            throw new IllegalArgumentException(
+                    "Tipo de vínculo no válido: " + request.getTipoVinculo());
+        }
+
+        RolApp rol = obtenerRolPorCodigo(tipo);
+
+        if (rol == null) {
+            throw new IllegalStateException(
+                    "El rol " + tipo + " no está configurado en ROLES_APP");
+        }
+
+        /*
+         * El email de un familiar SIEMPRE sale de su ficha (FAMILIARES.EMAIL),
+         * nunca de lo que escriba OFICINA en el formulario: así solo se puede
+         * cambiar editando al familiar, y no hay forma de que la invitación
+         * acabe en un email distinto al de contacto real de esa persona.
+         */
+        String email = "FAMILIAR".equals(tipo)
+                ? emailFamiliarObligatorio(request.getPersonaId())
+                : validarEmailEscrito(request.getEmail());
+
+        UsuarioApp usuario = new UsuarioApp();
+        usuario.setEmail(email);
+
+        int usuarioAppId = crearUsuario(usuario);
+
+        switch (tipo) {
+            case "JUGADOR" -> usuarioAppVinculoDao.vincularJugador(
+                    usuarioAppId, request.getPersonaId());
+            case "FAMILIAR" -> usuarioAppVinculoDao.vincularFamiliar(
+                    usuarioAppId, request.getPersonaId());
+            case "ENTRENADOR" -> usuarioAppVinculoDao.vincularCuerpoTecnico(
+                    usuarioAppId, request.getPersonaId());
+            default -> {
+                /* COORDINADOR: rol de club, sin vínculo con una persona. */
+            }
+        }
+
+        asignarRol(usuarioAppId, rol.getId());
+
+        String token = generarTokenActivacion(usuarioAppId);
+
+        logger.info(
+                "Invitación de app creada: usuarioAppId={}, tipo={}",
+                usuarioAppId,
+                tipo);
+
+        return new InvitacionUsuarioApp(
+                usuarioAppId,
+                usuario.getEmail(),
+                nombrePersona,
+                token);
+    }
+
+    @Override
+    public InvitacionUsuarioApp reenviarInvitacion(int usuarioAppId) {
+
+        UsuarioApp usuario = usuarioAppDao.obtenerPorId(usuarioAppId);
+
+        if (usuario == null) {
+            throw new IllegalArgumentException("El usuario no existe");
+        }
+
+        if (usuario.isActivo()) {
+            throw new IllegalStateException("La cuenta ya está activa");
+        }
+
+        VinculoUsuarioApp vinculo = usuarioAppVinculoDao.obtenerVinculo(usuarioAppId);
+
+        String token = generarTokenActivacion(usuarioAppId);
+
+        logger.info("Invitación de app reenviada: usuarioAppId={}", usuarioAppId);
+
+        return new InvitacionUsuarioApp(
+                usuarioAppId,
+                usuario.getEmail(),
+                vinculo == null ? null : vinculo.getNombreCompleto(),
+                token);
+    }
+
+    @Override
+    public void activarUsuarioAdmin(int usuarioAppId) {
+
+        if (usuarioAppDao.obtenerPorId(usuarioAppId) == null) {
+            throw new IllegalArgumentException("El usuario no existe");
+        }
+
+        usuarioAppDao.activarUsuario(usuarioAppId);
+
+        logger.info("Cuenta de app activada manualmente: usuarioAppId={}", usuarioAppId);
+    }
+
+    @Override
+    public void desactivarUsuarioAdmin(int usuarioAppId) {
+
+        if (usuarioAppDao.obtenerPorId(usuarioAppId) == null) {
+            throw new IllegalArgumentException("El usuario no existe");
+        }
+
+        usuarioAppDao.desactivarUsuario(usuarioAppId);
+
+        logger.info("Cuenta de app desactivada: usuarioAppId={}", usuarioAppId);
+    }
+
+    @Override
+    @Transactional
+    public void eliminarInvitacion(int usuarioAppId) {
+
+        UsuarioApp usuario = usuarioAppDao.obtenerPorId(usuarioAppId);
+
+        if (usuario == null) {
+            throw new IllegalArgumentException("El usuario no existe");
+        }
+
+        if (usuario.isActivo()) {
+            throw new IllegalStateException(
+                    "No se puede eliminar una cuenta ya activa. "
+                            + "Desactívala si quieres revocarle el acceso.");
+        }
+
+        usuarioAppVinculoDao.desvincularTodo(usuarioAppId);
+        rolAppDao.eliminarTodosLosRoles(usuarioAppId);
+        usuarioAppDao.eliminar(usuarioAppId);
+
+        logger.info(
+                "Invitación de app eliminada: usuarioAppId={}, email={}",
+                usuarioAppId,
+                usuario.getEmail());
+    }
+
+    private String emailFamiliarObligatorio(Long familiarId) {
+
+        String email = usuarioAppVinculoDao.obtenerEmailFamiliar(familiarId);
+
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Este familiar no tiene un email registrado. "
+                            + "Añádelo primero en Familiares antes de invitarlo a la app.");
+        }
+
+        return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String validarEmailEscrito(String email) {
+
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("El email es obligatorio");
+        }
+
+        String normalizado = email.trim();
+
+        if (!normalizado.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            throw new IllegalArgumentException("El email no tiene un formato válido");
+        }
+
+        return normalizado;
+    }
+
+    private void validarPersonaSinCuenta(String tipo, Long personaId) {
+
+        boolean tieneCuenta = switch (tipo) {
+            case "JUGADOR" -> usuarioAppVinculoDao.jugadorTieneCuenta(personaId);
+            case "FAMILIAR" -> usuarioAppVinculoDao.familiarTieneCuenta(personaId);
+            case "ENTRENADOR" -> usuarioAppVinculoDao.cuerpoTecnicoTieneCuenta(personaId);
+            default -> false;
+        };
+
+        if (tieneCuenta) {
+            throw new IllegalArgumentException(
+                    "Esa persona ya tiene una cuenta de la app");
+        }
+    }
+
+    private String normalizarTipo(String tipoVinculo) {
+
+        if (tipoVinculo == null || tipoVinculo.isBlank()) {
+            throw new IllegalArgumentException(
+                    "El tipo de vínculo es obligatorio");
+        }
+
+        return tipoVinculo.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private UsuarioAppAdminResponse construirRespuestaAdmin(UsuarioApp usuario) {
+
+        UsuarioAppAdminResponse response = new UsuarioAppAdminResponse();
+
+        response.setId(usuario.getId());
+        response.setEmail(usuario.getEmail());
+        response.setActivo(usuario.isActivo());
+        response.setFechaAlta(usuario.getFechaAlta());
+        response.setFechaActivacion(usuario.getFechaActivacion());
+        response.setFechaUltimoAcceso(usuario.getFechaUltimoAcceso());
+
+        boolean tokenPendiente = !usuario.isActivo()
+                && usuario.getTokenActivacion() != null;
+
+        response.setTokenPendiente(tokenPendiente);
+
+        boolean tokenExpirado = tokenPendiente
+                && usuario.getFechaExpiracionToken() != null
+                && usuario.getFechaExpiracionToken().before(
+                        Timestamp.from(Instant.now()));
+
+        response.setTokenExpirado(tokenExpirado);
+
+        List<RolApp> roles = obtenerRoles(usuario.getId());
+
+        response.setRoles(
+                roles.stream()
+                        .map(RolApp::getCodigo)
+                        .toList());
+
+        VinculoUsuarioApp vinculo = usuarioAppVinculoDao.obtenerVinculo(usuario.getId());
+
+        if (vinculo != null) {
+            response.setVinculoTipo(vinculo.getTipo());
+            response.setVinculoNombre(vinculo.getNombreCompleto());
+        }
+
+        return response;
     }
 }
