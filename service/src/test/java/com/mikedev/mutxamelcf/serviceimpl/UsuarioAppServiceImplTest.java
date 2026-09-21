@@ -21,6 +21,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.mikedev.mutxamelcf.dao.RolAppDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppDao;
+import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
+import com.mikedev.mutxamelcf.model.InvitacionUsuarioApp;
+import com.mikedev.mutxamelcf.model.InvitarUsuarioAppRequest;
 import com.mikedev.mutxamelcf.model.LoginAppResponse;
 import com.mikedev.mutxamelcf.model.RolApp;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
@@ -31,6 +34,9 @@ class UsuarioAppServiceImplTest {
 
     @Mock
     private UsuarioAppDao usuarioAppDao;
+
+    @Mock
+    private UsuarioAppVinculoDao usuarioAppVinculoDao;
 
     @Mock
     private RolAppDao rolAppDao;
@@ -45,7 +51,8 @@ class UsuarioAppServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new UsuarioAppServiceImpl(usuarioAppDao, rolAppDao, passwordEncoder, jwtService);
+        service = new UsuarioAppServiceImpl(
+                usuarioAppDao, usuarioAppVinculoDao, rolAppDao, passwordEncoder, jwtService);
     }
 
     private UsuarioApp usuarioActivo() {
@@ -115,16 +122,19 @@ class UsuarioAppServiceImplTest {
     }
 
     @Test
-    void activarCuentaConTokenValidoEstableceLaContrasenaYActiva() {
+    void activarCuentaConTokenValidoEstableceLaContrasenaYActivaYDevuelveElUsuario() {
         UsuarioApp usuario = new UsuarioApp();
         usuario.setId(7);
+        usuario.setEmail("jugador@mutxamelcf.es");
         usuario.setActivo(false);
 
         when(usuarioAppDao.obtenerPorTokenActivacion(any())).thenReturn(usuario);
         when(passwordEncoder.encode("password123")).thenReturn("hash-nuevo");
 
-        service.activarCuenta("token-valido", "password123");
+        UsuarioApp resultado = service.activarCuenta("token-valido", "password123");
 
+        assertThat(resultado.getId()).isEqualTo(7);
+        assertThat(resultado.getEmail()).isEqualTo("jugador@mutxamelcf.es");
         verify(usuarioAppDao).actualizarPassword(7, "hash-nuevo");
         verify(usuarioAppDao).activarUsuario(7);
     }
@@ -196,5 +206,202 @@ class UsuarioAppServiceImplTest {
         service.asignarRol(1, 3);
 
         verify(rolAppDao, never()).asignarRol(anyInt(), anyInt());
+    }
+
+    private InvitarUsuarioAppRequest requestInvitacion(String tipo, Long personaId, String email) {
+        InvitarUsuarioAppRequest request = new InvitarUsuarioAppRequest();
+        request.setTipoVinculo(tipo);
+        request.setPersonaId(personaId);
+        request.setEmail(email);
+        return request;
+    }
+
+    private RolApp rol(int id, String codigo) {
+        RolApp rol = new RolApp();
+        rol.setId(id);
+        rol.setCodigo(codigo);
+        return rol;
+    }
+
+    @Test
+    void invitarUsuarioConJugadorValidoLoCreaLoVinculaYGeneraToken() {
+        InvitarUsuarioAppRequest request = requestInvitacion("JUGADOR", 55L, "Nuevo@Mutxamelcf.es");
+
+        when(usuarioAppVinculoDao.jugadorTieneCuenta(55L)).thenReturn(false);
+        when(usuarioAppVinculoDao.obtenerNombrePersona("JUGADOR", 55L)).thenReturn("Juan Perez");
+        when(rolAppDao.obtenerPorCodigo("JUGADOR")).thenReturn(rol(2, "JUGADOR"));
+        when(usuarioAppDao.obtenerPorEmail("nuevo@mutxamelcf.es")).thenReturn(null);
+        when(usuarioAppDao.guardar(any())).thenReturn(42);
+
+        UsuarioApp creado = new UsuarioApp();
+        creado.setId(42);
+        creado.setActivo(false);
+        when(usuarioAppDao.obtenerPorId(42)).thenReturn(creado);
+        when(rolAppDao.obtenerPorUsuario(42)).thenReturn(List.of());
+
+        InvitacionUsuarioApp invitacion = service.invitarUsuario(request);
+
+        assertThat(invitacion.getUsuarioAppId()).isEqualTo(42);
+        assertThat(invitacion.getEmail()).isEqualTo("nuevo@mutxamelcf.es");
+        assertThat(invitacion.getNombrePersona()).isEqualTo("Juan Perez");
+        assertThat(invitacion.getTokenActivacion()).isNotBlank();
+
+        verify(usuarioAppVinculoDao).vincularJugador(42, 55L);
+        verify(rolAppDao).asignarRol(42, 2);
+        verify(usuarioAppDao).actualizarTokenActivacion(eq(42), any(), any());
+    }
+
+    @Test
+    void invitarUsuarioFamiliarUsaElEmailDeLaFichaIgnorandoElDeLaPeticion() {
+        InvitarUsuarioAppRequest request = requestInvitacion("FAMILIAR", 8L, "email-manipulado@otrodominio.com");
+
+        when(usuarioAppVinculoDao.familiarTieneCuenta(8L)).thenReturn(false);
+        when(usuarioAppVinculoDao.obtenerNombrePersona("FAMILIAR", 8L)).thenReturn("Maria Garcia");
+        when(usuarioAppVinculoDao.obtenerEmailFamiliar(8L)).thenReturn("Maria@Mutxamelcf.es");
+        when(rolAppDao.obtenerPorCodigo("FAMILIAR")).thenReturn(rol(4, "FAMILIAR"));
+        when(usuarioAppDao.obtenerPorEmail("maria@mutxamelcf.es")).thenReturn(null);
+        when(usuarioAppDao.guardar(any())).thenReturn(15);
+
+        UsuarioApp creado = new UsuarioApp();
+        creado.setId(15);
+        creado.setActivo(false);
+        when(usuarioAppDao.obtenerPorId(15)).thenReturn(creado);
+        when(rolAppDao.obtenerPorUsuario(15)).thenReturn(List.of());
+
+        InvitacionUsuarioApp invitacion = service.invitarUsuario(request);
+
+        assertThat(invitacion.getEmail()).isEqualTo("maria@mutxamelcf.es");
+        verify(usuarioAppVinculoDao).vincularFamiliar(15, 8L);
+    }
+
+    @Test
+    void invitarUsuarioFamiliarSinEmailRegistradoLanzaExcepcionYNoCreaNada() {
+        InvitarUsuarioAppRequest request = requestInvitacion("FAMILIAR", 8L, "intento@mutxamelcf.es");
+
+        when(usuarioAppVinculoDao.familiarTieneCuenta(8L)).thenReturn(false);
+        when(usuarioAppVinculoDao.obtenerNombrePersona("FAMILIAR", 8L)).thenReturn("Maria Garcia");
+        when(usuarioAppVinculoDao.obtenerEmailFamiliar(8L)).thenReturn(null);
+        when(rolAppDao.obtenerPorCodigo("FAMILIAR")).thenReturn(rol(4, "FAMILIAR"));
+
+        assertThatThrownBy(() -> service.invitarUsuario(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no tiene un email registrado");
+
+        verify(usuarioAppDao, never()).guardar(any());
+    }
+
+    @Test
+    void invitarUsuarioConPersonaQueYaTieneCuentaLanzaExcepcionYNoCreaNada() {
+        InvitarUsuarioAppRequest request = requestInvitacion("FAMILIAR", 8L, "familiar@mutxamelcf.es");
+
+        when(usuarioAppVinculoDao.familiarTieneCuenta(8L)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.invitarUsuario(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ya tiene una cuenta");
+
+        verify(usuarioAppDao, never()).guardar(any());
+        verify(usuarioAppVinculoDao, never()).vincularFamiliar(anyInt(), any());
+    }
+
+    @Test
+    void invitarUsuarioConRolNoConfiguradoLanzaIllegalStateYNoCreaNada() {
+        InvitarUsuarioAppRequest request = requestInvitacion("COORDINADOR", null, "coordinador@mutxamelcf.es");
+
+        when(rolAppDao.obtenerPorCodigo("COORDINADOR")).thenReturn(null);
+
+        assertThatThrownBy(() -> service.invitarUsuario(request))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("COORDINADOR");
+
+        verify(usuarioAppDao, never()).guardar(any());
+    }
+
+    @Test
+    void invitarUsuarioCoordinadorNoRequierePersonaVinculada() {
+        InvitarUsuarioAppRequest request = requestInvitacion("COORDINADOR", null, "coordinador@mutxamelcf.es");
+
+        when(rolAppDao.obtenerPorCodigo("COORDINADOR")).thenReturn(rol(9, "COORDINADOR"));
+        when(usuarioAppDao.obtenerPorEmail("coordinador@mutxamelcf.es")).thenReturn(null);
+        when(usuarioAppDao.guardar(any())).thenReturn(7);
+
+        UsuarioApp creado = new UsuarioApp();
+        creado.setId(7);
+        creado.setActivo(false);
+        when(usuarioAppDao.obtenerPorId(7)).thenReturn(creado);
+        when(rolAppDao.obtenerPorUsuario(7)).thenReturn(List.of());
+
+        InvitacionUsuarioApp invitacion = service.invitarUsuario(request);
+
+        assertThat(invitacion.getNombrePersona()).isNull();
+        verify(rolAppDao).asignarRol(7, 9);
+        verify(usuarioAppVinculoDao, never()).vincularJugador(anyInt(), any());
+        verify(usuarioAppVinculoDao, never()).vincularFamiliar(anyInt(), any());
+        verify(usuarioAppVinculoDao, never()).vincularCuerpoTecnico(anyInt(), any());
+    }
+
+    @Test
+    void reenviarInvitacionDeUnaCuentaYaActivaLanzaExcepcion() {
+        UsuarioApp activo = new UsuarioApp();
+        activo.setId(3);
+        activo.setActivo(true);
+
+        when(usuarioAppDao.obtenerPorId(3)).thenReturn(activo);
+
+        assertThatThrownBy(() -> service.reenviarInvitacion(3))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ya está activa");
+    }
+
+    @Test
+    void desactivarUsuarioAdminDeUnUsuarioInexistenteLanzaExcepcion() {
+        when(usuarioAppDao.obtenerPorId(99)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.desactivarUsuarioAdmin(99))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(usuarioAppDao, never()).desactivarUsuario(anyInt());
+    }
+
+    @Test
+    void eliminarInvitacionPendienteBorraVinculoRolesYCuenta() {
+        UsuarioApp pendiente = new UsuarioApp();
+        pendiente.setId(20);
+        pendiente.setActivo(false);
+        pendiente.setEmail("mal-escrito@mutxamelcf.es");
+
+        when(usuarioAppDao.obtenerPorId(20)).thenReturn(pendiente);
+
+        service.eliminarInvitacion(20);
+
+        verify(usuarioAppVinculoDao).desvincularTodo(20);
+        verify(rolAppDao).eliminarTodosLosRoles(20);
+        verify(usuarioAppDao).eliminar(20);
+    }
+
+    @Test
+    void eliminarInvitacionDeUnaCuentaYaActivaLanzaExcepcionYNoBorraNada() {
+        UsuarioApp activo = new UsuarioApp();
+        activo.setId(21);
+        activo.setActivo(true);
+
+        when(usuarioAppDao.obtenerPorId(21)).thenReturn(activo);
+
+        assertThatThrownBy(() -> service.eliminarInvitacion(21))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ya activa");
+
+        verify(usuarioAppDao, never()).eliminar(anyInt());
+        verify(usuarioAppVinculoDao, never()).desvincularTodo(anyInt());
+    }
+
+    @Test
+    void eliminarInvitacionDeUnUsuarioInexistenteLanzaExcepcion() {
+        when(usuarioAppDao.obtenerPorId(22)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.eliminarInvitacion(22))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(usuarioAppDao, never()).eliminar(anyInt());
     }
 }

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Usuarios App | Mutxamel CF</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link th:href="@{/css/estilos.css}" rel="stylesheet">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+	<link href="https://fonts.googleapis.com/css2?family=Fredericka+the+Great&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
+</head>
+
+<body>
+
+	<!-- Incluir el header -->
+	<div th:replace="~{admin/cabeceraAdmin.html}"></div>
+
+	<main class="admin-screen-shell lead">
+		<h1 class="page-title">Usuarios de la App</h1>
+		<p>Gestiona quién tiene acceso a la app móvil del club: jugadores, familiares, entrenadores y coordinadores.</p>
+
+		<div class="d-flex justify-content-end mb-4">
+			<button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#invitarModal">
+				Invitar usuario
+			</button>
+		</div>
+
+		<div id="mensajeGeneral" class="alert" style="display:none; margin-bottom: 15px;"></div>
+
+		<table class="table table-striped w-100">
+			<thead>
+				<tr>
+					<th>Email</th>
+					<th>Vínculo</th>
+					<th>Roles</th>
+					<th>Estado</th>
+					<th>Último acceso</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr th:each="usuario : ${usuarios}" th:id="'fila-usuario-' + ${usuario.id}">
+					<td class="align-middle" th:text="${usuario.email}"></td>
+					<td class="align-middle">
+						<span th:if="${usuario.vinculoNombre} != null"
+							th:text="${usuario.vinculoTipo} + ': ' + ${usuario.vinculoNombre}"></span>
+						<span th:if="${usuario.vinculoNombre} == null" class="text-muted">Sin vincular</span>
+					</td>
+					<td class="align-middle" th:text="${#strings.listJoin(usuario.roles, ', ')}"></td>
+					<td class="align-middle">
+						<span th:if="${usuario.activo}" class="badge bg-success">Activa</span>
+						<span th:if="!${usuario.activo} and ${usuario.tokenExpirado}"
+							class="badge bg-danger">Invitación caducada</span>
+						<span th:if="!${usuario.activo} and !${usuario.tokenExpirado} and ${usuario.tokenPendiente}"
+							class="badge bg-warning text-dark">Pendiente de activar</span>
+						<span th:if="!${usuario.activo} and !${usuario.tokenPendiente}"
+							class="badge bg-secondary">Desactivada</span>
+					</td>
+					<td class="align-middle"
+						th:text="${usuario.fechaUltimoAcceso} != null ? ${#dates.format(usuario.fechaUltimoAcceso, 'dd/MM/yyyy HH:mm')} : 'Nunca'">
+					</td>
+					<td class="align-middle">
+						<div class="d-flex justify-content-center align-items-center gap-2">
+							<button th:if="!${usuario.activo}" type="button" class="btn btn-outline-primary btn-sm"
+								title="Reenviar invitación" th:attr="data-id=${usuario.id}"
+								onclick="reenviarInvitacion(this)">
+								<i class="bi bi-envelope-arrow-up"></i>
+							</button>
+							<button th:if="!${usuario.activo}" type="button" class="btn btn-outline-success btn-sm"
+								title="Activar manualmente" th:attr="data-id=${usuario.id}"
+								onclick="cambiarEstado(this, 'activar')">
+								<i class="bi bi-check-circle"></i>
+							</button>
+							<button th:if="${usuario.activo}" type="button" class="btn btn-outline-danger btn-sm"
+								title="Desactivar cuenta" th:attr="data-id=${usuario.id}"
+								onclick="cambiarEstado(this, 'desactivar')">
+								<i class="bi bi-slash-circle"></i>
+							</button>
+							<button th:if="!${usuario.activo}" type="button" class="btn btn-outline-danger btn-sm"
+								title="Eliminar invitación" th:attr="data-id=${usuario.id}"
+								onclick="eliminarInvitacion(this)">
+								<i class="bi bi-trash"></i>
+							</button>
+						</div>
+					</td>
+				</tr>
+				<tr th:if="${#lists.isEmpty(usuarios)}">
+					<td colspan="6" class="text-center">Todavía no hay ninguna cuenta de la app creada.</td>
+				</tr>
+			</tbody>
+		</table>
+	</main>
+
+	<!-- Modal invitar usuario -->
+	<div class="modal fade lead" id="invitarModal" tabindex="-1" aria-labelledby="invitarModalLabel" aria-hidden="true">
+		<div class="modal-dialog modal-lg">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 class="modal-title lead" id="invitarModalLabel">Invitar usuario a la app</h3>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+				</div>
+				<div class="modal-body">
+					<div id="mensajeModal" class="alert" style="display:none; margin-bottom: 15px;"></div>
+					<form id="invitarForm">
+						<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+						<div class="mb-3">
+							<label for="tipoVinculo">¿A quién das de alta? <span class="text-danger">*</span></label>
+							<select id="tipoVinculo" name="tipoVinculo" class="form-control" required
+								onchange="mostrarSelectorPersona()">
+								<option value="">Selecciona...</option>
+								<option value="JUGADOR">Jugador/a (acceso propio)</option>
+								<option value="FAMILIAR">Familiar de un jugador/a</option>
+								<option value="ENTRENADOR">Entrenador/a (cuerpo técnico)</option>
+								<option value="COORDINADOR">Coordinador/a del club (sin vincular a un equipo)</option>
+							</select>
+						</div>
+
+						<div class="mb-3" id="grupoJugador" style="display:none;">
+							<label for="personaJugador">Jugador/a <span class="text-danger">*</span></label>
+							<select id="personaJugador" class="form-control persona-select">
+								<option value="">Selecciona un jugador/a...</option>
+								<option th:each="jugador : ${personasVinculables.jugadores}" th:value="${jugador.id}"
+									th:text="${jugador.nombreCompleto} + ' (' + ${jugador.equipo} + ')'"></option>
+							</select>
+							<small class="text-muted">Solo aparecen jugadores sin cuenta todavía.</small>
+						</div>
+
+						<div class="mb-3" id="grupoFamiliar" style="display:none;">
+							<label for="personaFamiliar">Familiar <span class="text-danger">*</span></label>
+							<select id="personaFamiliar" class="form-control persona-select">
+								<option value="">Selecciona un familiar...</option>
+								<option th:each="familiar : ${personasVinculables.familiares}" th:value="${familiar.id}"
+									th:text="${familiar.nombreCompleto}"
+									th:attr="data-email=${familiar.email}"></option>
+							</select>
+							<small class="text-muted">Solo aparecen familiares sin cuenta todavía.</small>
+						</div>
+
+						<div class="mb-3" id="grupoEntrenador" style="display:none;">
+							<label for="personaEntrenador">Entrenador/a <span class="text-danger">*</span></label>
+							<select id="personaEntrenador" class="form-control persona-select">
+								<option value="">Selecciona un entrenador/a...</option>
+								<option th:each="tecnico : ${personasVinculables.cuerpoTecnico}" th:value="${tecnico.id}"
+									th:text="${tecnico.nombreCompleto} + ' (' + ${tecnico.equipo} + ')'"></option>
+							</select>
+							<small class="text-muted">Solo aparecen miembros del cuerpo técnico sin cuenta todavía.</small>
+						</div>
+
+						<div class="mb-3">
+							<label for="email">Email de acceso <span class="text-danger">*</span></label>
+							<input type="email" class="form-control" id="email" name="email" required>
+							<small id="ayudaEmail" class="text-muted">
+								Aquí se enviará el código para activar la cuenta desde la app.
+							</small>
+							<small id="avisoSinEmailFamiliar" class="text-danger" style="display:none;">
+								Este familiar no tiene email registrado. Añádelo primero desde
+								<a href="/admin/familiares" target="_blank">Familiares</a> y vuelve a intentarlo.
+							</small>
+						</div>
+					</form>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+					<button type="button" class="btn btn-success" onclick="invitarUsuario()">Enviar invitación</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		function mostrarSelectorPersona() {
+			const tipo = document.getElementById('tipoVinculo').value;
+
+			document.getElementById('grupoJugador').style.display = tipo === 'JUGADOR' ? 'block' : 'none';
+			document.getElementById('grupoFamiliar').style.display = tipo === 'FAMILIAR' ? 'block' : 'none';
+			document.getElementById('grupoEntrenador').style.display = tipo === 'ENTRENADOR' ? 'block' : 'none';
+
+			document.querySelectorAll('.persona-select').forEach(select => select.value = '');
+
+			const email = document.getElementById('email');
+			email.value = '';
+
+			// El email de un familiar solo se puede cambiar editando su ficha
+			// en Familiares, nunca desde este formulario de invitación.
+			const esFamiliar = tipo === 'FAMILIAR';
+			email.readOnly = esFamiliar;
+			email.classList.toggle('bg-light', esFamiliar);
+			document.getElementById('ayudaEmail').style.display = esFamiliar ? 'none' : 'block';
+			document.getElementById('avisoSinEmailFamiliar').style.display = 'none';
+		}
+
+		document.getElementById('personaFamiliar')?.addEventListener('change', function () {
+			const opcion = this.options[this.selectedIndex];
+			const email = opcion ? opcion.getAttribute('data-email') : '';
+			const campoEmail = document.getElementById('email');
+
+			campoEmail.value = email || '';
+			document.getElementById('avisoSinEmailFamiliar').style.display =
+				(this.value && !email) ? 'block' : 'none';
+		});
+
+		function obtenerPersonaIdSeleccionada(tipo) {
+			const idsPorTipo = {
+				JUGADOR: 'personaJugador',
+				FAMILIAR: 'personaFamiliar',
+				ENTRENADOR: 'personaEntrenador'
+			};
+
+			const selectId = idsPorTipo[tipo];
+			if (!selectId) {
+				return null;
+			}
+
+			const valor = document.getElementById(selectId).value;
+			return valor ? parseInt(valor, 10) : null;
+		}
+
+		function mostrarMensaje(elementoId, tipo, texto) {
+			const msg = document.getElementById(elementoId);
+			msg.className = 'alert ' + (tipo === 'error' ? 'alert-danger' : 'alert-success');
+			msg.textContent = texto;
+			msg.style.display = 'block';
+		}
+
+		// Lee la respuesta como texto (nunca falla) y solo intenta interpretarla
+		// como JSON después. Así, si el cuerpo no es JSON válido por lo que sea
+		// (por ejemplo una página de error HTML), no se confunde con un fallo de
+		// red: se ve el estado HTTP real y el texto recibido en la consola.
+		function leerRespuesta(response) {
+			return response.text().then(texto => {
+				let datos = null;
+
+				if (texto) {
+					try {
+						datos = JSON.parse(texto);
+					} catch (errorParseo) {
+						console.error(
+							'Respuesta no es JSON. Estado ' + response.status + ': ' + texto);
+					}
+				}
+
+				if (!datos) {
+					datos = { mensaje: texto || null, error: texto || 'Respuesta vacía del servidor.' };
+				}
+
+				return { ok: response.ok, status: response.status, data: datos };
+			});
+		}
+
+		function invitarUsuario() {
+			const tipoVinculo = document.getElementById('tipoVinculo').value;
+			const email = document.getElementById('email').value.trim();
+			const token = document.querySelector('#invitarForm input[name="_csrf"]').value;
+
+			if (!tipoVinculo) {
+				mostrarMensaje('mensajeModal', 'error', 'Selecciona a quién das de alta.');
+				return;
+			}
+
+			if (!email) {
+				const mensaje = tipoVinculo === 'FAMILIAR'
+					? 'Este familiar no tiene email registrado. Añádelo primero en Familiares.'
+					: 'El email es obligatorio.';
+				mostrarMensaje('mensajeModal', 'error', mensaje);
+				return;
+			}
+
+			const personaId = obtenerPersonaIdSeleccionada(tipoVinculo);
+
+			if (tipoVinculo !== 'COORDINADOR' && !personaId) {
+				mostrarMensaje('mensajeModal', 'error', 'Selecciona la persona a vincular.');
+				return;
+			}
+
+			fetch('/admin/usuarios-app/invitar', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-TOKEN': token
+				},
+				body: JSON.stringify({ tipoVinculo, personaId, email })
+			})
+				.then(leerRespuesta)
+				.then(({ ok, data }) => {
+					if (!ok) {
+						mostrarMensaje('mensajeModal', 'error', data.error || 'Error desconocido');
+						return;
+					}
+					mostrarMensaje('mensajeModal', 'exito', data.mensaje);
+					setTimeout(() => window.location.href = '/admin/usuarios-app', 1200);
+				})
+				.catch(err => {
+					console.error(err);
+					mostrarMensaje('mensajeModal', 'error',
+						'No se ha podido contactar con el servidor. Revisa tu conexión e inténtalo de nuevo.');
+				});
+		}
+
+		function llamarAccion(boton, url) {
+			const id = boton.getAttribute('data-id');
+			const token = document.querySelector('input[name="_csrf"]').value;
+
+			return fetch(url.replace('{id}', id), {
+				method: 'POST',
+				headers: { 'X-CSRF-TOKEN': token }
+			}).then(leerRespuesta);
+		}
+
+		function reenviarInvitacion(boton) {
+			llamarAccion(boton, '/admin/usuarios-app/{id}/reenviar')
+				.then(({ ok, data }) => {
+					mostrarMensaje('mensajeGeneral', ok ? 'exito' : 'error', data.mensaje || data.error);
+				})
+				.catch(err => {
+					console.error(err);
+					mostrarMensaje('mensajeGeneral', 'error', 'Error de red al reenviar la invitación.');
+				});
+		}
+
+		function eliminarInvitacion(boton) {
+			if (!confirm('¿Eliminar esta invitación? Podrás volver a invitar a la misma persona con el email correcto.')) {
+				return;
+			}
+
+			llamarAccion(boton, '/admin/usuarios-app/{id}/eliminar')
+				.then(({ ok, data }) => {
+					if (!ok) {
+						mostrarMensaje('mensajeGeneral', 'error', data.error);
+						return;
+					}
+					const id = boton.getAttribute('data-id');
+					document.getElementById('fila-usuario-' + id)?.remove();
+					mostrarMensaje('mensajeGeneral', 'exito', data.mensaje);
+				})
+				.catch(err => {
+					console.error(err);
+					mostrarMensaje('mensajeGeneral', 'error', 'Error de red al eliminar la invitación.');
+				});
+		}
+
+		function cambiarEstado(boton, accion) {
+			if (accion === 'desactivar' && !confirm('¿Seguro que quieres desactivar el acceso de este usuario?')) {
+				return;
+			}
+
+			llamarAccion(boton, '/admin/usuarios-app/{id}/' + accion)
+				.then(({ ok, data }) => {
+					if (!ok) {
+						mostrarMensaje('mensajeGeneral', 'error', data.error);
+						return;
+					}
+					window.location.href = '/admin/usuarios-app';
+				})
+				.catch(err => {
+					console.error(err);
+					mostrarMensaje('mensajeGeneral', 'error', 'Error de red al cambiar el estado.');
+				});
+		}
+	</script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

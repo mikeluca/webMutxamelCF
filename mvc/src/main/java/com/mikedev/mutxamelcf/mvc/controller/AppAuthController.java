@@ -61,6 +61,11 @@ public class AppAuthController {
 
     /**
      * Activación inicial de una cuenta.
+     *
+     * Deja la cuenta activa con la contraseña elegida y, en el mismo
+     * paso, inicia sesión: la respuesta es un LoginAppResponse igual
+     * que el de /login, para que la app entre directamente en el
+     * Área Club sin pedir las credenciales otra vez.
      */
     @PostMapping("/activar")
     public ResponseEntity<?> activar(
@@ -68,12 +73,15 @@ public class AppAuthController {
 
         try {
 
-            usuarioAppService.activarCuenta(
+            UsuarioApp usuario = usuarioAppService.activarCuenta(
                     request.getToken(),
                     request.getPassword());
 
-            return ResponseEntity.ok(
-                    "Cuenta activada correctamente");
+            LoginAppResponse loginResponse = usuarioAppService.login(
+                    usuario.getEmail(),
+                    request.getPassword());
+
+            return ResponseEntity.ok(loginResponse);
 
         } catch (IllegalStateException e) {
 

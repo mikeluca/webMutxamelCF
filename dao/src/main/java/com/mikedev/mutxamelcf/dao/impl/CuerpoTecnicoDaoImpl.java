@@ -29,7 +29,7 @@ public class CuerpoTecnicoDaoImpl implements CuerpoTecnicoDao {
 
 	@Override
 	public boolean guardar(CuerpoTecnico cuerpoTecnico) {
-		logger.debug("Inicio guardar: id={}, dni={}", cuerpoTecnico.getId(), cuerpoTecnico.getDni());
+		logger.debug("Inicio guardar: id={}", cuerpoTecnico.getId());
 		boolean existe = obtenerPorId(cuerpoTecnico.getId()) != null;
 		boolean resultado = existe ? actualizarCuerpoTecnico(cuerpoTecnico) : insertarCuerpoTecnico(cuerpoTecnico);
 		logger.debug("Fin guardar: existia={}, resultado={}", existe, resultado);
@@ -37,15 +37,15 @@ public class CuerpoTecnicoDaoImpl implements CuerpoTecnicoDao {
 	}
 
 	public boolean insertarCuerpoTecnico(CuerpoTecnico cuerpoTecnico) {
-		logger.debug("Inicio insertarCuerpoTecnico: dni={}", cuerpoTecnico.getDni());
-		String sql = "INSERT INTO cuerpo_tecnico (dni, nombre, apellidos, fecha_nacimiento, poblacion, "
-				+ "nacionalidad, categoria, deporte, equipo, puesto, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		logger.debug("Inicio insertarCuerpoTecnico: nombre={}", cuerpoTecnico.getNombre());
+		String sql = "INSERT INTO cuerpo_tecnico (nombre, apellidos, fecha_nacimiento, poblacion, "
+				+ "nacionalidad, categoria, deporte, equipo, puesto, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-		boolean insertado = jdbcTemplate.update(sql, cuerpoTecnico.getDni(), cuerpoTecnico.getNombre(),
+		boolean insertado = jdbcTemplate.update(sql, cuerpoTecnico.getNombre(),
 				cuerpoTecnico.getApellidos(), cuerpoTecnico.getFechaNacimiento(), cuerpoTecnico.getPoblacion(),
 				cuerpoTecnico.getNacionalidad(), cuerpoTecnico.getCategoria(), cuerpoTecnico.getDeporte(),
 				cuerpoTecnico.getEquipo(), cuerpoTecnico.getPuesto(), cuerpoTecnico.getFoto()) == 1;
-		logger.info("Cuerpo tecnico insertado: dni={}, insertado={}", cuerpoTecnico.getDni(), insertado);
+		logger.info("Cuerpo tecnico insertado: nombre={}, insertado={}", cuerpoTecnico.getNombre(), insertado);
 		logger.debug("Fin insertarCuerpoTecnico: insertado={}", insertado);
 		return insertado;
 	}

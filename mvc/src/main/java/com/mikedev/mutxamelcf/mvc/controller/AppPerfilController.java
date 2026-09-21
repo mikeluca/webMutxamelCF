@@ -1,5 +1,7 @@
 package com.mikedev.mutxamelcf.mvc.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -13,6 +15,8 @@ import com.mikedev.mutxamelcf.service.PerfilAppService;
 @RestController
 @RequestMapping("/api/app/perfil")
 public class AppPerfilController {
+
+    private static final Logger logger = LoggerFactory.getLogger(AppPerfilController.class);
 
     private final PerfilAppService perfilAppService;
 
@@ -55,6 +59,12 @@ public class AppPerfilController {
                     .body(e.getMessage());
 
         } catch (Exception e) {
+
+            logger.error(
+                    "Error al obtener el perfil: usuarioId={}, error={}",
+                    authentication.getName(),
+                    e.getMessage(),
+                    e);
 
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)

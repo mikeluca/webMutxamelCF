@@ -41,6 +41,29 @@ public class ComunicacionesService {
         return enviado;
     }
 
+    public boolean enviarInvitacionApp(String email, String nombrePersona, String tokenActivacion) {
+        logger.debug("Inicio enviarInvitacionApp: email={}", email);
+
+        String saludo = (nombrePersona == null || nombrePersona.isBlank())
+                ? "Hola"
+                : "Hola " + nombrePersona;
+
+        String contenido = saludo + ",\n\n"
+                + "Se ha creado tu acceso a la app oficial del Mutxamel Club de Futbol.\n\n"
+                + "Para activar tu cuenta abre la app, entra en \"Activar cuenta\" "
+                + "e introduce el siguiente código junto con la contraseña que quieras usar:\n\n"
+                + tokenActivacion + "\n\n"
+                + "Este código caduca en 7 dias. Si no lo usas a tiempo, "
+                + "pide a la oficina del club que te reenvie la invitacion.\n\n"
+                + "Si no esperabas este email, puedes ignorarlo.";
+
+        boolean enviado = enviarEmail(REMITENTE, email, null,
+                "Activa tu cuenta de la app del Mutxamel CF", contenido);
+
+        logger.debug("Fin enviarInvitacionApp: enviado={}", enviado);
+        return enviado;
+    }
+
     public boolean enviarWhatsapp(String telefono, String mensaje) {
         logger.debug("Inicio enviarWhatsapp: telefono={}", telefono);
         logger.warn("WhatsApp no enviado: no hay proveedor configurado");
