@@ -9,10 +9,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import com.mikedev.mutxamelcf.util.ImageUtils;
 
+import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
+import com.mikedev.mutxamelcf.dao.EntrenamientoAsistenciaDao;
 import com.mikedev.mutxamelcf.dao.JugadorDao;
+import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
 import com.mikedev.mutxamelcf.model.Jugador;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
 import com.mikedev.mutxamelcf.model.JugadorPublicDTO;
+import com.mikedev.mutxamelcf.service.CuotaJugadorService;
+import com.mikedev.mutxamelcf.service.FamiliarJugadorService;
 import com.mikedev.mutxamelcf.service.JugadorService;
 
 @Service
@@ -21,9 +26,21 @@ public class JugadorServiceImpl implements JugadorService {
 	private static final Logger logger = LoggerFactory.getLogger(JugadorServiceImpl.class);
 
 	private final JugadorDao jugadorDao;
+	private final FamiliarJugadorService familiarJugadorService;
+	private final UsuarioAppVinculoDao usuarioAppVinculoDao;
+	private final CuotaJugadorService cuotaJugadorService;
+	private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
+	private final EntrenamientoAsistenciaDao entrenamientoAsistenciaDao;
 
-	public JugadorServiceImpl(JugadorDao jugadorDao) {
+	public JugadorServiceImpl(JugadorDao jugadorDao, FamiliarJugadorService familiarJugadorService,
+			UsuarioAppVinculoDao usuarioAppVinculoDao, CuotaJugadorService cuotaJugadorService,
+			ConvocatoriaJugadorDao convocatoriaJugadorDao, EntrenamientoAsistenciaDao entrenamientoAsistenciaDao) {
 		this.jugadorDao = jugadorDao;
+		this.familiarJugadorService = familiarJugadorService;
+		this.usuarioAppVinculoDao = usuarioAppVinculoDao;
+		this.cuotaJugadorService = cuotaJugadorService;
+		this.convocatoriaJugadorDao = convocatoriaJugadorDao;
+		this.entrenamientoAsistenciaDao = entrenamientoAsistenciaDao;
 	}
 
 	@Override
@@ -45,6 +62,32 @@ public class JugadorServiceImpl implements JugadorService {
 	@Override
 	public void eliminarJugador(Long id) {
 		logger.debug("Inicio eliminarJugador: id={}", id);
+
+		List<String> motivos = new ArrayList<>();
+
+		if (!familiarJugadorService.obtenerFamiliaresDeJugador(id).isEmpty()) {
+			motivos.add("tiene familiares vinculados");
+		}
+		if (usuarioAppVinculoDao.jugadorTieneCuenta(id)) {
+			motivos.add("tiene una cuenta de la app móvil vinculada");
+		}
+		if (!cuotaJugadorService.obtenerPorJugador(id).isEmpty()) {
+			motivos.add("tiene cuotas asignadas");
+		}
+		if (convocatoriaJugadorDao.existePorJugador(id)) {
+			motivos.add("aparece en convocatorias");
+		}
+		if (entrenamientoAsistenciaDao.existePorJugador(id)) {
+			motivos.add("tiene asistencias a entrenamientos registradas");
+		}
+
+		if (!motivos.isEmpty()) {
+			logger.warn("No se puede eliminar el jugador id={}: {}", id, motivos);
+			throw new IllegalStateException(
+					"No se puede eliminar el jugador porque " + String.join(", ", motivos)
+							+ ". Quita antes esas relaciones (desasigna familiares, cuenta de app, cuotas...).");
+		}
+
 		jugadorDao.eliminar(id);
 		logger.debug("Fin eliminarJugador: id={}", id);
 	}

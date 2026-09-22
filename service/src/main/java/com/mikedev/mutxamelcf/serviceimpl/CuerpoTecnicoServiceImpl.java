@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.CuerpoTecnicoDao;
+import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
 import com.mikedev.mutxamelcf.model.CuerpoTecnico;
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoDTO;
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoPublicDTO;
@@ -21,9 +22,11 @@ public class CuerpoTecnicoServiceImpl implements CuerpoTecnicoService {
 	private static final Logger logger = LoggerFactory.getLogger(CuerpoTecnicoServiceImpl.class);
 
 	private final CuerpoTecnicoDao cuerpoTecnicoDao;
+	private final UsuarioAppVinculoDao usuarioAppVinculoDao;
 
-	public CuerpoTecnicoServiceImpl(CuerpoTecnicoDao cuerpoTecnicoDao) {
+	public CuerpoTecnicoServiceImpl(CuerpoTecnicoDao cuerpoTecnicoDao, UsuarioAppVinculoDao usuarioAppVinculoDao) {
 		this.cuerpoTecnicoDao = cuerpoTecnicoDao;
+		this.usuarioAppVinculoDao = usuarioAppVinculoDao;
 	}
 
 	@Override
@@ -45,6 +48,14 @@ public class CuerpoTecnicoServiceImpl implements CuerpoTecnicoService {
 	@Override
 	public void eliminarCuerpoTecnico(Long id) {
 		logger.debug("Inicio eliminarCuerpoTecnico: id={}", id);
+
+		if (usuarioAppVinculoDao.cuerpoTecnicoTieneCuenta(id)) {
+			logger.warn("No se puede eliminar el cuerpo tecnico id={}: tiene cuenta de la app vinculada", id);
+			throw new IllegalStateException(
+					"No se puede eliminar porque tiene una cuenta de la app móvil vinculada. "
+							+ "Desactiva o elimina antes esa cuenta desde 'Usuarios de la App'.");
+		}
+
 		cuerpoTecnicoDao.eliminar(id);
 		logger.debug("Fin eliminarCuerpoTecnico: id={}", id);
 	}

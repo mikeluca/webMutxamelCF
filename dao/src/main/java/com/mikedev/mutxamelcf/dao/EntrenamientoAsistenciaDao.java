@@ -18,4 +18,7 @@ public interface EntrenamientoAsistenciaDao {
 
         void eliminarPorEntrenamiento(
                         Long entrenamientoId);
+
+        boolean existePorJugador(
+                        Long jugadorId);
 }

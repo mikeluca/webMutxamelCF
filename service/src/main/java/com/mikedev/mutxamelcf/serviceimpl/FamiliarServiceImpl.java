@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.FamiliarDao;
+import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
 import com.mikedev.mutxamelcf.model.Familiar;
 import com.mikedev.mutxamelcf.model.FamiliarDTO;
 import com.mikedev.mutxamelcf.model.FamiliarJugadorDTO;
@@ -24,9 +25,13 @@ public class FamiliarServiceImpl implements FamiliarService {
 
     private final FamiliarJugadorService familiarJugadorService;
 
-    public FamiliarServiceImpl(FamiliarDao familiarDao, FamiliarJugadorService familiarJugadorService) {
+    private final UsuarioAppVinculoDao usuarioAppVinculoDao;
+
+    public FamiliarServiceImpl(FamiliarDao familiarDao, FamiliarJugadorService familiarJugadorService,
+            UsuarioAppVinculoDao usuarioAppVinculoDao) {
         this.familiarDao = familiarDao;
         this.familiarJugadorService = familiarJugadorService;
+        this.usuarioAppVinculoDao = usuarioAppVinculoDao;
     }
 
     @Override
@@ -71,10 +76,20 @@ public class FamiliarServiceImpl implements FamiliarService {
     @Override
     public void eliminarFamiliar(Long id) {
         logger.debug("Inicio eliminarFamiliar: id={}", id);
+
+        List<String> motivos = new ArrayList<>();
+
         if (familiarJugadorService.tieneJugadores(id)) {
-            logger.warn("No se puede eliminar el familiar id={} porque tiene jugadores asociados", id);
+            motivos.add("está asociado a uno o varios jugadores");
+        }
+        if (usuarioAppVinculoDao.familiarTieneCuenta(id)) {
+            motivos.add("tiene una cuenta de la app móvil vinculada");
+        }
+
+        if (!motivos.isEmpty()) {
+            logger.warn("No se puede eliminar el familiar id={}: {}", id, motivos);
             throw new IllegalStateException(
-                    "No se puede eliminar el familiar porque está asociado a uno o varios jugadores.");
+                    "No se puede eliminar el familiar porque " + String.join(" y ", motivos) + ".");
         }
 
         familiarDao.eliminar(id);

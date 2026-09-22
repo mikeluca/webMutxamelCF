@@ -147,4 +147,20 @@ public class ConvocatoriaJugadorDaoImpl
                         """,
                 convocatoriaId);
     }
+
+    @Override
+    public boolean existePorJugador(
+            Long jugadorId) {
+
+        Integer count = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM CONVOCATORIA_JUGADOR
+                        WHERE JUGADOR_ID = ?
+                        """,
+                Integer.class,
+                jugadorId);
+
+        return count != null && count > 0;
+    }
 }
