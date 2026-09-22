@@ -21,6 +21,12 @@ public class UsuarioAppAdminResponse {
     private String vinculoTipo;
     private String vinculoNombre;
 
+    /**
+     * Equipo/s (jugador o entrenador) o jugador/es (familiar) del
+     * vínculo. Null si no aplica.
+     */
+    private String vinculoDetalle;
+
     public UsuarioAppAdminResponse() {
     }
 
@@ -110,5 +116,13 @@ public class UsuarioAppAdminResponse {
 
     public void setVinculoNombre(String vinculoNombre) {
         this.vinculoNombre = vinculoNombre;
+    }
+
+    public String getVinculoDetalle() {
+        return vinculoDetalle;
+    }
+
+    public void setVinculoDetalle(String vinculoDetalle) {
+        this.vinculoDetalle = vinculoDetalle;
     }
 }

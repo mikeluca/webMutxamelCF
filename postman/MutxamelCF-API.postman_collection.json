@@ -228,14 +228,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"token\": \"token-recibido-por-email\",\n  \"password\": \"NuevaContraseña123\"\n}"
+              "raw": "{\n  \"email\": \"jugador@mutxamelcf.es\",\n  \"codigo\": \"123456\",\n  \"password\": \"NuevaContraseña123\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/app/auth/activar",
               "host": ["{{baseUrl}}"],
               "path": ["app", "auth", "activar"]
             },
-            "description": "Primer acceso: el usuario recibe por email un token de invitación (ver UsuarioAppServiceImpl.generarTokenActivacion) y fija aquí su contraseña (mínimo 8 caracteres). Activa la cuenta E inicia sesión en el mismo paso: 200 devuelve {token, usuarioId, email, roles} igual que /login (el script de test ya guarda el token en la variable de colección). 409 si la cuenta ya estaba activa, 400 si el token no es válido o ha caducado."
+            "description": "Primer acceso: el usuario recibe por email un código de 6 dígitos (ver UsuarioAppServiceImpl.generarTokenActivacion) y lo introduce aquí junto con su email y la contraseña que elige (mínimo 8 caracteres). Activa la cuenta E inicia sesión en el mismo paso: 200 devuelve {token, usuarioId, email, roles} igual que /login (el script de test ya guarda el token en la variable de colección). El código caduca en 4 horas y se invalida tras 5 intentos fallidos (hay que pedir que lo reenvíen). 409 si la cuenta ya estaba activa o se agotaron los intentos, 400 si el código es incorrecto, no existe o ha caducado."
           }
         },
         {

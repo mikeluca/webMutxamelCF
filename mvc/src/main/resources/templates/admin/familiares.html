@@ -27,15 +27,17 @@
 	<div th:replace="~{admin/cabeceraAdmin.html}"></div>
 
 	<main class="admin-screen-shell lead">
-		<h1 class="page-title">Gestión de Familiares</h1>
+		<p class="dashboard-eyebrow mb-1">Administración Deportiva</p>
+		<h1 class="admin-screen-title">Gestión de Familiares</h1>
 
 		<div id="alertaPrincipal" class="alert" style="display:none; margin-bottom: 20px;"></div>
 
 		<!-- Botones y búsqueda -->
-		<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+		<div class="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-3">
 			<!-- Buscador en tiempo real -->
-			<div class="d-flex align-items-center">
-				<input type="text" id="filtroTexto" class="form-control" placeholder="Buscar familiar..." onkeyup="filtrarTabla()">
+			<div>
+				<label for="filtroTexto" class="form-label mb-1">Buscar</label>
+				<input type="text" id="filtroTexto" class="form-control form-control-sm" placeholder="Buscar familiar..." onkeyup="filtrarTabla()">
 			</div>
 
 			<!-- Nuevo Familiar -->
@@ -45,60 +47,62 @@
 		</div>
 
 		<!-- Tabla de familiares -->
-		<table class="table table-striped w-100" id="tablaFamiliares">
-			<thead>
-				<tr>
-					<th style="width: 30%;">Nombre y Apellidos</th>
-					<th style="width: 20%;">Teléfono</th>
-					<th style="width: 25%;">Email</th>
-					<th style="width: 10%;" class="text-center">Info Club</th>
-					<th style="width: 10%;" class="text-center">WhatsApp</th>
-					<th style="width: 5%;" class="text-center">Acciones</th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr th:each="familiar : ${familiares}">
-					<td class="align-middle fw-semibold" th:text="${familiar.nombre} + ' ' + ${familiar.apellidos}"></td>
-					<td class="align-middle" th:text="${familiar.telefono} != null and ${familiar.telefono} != '' ? ${familiar.telefono} : '-'"></td>
-					<td class="align-middle" th:text="${familiar.email} != null and ${familiar.email} != '' ? ${familiar.email} : '-'"></td>
-					<td class="align-middle text-center">
-						<span th:if="${familiar.recibeInfoClub == 1}" class="badge bg-success" title="Recibe información"><i class="bi bi-check-lg"></i> Sí</span>
-						<span th:unless="${familiar.recibeInfoClub == 1}" class="badge bg-secondary" title="No recibe información"><i class="bi bi-x-lg"></i> No</span>
-					</td>
-					<td class="align-middle text-center">
-						<span th:if="${familiar.whatsappActivo == 1}" class="badge bg-success" title="WhatsApp activo"><i class="bi bi-whatsapp"></i> Sí</span>
-						<span th:unless="${familiar.whatsappActivo == 1}" class="badge bg-secondary" title="WhatsApp no activo"><i class="bi bi-x-lg"></i> No</span>
-					</td>
-					<td class="align-middle text-center">
-						<div class="d-flex justify-content-center align-items-center gap-2">
-							<!-- Botón Editar -->
-							<button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
-								data-bs-target="#familiarModal"
-								th:attr="data-id=${familiar.id},
-								         data-nombre=${familiar.nombre},
-								         data-apellidos=${familiar.apellidos},
-								         data-telefono=${familiar.telefono},
-								         data-email=${familiar.email},
-								         data-recibe-info=${familiar.recibeInfoClub},
-								         data-whatsapp=${familiar.whatsappActivo}"
-								title="Editar familiar" onclick="abrirModalEditar(this)">
-								<i class="bi bi-pencil"></i>
-							</button>
-							<!-- Botón Borrar -->
-							<button type="button" class="btn btn-danger btn-sm"
-								th:attr="data-id=${familiar.id}, data-nombre=${familiar.nombre + ' ' + familiar.apellidos}"
-								onclick="borrarFamiliar(this)"
-								title="Borrar familiar">
-								<i class="bi bi-trash"></i>
-							</button>
-						</div>
-					</td>
-				</tr>
-				<tr th:if="${familiares == null or familiares.isEmpty()}">
-					<td colspan="6" class="text-center text-muted py-3">No hay familiares registrados.</td>
-				</tr>
-			</tbody>
-		</table>
+		<div class="admin-list-panel">
+			<table class="table table-striped w-100" id="tablaFamiliares">
+				<thead>
+					<tr>
+						<th style="width: 30%;">Nombre y Apellidos</th>
+						<th style="width: 20%;">Teléfono</th>
+						<th style="width: 25%;">Email</th>
+						<th style="width: 10%;" class="text-center">Info Club</th>
+						<th style="width: 10%;" class="text-center">WhatsApp</th>
+						<th style="width: 5%;" class="text-center">Acciones</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr th:each="familiar : ${familiares}">
+						<td class="align-middle fw-semibold" th:text="${familiar.nombre} + ' ' + ${familiar.apellidos}"></td>
+						<td class="align-middle" th:text="${familiar.telefono} != null and ${familiar.telefono} != '' ? ${familiar.telefono} : '-'"></td>
+						<td class="align-middle" th:text="${familiar.email} != null and ${familiar.email} != '' ? ${familiar.email} : '-'"></td>
+						<td class="align-middle text-center">
+							<span th:if="${familiar.recibeInfoClub == 1}" class="badge text-bg-success" title="Recibe información"><i class="bi bi-check-lg"></i> Sí</span>
+							<span th:unless="${familiar.recibeInfoClub == 1}" class="badge text-bg-secondary" title="No recibe información"><i class="bi bi-x-lg"></i> No</span>
+						</td>
+						<td class="align-middle text-center">
+							<span th:if="${familiar.whatsappActivo == 1}" class="badge text-bg-success" title="WhatsApp activo"><i class="bi bi-whatsapp"></i> Sí</span>
+							<span th:unless="${familiar.whatsappActivo == 1}" class="badge text-bg-secondary" title="WhatsApp no activo"><i class="bi bi-x-lg"></i> No</span>
+						</td>
+						<td class="align-middle text-center">
+							<div class="d-flex justify-content-center align-items-center gap-2">
+								<!-- Botón Editar -->
+								<button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
+									data-bs-target="#familiarModal"
+									th:attr="data-id=${familiar.id},
+									         data-nombre=${familiar.nombre},
+									         data-apellidos=${familiar.apellidos},
+									         data-telefono=${familiar.telefono},
+									         data-email=${familiar.email},
+									         data-recibe-info=${familiar.recibeInfoClub},
+									         data-whatsapp=${familiar.whatsappActivo}"
+									title="Editar familiar" onclick="abrirModalEditar(this)">
+									<i class="bi bi-pencil"></i>
+								</button>
+								<!-- Botón Borrar -->
+								<button type="button" class="btn btn-danger btn-sm"
+									th:attr="data-id=${familiar.id}, data-nombre=${familiar.nombre + ' ' + familiar.apellidos}"
+									onclick="borrarFamiliar(this)"
+									title="Borrar familiar">
+									<i class="bi bi-trash"></i>
+								</button>
+							</div>
+						</td>
+					</tr>
+					<tr th:if="${familiares == null or familiares.isEmpty()}">
+						<td colspan="6" class="text-center text-muted py-3">No hay familiares registrados.</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
 	</main>
 
 	<!-- Modal Familiar -->
@@ -252,6 +256,17 @@
 	<script>
 		const csrfToken = document.getElementById('csrfToken').value;
 
+		// Solo recargamos la tabla al cerrar el modal (no en cada guardado
+		// intermedio), para poder crear el familiar y asignarle jugadores
+		// sin salir del formulario.
+		let huboCambiosFamiliar = false;
+
+		document.getElementById('familiarModal').addEventListener('hidden.bs.modal', () => {
+			if (huboCambiosFamiliar) {
+				window.location.reload();
+			}
+		});
+
 		function filtrarTabla() {
 			const input = document.getElementById('filtroTexto');
 			const filter = input.value.toLowerCase();
@@ -325,14 +340,14 @@
 						const jugadorNombreCompleto = (rel.jugadorNombre || '') + ' ' + (rel.jugadorApellidos || '');
 						const equipoCat = rel.jugadorEquipo ? (rel.jugadorEquipo + (rel.jugadorCategoria ? ' - ' + rel.jugadorCategoria : '')) : '-';
 						const principalBadge = rel.esPrincipal === 1
-							? '<span class="badge bg-primary"><i class="bi bi-star-fill me-1"></i>Principal</span>'
+							? '<span class="badge text-bg-primary"><i class="bi bi-star-fill me-1"></i>Principal</span>'
 							: '<span class="text-muted small">No</span>';
 
 						const tr = document.createElement('tr');
 						tr.innerHTML = `
 							<td><strong>${jugadorNombreCompleto}</strong></td>
 							<td>${equipoCat}</td>
-							<td><span class="badge bg-info text-dark">${rel.parentesco || '-'}</span></td>
+							<td><span class="badge text-bg-info">${rel.parentesco || '-'}</span></td>
 							<td class="text-center">${principalBadge}</td>
 							<td class="text-center">
 								<button type="button" class="btn btn-outline-danger btn-sm" title="Desasignar relación"
@@ -354,6 +369,7 @@
 
 			const form = document.getElementById('familiarForm');
 			const formData = new FormData(form);
+			const eraNuevo = !document.getElementById('familiarId').value;
 
 			// Checkboxes
 			if (!document.getElementById('recibeInfoClub').checked) {
@@ -376,9 +392,22 @@
 						msg.textContent = result.body.mensaje;
 						msg.style.display = 'block';
 
-						setTimeout(() => {
-							window.location.reload();
-						}, 1000);
+						huboCambiosFamiliar = true;
+
+						if (eraNuevo && result.body.familiar && result.body.familiar.id) {
+							// El familiar ya existe: activamos la sección de
+							// jugadores en el mismo modal, sin recargar la
+							// página, para poder asignarlos a continuación.
+							const nuevoId = result.body.familiar.id;
+
+							document.getElementById('familiarId').value = nuevoId;
+							document.getElementById('familiarModalLabel').textContent = 'Editar Familiar';
+
+							document.getElementById('avisoNuevoFamiliar').style.display = 'none';
+							document.getElementById('contenidoJugadoresFamiliar').style.display = 'block';
+
+							cargarJugadoresDeFamiliar(nuevoId);
+						}
 					} else {
 						msg.className = 'alert alert-danger';
 						msg.textContent = result.body.error || 'Error al guardar el familiar';
@@ -430,6 +459,8 @@
 						msg.textContent = result.body.mensaje;
 						msg.style.display = 'block';
 
+						huboCambiosFamiliar = true;
+
 						document.getElementById('formAsignarJugador').reset();
 						cargarJugadoresDeFamiliar(familiarId);
 					} else {
@@ -460,6 +491,7 @@
 						msg.className = 'alert alert-success';
 						msg.textContent = data.mensaje;
 						msg.style.display = 'block';
+						huboCambiosFamiliar = true;
 					}
 					cargarJugadoresDeFamiliar(familiarId);
 				})

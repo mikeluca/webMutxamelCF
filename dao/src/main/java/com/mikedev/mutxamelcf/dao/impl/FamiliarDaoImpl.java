@@ -1,5 +1,6 @@
 package com.mikedev.mutxamelcf.dao.impl;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -9,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import com.mikedev.mutxamelcf.dao.FamiliarDao;
@@ -64,16 +67,26 @@ public class FamiliarDaoImpl implements FamiliarDao {
                 + "(ID, NOMBRE, APELLIDOS, TELEFONO, EMAIL, RECIBE_INFO_CLUB, WHATSAPP_ACTIVO) "
                 + "VALUES (FAMILIARES_SEQ.NEXTVAL, ?, ?, ?, ?, ?, ?)";
 
-        boolean insertado = jdbcTemplate.update(
-                sql,
-                familiar.getNombre(),
-                familiar.getApellidos(),
-                familiar.getTelefono(),
-                familiar.getEmail(),
-                familiar.getRecibeInfoClub(),
-                familiar.getWhatsappActivo()) == 1;
-        logger.info("Familiar insertado: nombre={} {}, resultado={}", familiar.getNombre(), familiar.getApellidos(),
-                insertado);
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+
+        boolean insertado = jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, new String[] { "ID" });
+            ps.setString(1, familiar.getNombre());
+            ps.setString(2, familiar.getApellidos());
+            ps.setString(3, familiar.getTelefono());
+            ps.setString(4, familiar.getEmail());
+            ps.setInt(5, familiar.getRecibeInfoClub());
+            ps.setInt(6, familiar.getWhatsappActivo());
+            return ps;
+        }, keyHolder) == 1;
+
+        if (insertado) {
+            Number key = keyHolder.getKey();
+            familiar.setId(key != null ? key.longValue() : null);
+        }
+
+        logger.info("Familiar insertado: id={}, nombre={} {}, resultado={}", familiar.getId(), familiar.getNombre(),
+                familiar.getApellidos(), insertado);
         logger.debug("Fin insertarFamiliar: insertado={}", insertado);
         return insertado;
     }

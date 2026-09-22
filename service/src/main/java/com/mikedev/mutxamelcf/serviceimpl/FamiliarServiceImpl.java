@@ -34,7 +34,20 @@ public class FamiliarServiceImpl implements FamiliarService {
         logger.debug("Inicio guardarFamiliar: id={}, nombre={}",
                 familiar != null ? familiar.getId() : null,
                 familiar != null ? familiar.getNombre() : null);
-        boolean resultado = familiarDao.guardarFamiliar(toEntity(familiar));
+
+        Familiar entidad = toEntity(familiar);
+        boolean resultado = familiarDao.guardarFamiliar(entidad);
+
+        /*
+         * En una creación, el DAO rellena el id generado por la
+         * secuencia en la entidad: se traslada al DTO original para
+         * que la respuesta al controlador (y por tanto al frontend)
+         * incluya el id del familiar recién creado.
+         */
+        if (resultado && familiar != null) {
+            familiar.setId(entidad.getId());
+        }
+
         logger.debug("Fin guardarFamiliar: resultado={}", resultado);
         return resultado;
     }

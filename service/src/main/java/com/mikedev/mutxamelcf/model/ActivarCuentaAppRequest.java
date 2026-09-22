@@ -1,12 +1,18 @@
 package com.mikedev.mutxamelcf.model;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public class ActivarCuentaAppRequest {
 
-    @NotBlank(message = "El token es obligatorio")
-    private String token;
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "El email no tiene un formato válido")
+    private String email;
+
+    @NotBlank(message = "El código es obligatorio")
+    @Size(min = 6, max = 6, message = "El código debe tener 6 dígitos")
+    private String codigo;
 
     @NotBlank(message = "La contraseña es obligatoria")
     @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres")
@@ -15,12 +21,20 @@ public class ActivarCuentaAppRequest {
     public ActivarCuentaAppRequest() {
     }
 
-    public String getToken() {
-        return token;
+    public String getEmail() {
+        return email;
     }
 
-    public void setToken(String token) {
-        this.token = token;
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getCodigo() {
+        return codigo;
+    }
+
+    public void setCodigo(String codigo) {
+        this.codigo = codigo;
     }
 
     public String getPassword() {

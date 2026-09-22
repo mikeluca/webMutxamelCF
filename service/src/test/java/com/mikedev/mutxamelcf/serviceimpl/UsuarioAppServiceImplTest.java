@@ -10,6 +10,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +31,7 @@ import com.mikedev.mutxamelcf.model.LoginAppResponse;
 import com.mikedev.mutxamelcf.model.RolApp;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
 import com.mikedev.mutxamelcf.service.JwtService;
+import com.mikedev.mutxamelcf.util.TokenUtils;
 
 @ExtendWith(MockitoExtension.class)
 class UsuarioAppServiceImplTest {
@@ -121,17 +125,27 @@ class UsuarioAppServiceImplTest {
                 .hasMessageContaining("incorrectos");
     }
 
-    @Test
-    void activarCuentaConTokenValidoEstableceLaContrasenaYActivaYDevuelveElUsuario() {
+    private UsuarioApp usuarioPendienteActivacion(String codigo) {
         UsuarioApp usuario = new UsuarioApp();
         usuario.setId(7);
         usuario.setEmail("jugador@mutxamelcf.es");
         usuario.setActivo(false);
+        usuario.setTokenActivacion(TokenUtils.hashToken(codigo));
+        usuario.setFechaExpiracionToken(
+                Timestamp.from(Instant.now().plus(1, ChronoUnit.HOURS)));
+        usuario.setIntentosActivacion(0);
+        return usuario;
+    }
 
-        when(usuarioAppDao.obtenerPorTokenActivacion(any())).thenReturn(usuario);
+    @Test
+    void activarCuentaConCodigoValidoEstableceLaContrasenaYActivaYDevuelveElUsuario() {
+        UsuarioApp usuario = usuarioPendienteActivacion("123456");
+
+        when(usuarioAppDao.obtenerPorEmail("jugador@mutxamelcf.es")).thenReturn(usuario);
         when(passwordEncoder.encode("password123")).thenReturn("hash-nuevo");
 
-        UsuarioApp resultado = service.activarCuenta("token-valido", "password123");
+        UsuarioApp resultado = service.activarCuenta(
+                "jugador@mutxamelcf.es", "123456", "password123");
 
         assertThat(resultado.getId()).isEqualTo(7);
         assertThat(resultado.getEmail()).isEqualTo("jugador@mutxamelcf.es");
@@ -140,26 +154,103 @@ class UsuarioAppServiceImplTest {
     }
 
     @Test
-    void activarCuentaConPasswordCortaLanzaExcepcionSinConsultarElToken() {
-        assertThatThrownBy(() -> service.activarCuenta("token-valido", "corta"))
+    void activarCuentaConPasswordCortaLanzaExcepcionSinConsultarElEmail() {
+        assertThatThrownBy(() -> service.activarCuenta(
+                        "jugador@mutxamelcf.es", "123456", "corta"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("8 caracteres");
 
-        verify(usuarioAppDao, never()).obtenerPorTokenActivacion(any());
+        verify(usuarioAppDao, never()).obtenerPorEmail(any());
     }
 
     @Test
     void activarCuentaYaActivaLanzaExcepcion() {
-        UsuarioApp usuario = new UsuarioApp();
-        usuario.setId(7);
+        UsuarioApp usuario = usuarioPendienteActivacion("123456");
         usuario.setActivo(true);
 
-        when(usuarioAppDao.obtenerPorTokenActivacion(any())).thenReturn(usuario);
+        when(usuarioAppDao.obtenerPorEmail("jugador@mutxamelcf.es")).thenReturn(usuario);
 
-        assertThatThrownBy(() -> service.activarCuenta("token-valido", "password123"))
+        assertThatThrownBy(() -> service.activarCuenta(
+                        "jugador@mutxamelcf.es", "123456", "password123"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("ya está activa");
 
+        verify(usuarioAppDao, never()).actualizarPassword(anyInt(), any());
+    }
+
+    @Test
+    void activarCuentaConEmailDesconocidoLanzaExcepcion() {
+        when(usuarioAppDao.obtenerPorEmail("desconocido@mutxamelcf.es")).thenReturn(null);
+
+        assertThatThrownBy(() -> service.activarCuenta(
+                        "desconocido@mutxamelcf.es", "123456", "password123"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no es válido");
+    }
+
+    @Test
+    void activarCuentaConCodigoCaducadoLanzaExcepcion() {
+        UsuarioApp usuario = usuarioPendienteActivacion("123456");
+        usuario.setFechaExpiracionToken(
+                Timestamp.from(Instant.now().minus(1, ChronoUnit.HOURS)));
+
+        when(usuarioAppDao.obtenerPorEmail("jugador@mutxamelcf.es")).thenReturn(usuario);
+
+        assertThatThrownBy(() -> service.activarCuenta(
+                        "jugador@mutxamelcf.es", "123456", "password123"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("caducado");
+
+        verify(usuarioAppDao, never()).actualizarPassword(anyInt(), any());
+    }
+
+    @Test
+    void activarCuentaConCodigoIncorrectoIncrementaIntentosYAvisaCuantosQuedan() {
+        UsuarioApp usuario = usuarioPendienteActivacion("123456");
+        usuario.setIntentosActivacion(1);
+
+        when(usuarioAppDao.obtenerPorEmail("jugador@mutxamelcf.es")).thenReturn(usuario);
+
+        assertThatThrownBy(() -> service.activarCuenta(
+                        "jugador@mutxamelcf.es", "000000", "password123"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Código incorrecto")
+                .hasMessageContaining("3");
+
+        verify(usuarioAppDao).incrementarIntentosActivacion(7);
+        verify(usuarioAppDao, never()).invalidarTokenActivacion(anyInt());
+        verify(usuarioAppDao, never()).actualizarPassword(anyInt(), any());
+    }
+
+    @Test
+    void activarCuentaConUltimoIntentoFallidoInvalidaElCodigo() {
+        UsuarioApp usuario = usuarioPendienteActivacion("123456");
+        usuario.setIntentosActivacion(4);
+
+        when(usuarioAppDao.obtenerPorEmail("jugador@mutxamelcf.es")).thenReturn(usuario);
+
+        assertThatThrownBy(() -> service.activarCuenta(
+                        "jugador@mutxamelcf.es", "000000", "password123"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("agotado");
+
+        verify(usuarioAppDao).incrementarIntentosActivacion(7);
+        verify(usuarioAppDao).invalidarTokenActivacion(7);
+    }
+
+    @Test
+    void activarCuentaConIntentosYaAgotadosLanzaExcepcionSinComprobarElCodigo() {
+        UsuarioApp usuario = usuarioPendienteActivacion("123456");
+        usuario.setIntentosActivacion(5);
+
+        when(usuarioAppDao.obtenerPorEmail("jugador@mutxamelcf.es")).thenReturn(usuario);
+
+        assertThatThrownBy(() -> service.activarCuenta(
+                        "jugador@mutxamelcf.es", "123456", "password123"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("agotado");
+
+        verify(usuarioAppDao, never()).incrementarIntentosActivacion(anyInt());
         verify(usuarioAppDao, never()).actualizarPassword(anyInt(), any());
     }
 

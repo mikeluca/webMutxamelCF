@@ -29,7 +29,8 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        FECHA_ACTIVACION,
                        FECHA_ULTIMO_ACCESO,
                        TOKEN_ACTIVACION,
-                       TOKEN_ACTIVACION_EXPIRA
+                       TOKEN_ACTIVACION_EXPIRA,
+                       INTENTOS_ACTIVACION
                 FROM USUARIOS_APP
                 WHERE LOWER(EMAIL) = LOWER(?)
                 """;
@@ -60,7 +61,8 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        FECHA_ACTIVACION,
                        FECHA_ULTIMO_ACCESO,
                        TOKEN_ACTIVACION,
-                       TOKEN_ACTIVACION_EXPIRA
+                       TOKEN_ACTIVACION_EXPIRA,
+                       INTENTOS_ACTIVACION
                 FROM USUARIOS_APP
                 WHERE ID = ?
                 """;
@@ -92,7 +94,8 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        FECHA_ACTIVACION,
                        FECHA_ULTIMO_ACCESO,
                        TOKEN_ACTIVACION,
-                       TOKEN_ACTIVACION_EXPIRA
+                       TOKEN_ACTIVACION_EXPIRA,
+                       INTENTOS_ACTIVACION
                 FROM USUARIOS_APP
                 WHERE TOKEN_ACTIVACION = ?
                 """;
@@ -123,7 +126,8 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        FECHA_ACTIVACION,
                        FECHA_ULTIMO_ACCESO,
                        TOKEN_ACTIVACION,
-                       TOKEN_ACTIVACION_EXPIRA
+                       TOKEN_ACTIVACION_EXPIRA,
+                       INTENTOS_ACTIVACION
                 FROM USUARIOS_APP
                 ORDER BY FECHA_ALTA DESC
                 """;
@@ -250,7 +254,8 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
         String sql = """
                 UPDATE USUARIOS_APP
                 SET TOKEN_ACTIVACION = ?,
-                    TOKEN_ACTIVACION_EXPIRA = ?
+                    TOKEN_ACTIVACION_EXPIRA = ?,
+                    INTENTOS_ACTIVACION = 0
                 WHERE ID = ?
                 """;
 
@@ -260,6 +265,31 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                 expiracion,
                 id
         );
+    }
+
+    @Override
+    public void incrementarIntentosActivacion(int id) {
+
+        String sql = """
+                UPDATE USUARIOS_APP
+                SET INTENTOS_ACTIVACION = INTENTOS_ACTIVACION + 1
+                WHERE ID = ?
+                """;
+
+        jdbcTemplate.update(sql, id);
+    }
+
+    @Override
+    public void invalidarTokenActivacion(int id) {
+
+        String sql = """
+                UPDATE USUARIOS_APP
+                SET TOKEN_ACTIVACION = NULL,
+                    TOKEN_ACTIVACION_EXPIRA = NULL
+                WHERE ID = ?
+                """;
+
+        jdbcTemplate.update(sql, id);
     }
 
     private UsuarioApp mapearUsuario(
@@ -290,6 +320,9 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
         );
         usuario.setFechaExpiracionToken(
                 rs.getTimestamp("TOKEN_ACTIVACION_EXPIRA")
+        );
+        usuario.setIntentosActivacion(
+                rs.getInt("INTENTOS_ACTIVACION")
         );
 
         return usuario;

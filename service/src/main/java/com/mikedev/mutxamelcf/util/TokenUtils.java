@@ -24,6 +24,20 @@ public class TokenUtils {
                 .encodeToString(bytes);
     }
 
+    /**
+     * Código numérico de 6 dígitos (con ceros a la izquierda si hace
+     * falta) para activación de cuentas. Pensado para escribirse a
+     * mano desde un email, no para resistir fuerza bruta por sí solo:
+     * el llamante debe combinarlo con una caducidad corta y un
+     * límite de intentos por cuenta (ver UsuarioAppServiceImpl).
+     */
+    public static String generarCodigoActivacion() {
+
+        int numero = SECURE_RANDOM.nextInt(1_000_000);
+
+        return String.format("%06d", numero);
+    }
+
     public static String hashToken(String token) {
 
         try {

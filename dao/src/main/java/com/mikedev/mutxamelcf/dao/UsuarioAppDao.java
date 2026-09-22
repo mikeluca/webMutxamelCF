@@ -27,5 +27,21 @@ public interface UsuarioAppDao {
 
     void actualizarUltimoAcceso(int id);
 
+    /**
+     * Fija un nuevo código/token de activación y reinicia el
+     * contador de intentos fallidos a 0.
+     */
     void actualizarTokenActivacion(int id, String tokenHash, Timestamp expiracion);
+
+    /**
+     * Incrementa en 1 el contador de intentos fallidos de activación.
+     */
+    void incrementarIntentosActivacion(int id);
+
+    /**
+     * Invalida el código/token de activación pendiente (por ejemplo,
+     * al agotar el número máximo de intentos), sin desactivar ni
+     * tocar el resto de la cuenta. Requiere generar uno nuevo.
+     */
+    void invalidarTokenActivacion(int id);
 }

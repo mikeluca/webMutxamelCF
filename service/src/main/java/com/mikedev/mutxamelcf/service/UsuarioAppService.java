@@ -22,7 +22,7 @@ public interface UsuarioAppService {
 
     String generarTokenActivacion(int usuarioId);
 
-    UsuarioApp activarCuenta(String token, String password);
+    UsuarioApp activarCuenta(String email, String codigo, String password);
 
     LoginAppResponse login(String email, String password);
 

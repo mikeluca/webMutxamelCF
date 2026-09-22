@@ -30,23 +30,43 @@ public class EquipoDaoImpl implements EquipoDao {
 
 	@Override
 	public boolean guardar(Equipo equipo) {
-		logger.debug("Inicio guardar: categoria={}, grupo={}", equipo.getCategoria(), equipo.getGrupo());
-		if (existeEquipo(equipo.getCategoria(), equipo.getGrupo())) {
-			logger.warn("Equipo ya existente, no se inserta: categoria={}, grupo={}", equipo.getCategoria(), equipo.getGrupo());
+		logger.debug("Inicio guardar: id={}, categoria={}, grupo={}", equipo.getId(), equipo.getCategoria(),
+				equipo.getGrupo());
+		if (existeEquipo(equipo.getCategoria(), equipo.getGrupo(), equipo.getId())) {
+			logger.warn("Equipo ya existente, no se guarda: categoria={}, grupo={}", equipo.getCategoria(), equipo.getGrupo());
 			return false;
 		}
 
+		boolean resultado = equipo.getId() != null ? actualizarEquipo(equipo) : insertarEquipo(equipo);
+		logger.debug("Fin guardar: resultado={}", resultado);
+		return resultado;
+	}
+
+	private boolean insertarEquipo(Equipo equipo) {
+		logger.debug("Inicio insertarEquipo: categoria={}, grupo={}", equipo.getCategoria(), equipo.getGrupo());
 		String sql = "INSERT INTO equipo (categoria, grupo, orden, nombre, deporte) VALUES (?, ?, ?, ?, ?)";
 		boolean insertado = jdbcTemplate.update(sql, equipo.getCategoria(), equipo.getGrupo(), equipo.getOrden(),
 				equipo.getNombre(), equipo.getDeporte()) == 1;
-		logger.debug("Fin guardar: insertado={}", insertado);
+		logger.debug("Fin insertarEquipo: insertado={}", insertado);
 		return insertado;
 	}
 
-	private boolean existeEquipo(String categoria, String grupo) {
-		logger.debug("Inicio existeEquipo: categoria={}, grupo={}", categoria, grupo);
-		String sql = "SELECT COUNT(*) FROM equipo WHERE categoria = ? AND grupo = ?";
-		Integer count = jdbcTemplate.queryForObject(sql, Integer.class, categoria, grupo);
+	private boolean actualizarEquipo(Equipo equipo) {
+		logger.debug("Inicio actualizarEquipo: id={}", equipo.getId());
+		String sql = "UPDATE equipo SET categoria = ?, grupo = ?, orden = ?, nombre = ?, deporte = ? WHERE id = ?";
+		boolean actualizado = jdbcTemplate.update(sql, equipo.getCategoria(), equipo.getGrupo(), equipo.getOrden(),
+				equipo.getNombre(), equipo.getDeporte(), equipo.getId()) == 1;
+		logger.debug("Fin actualizarEquipo: id={}, actualizado={}", equipo.getId(), actualizado);
+		return actualizado;
+	}
+
+	private boolean existeEquipo(String categoria, String grupo, Long idExcluido) {
+		logger.debug("Inicio existeEquipo: categoria={}, grupo={}, idExcluido={}", categoria, grupo, idExcluido);
+		String sql = "SELECT COUNT(*) FROM equipo WHERE categoria = ? AND grupo = ?"
+				+ (idExcluido != null ? " AND id != ?" : "");
+		Integer count = idExcluido != null
+				? jdbcTemplate.queryForObject(sql, Integer.class, categoria, grupo, idExcluido)
+				: jdbcTemplate.queryForObject(sql, Integer.class, categoria, grupo);
 		boolean existe = count != null && count > 0;
 		logger.debug("Fin existeEquipo: existe={}", existe);
 		return existe;

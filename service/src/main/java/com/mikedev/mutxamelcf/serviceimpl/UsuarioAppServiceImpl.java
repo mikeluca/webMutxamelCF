@@ -34,7 +34,9 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
 
     private static final Logger logger = LoggerFactory.getLogger(UsuarioAppServiceImpl.class);
 
-    private static final long HORAS_VALIDEZ_TOKEN = 7 * 24;
+    private static final long HORAS_VALIDEZ_TOKEN = 4;
+
+    private static final int MAX_INTENTOS_ACTIVACION = 5;
 
     private static final Set<String> TIPOS_VINCULO_CON_PERSONA = Set.of(
             "JUGADOR", "FAMILIAR", "ENTRENADOR");
@@ -141,35 +143,41 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
                     "La cuenta ya está activa");
         }
 
-        String token = TokenUtils.generarToken();
+        String codigo = TokenUtils.generarCodigoActivacion();
 
-        String tokenHash = TokenUtils.hashToken(token);
+        String codigoHash = TokenUtils.hashToken(codigo);
 
         Timestamp expiracion = Timestamp.from(
                 Instant.now().plus(HORAS_VALIDEZ_TOKEN, ChronoUnit.HOURS));
 
         usuarioAppDao.actualizarTokenActivacion(
                 usuarioId,
-                tokenHash,
+                codigoHash,
                 expiracion);
 
         /*
-         * Devolvemos el token original.
+         * Devolvemos el código original.
          *
-         * Este token será el que posteriormente
+         * Este código será el que posteriormente
          * enviaremos al usuario por email.
          */
-        return token;
+        return codigo;
     }
 
     @Override
     public UsuarioApp activarCuenta(
-            String token,
+            String email,
+            String codigo,
             String password) {
 
-        if (token == null || token.isBlank()) {
+        if (email == null || email.isBlank()) {
             throw new IllegalArgumentException(
-                    "El token es obligatorio");
+                    "El email es obligatorio");
+        }
+
+        if (codigo == null || codigo.isBlank()) {
+            throw new IllegalArgumentException(
+                    "El código es obligatorio");
         }
 
         if (password == null || password.length() < 8) {
@@ -177,11 +185,13 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
                     "La contraseña debe tener al menos 8 caracteres");
         }
 
-        UsuarioApp usuario = obtenerPorTokenActivacion(token);
+        UsuarioApp usuario = obtenerPorEmail(email);
 
-        if (usuario == null) {
+        if (usuario == null
+                || usuario.getTokenActivacion() == null) {
+
             throw new IllegalArgumentException(
-                    "El token de activación no es válido");
+                    "El código introducido no es válido o ha caducado.");
         }
 
         if (usuario.isActivo()) {
@@ -195,8 +205,39 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
                 && expiracion.before(Timestamp.from(Instant.now()))) {
 
             throw new IllegalArgumentException(
-                    "El token de activación ha caducado. "
+                    "El código ha caducado. "
                             + "Pide que te reenvíen la invitación.");
+        }
+
+        if (usuario.getIntentosActivacion() >= MAX_INTENTOS_ACTIVACION) {
+
+            throw new IllegalStateException(
+                    "Has agotado los intentos para este código. "
+                            + "Pide que te reenvíen la invitación.");
+        }
+
+        String codigoHash = TokenUtils.hashToken(codigo.trim());
+
+        if (!codigoHash.equals(usuario.getTokenActivacion())) {
+
+            usuarioAppDao.incrementarIntentosActivacion(usuario.getId());
+
+            int intentosRestantes = MAX_INTENTOS_ACTIVACION
+                    - usuario.getIntentosActivacion() - 1;
+
+            if (intentosRestantes <= 0) {
+
+                usuarioAppDao.invalidarTokenActivacion(usuario.getId());
+
+                throw new IllegalStateException(
+                        "Código incorrecto. Has agotado los intentos: "
+                                + "pide que te reenvíen la invitación.");
+            }
+
+            throw new IllegalArgumentException(
+                    "Código incorrecto. Te quedan "
+                            + intentosRestantes
+                            + " intento(s).");
         }
 
         String passwordHash = passwordEncoder.encode(password);
@@ -614,6 +655,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
         if (vinculo != null) {
             response.setVinculoTipo(vinculo.getTipo());
             response.setVinculoNombre(vinculo.getNombreCompleto());
+            response.setVinculoDetalle(vinculo.getDetalle());
         }
 
         return response;
