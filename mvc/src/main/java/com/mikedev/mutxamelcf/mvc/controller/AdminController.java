@@ -232,15 +232,26 @@ public class AdminController {
 
 	// Método para borrar un equipo por su ID
 	@PostMapping("/equipos/borrar/{id}")
-	public String borrarEquipo(@PathVariable Long id) {
+	@ResponseBody
+	public ResponseEntity<Map<String, String>> borrarEquipo(@PathVariable Long id) {
 		logger.debug("Inicio borrarEquipo: id={}", id);
+		Map<String, String> response = new HashMap<>();
 		try {
-			equiposService.eliminarEquipo(id); // Eliminar el equipo de la base de datos
+			equiposService.eliminarEquipo(id);
+			response.put("mensaje", "Equipo eliminado correctamente.");
+			logger.debug("Fin borrarEquipo: id={}, resultado=OK", id);
+			return ResponseEntity.ok(response);
+		} catch (IllegalStateException e) {
+			logger.warn("No se ha podido borrar el equipo id={}: {}", id, e.getMessage());
+			response.put("error", e.getMessage());
+			logger.debug("Fin borrarEquipo: id={}, resultado=BLOQUEADO", id);
+			return ResponseEntity.badRequest().body(response);
 		} catch (Exception e) {
-			logger.error("Error al borrar el equipo: {}", e.getMessage(), e); // Registrar el error
+			logger.error("Error al borrar el equipo id={}: {}", id, e.getMessage(), e);
+			response.put("error", "No se ha podido eliminar el equipo.");
+			logger.debug("Fin borrarEquipo: id={}, resultado=ERROR", id);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
-		logger.debug("Fin borrarEquipo: id={}", id);
-		return "redirect:/admin/equipos"; // Redirigir a la lista de equipos
 	}
 
 	// Método para listar jugadores
@@ -334,17 +345,28 @@ public class AdminController {
 		}
 	}
 
-	// Método para borrar un jugador por su DNI
+	// Método para borrar un jugador por su ID
 	@PostMapping("/jugadores/borrar/{id}")
-	public String borrarJugador(@PathVariable Long id) {
+	@ResponseBody
+	public ResponseEntity<Map<String, String>> borrarJugador(@PathVariable Long id) {
 		logger.debug("Inicio borrarJugador: id={}", id);
+		Map<String, String> response = new HashMap<>();
 		try {
-			jugadoresService.eliminarJugador(id); // Eliminar el jugador de la base de datos
+			jugadoresService.eliminarJugador(id);
+			response.put("mensaje", "Jugador eliminado correctamente.");
+			logger.debug("Fin borrarJugador: id={}, resultado=OK", id);
+			return ResponseEntity.ok(response);
+		} catch (IllegalStateException e) {
+			logger.warn("No se ha podido borrar el jugador id={}: {}", id, e.getMessage());
+			response.put("error", e.getMessage());
+			logger.debug("Fin borrarJugador: id={}, resultado=BLOQUEADO", id);
+			return ResponseEntity.badRequest().body(response);
 		} catch (Exception e) {
-			logger.error("Error al borrar el jugador: {}", e.getMessage(), e); // Registrar el error
+			logger.error("Error al borrar el jugador id={}: {}", id, e.getMessage(), e);
+			response.put("error", "No se ha podido eliminar el jugador.");
+			logger.debug("Fin borrarJugador: id={}, resultado=ERROR", id);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
-		logger.debug("Fin borrarJugador: id={}", id);
-		return "redirect:/admin/jugadores"; // Redirigir a la lista de jugadores
 	}
 
 	// Método para listar el cuerpo técnico
@@ -434,17 +456,28 @@ public class AdminController {
 		}
 	}
 
-	// Método para borrar un miembro del cuerpo técnico por su DNI
+	// Método para borrar un miembro del cuerpo técnico por su ID
 	@PostMapping("/cuerpo-tecnico/borrar/{id}")
-	public String borrarCuerpoTecnico(@PathVariable Long id) {
+	@ResponseBody
+	public ResponseEntity<Map<String, String>> borrarCuerpoTecnico(@PathVariable Long id) {
 		logger.debug("Inicio borrarCuerpoTecnico: id={}", id);
+		Map<String, String> response = new HashMap<>();
 		try {
-			cuerpoTecnicoService.eliminarCuerpoTecnico(id); // Eliminar el cuerpo técnico de la base de datos
+			cuerpoTecnicoService.eliminarCuerpoTecnico(id);
+			response.put("mensaje", "Miembro del cuerpo técnico eliminado correctamente.");
+			logger.debug("Fin borrarCuerpoTecnico: id={}, resultado=OK", id);
+			return ResponseEntity.ok(response);
+		} catch (IllegalStateException e) {
+			logger.warn("No se ha podido borrar el cuerpo tecnico id={}: {}", id, e.getMessage());
+			response.put("error", e.getMessage());
+			logger.debug("Fin borrarCuerpoTecnico: id={}, resultado=BLOQUEADO", id);
+			return ResponseEntity.badRequest().body(response);
 		} catch (Exception e) {
-			logger.error("Error al borrar el cuerpo técnico: {}", e.getMessage(), e); // Registrar el error
+			logger.error("Error al borrar el cuerpo técnico id={}: {}", id, e.getMessage(), e);
+			response.put("error", "No se ha podido eliminar el miembro del cuerpo técnico.");
+			logger.debug("Fin borrarCuerpoTecnico: id={}, resultado=ERROR", id);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
-		logger.debug("Fin borrarCuerpoTecnico: id={}", id);
-		return "redirect:/admin/cuerpo-tecnico"; // Redirigir a la lista del cuerpo técnico
 	}
 
 	// Método para listar las noticias

@@ -18,4 +18,7 @@ public interface ConvocatoriaJugadorDao {
 
     void eliminarPorConvocatoria(
             Long convocatoriaId);
+
+    boolean existePorJugador(
+            Long jugadorId);
 }

@@ -150,4 +150,20 @@ public class EntrenamientoAsistenciaDaoImpl
                         """,
                 entrenamientoId);
     }
+
+    @Override
+    public boolean existePorJugador(
+            Long jugadorId) {
+
+        Integer count = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM ENTRENAMIENTO_ASISTENCIA
+                        WHERE JUGADOR_ID = ?
+                        """,
+                Integer.class,
+                jugadorId);
+
+        return count != null && count > 0;
+    }
 }

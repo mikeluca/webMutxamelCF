@@ -10,11 +10,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
+import com.mikedev.mutxamelcf.dao.EntrenamientoDao;
 import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.model.EnumEquipos;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.EquipoDTO;
+import com.mikedev.mutxamelcf.service.CuerpoTecnicoService;
 import com.mikedev.mutxamelcf.service.EquipoService;
+import com.mikedev.mutxamelcf.service.JugadorService;
 
 @Service
 public class EquipoServiceImpl implements EquipoService {
@@ -22,9 +26,19 @@ public class EquipoServiceImpl implements EquipoService {
 	private static final Logger logger = LoggerFactory.getLogger(EquipoServiceImpl.class);
 
 	private final EquipoDao equipoDao;
+	private final JugadorService jugadorService;
+	private final CuerpoTecnicoService cuerpoTecnicoService;
+	private final ConvocatoriaDao convocatoriaDao;
+	private final EntrenamientoDao entrenamientoDao;
 
-	public EquipoServiceImpl(EquipoDao equipoDao) {
+	public EquipoServiceImpl(EquipoDao equipoDao, JugadorService jugadorService,
+			CuerpoTecnicoService cuerpoTecnicoService, ConvocatoriaDao convocatoriaDao,
+			EntrenamientoDao entrenamientoDao) {
 		this.equipoDao = equipoDao;
+		this.jugadorService = jugadorService;
+		this.cuerpoTecnicoService = cuerpoTecnicoService;
+		this.convocatoriaDao = convocatoriaDao;
+		this.entrenamientoDao = entrenamientoDao;
 	}
 
 	@Override
@@ -47,6 +61,35 @@ public class EquipoServiceImpl implements EquipoService {
 	@Override
 	public void eliminarEquipo(Long id) {
 		logger.debug("Inicio eliminarEquipo: id={}", id);
+
+		Equipo equipo = equipoDao.obtenerEquipoPorId(id);
+		if (equipo == null) {
+			logger.warn("Equipo inexistente al eliminar: id={}", id);
+			return;
+		}
+
+		List<String> motivos = new ArrayList<>();
+
+		if (!jugadorService.obtenerJugadoresPorEquipo(equipo.getNombre()).isEmpty()) {
+			motivos.add("tiene jugadores asignados");
+		}
+		if (!cuerpoTecnicoService.obtenerCuerpoTecnicoPorEquipo(equipo.getNombre()).isEmpty()) {
+			motivos.add("tiene cuerpo técnico asignado");
+		}
+		if (!convocatoriaDao.obtenerPorEquipo(id).isEmpty()) {
+			motivos.add("tiene convocatorias registradas");
+		}
+		if (!entrenamientoDao.obtenerPorEquipo(id).isEmpty()) {
+			motivos.add("tiene entrenamientos registrados");
+		}
+
+		if (!motivos.isEmpty()) {
+			logger.warn("No se puede eliminar el equipo id={}: {}", id, motivos);
+			throw new IllegalStateException(
+					"No se puede eliminar el equipo porque " + String.join(", ", motivos)
+							+ ". Reasigna o elimina antes esos datos.");
+		}
+
 		equipoDao.eliminarEquipo(id);
 		logger.debug("Fin eliminarEquipo: id={}", id);
 	}
