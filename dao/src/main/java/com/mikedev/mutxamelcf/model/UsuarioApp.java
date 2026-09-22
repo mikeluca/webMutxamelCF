@@ -22,6 +22,8 @@ public class UsuarioApp {
 
     private Timestamp fechaExpiracionToken;
 
+    private int intentosActivacion;
+
     public UsuarioApp() {
     }
 
@@ -95,5 +97,13 @@ public class UsuarioApp {
 
     public void setFechaExpiracionToken(Timestamp fechaExpiracionToken) {
         this.fechaExpiracionToken = fechaExpiracionToken;
+    }
+
+    public int getIntentosActivacion() {
+        return intentosActivacion;
+    }
+
+    public void setIntentosActivacion(int intentosActivacion) {
+        this.intentosActivacion = intentosActivacion;
     }
 }

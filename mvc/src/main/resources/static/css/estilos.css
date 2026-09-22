@@ -172,11 +172,20 @@ main.container-fluid.my-5 > h1 {
 }
 
 .payment-metric,
-.payment-panel {
+.payment-panel,
+.admin-list-panel {
 	background: #fffdf8;
 	border-top: 4px solid #0b3d5c;
 	box-shadow: 0 10px 25px rgba(11, 61, 92, .08);
 	padding: 24px;
+}
+
+.admin-list-panel {
+	margin-bottom: 24px;
+}
+
+.admin-list-panel .table {
+	margin-bottom: 0;
 }
 
 .payment-metric {

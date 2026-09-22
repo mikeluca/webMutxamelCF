@@ -65,13 +65,45 @@ public class ComunicacionServiceImpl
                                 usuarioId,
                                 destinatarios);
 
-                if (equipos.isEmpty()
-                                && categoriasNormalizadas.isEmpty()
-                                && destinatarios.isEmpty()) {
+                if (destinatarios.size() > 1) {
 
                         throw new IllegalArgumentException(
-                                        "Debe especificarse al menos un equipo, "
-                                                        + "una categoría o un destinatario");
+                                        "Los mensajes privados solo pueden "
+                                                        + "dirigirse a una persona");
+                }
+
+                /*
+                 * Una comunicación se dirige a UN único tipo de
+                 * destinatario: equipos, categorías o una persona en
+                 * privado. No se pueden combinar entre sí.
+                 */
+                int modosSeleccionados = 0;
+
+                if (!equipos.isEmpty()) {
+                        modosSeleccionados++;
+                }
+
+                if (!categoriasNormalizadas.isEmpty()) {
+                        modosSeleccionados++;
+                }
+
+                if (!destinatarios.isEmpty()) {
+                        modosSeleccionados++;
+                }
+
+                if (modosSeleccionados == 0) {
+
+                        throw new IllegalArgumentException(
+                                        "Debe especificarse un equipo, una categoría "
+                                                        + "o un destinatario");
+                }
+
+                if (modosSeleccionados > 1) {
+
+                        throw new IllegalArgumentException(
+                                        "Una comunicación solo puede dirigirse a "
+                                                        + "equipos, a categorías o a una persona "
+                                                        + "en privado, no a varios tipos a la vez");
                 }
 
                 /*

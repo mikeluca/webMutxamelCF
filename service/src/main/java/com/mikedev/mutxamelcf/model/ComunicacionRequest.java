@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.model;
 import java.util.List;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public class ComunicacionRequest {
 
@@ -16,6 +17,13 @@ public class ComunicacionRequest {
 
     private List<String> categorias;
 
+    /**
+     * Destinatario privado. Como mucho 1: los mensajes privados solo
+     * pueden dirigirse a una persona (validado también en
+     * ComunicacionServiceImpl, que además exige que sea el único
+     * modo usado, sin combinar con equipoIds/categorias).
+     */
+    @Size(max = 1, message = "Los mensajes privados solo pueden dirigirse a una persona")
     private List<Long> destinatariosIds;
 
     public ComunicacionRequest() {

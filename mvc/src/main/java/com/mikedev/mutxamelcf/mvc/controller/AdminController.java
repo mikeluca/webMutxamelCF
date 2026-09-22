@@ -178,19 +178,14 @@ public class AdminController {
 
 	// Método para listar todos los equipos
 	@GetMapping("/equipos")
-	public String listarEquipos(@RequestParam(required = false) String categoria, Model model) {
-		logger.debug("Inicio listarEquipos: categoria={}", categoria);
+	public String listarEquipos(Model model) {
+		logger.debug("Inicio listarEquipos");
 		List<EquipoDTO> listaEquipos = equiposService.obtenerTodos(); // Obtener todos los equipos
 		model.addAttribute("listaEquipos", listaEquipos);
 		List<String> categorias = equiposService.obtenerCategorias(); // Obtener categorías de equipos
-		List<EquipoDTO> equipos;
 
-		// Filtrar equipos por categoría si se proporciona
-		if (categoria != null && !categoria.isEmpty()) {
-			equipos = equiposService.obtenerTodosPorCategoria(categoria);
-		} else {
-			equipos = equiposService.obtenerTodos();
-		}
+		// El filtro de categoría se aplica en el navegador (ver equipos.html)
+		List<EquipoDTO> equipos = listaEquipos;
 
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("equipos", equipos);
@@ -203,13 +198,15 @@ public class AdminController {
 
 	@PostMapping("/equipos/guardar")
 	@ResponseBody
-	public ResponseEntity<Map<String, String>> guardarEquipo(@RequestParam String categoria,
-			@RequestParam String nombre, @RequestParam String grupo, @RequestParam String deporte) {
-		logger.debug("Inicio guardarEquipo: categoria={}, nombre={}, grupo={}, deporte={}", categoria, nombre, grupo,
-				deporte);
+	public ResponseEntity<Map<String, String>> guardarEquipo(@RequestParam(required = false) Long id,
+			@RequestParam String categoria, @RequestParam String nombre, @RequestParam String grupo,
+			@RequestParam String deporte) {
+		logger.debug("Inicio guardarEquipo: id={}, categoria={}, nombre={}, grupo={}, deporte={}", id, categoria,
+				nombre, grupo, deporte);
 		Map<String, String> response = new HashMap<>();
 		try {
 			EquipoDTO equipo = new EquipoDTO();
+			equipo.setId(id);
 			equipo.setCategoria(categoria);
 			equipo.setNombre(nombre);
 			equipo.setGrupo(grupo);
@@ -248,18 +245,13 @@ public class AdminController {
 
 	// Método para listar jugadores
 	@GetMapping("/jugadores")
-	public String listarJugadores(@RequestParam(required = false) String categoria, Model model) {
-		logger.debug("Inicio listarJugadores: categoria={}", categoria);
+	public String listarJugadores(Model model) {
+		logger.debug("Inicio listarJugadores");
 		List<EquipoDTO> listaEquipos = equiposService.obtenerTodos(); // Obtener todos los equipos
 		model.addAttribute("listaEquipos", listaEquipos);
-		List<JugadorDTO> jugadores;
 
-		// Filtrar jugadores por categoría si se proporciona
-		if (categoria != null && !categoria.isEmpty()) {
-			jugadores = jugadoresService.obtenerJugadoresPorCategoria(categoria);
-		} else {
-			jugadores = jugadoresService.obtenerTodos();
-		}
+		// El filtro de categoría se aplica en el navegador (ver jugadores.html)
+		List<JugadorDTO> jugadores = jugadoresService.obtenerTodos();
 
 		List<String> categorias = equiposService.obtenerCategorias();
 		List<FamiliarDTO> listaFamiliares = familiarService.obtenerTodos();
@@ -315,6 +307,12 @@ public class AdminController {
 					return ResponseEntity.badRequest().body(response);
 				}
 				jugador.setFoto(jugadorForm.getFoto().getBytes());
+			} else if (jugadorForm.getId() != null) {
+				// Editando sin subir foto nueva: se conserva la foto ya guardada
+				JugadorDTO existente = jugadoresService.obtenerJugadorPorId(jugadorForm.getId());
+				if (existente != null) {
+					jugador.setFoto(existente.getFoto());
+				}
 			}
 
 			if (jugadoresService.guardarJugador(jugador)) {
@@ -351,18 +349,13 @@ public class AdminController {
 
 	// Método para listar el cuerpo técnico
 	@GetMapping("/cuerpo-tecnico")
-	public String listarCuerpoTecnico(@RequestParam(required = false) String categoria, Model model) {
-		logger.debug("Inicio listarCuerpoTecnico: categoria={}", categoria);
+	public String listarCuerpoTecnico(Model model) {
+		logger.debug("Inicio listarCuerpoTecnico");
 		List<EquipoDTO> listaEquipos = equiposService.obtenerTodos(); // Obtener todos los equipos
 		model.addAttribute("listaEquipos", listaEquipos);
-		List<CuerpoTecnicoDTO> cuerpoTecnico;
 
-		// Filtrar cuerpo técnico por categoría si se proporciona
-		if (categoria != null && !categoria.isEmpty()) {
-			cuerpoTecnico = cuerpoTecnicoService.obtenerCuerpoTecnicoPorCategoria(categoria);
-		} else {
-			cuerpoTecnico = cuerpoTecnicoService.obtenerTodos();
-		}
+		// El filtro de categoría se aplica en el navegador (ver cuerpo-tecnico.html)
+		List<CuerpoTecnicoDTO> cuerpoTecnico = cuerpoTecnicoService.obtenerTodos();
 
 		List<String> categorias = equiposService.obtenerCategorias();
 		model.addAttribute("categorias", categorias);
@@ -415,6 +408,12 @@ public class AdminController {
 					return ResponseEntity.badRequest().body(response);
 				}
 				staff.setFoto(cuerpoTecnicoForm.getFoto().getBytes());
+			} else if (cuerpoTecnicoForm.getId() != null) {
+				// Editando sin subir foto nueva: se conserva la foto ya guardada
+				CuerpoTecnicoDTO existente = cuerpoTecnicoService.obtenerCuerpoTecnicoPorId(cuerpoTecnicoForm.getId());
+				if (existente != null) {
+					staff.setFoto(existente.getFoto());
+				}
 			}
 
 			if (cuerpoTecnicoService.guardarCuerpoTecnico(staff)) {
@@ -465,20 +464,36 @@ public class AdminController {
 		return "admin/noticias"; // Retornar la vista para listar noticias
 	}
 
-	// Método para guardar una nueva noticia
+	// Método para crear o editar una noticia
 	@PostMapping("/noticias/guardar")
 	@ResponseBody
 	public ResponseEntity<Map<String, String>> guardarNoticia(@ModelAttribute NoticiaForm noticiaForm) {
-		logger.debug("Inicio guardarNoticia: titulo={}", noticiaForm.getTitulo());
+		logger.debug("Inicio guardarNoticia: id={}, titulo={}", noticiaForm.getId(), noticiaForm.getTitulo());
 		Map<String, String> response = new HashMap<>();
 		try {
+			NoticiaDTO noticiaExistente = null;
+
+			if (noticiaForm.getId() != null) {
+				noticiaExistente = noticiaService.obtenerNoticiaPorId(noticiaForm.getId().intValue());
+				if (noticiaExistente == null) {
+					logger.warn("Noticia inexistente al editar: id={}", noticiaForm.getId());
+					response.put("error", "La noticia que intentas editar ya no existe.");
+					logger.debug("Fin guardarNoticia: resultado=NO_ENCONTRADA");
+					return ResponseEntity.badRequest().body(response);
+				}
+			}
+
 			NoticiaDTO noticia = new NoticiaDTO();
+			if (noticiaExistente != null) {
+				noticia.setId(noticiaForm.getId().intValue());
+			}
 			noticia.setTitulo(noticiaForm.getTitulo());
 
 			// Convierte el texto antes de guardarlo poniéndole saltos de línea
 			String contenidoConSaltos = HtmlUtils.htmlEscape(noticiaForm.getContenido()).replaceAll("\n", "<br>");
 			noticia.setContenido(contenidoConSaltos);
-			noticia.setFecha(new Date()); // Establecer la fecha actual
+			// Al editar se conserva la fecha original; al crear, la fecha actual
+			noticia.setFecha(noticiaExistente != null ? noticiaExistente.getFecha() : new Date());
 
 			if (!noticiaForm.getImagen().isEmpty()) {
 				long maxSize = 2 * 1024 * 1024; // 2 MB (puedes ajustar el límite)
@@ -490,20 +505,24 @@ public class AdminController {
 					return ResponseEntity.badRequest().body(response);
 				}
 				noticia.setImagen(noticiaForm.getImagen().getBytes());
+			} else if (noticiaExistente != null) {
+				// Sin imagen nueva al editar: se conserva la imagen ya guardada
+				noticia.setImagen(noticiaService.obtenerImagenNoticia(noticiaExistente.getId()));
 			}
 
 			if (noticiaService.guardarNoticia(noticia)) {
-				response.put("mensaje", "Noticia generada correctamente.");
+				response.put("mensaje", noticiaExistente != null ? "Noticia actualizada correctamente."
+						: "Noticia generada correctamente.");
 				logger.debug("Fin guardarNoticia: resultado=OK");
 				return ResponseEntity.ok(response);
 			} else {
-				response.put("error", "Error dando de alta la noticia.");
+				response.put("error", "Error guardando la noticia.");
 				logger.debug("Fin guardarNoticia: resultado=FALLIDO");
 				return ResponseEntity.badRequest().body(response);
 			}
 		} catch (Exception e) {
 			logger.error("Error al guardar la noticia: {}", e.getMessage(), e); // Registrar el error
-			response.put("error", "Error al guardar el equipo");
+			response.put("error", "Error al guardar la noticia");
 			logger.debug("Fin guardarNoticia: resultado=ERROR");
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}

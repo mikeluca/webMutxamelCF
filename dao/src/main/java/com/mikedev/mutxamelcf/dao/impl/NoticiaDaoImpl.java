@@ -29,14 +29,28 @@ public class NoticiaDaoImpl implements NoticiaDao {
 
 	@Override
 	public boolean guardarNoticia(Noticia noticia) {
-		logger.debug("Inicio guardarNoticia: titulo={}", noticia.getTitulo());
+		logger.debug("Inicio guardarNoticia: id={}, titulo={}", noticia.getId(), noticia.getTitulo());
+		boolean resultado = noticia.getId() > 0 ? actualizarNoticia(noticia) : insertarNoticia(noticia);
+		logger.debug("Fin guardarNoticia: resultado={}", resultado);
+		return resultado;
+	}
+
+	private boolean insertarNoticia(Noticia noticia) {
 		String sql = "INSERT INTO noticias (titulo, contenido, fecha, imagen) VALUES (?, ?, ?, ?)";
 
 		boolean insertada = jdbcTemplate.update(sql, noticia.getTitulo(), noticia.getContenido(), noticia.getFecha(),
 				noticia.getImagen()) == 1;
-		logger.info("Noticia guardada: titulo={}, insertada={}", noticia.getTitulo(), insertada);
-		logger.debug("Fin guardarNoticia: insertada={}", insertada);
+		logger.info("Noticia insertada: titulo={}, insertada={}", noticia.getTitulo(), insertada);
 		return insertada;
+	}
+
+	private boolean actualizarNoticia(Noticia noticia) {
+		String sql = "UPDATE noticias SET titulo = ?, contenido = ?, imagen = ? WHERE id = ?";
+
+		boolean actualizada = jdbcTemplate.update(sql, noticia.getTitulo(), noticia.getContenido(),
+				noticia.getImagen(), noticia.getId()) == 1;
+		logger.info("Noticia actualizada: id={}, actualizada={}", noticia.getId(), actualizada);
+		return actualizada;
 	}
 
 	@Override

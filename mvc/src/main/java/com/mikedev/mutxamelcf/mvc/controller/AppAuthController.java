@@ -74,7 +74,8 @@ public class AppAuthController {
         try {
 
             UsuarioApp usuario = usuarioAppService.activarCuenta(
-                    request.getToken(),
+                    request.getEmail(),
+                    request.getCodigo(),
                     request.getPassword());
 
             LoginAppResponse loginResponse = usuarioAppService.login(

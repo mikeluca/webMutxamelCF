@@ -194,19 +194,33 @@ public class UsuarioAppVinculoDaoImpl implements UsuarioAppVinculoDao {
     private VinculoUsuarioApp obtenerVinculoJugador(int usuarioAppId) {
 
         String sql = """
-                SELECT J.ID, J.NOMBRE, J.APELLIDOS
+                SELECT J.ID, J.NOMBRE, J.APELLIDOS, J.EQUIPO
                 FROM JUGADORES J
                 INNER JOIN USUARIOS_APP_JUGADORES UAJ
                     ON UAJ.JUGADOR_ID = J.ID
                 WHERE UAJ.USUARIO_APP_ID = ?
                 """;
 
-        return consultarVinculo(sql, usuarioAppId, "JUGADOR");
+        return jdbcTemplate.query(
+                sql,
+                ps -> ps.setInt(1, usuarioAppId),
+                (ResultSet rs) -> {
+
+                    if (rs.next()) {
+                        return new VinculoUsuarioApp(
+                                "JUGADOR",
+                                rs.getLong("ID"),
+                                nombreCompleto(rs.getString("NOMBRE"), rs.getString("APELLIDOS")),
+                                rs.getString("EQUIPO"));
+                    }
+
+                    return null;
+                });
     }
 
     private VinculoUsuarioApp obtenerVinculoFamiliar(int usuarioAppId) {
 
-        String sql = """
+        String sqlFamiliar = """
                 SELECT F.ID, F.NOMBRE, F.APELLIDOS
                 FROM FAMILIARES F
                 INNER JOIN USUARIOS_APP_FAMILIARES UAF
@@ -214,20 +228,84 @@ public class UsuarioAppVinculoDaoImpl implements UsuarioAppVinculoDao {
                 WHERE UAF.USUARIO_APP_ID = ?
                 """;
 
-        return consultarVinculo(sql, usuarioAppId, "FAMILIAR");
+        VinculoUsuarioApp familiar = jdbcTemplate.query(
+                sqlFamiliar,
+                ps -> ps.setInt(1, usuarioAppId),
+                (ResultSet rs) -> rs.next()
+                        ? new VinculoUsuarioApp(
+                                "FAMILIAR",
+                                rs.getLong("ID"),
+                                nombreCompleto(rs.getString("NOMBRE"), rs.getString("APELLIDOS")))
+                        : null);
+
+        if (familiar == null) {
+            return null;
+        }
+
+        /*
+         * Un familiar puede tener varios hijos/tutelados en el club:
+         * el detalle junta los nombres de todos los jugadores con
+         * los que está relacionado (FAMILIARES_JUGADOR), no solo uno.
+         */
+        String sqlJugadores = """
+                SELECT J.NOMBRE, J.APELLIDOS
+                FROM JUGADORES J
+                INNER JOIN FAMILIARES_JUGADOR FJ
+                    ON FJ.JUGADOR_ID = J.ID
+                WHERE FJ.FAMILIAR_ID = ?
+                ORDER BY J.NOMBRE, J.APELLIDOS
+                """;
+
+        List<String> jugadores = jdbcTemplate.query(
+                sqlJugadores,
+                (rs, rowNum) -> nombreCompleto(rs.getString("NOMBRE"), rs.getString("APELLIDOS")),
+                familiar.getPersonaId());
+
+        familiar.setDetalle(jugadores.isEmpty() ? null : String.join(", ", jugadores));
+
+        return familiar;
     }
 
     private VinculoUsuarioApp obtenerVinculoCuerpoTecnico(int usuarioAppId) {
 
+        /*
+         * Un entrenador puede tener más de un vínculo de cuerpo
+         * técnico (por ejemplo, si ayuda a varios equipos): el
+         * detalle junta los nombres de todos los equipos.
+         */
         String sql = """
-                SELECT CT.ID, CT.NOMBRE, CT.APELLIDOS
+                SELECT CT.ID, CT.NOMBRE, CT.APELLIDOS, CT.EQUIPO
                 FROM CUERPO_TECNICO CT
                 INNER JOIN USUARIOS_APP_CUERPO_TECNICO UACT
                     ON UACT.CUERPO_TECNICO_ID = CT.ID
                 WHERE UACT.USUARIO_APP_ID = ?
+                ORDER BY CT.EQUIPO
                 """;
 
-        return consultarVinculo(sql, usuarioAppId, "ENTRENADOR");
+        List<VinculoUsuarioApp> filas = jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> new VinculoUsuarioApp(
+                        "ENTRENADOR",
+                        rs.getLong("ID"),
+                        nombreCompleto(rs.getString("NOMBRE"), rs.getString("APELLIDOS")),
+                        rs.getString("EQUIPO")),
+                usuarioAppId);
+
+        if (filas.isEmpty()) {
+            return null;
+        }
+
+        VinculoUsuarioApp primero = filas.get(0);
+
+        List<String> equipos = filas.stream()
+                .map(VinculoUsuarioApp::getDetalle)
+                .filter(equipo -> equipo != null && !equipo.isBlank())
+                .distinct()
+                .toList();
+
+        primero.setDetalle(equipos.isEmpty() ? null : String.join(", ", equipos));
+
+        return primero;
     }
 
     @Override
@@ -267,24 +345,6 @@ public class UsuarioAppVinculoDaoImpl implements UsuarioAppVinculoDao {
                 sql,
                 ps -> ps.setLong(1, familiarId),
                 (ResultSet rs) -> rs.next() ? rs.getString("EMAIL") : null);
-    }
-
-    private VinculoUsuarioApp consultarVinculo(String sql, int usuarioAppId, String tipo) {
-
-        return jdbcTemplate.query(
-                sql,
-                ps -> ps.setInt(1, usuarioAppId),
-                (ResultSet rs) -> {
-
-                    if (rs.next()) {
-                        return new VinculoUsuarioApp(
-                                tipo,
-                                rs.getLong("ID"),
-                                nombreCompleto(rs.getString("NOMBRE"), rs.getString("APELLIDOS")));
-                    }
-
-                    return null;
-                });
     }
 
     private static String nombreCompleto(String nombre, String apellidos) {

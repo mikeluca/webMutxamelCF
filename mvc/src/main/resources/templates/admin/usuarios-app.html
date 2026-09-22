@@ -17,10 +17,16 @@
 	<div th:replace="~{admin/cabeceraAdmin.html}"></div>
 
 	<main class="admin-screen-shell lead">
-		<h1 class="page-title">Usuarios de la App</h1>
+		<p class="dashboard-eyebrow mb-1">Administración de la App</p>
+		<h1 class="admin-screen-title">Usuarios de la App</h1>
 		<p>Gestiona quién tiene acceso a la app móvil del club: jugadores, familiares, entrenadores y coordinadores.</p>
 
-		<div class="d-flex justify-content-end mb-4">
+		<div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-4">
+			<div>
+				<label for="filtroTexto" class="form-label mb-1">Buscar</label>
+				<input type="text" id="filtroTexto" class="form-control form-control-sm"
+					placeholder="Buscar por email, nombre o rol..." onkeyup="filtrarTabla()">
+			</div>
 			<button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#invitarModal">
 				Invitar usuario
 			</button>
@@ -28,68 +34,74 @@
 
 		<div id="mensajeGeneral" class="alert" style="display:none; margin-bottom: 15px;"></div>
 
-		<table class="table table-striped w-100">
-			<thead>
-				<tr>
-					<th>Email</th>
-					<th>Vínculo</th>
-					<th>Roles</th>
-					<th>Estado</th>
-					<th>Último acceso</th>
-					<th></th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr th:each="usuario : ${usuarios}" th:id="'fila-usuario-' + ${usuario.id}">
-					<td class="align-middle" th:text="${usuario.email}"></td>
-					<td class="align-middle">
-						<span th:if="${usuario.vinculoNombre} != null"
-							th:text="${usuario.vinculoTipo} + ': ' + ${usuario.vinculoNombre}"></span>
-						<span th:if="${usuario.vinculoNombre} == null" class="text-muted">Sin vincular</span>
-					</td>
-					<td class="align-middle" th:text="${#strings.listJoin(usuario.roles, ', ')}"></td>
-					<td class="align-middle">
-						<span th:if="${usuario.activo}" class="badge bg-success">Activa</span>
-						<span th:if="!${usuario.activo} and ${usuario.tokenExpirado}"
-							class="badge bg-danger">Invitación caducada</span>
-						<span th:if="!${usuario.activo} and !${usuario.tokenExpirado} and ${usuario.tokenPendiente}"
-							class="badge bg-warning text-dark">Pendiente de activar</span>
-						<span th:if="!${usuario.activo} and !${usuario.tokenPendiente}"
-							class="badge bg-secondary">Desactivada</span>
-					</td>
-					<td class="align-middle"
-						th:text="${usuario.fechaUltimoAcceso} != null ? ${#dates.format(usuario.fechaUltimoAcceso, 'dd/MM/yyyy HH:mm')} : 'Nunca'">
-					</td>
-					<td class="align-middle">
-						<div class="d-flex justify-content-center align-items-center gap-2">
-							<button th:if="!${usuario.activo}" type="button" class="btn btn-outline-primary btn-sm"
-								title="Reenviar invitación" th:attr="data-id=${usuario.id}"
-								onclick="reenviarInvitacion(this)">
-								<i class="bi bi-envelope-arrow-up"></i>
-							</button>
-							<button th:if="!${usuario.activo}" type="button" class="btn btn-outline-success btn-sm"
-								title="Activar manualmente" th:attr="data-id=${usuario.id}"
-								onclick="cambiarEstado(this, 'activar')">
-								<i class="bi bi-check-circle"></i>
-							</button>
-							<button th:if="${usuario.activo}" type="button" class="btn btn-outline-danger btn-sm"
-								title="Desactivar cuenta" th:attr="data-id=${usuario.id}"
-								onclick="cambiarEstado(this, 'desactivar')">
-								<i class="bi bi-slash-circle"></i>
-							</button>
-							<button th:if="!${usuario.activo}" type="button" class="btn btn-outline-danger btn-sm"
-								title="Eliminar invitación" th:attr="data-id=${usuario.id}"
-								onclick="eliminarInvitacion(this)">
-								<i class="bi bi-trash"></i>
-							</button>
-						</div>
-					</td>
-				</tr>
-				<tr th:if="${#lists.isEmpty(usuarios)}">
-					<td colspan="6" class="text-center">Todavía no hay ninguna cuenta de la app creada.</td>
-				</tr>
-			</tbody>
-		</table>
+		<div class="admin-list-panel">
+			<table class="table table-striped w-100" id="tablaUsuariosApp">
+				<thead>
+					<tr>
+						<th>Email</th>
+						<th>Nombre</th>
+						<th>Rol</th>
+						<th>Vínculo</th>
+						<th>Estado</th>
+						<th>Último acceso</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr th:each="usuario : ${usuarios}" th:id="'fila-usuario-' + ${usuario.id}">
+						<td class="align-middle" th:text="${usuario.email}"></td>
+						<td class="align-middle">
+							<span th:if="${usuario.vinculoNombre} != null" th:text="${usuario.vinculoNombre}"></span>
+							<span th:if="${usuario.vinculoNombre} == null" class="text-muted">&mdash;</span>
+						</td>
+						<td class="align-middle" th:text="${#strings.listJoin(usuario.roles, ', ')}"></td>
+						<td class="align-middle">
+							<span th:if="${usuario.vinculoDetalle} != null" th:text="${usuario.vinculoDetalle}"></span>
+							<span th:if="${usuario.vinculoDetalle} == null" class="text-muted">Sin vincular</span>
+						</td>
+						<td class="align-middle">
+							<span th:if="${usuario.activo}" class="badge text-bg-success">Activa</span>
+							<span th:if="!${usuario.activo} and ${usuario.tokenExpirado}"
+								class="badge text-bg-danger">Invitación caducada</span>
+							<span th:if="!${usuario.activo} and !${usuario.tokenExpirado} and ${usuario.tokenPendiente}"
+								class="badge text-bg-warning">Pendiente de activar</span>
+							<span th:if="!${usuario.activo} and !${usuario.tokenPendiente}"
+								class="badge text-bg-secondary">Desactivada</span>
+						</td>
+						<td class="align-middle"
+							th:text="${usuario.fechaUltimoAcceso} != null ? ${#dates.format(usuario.fechaUltimoAcceso, 'dd/MM/yyyy HH:mm')} : 'Nunca'">
+						</td>
+						<td class="align-middle">
+							<div class="d-flex justify-content-center align-items-center gap-2">
+								<button th:if="!${usuario.activo}" type="button" class="btn btn-outline-primary btn-sm"
+									title="Reenviar invitación" th:attr="data-id=${usuario.id}"
+									onclick="reenviarInvitacion(this)">
+									<i class="bi bi-arrow-repeat"></i>
+								</button>
+								<button th:if="!${usuario.activo}" type="button" class="btn btn-outline-success btn-sm"
+									title="Activar manualmente" th:attr="data-id=${usuario.id}"
+									onclick="cambiarEstado(this, 'activar')">
+									<i class="bi bi-check-circle"></i>
+								</button>
+								<button th:if="${usuario.activo}" type="button" class="btn btn-outline-danger btn-sm"
+									title="Desactivar cuenta" th:attr="data-id=${usuario.id}"
+									onclick="cambiarEstado(this, 'desactivar')">
+									<i class="bi bi-slash-circle"></i>
+								</button>
+								<button th:if="!${usuario.activo}" type="button" class="btn btn-danger btn-sm"
+									title="Eliminar invitación" th:attr="data-id=${usuario.id}"
+									onclick="eliminarInvitacion(this)">
+									<i class="bi bi-trash"></i>
+								</button>
+							</div>
+						</td>
+					</tr>
+					<tr th:if="${#lists.isEmpty(usuarios)}">
+						<td colspan="7" class="text-center">Todavía no hay ninguna cuenta de la app creada.</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
 	</main>
 
 	<!-- Modal invitar usuario -->
@@ -357,6 +369,15 @@
 					console.error(err);
 					mostrarMensaje('mensajeGeneral', 'error', 'Error de red al cambiar el estado.');
 				});
+		}
+
+		function filtrarTabla() {
+			const texto = document.getElementById('filtroTexto').value.toLowerCase();
+			const filas = document.querySelectorAll('#tablaUsuariosApp tbody tr');
+
+			filas.forEach(fila => {
+				fila.style.display = fila.textContent.toLowerCase().includes(texto) ? '' : 'none';
+			});
 		}
 	</script>
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
