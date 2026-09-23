@@ -25,11 +25,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.mikedev.mutxamelcf.dao.RolAppDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
+import com.mikedev.mutxamelcf.model.AnadirVinculosRequest;
 import com.mikedev.mutxamelcf.model.InvitacionUsuarioApp;
 import com.mikedev.mutxamelcf.model.InvitarUsuarioAppRequest;
 import com.mikedev.mutxamelcf.model.LoginAppResponse;
 import com.mikedev.mutxamelcf.model.RolApp;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
+import com.mikedev.mutxamelcf.model.VinculoSolicitado;
+import com.mikedev.mutxamelcf.model.VinculoUsuarioApp;
 import com.mikedev.mutxamelcf.service.JwtService;
 import com.mikedev.mutxamelcf.util.TokenUtils;
 
@@ -301,8 +304,14 @@ class UsuarioAppServiceImplTest {
 
     private InvitarUsuarioAppRequest requestInvitacion(String tipo, Long personaId, String email) {
         InvitarUsuarioAppRequest request = new InvitarUsuarioAppRequest();
-        request.setTipoVinculo(tipo);
-        request.setPersonaId(personaId);
+        request.setVinculos(List.of(new VinculoSolicitado(tipo, personaId)));
+        request.setEmail(email);
+        return request;
+    }
+
+    private InvitarUsuarioAppRequest requestInvitacion(List<VinculoSolicitado> vinculos, String email) {
+        InvitarUsuarioAppRequest request = new InvitarUsuarioAppRequest();
+        request.setVinculos(vinculos);
         request.setEmail(email);
         return request;
     }
@@ -429,6 +438,173 @@ class UsuarioAppServiceImplTest {
         verify(usuarioAppVinculoDao, never()).vincularJugador(anyInt(), any());
         verify(usuarioAppVinculoDao, never()).vincularFamiliar(anyInt(), any());
         verify(usuarioAppVinculoDao, never()).vincularCuerpoTecnico(anyInt(), any());
+    }
+
+    @Test
+    void invitarUsuarioRetransmisionNoRequierePersonaVinculada() {
+        InvitarUsuarioAppRequest request = requestInvitacion("RETRANSMISION", null, "retransmision@mutxamelcf.es");
+
+        when(rolAppDao.obtenerPorCodigo("RETRANSMISION")).thenReturn(rol(10, "RETRANSMISION"));
+        when(usuarioAppDao.obtenerPorEmail("retransmision@mutxamelcf.es")).thenReturn(null);
+        when(usuarioAppDao.guardar(any())).thenReturn(8);
+
+        UsuarioApp creado = new UsuarioApp();
+        creado.setId(8);
+        creado.setActivo(false);
+        when(usuarioAppDao.obtenerPorId(8)).thenReturn(creado);
+        when(rolAppDao.obtenerPorUsuario(8)).thenReturn(List.of());
+
+        InvitacionUsuarioApp invitacion = service.invitarUsuario(request);
+
+        assertThat(invitacion.getNombrePersona()).isNull();
+        verify(rolAppDao).asignarRol(8, 10);
+        verify(usuarioAppVinculoDao, never()).vincularJugador(anyInt(), any());
+        verify(usuarioAppVinculoDao, never()).vincularFamiliar(anyInt(), any());
+        verify(usuarioAppVinculoDao, never()).vincularCuerpoTecnico(anyInt(), any());
+    }
+
+    @Test
+    void invitarUsuarioConVariosVinculosALaVezLosAplicaTodos() {
+        InvitarUsuarioAppRequest request = requestInvitacion(
+                List.of(
+                        new VinculoSolicitado("JUGADOR", 55L),
+                        new VinculoSolicitado("ENTRENADOR", 9L)),
+                "Nuevo@Mutxamelcf.es");
+
+        when(usuarioAppVinculoDao.jugadorTieneCuenta(55L)).thenReturn(false);
+        when(usuarioAppVinculoDao.obtenerNombrePersona("JUGADOR", 55L)).thenReturn("Juan Perez");
+        when(usuarioAppVinculoDao.cuerpoTecnicoTieneCuenta(9L)).thenReturn(false);
+        when(usuarioAppVinculoDao.obtenerNombrePersona("ENTRENADOR", 9L)).thenReturn("Carlos Tecnico");
+        when(rolAppDao.obtenerPorCodigo("JUGADOR")).thenReturn(rol(2, "JUGADOR"));
+        when(rolAppDao.obtenerPorCodigo("ENTRENADOR")).thenReturn(rol(6, "ENTRENADOR"));
+        when(usuarioAppDao.obtenerPorEmail("nuevo@mutxamelcf.es")).thenReturn(null);
+        when(usuarioAppDao.guardar(any())).thenReturn(50);
+
+        UsuarioApp creado = new UsuarioApp();
+        creado.setId(50);
+        creado.setActivo(false);
+        when(usuarioAppDao.obtenerPorId(50)).thenReturn(creado);
+        when(rolAppDao.obtenerPorUsuario(50)).thenReturn(List.of());
+
+        InvitacionUsuarioApp invitacion = service.invitarUsuario(request);
+
+        assertThat(invitacion.getUsuarioAppId()).isEqualTo(50);
+        assertThat(invitacion.getNombrePersona()).isEqualTo("Juan Perez");
+
+        verify(usuarioAppVinculoDao).vincularJugador(50, 55L);
+        verify(usuarioAppVinculoDao).vincularCuerpoTecnico(50, 9L);
+        verify(rolAppDao).asignarRol(50, 2);
+        verify(rolAppDao).asignarRol(50, 6);
+    }
+
+    @Test
+    void agregarVinculosAUsuarioExistenteAnadeVinculoNuevoAUnaCuentaYaCreada() {
+        UsuarioApp existente = new UsuarioApp();
+        existente.setId(60);
+        existente.setActivo(true);
+
+        when(usuarioAppDao.obtenerPorId(60)).thenReturn(existente);
+        when(usuarioAppVinculoDao.cuerpoTecnicoTieneCuenta(11L)).thenReturn(false);
+        when(usuarioAppVinculoDao.obtenerNombrePersona("ENTRENADOR", 11L)).thenReturn("Nuevo Tecnico");
+        when(rolAppDao.obtenerPorCodigo("ENTRENADOR")).thenReturn(rol(6, "ENTRENADOR"));
+        when(rolAppDao.obtenerPorUsuario(60)).thenReturn(List.of());
+
+        AnadirVinculosRequest request = new AnadirVinculosRequest();
+        request.setVinculos(List.of(new VinculoSolicitado("ENTRENADOR", 11L)));
+
+        service.agregarVinculosAUsuarioExistente(60, request);
+
+        verify(usuarioAppVinculoDao).vincularCuerpoTecnico(60, 11L);
+        verify(rolAppDao).asignarRol(60, 6);
+    }
+
+    @Test
+    void agregarVinculosAUsuarioInexistenteLanzaExcepcionYNoVinculaNada() {
+        when(usuarioAppDao.obtenerPorId(70)).thenReturn(null);
+
+        AnadirVinculosRequest request = new AnadirVinculosRequest();
+        request.setVinculos(List.of(new VinculoSolicitado("JUGADOR", 1L)));
+
+        assertThatThrownBy(() -> service.agregarVinculosAUsuarioExistente(70, request))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(usuarioAppVinculoDao, never()).vincularJugador(anyInt(), any());
+    }
+
+    @Test
+    void quitarVinculoDeEntrenadorConOtroEquipoMantieneElRol() {
+        UsuarioApp existente = new UsuarioApp();
+        existente.setId(80);
+        existente.setActivo(true);
+
+        when(usuarioAppDao.obtenerPorId(80)).thenReturn(existente);
+        when(usuarioAppVinculoDao.obtenerVinculos(80)).thenReturn(
+                List.of(new VinculoUsuarioApp("ENTRENADOR", 200L, "Otro Equipo")));
+
+        service.quitarVinculo(80, new VinculoSolicitado("ENTRENADOR", 100L));
+
+        verify(usuarioAppVinculoDao).desvincularCuerpoTecnico(80, 100L);
+        verify(rolAppDao, never()).eliminarRol(anyInt(), anyInt());
+    }
+
+    @Test
+    void quitarVinculoDeEntrenadorSinOtroEquipoQuitaElRol() {
+        UsuarioApp existente = new UsuarioApp();
+        existente.setId(80);
+        existente.setActivo(true);
+
+        when(usuarioAppDao.obtenerPorId(80)).thenReturn(existente);
+        when(usuarioAppVinculoDao.obtenerVinculos(80)).thenReturn(List.of());
+        when(rolAppDao.obtenerPorCodigo("ENTRENADOR")).thenReturn(rol(6, "ENTRENADOR"));
+
+        service.quitarVinculo(80, new VinculoSolicitado("ENTRENADOR", 100L));
+
+        verify(usuarioAppVinculoDao).desvincularCuerpoTecnico(80, 100L);
+        verify(rolAppDao).eliminarRol(80, 6);
+    }
+
+    @Test
+    void quitarVinculoCoordinadorQuitaSiempreElRolSinTocarVinculosAPersona() {
+        UsuarioApp existente = new UsuarioApp();
+        existente.setId(90);
+        existente.setActivo(true);
+
+        when(usuarioAppDao.obtenerPorId(90)).thenReturn(existente);
+        when(rolAppDao.obtenerPorCodigo("COORDINADOR")).thenReturn(rol(9, "COORDINADOR"));
+
+        service.quitarVinculo(90, new VinculoSolicitado("COORDINADOR", null));
+
+        verify(rolAppDao).eliminarRol(90, 9);
+        verify(usuarioAppVinculoDao, never()).desvincularJugador(anyInt(), any());
+        verify(usuarioAppVinculoDao, never()).desvincularFamiliar(anyInt(), any());
+        verify(usuarioAppVinculoDao, never()).desvincularCuerpoTecnico(anyInt(), any());
+    }
+
+    @Test
+    void quitarVinculoRetransmisionQuitaElRolSinTocarVinculosAPersona() {
+        UsuarioApp existente = new UsuarioApp();
+        existente.setId(91);
+        existente.setActivo(true);
+
+        when(usuarioAppDao.obtenerPorId(91)).thenReturn(existente);
+        when(rolAppDao.obtenerPorCodigo("RETRANSMISION")).thenReturn(rol(10, "RETRANSMISION"));
+
+        service.quitarVinculo(91, new VinculoSolicitado("RETRANSMISION", null));
+
+        verify(rolAppDao).eliminarRol(91, 10);
+        verify(usuarioAppVinculoDao, never()).desvincularJugador(anyInt(), any());
+        verify(usuarioAppVinculoDao, never()).desvincularFamiliar(anyInt(), any());
+        verify(usuarioAppVinculoDao, never()).desvincularCuerpoTecnico(anyInt(), any());
+    }
+
+    @Test
+    void quitarVinculoDeUsuarioInexistenteLanzaExcepcion() {
+        when(usuarioAppDao.obtenerPorId(95)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.quitarVinculo(95, new VinculoSolicitado("JUGADOR", 1L)))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(usuarioAppVinculoDao, never()).desvincularJugador(anyInt(), any());
     }
 
     @Test

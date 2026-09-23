@@ -1,6 +1,7 @@
 package com.mikedev.mutxamelcf.dao.impl;
 
 import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -174,21 +175,56 @@ public class UsuarioAppVinculoDaoImpl implements UsuarioAppVinculoDao {
     }
 
     @Override
-    public VinculoUsuarioApp obtenerVinculo(int usuarioAppId) {
+    public void desvincularJugador(int usuarioAppId, Long jugadorId) {
 
-        VinculoUsuarioApp vinculo = obtenerVinculoJugador(usuarioAppId);
+        jdbcTemplate.update(
+                "DELETE FROM USUARIOS_APP_JUGADORES WHERE USUARIO_APP_ID = ? AND JUGADOR_ID = ?",
+                usuarioAppId,
+                jugadorId);
+    }
 
-        if (vinculo != null) {
-            return vinculo;
+    @Override
+    public void desvincularFamiliar(int usuarioAppId, Long familiarId) {
+
+        jdbcTemplate.update(
+                "DELETE FROM USUARIOS_APP_FAMILIARES WHERE USUARIO_APP_ID = ? AND FAMILIAR_ID = ?",
+                usuarioAppId,
+                familiarId);
+    }
+
+    @Override
+    public void desvincularCuerpoTecnico(int usuarioAppId, Long cuerpoTecnicoId) {
+
+        jdbcTemplate.update(
+                "DELETE FROM USUARIOS_APP_CUERPO_TECNICO WHERE USUARIO_APP_ID = ? AND CUERPO_TECNICO_ID = ?",
+                usuarioAppId,
+                cuerpoTecnicoId);
+    }
+
+    @Override
+    public List<VinculoUsuarioApp> obtenerVinculos(int usuarioAppId) {
+
+        List<VinculoUsuarioApp> vinculos = new ArrayList<>();
+
+        VinculoUsuarioApp jugador = obtenerVinculoJugador(usuarioAppId);
+
+        if (jugador != null) {
+            vinculos.add(jugador);
         }
 
-        vinculo = obtenerVinculoFamiliar(usuarioAppId);
+        VinculoUsuarioApp familiar = obtenerVinculoFamiliar(usuarioAppId);
 
-        if (vinculo != null) {
-            return vinculo;
+        if (familiar != null) {
+            vinculos.add(familiar);
         }
 
-        return obtenerVinculoCuerpoTecnico(usuarioAppId);
+        VinculoUsuarioApp cuerpoTecnico = obtenerVinculoCuerpoTecnico(usuarioAppId);
+
+        if (cuerpoTecnico != null) {
+            vinculos.add(cuerpoTecnico);
+        }
+
+        return vinculos;
     }
 
     private VinculoUsuarioApp obtenerVinculoJugador(int usuarioAppId) {

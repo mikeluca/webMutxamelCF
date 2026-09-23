@@ -37,7 +37,31 @@ public interface UsuarioAppVinculoDao {
      */
     void desvincularTodo(int usuarioAppId);
 
-    VinculoUsuarioApp obtenerVinculo(int usuarioAppId);
+    /**
+     * Quita un vínculo de jugador concreto (no toca los demás vínculos
+     * que pueda tener la cuenta).
+     */
+    void desvincularJugador(int usuarioAppId, Long jugadorId);
+
+    /**
+     * Quita un vínculo de familiar concreto (no toca los demás vínculos
+     * que pueda tener la cuenta).
+     */
+    void desvincularFamiliar(int usuarioAppId, Long familiarId);
+
+    /**
+     * Quita un vínculo de cuerpo técnico concreto (no toca los demás
+     * vínculos que pueda tener la cuenta, p. ej. si entrena a más de un
+     * equipo).
+     */
+    void desvincularCuerpoTecnico(int usuarioAppId, Long cuerpoTecnicoId);
+
+    /**
+     * Todos los vínculos (jugador, familiar, cuerpo técnico) que tiene
+     * hoy la cuenta, en cualquier combinación. Lista vacía si no tiene
+     * ninguno.
+     */
+    List<VinculoUsuarioApp> obtenerVinculos(int usuarioAppId);
 
     /**
      * Nombre completo de una persona (jugador/familiar/cuerpo técnico)

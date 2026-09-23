@@ -17,10 +17,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.mikedev.mutxamelcf.model.AnadirVinculosRequest;
 import com.mikedev.mutxamelcf.model.InvitacionUsuarioApp;
 import com.mikedev.mutxamelcf.model.InvitarUsuarioAppRequest;
 import com.mikedev.mutxamelcf.model.PersonasVinculablesResponse;
 import com.mikedev.mutxamelcf.model.UsuarioAppAdminResponse;
+import com.mikedev.mutxamelcf.model.VinculoSolicitado;
 import com.mikedev.mutxamelcf.mvc.communication.ComunicacionesService;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
@@ -99,6 +101,62 @@ public class AdminUsuariosAppController {
 
             logger.error("Error al invitar al usuario de la app: {}", e.getMessage(), e);
             response.put("error", "Error inesperado al crear la invitación.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    @PostMapping("/{id}/vinculos")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> anadirVinculos(
+            @PathVariable int id,
+            @Valid @RequestBody AnadirVinculosRequest request) {
+
+        Map<String, String> response = new HashMap<>();
+
+        try {
+
+            usuarioAppService.agregarVinculosAUsuarioExistente(id, request);
+            response.put("mensaje", "Vínculo/rol añadido correctamente.");
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException | IllegalStateException e) {
+
+            logger.warn("No se ha podido añadir el vínculo: {}", e.getMessage());
+            response.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+
+        } catch (Exception e) {
+
+            logger.error("Error al añadir el vínculo: {}", e.getMessage(), e);
+            response.put("error", "Error inesperado al añadir el vínculo.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    @PostMapping("/{id}/vinculos/quitar")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> quitarVinculo(
+            @PathVariable int id,
+            @Valid @RequestBody VinculoSolicitado vinculo) {
+
+        Map<String, String> response = new HashMap<>();
+
+        try {
+
+            usuarioAppService.quitarVinculo(id, vinculo);
+            response.put("mensaje", "Vínculo/rol quitado correctamente.");
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException | IllegalStateException e) {
+
+            logger.warn("No se ha podido quitar el vínculo: {}", e.getMessage());
+            response.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+
+        } catch (Exception e) {
+
+            logger.error("Error al quitar el vínculo: {}", e.getMessage(), e);
+            response.put("error", "Error inesperado al quitar el vínculo.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }

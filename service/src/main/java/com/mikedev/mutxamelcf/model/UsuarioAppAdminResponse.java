@@ -18,14 +18,14 @@ public class UsuarioAppAdminResponse {
     private boolean tokenPendiente;
     private boolean tokenExpirado;
     private List<String> roles;
-    private String vinculoTipo;
-    private String vinculoNombre;
 
     /**
-     * Equipo/s (jugador o entrenador) o jugador/es (familiar) del
-     * vínculo. Null si no aplica.
+     * Todos los vínculos a persona que tiene la cuenta hoy (puede ser
+     * más de uno: jugador y familiar a la vez, entrenador de varios
+     * equipos...). Lista vacía si no tiene ninguno (p. ej. una cuenta
+     * solo con rol COORDINADOR).
      */
-    private String vinculoDetalle;
+    private List<VinculoUsuarioApp> vinculos;
 
     public UsuarioAppAdminResponse() {
     }
@@ -102,27 +102,33 @@ public class UsuarioAppAdminResponse {
         this.roles = roles;
     }
 
-    public String getVinculoTipo() {
-        return vinculoTipo;
+    public List<VinculoUsuarioApp> getVinculos() {
+        return vinculos;
     }
 
-    public void setVinculoTipo(String vinculoTipo) {
-        this.vinculoTipo = vinculoTipo;
+    public void setVinculos(List<VinculoUsuarioApp> vinculos) {
+        this.vinculos = vinculos;
     }
 
-    public String getVinculoNombre() {
-        return vinculoNombre;
+    /*
+     * Usados por la vista de administración para deshabilitar, al editar
+     * una cuenta, las casillas de los tipos que ya tiene (Jugador/Familiar/
+     * Coordinador son 1:1 por cuenta; Entrenador no, admite varios equipos).
+     */
+
+    public boolean isTieneJugador() {
+        return vinculos != null && vinculos.stream().anyMatch(v -> "JUGADOR".equals(v.getTipo()));
     }
 
-    public void setVinculoNombre(String vinculoNombre) {
-        this.vinculoNombre = vinculoNombre;
+    public boolean isTieneFamiliar() {
+        return vinculos != null && vinculos.stream().anyMatch(v -> "FAMILIAR".equals(v.getTipo()));
     }
 
-    public String getVinculoDetalle() {
-        return vinculoDetalle;
+    public boolean isTieneCoordinador() {
+        return roles != null && roles.contains("COORDINADOR");
     }
 
-    public void setVinculoDetalle(String vinculoDetalle) {
-        this.vinculoDetalle = vinculoDetalle;
+    public boolean isTieneRetransmision() {
+        return roles != null && roles.contains("RETRANSMISION");
     }
 }

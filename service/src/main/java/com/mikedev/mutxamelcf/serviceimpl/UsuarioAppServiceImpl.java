@@ -3,11 +3,13 @@ package com.mikedev.mutxamelcf.serviceimpl;
 import com.mikedev.mutxamelcf.dao.RolAppDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
+import com.mikedev.mutxamelcf.model.AnadirVinculosRequest;
 import com.mikedev.mutxamelcf.model.InvitacionUsuarioApp;
 import com.mikedev.mutxamelcf.model.InvitarUsuarioAppRequest;
 import com.mikedev.mutxamelcf.model.LoginAppResponse;
 import com.mikedev.mutxamelcf.model.PersonasVinculablesResponse;
 import com.mikedev.mutxamelcf.model.RolApp;
+import com.mikedev.mutxamelcf.model.VinculoSolicitado;
 import com.mikedev.mutxamelcf.model.VinculoUsuarioApp;
 import com.mikedev.mutxamelcf.service.JwtService;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
@@ -40,6 +42,13 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
 
     private static final Set<String> TIPOS_VINCULO_CON_PERSONA = Set.of(
             "JUGADOR", "FAMILIAR", "ENTRENADOR");
+
+    /*
+     * Roles de club sin vínculo a una persona concreta (a diferencia de
+     * jugador/familiar/entrenador, que sí atan la cuenta a una ficha).
+     */
+    private static final Set<String> TIPOS_VINCULO_SIN_PERSONA = Set.of(
+            "COORDINADOR", "RETRANSMISION");
 
     private final UsuarioAppDao usuarioAppDao;
     private final UsuarioAppVinculoDao usuarioAppVinculoDao;
@@ -414,48 +423,29 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
                     "La petición no puede ser nula");
         }
 
-        String tipo = normalizarTipo(request.getTipoVinculo());
-        String nombrePersona = null;
+        List<VinculoSolicitado> vinculos = normalizarVinculos(request.getVinculos());
 
-        if (TIPOS_VINCULO_CON_PERSONA.contains(tipo)) {
-
-            if (request.getPersonaId() == null) {
-                throw new IllegalArgumentException(
-                        "Debes seleccionar a la persona a vincular");
-            }
-
-            validarPersonaSinCuenta(tipo, request.getPersonaId());
-
-            nombrePersona = usuarioAppVinculoDao.obtenerNombrePersona(
-                    tipo,
-                    request.getPersonaId());
-
-            if (nombrePersona == null) {
-                throw new IllegalArgumentException(
-                        "La persona seleccionada no existe");
-            }
-
-        } else if (!"COORDINADOR".equals(tipo)) {
-
-            throw new IllegalArgumentException(
-                    "Tipo de vínculo no válido: " + request.getTipoVinculo());
-        }
-
-        RolApp rol = obtenerRolPorCodigo(tipo);
-
-        if (rol == null) {
-            throw new IllegalStateException(
-                    "El rol " + tipo + " no está configurado en ROLES_APP");
-        }
+        /*
+         * Validamos todo (personas sin cuenta ya, roles configurados)
+         * antes de crear nada: así una petición inválida no deja a
+         * medias una cuenta creada sin sus vínculos.
+         */
+        List<VinculoResuelto> resueltos = validarVinculos(vinculos);
 
         /*
          * El email de un familiar SIEMPRE sale de su ficha (FAMILIARES.EMAIL),
          * nunca de lo que escriba OFICINA en el formulario: así solo se puede
          * cambiar editando al familiar, y no hay forma de que la invitación
-         * acabe en un email distinto al de contacto real de esa persona.
+         * acabe en un email distinto al de contacto real de esa persona. Si
+         * hay varios vínculos a la vez y uno es FAMILIAR, manda ese email.
          */
-        String email = "FAMILIAR".equals(tipo)
-                ? emailFamiliarObligatorio(request.getPersonaId())
+        VinculoResuelto familiar = resueltos.stream()
+                .filter(v -> "FAMILIAR".equals(v.tipo()))
+                .findFirst()
+                .orElse(null);
+
+        String email = familiar != null
+                ? emailFamiliarObligatorio(familiar.personaId())
                 : validarEmailEscrito(request.getEmail());
 
         UsuarioApp usuario = new UsuarioApp();
@@ -463,32 +453,209 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
 
         int usuarioAppId = crearUsuario(usuario);
 
-        switch (tipo) {
-            case "JUGADOR" -> usuarioAppVinculoDao.vincularJugador(
-                    usuarioAppId, request.getPersonaId());
-            case "FAMILIAR" -> usuarioAppVinculoDao.vincularFamiliar(
-                    usuarioAppId, request.getPersonaId());
-            case "ENTRENADOR" -> usuarioAppVinculoDao.vincularCuerpoTecnico(
-                    usuarioAppId, request.getPersonaId());
-            default -> {
-                /* COORDINADOR: rol de club, sin vínculo con una persona. */
-            }
-        }
-
-        asignarRol(usuarioAppId, rol.getId());
+        String nombrePersona = aplicarVinculosResueltos(usuarioAppId, resueltos);
 
         String token = generarTokenActivacion(usuarioAppId);
 
         logger.info(
-                "Invitación de app creada: usuarioAppId={}, tipo={}",
+                "Invitación de app creada: usuarioAppId={}, tipos={}",
                 usuarioAppId,
-                tipo);
+                vinculos.stream().map(VinculoSolicitado::getTipo).toList());
 
         return new InvitacionUsuarioApp(
                 usuarioAppId,
                 usuario.getEmail(),
                 nombrePersona,
                 token);
+    }
+
+    @Override
+    @Transactional
+    public void agregarVinculosAUsuarioExistente(
+            int usuarioAppId,
+            AnadirVinculosRequest request) {
+
+        if (request == null) {
+            throw new IllegalArgumentException(
+                    "La petición no puede ser nula");
+        }
+
+        UsuarioApp usuario = usuarioAppDao.obtenerPorId(usuarioAppId);
+
+        if (usuario == null) {
+            throw new IllegalArgumentException("El usuario no existe");
+        }
+
+        List<VinculoSolicitado> vinculos = normalizarVinculos(request.getVinculos());
+        List<VinculoResuelto> resueltos = validarVinculos(vinculos);
+
+        aplicarVinculosResueltos(usuarioAppId, resueltos);
+
+        logger.info(
+                "Vínculos añadidos a usuario de la app: usuarioAppId={}, tipos={}",
+                usuarioAppId,
+                vinculos.stream().map(VinculoSolicitado::getTipo).toList());
+    }
+
+    @Override
+    @Transactional
+    public void quitarVinculo(int usuarioAppId, VinculoSolicitado vinculo) {
+
+        if (vinculo == null) {
+            throw new IllegalArgumentException(
+                    "El vínculo a quitar es obligatorio");
+        }
+
+        UsuarioApp usuario = usuarioAppDao.obtenerPorId(usuarioAppId);
+
+        if (usuario == null) {
+            throw new IllegalArgumentException("El usuario no existe");
+        }
+
+        String tipo = normalizarTipo(vinculo.getTipo());
+
+        if (TIPOS_VINCULO_CON_PERSONA.contains(tipo) && vinculo.getPersonaId() == null) {
+            throw new IllegalArgumentException(
+                    "Falta la persona del vínculo a quitar");
+        }
+
+        switch (tipo) {
+            case "JUGADOR" -> usuarioAppVinculoDao.desvincularJugador(
+                    usuarioAppId, vinculo.getPersonaId());
+            case "FAMILIAR" -> usuarioAppVinculoDao.desvincularFamiliar(
+                    usuarioAppId, vinculo.getPersonaId());
+            case "ENTRENADOR" -> usuarioAppVinculoDao.desvincularCuerpoTecnico(
+                    usuarioAppId, vinculo.getPersonaId());
+            case "COORDINADOR", "RETRANSMISION" -> {
+                /* Sin vínculo a persona: solo se quita el rol, abajo. */
+            }
+            default -> throw new IllegalArgumentException(
+                    "Tipo de vínculo no válido: " + vinculo.getTipo());
+        }
+
+        /*
+         * El rol asociado solo se quita si, tras este borrado, la cuenta
+         * no conserva ningún otro vínculo del mismo tipo (un entrenador
+         * de 2 equipos no debe perder el rol ENTRENADOR al quitarle uno).
+         */
+        boolean quedaOtroDelMismoTipo = TIPOS_VINCULO_CON_PERSONA.contains(tipo)
+                && usuarioAppVinculoDao.obtenerVinculos(usuarioAppId).stream()
+                        .anyMatch(v -> tipo.equals(v.getTipo()));
+
+        if (!quedaOtroDelMismoTipo) {
+
+            RolApp rol = obtenerRolPorCodigo(tipo);
+
+            if (rol != null) {
+                eliminarRol(usuarioAppId, rol.getId());
+            }
+        }
+
+        logger.info(
+                "Vínculo quitado de usuario de la app: usuarioAppId={}, tipo={}",
+                usuarioAppId,
+                tipo);
+    }
+
+    /**
+     * Un vínculo ya validado: persona confirmada sin cuenta previa (si
+     * aplica), su nombre resuelto y el rol de club correspondiente ya
+     * localizado en ROLES_APP. Separar validación de aplicación permite
+     * comprobar toda la petición (incluida la de invitar, antes de que
+     * exista la cuenta) sin dejar nada a medias si algo no es válido.
+     */
+    private record VinculoResuelto(String tipo, Long personaId, int rolId, String nombre) {
+    }
+
+    private List<VinculoResuelto> validarVinculos(List<VinculoSolicitado> vinculos) {
+
+        List<VinculoResuelto> resueltos = new ArrayList<>();
+
+        for (VinculoSolicitado vinculo : vinculos) {
+
+            String tipo = normalizarTipo(vinculo.getTipo());
+            String nombre = null;
+
+            if (TIPOS_VINCULO_CON_PERSONA.contains(tipo)) {
+
+                if (vinculo.getPersonaId() == null) {
+                    throw new IllegalArgumentException(
+                            "Debes seleccionar a la persona a vincular");
+                }
+
+                validarPersonaSinCuenta(tipo, vinculo.getPersonaId());
+
+                nombre = usuarioAppVinculoDao.obtenerNombrePersona(
+                        tipo,
+                        vinculo.getPersonaId());
+
+                if (nombre == null) {
+                    throw new IllegalArgumentException(
+                            "La persona seleccionada no existe");
+                }
+
+            } else if (!TIPOS_VINCULO_SIN_PERSONA.contains(tipo)) {
+
+                throw new IllegalArgumentException(
+                        "Tipo de vínculo no válido: " + vinculo.getTipo());
+            }
+
+            RolApp rol = obtenerRolPorCodigo(tipo);
+
+            if (rol == null) {
+                throw new IllegalStateException(
+                        "El rol " + tipo + " no está configurado en ROLES_APP");
+            }
+
+            resueltos.add(new VinculoResuelto(tipo, vinculo.getPersonaId(), rol.getId(), nombre));
+        }
+
+        return resueltos;
+    }
+
+    /**
+     * Inserta el vínculo (si aplica) y asigna el rol de cada elemento
+     * de la lista, ya validada por {@link #validarVinculos}. Devuelve
+     * el nombre de la primera persona vinculada (misma persona real
+     * independientemente de cuántos vínculos tenga), o null si ninguno
+     * de los vínculos tenía persona (COORDINADOR/RETRANSMISION).
+     */
+    private String aplicarVinculosResueltos(int usuarioAppId, List<VinculoResuelto> resueltos) {
+
+        String nombrePersona = null;
+
+        for (VinculoResuelto vinculo : resueltos) {
+
+            switch (vinculo.tipo()) {
+                case "JUGADOR" -> usuarioAppVinculoDao.vincularJugador(
+                        usuarioAppId, vinculo.personaId());
+                case "FAMILIAR" -> usuarioAppVinculoDao.vincularFamiliar(
+                        usuarioAppId, vinculo.personaId());
+                case "ENTRENADOR" -> usuarioAppVinculoDao.vincularCuerpoTecnico(
+                        usuarioAppId, vinculo.personaId());
+                default -> {
+                    /* COORDINADOR: rol de club, sin vínculo con una persona. */
+                }
+            }
+
+            asignarRol(usuarioAppId, vinculo.rolId());
+
+            if (nombrePersona == null && vinculo.nombre() != null) {
+                nombrePersona = vinculo.nombre();
+            }
+        }
+
+        return nombrePersona;
+    }
+
+    private List<VinculoSolicitado> normalizarVinculos(List<VinculoSolicitado> vinculos) {
+
+        if (vinculos == null || vinculos.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Debes seleccionar al menos un rol/vínculo");
+        }
+
+        return vinculos;
     }
 
     @Override
@@ -504,7 +671,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
             throw new IllegalStateException("La cuenta ya está activa");
         }
 
-        VinculoUsuarioApp vinculo = usuarioAppVinculoDao.obtenerVinculo(usuarioAppId);
+        List<VinculoUsuarioApp> vinculos = usuarioAppVinculoDao.obtenerVinculos(usuarioAppId);
 
         String token = generarTokenActivacion(usuarioAppId);
 
@@ -513,7 +680,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
         return new InvitacionUsuarioApp(
                 usuarioAppId,
                 usuario.getEmail(),
-                vinculo == null ? null : vinculo.getNombreCompleto(),
+                vinculos.isEmpty() ? null : vinculos.get(0).getNombreCompleto(),
                 token);
     }
 
@@ -650,13 +817,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
                         .map(RolApp::getCodigo)
                         .toList());
 
-        VinculoUsuarioApp vinculo = usuarioAppVinculoDao.obtenerVinculo(usuario.getId());
-
-        if (vinculo != null) {
-            response.setVinculoTipo(vinculo.getTipo());
-            response.setVinculoNombre(vinculo.getNombreCompleto());
-            response.setVinculoDetalle(vinculo.getDetalle());
-        }
+        response.setVinculos(usuarioAppVinculoDao.obtenerVinculos(usuario.getId()));
 
         return response;
     }

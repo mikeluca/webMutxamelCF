@@ -1,5 +1,6 @@
 package com.mikedev.mutxamelcf.service;
 
+import com.mikedev.mutxamelcf.model.AnadirVinculosRequest;
 import com.mikedev.mutxamelcf.model.InvitacionUsuarioApp;
 import com.mikedev.mutxamelcf.model.InvitarUsuarioAppRequest;
 import com.mikedev.mutxamelcf.model.LoginAppResponse;
@@ -7,6 +8,7 @@ import com.mikedev.mutxamelcf.model.PersonasVinculablesResponse;
 import com.mikedev.mutxamelcf.model.RolApp;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
 import com.mikedev.mutxamelcf.model.UsuarioAppAdminResponse;
+import com.mikedev.mutxamelcf.model.VinculoSolicitado;
 
 import java.util.List;
 
@@ -47,6 +49,19 @@ public interface UsuarioAppService {
     PersonasVinculablesResponse obtenerPersonasVinculables();
 
     InvitacionUsuarioApp invitarUsuario(InvitarUsuarioAppRequest request);
+
+    /**
+     * Añade uno o varios vínculos/roles nuevos a una cuenta ya
+     * existente (p. ej. a un jugador se le añade también el rol de
+     * entrenador). El email de la cuenta no se toca.
+     */
+    void agregarVinculosAUsuarioExistente(int usuarioAppId, AnadirVinculosRequest request);
+
+    /**
+     * Quita un vínculo concreto de una cuenta. El rol asociado solo se
+     * quita si no queda ningún otro vínculo del mismo tipo.
+     */
+    void quitarVinculo(int usuarioAppId, VinculoSolicitado vinculo);
 
     InvitacionUsuarioApp reenviarInvitacion(int usuarioAppId);
 
