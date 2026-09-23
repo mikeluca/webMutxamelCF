@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 
 <head>
-	<title>Mutxamel Club de Fútbol</title>
+	<title>Jugadores | Mutxamel CF</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 	<link th:href="@{/css/estilos.css}" rel="stylesheet">
@@ -31,20 +31,28 @@
 	<!-- Incluir el header -->
 	<div th:replace="~{admin/cabeceraAdmin.html}"></div>
 
-	<div class="container mt-5 lead">
-		<h1 class="page-title">Gestión de Jugadores</h1>
+	<main class="admin-screen-shell lead">
+		<p class="dashboard-eyebrow mb-1">Administración Deportiva</p>
+		<h1 class="admin-screen-title">Gestión de Jugadores</h1>
+
+		<div id="alertaPrincipal" class="alert" style="display:none; margin-bottom: 20px;"></div>
 
 		<!-- Botones -->
-		<div class="d-flex justify-content-between align-items-center mb-4">
-			<!-- Filtro por categoría -->
-			<form class="d-flex align-items-center" action="/admin/jugadores" method="get">
-				<label for="categoria" class="me-2 mb-0">Categoría:</label>
-				<select id="categoria" name="categoria" class="form-control me-3">
-					<option value="">Todos</option>
-					<option th:each="categoria : ${categorias}" th:value="${categoria}" th:text="${categoria}"></option>
-				</select>
-				<button type="submit" class="btn btn-primary">Filtrar</button>
-			</form>
+		<div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-4">
+			<div class="d-flex align-items-end gap-2 flex-wrap">
+				<div>
+					<label for="filtroTexto" class="form-label mb-1">Buscar</label>
+					<input type="text" id="filtroTexto" class="form-control form-control-sm"
+						placeholder="Buscar jugador..." onkeyup="filtrarTabla()">
+				</div>
+				<div>
+					<label for="filtroCategoria" class="form-label mb-1">Categoría</label>
+					<select id="filtroCategoria" class="form-select form-select-sm" onchange="filtrarTabla()">
+						<option value="">Todas</option>
+						<option th:each="categoria : ${categorias}" th:value="${categoria}" th:text="${categoria}"></option>
+					</select>
+				</div>
+			</div>
 
 			<!-- Nuevo Jugador -->
 			<button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#jugadorModal">
@@ -53,49 +61,48 @@
 		</div>
 
 		<!-- Tabla de jugadores -->
-		<table class="table table-striped w-100">
-			<thead>
-				<tr>
-					<th style="width: 20%;">Deporte</th> <!-- Ajuste mínimo para la columna de categoría -->
-					<th style="width: 50%;">Nombre completo</th> <!-- Ajusta el ancho de la columna -->
-					<th style="width: 25%;">Equipo</th> <!-- Ajuste mínimo para la columna de equipo -->
-					<th style="width: 5%;"></th> <!-- Ajuste mínimo para la columna de botones -->
-				</tr>
-			</thead>
-			<tbody>
-				<tr th:each="jugador : ${jugadores}">
-					<td class="align-middle"
-						th:text="${jugador.deporte} == 'F' ? 'Fútbol' : (${jugador.deporte} == 'FS' ? 'Fútbol Sala' : '')">
-					</td>
-					<td class="align-middle" th:text="${jugador.nombre} + ' ' + ${jugador.apellidos}"></td>
-					<td class="align-middle" th:text="${jugador.equipo}"></td>
-					<td class="align-middle">
-						<div class="d-flex justify-content-center align-items-center gap-2">
-							<!-- Botón Editar -->
-							<button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
-								data-bs-target="#jugadorModal" th:attr="data-id=${jugador.id},
-							                     data-nombre=${jugador.nombre},
-							                     data-apellidos=${jugador.apellidos},
-							                     data-dorsal=${jugador.dorsal},
-							                     data-posicion=${jugador.posicion},
-							                     data-equipo=${jugador.equipo}" title="Editar jugador" onclick="abrirModalEditar(this)">
-								<i class="bi bi-pencil"></i>
-							</button>
-							<!-- Botón Borrar -->
-							<form th:action="@{'/admin/jugadores/borrar/' + ${jugador.id}}" method="post"
-								class="d-inline-flex align-items-center m-0 p-0">
-								<button type="submit" class="btn btn-danger btn-sm"
-									onclick="return confirm('¿Estás seguro de que deseas borrar este jugador?');"
-									title="Borrar jugador">
+		<div class="admin-list-panel">
+			<table class="table table-striped w-100" id="tablaJugadores">
+				<thead>
+					<tr>
+						<th style="width: 20%;">Deporte</th>
+						<th style="width: 50%;">Nombre completo</th>
+						<th style="width: 25%;">Equipo</th>
+						<th style="width: 5%;"></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr th:each="jugador : ${jugadores}" th:attr="data-categoria=${jugador.categoria}">
+						<td class="align-middle"
+							th:text="${jugador.deporte} == 'F' ? 'Fútbol' : (${jugador.deporte} == 'FS' ? 'Fútbol Sala' : '')">
+						</td>
+						<td class="align-middle" th:text="${jugador.nombre} + ' ' + ${jugador.apellidos}"></td>
+						<td class="align-middle" th:text="${jugador.equipo}"></td>
+						<td class="align-middle">
+							<div class="d-flex justify-content-center align-items-center gap-2">
+								<!-- Botón Editar -->
+								<button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
+									data-bs-target="#jugadorModal" th:attr="data-id=${jugador.id},
+								                     data-nombre=${jugador.nombre},
+								                     data-apellidos=${jugador.apellidos},
+								                     data-dorsal=${jugador.dorsal},
+								                     data-posicion=${jugador.posicion},
+								                     data-equipo=${jugador.equipo}" title="Editar jugador" onclick="abrirModalEditar(this)">
+									<i class="bi bi-pencil"></i>
+								</button>
+								<!-- Botón Borrar -->
+								<button type="button" class="btn btn-danger btn-sm"
+									th:attr="data-id=${jugador.id}, data-nombre=${jugador.nombre + ' ' + jugador.apellidos}"
+									onclick="borrarJugador(this)" title="Borrar jugador">
 									<i class="bi bi-trash"></i>
 								</button>
-							</form>
-						</div>
-					</td>
-				</tr>
-			</tbody>
-		</table>
-	</div>
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</main>
 
 	<!-- Modal -->
 	<div class="modal fade lead" id="jugadorModal" tabindex="-1" aria-labelledby="jugadorModalLabel" aria-hidden="true">
@@ -105,15 +112,15 @@
 					<h3 class="modal-title lead" id="jugadorModalLabel">Jugador</h3>
 					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 				</div>
-				<form id="jugadorForm" enctype="multipart/form-data" method="post">
-					<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-					<div class="modal-body">
-						<div id="mensajeModal" class="alert" style="display:none; margin: 10px;"></div>
+				<div class="modal-body">
+					<div id="mensajeModal" class="alert" style="display:none; margin-bottom: 15px;"></div>
+					<form id="jugadorForm" enctype="multipart/form-data" method="post">
+						<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+						<input type="hidden" id="id" name="id">
 						<div class="row">
 							<div class="col-md-6">
-								<input type="hidden" id="id" name="id">
 								<div class="mb-3">
-									<label for="nombre">Nombre:</label>
+									<label for="nombre">Nombre <span class="text-danger">*</span>:</label>
 									<input type="text" class="form-control" id="nombre" name="nombre" required>
 								</div>
 								<div class="mb-3">
@@ -121,7 +128,7 @@
 									<input type="text" class="form-control" id="posicion" name="posicion">
 								</div>
 								<div class="mb-3">
-									<label for="equipo">Equipo:</label>
+									<label for="equipo">Equipo <span class="text-danger">*</span>:</label>
 									<select id="equipo" name="equipo" class="form-control" required>
 										<option th:each="equipo : ${listaEquipos}" th:value="${equipo.id}"
 											th:text="${equipo.nombre}"></option>
@@ -130,11 +137,13 @@
 								<div class="mb-3">
 									<label for="foto">Subir Foto</label>
 									<input type="file" class="form-control" id="foto" name="foto" accept="image/*">
+									<small id="ayudaFoto" class="form-text text-muted" style="display:none;">Deja este
+										campo vacío para mantener la foto actual.</small>
 								</div>
 							</div>
 							<div class="col-md-6">
 								<div class="mb-3">
-									<label for="apellidos">Apellidos:</label>
+									<label for="apellidos">Apellidos <span class="text-danger">*</span>:</label>
 									<input type="text" class="form-control" id="apellidos" name="apellidos" required>
 								</div>
 								<div class="mb-3">
@@ -143,13 +152,93 @@
 								</div>
 							</div>
 						</div>
+						<div class="d-flex justify-content-end mb-3">
+							<button type="submit" class="btn btn-primary" onclick="guardarJugador(event)">
+								<i class="bi bi-save me-1"></i> Guardar Datos del Jugador
+							</button>
+						</div>
+					</form>
+
+					<!-- Separador -->
+					<hr class="my-4">
+
+					<!-- Sección: Familiares Asociados -->
+					<div id="seccionFamiliaresAsociados">
+						<h4 class="h5 mb-3"><i class="bi bi-people-fill me-2"></i>Familiares Asociados</h4>
+
+						<!-- Aviso cuando es un nuevo jugador -->
+						<div id="avisoNuevoJugador" class="alert alert-info py-2" style="display:none;">
+							<i class="bi bi-info-circle me-1"></i> Guarda los datos del jugador primero para poder asociar familiares.
+						</div>
+
+						<!-- Contenido cuando ya existe el jugador -->
+						<div id="contenidoFamiliaresJugador" style="display:none;">
+							<!-- Tabla de familiares asociados -->
+							<div class="table-responsive mb-3">
+								<table class="table table-bordered table-hover align-middle">
+									<thead class="table-light">
+										<tr>
+											<th>Familiar</th>
+											<th>Teléfono</th>
+											<th>Email</th>
+											<th>Parentesco</th>
+											<th class="text-center">Principal</th>
+											<th class="text-center" style="width: 80px;">Acción</th>
+										</tr>
+									</thead>
+									<tbody id="cuerpoTablaFamiliaresJugador">
+										<!-- Cargado dinámicamente -->
+									</tbody>
+								</table>
+							</div>
+
+							<!-- Formulario para asignar un familiar existente -->
+							<div class="card p-3 bg-light border-0 rounded-3">
+								<h5 class="h6 mb-3"><i class="bi bi-link-45deg me-1"></i>Asignar Familiar</h5>
+								<form id="formAsignarFamiliar" onsubmit="asignarFamiliarAJugador(event)">
+									<div class="row g-2 align-items-end">
+										<div class="col-md-5">
+											<label for="selectFamiliar" class="form-label small">Familiar</label>
+											<select id="selectFamiliar" class="form-select form-select-sm" required>
+												<option value="">-- Seleccionar Familiar --</option>
+												<option th:each="fam : ${listaFamiliares}" th:value="${fam.id}"
+													th:text="${fam.nombre + ' ' + fam.apellidos + (fam.telefono != null ? ' (' + fam.telefono + ')' : '')}">
+												</option>
+											</select>
+										</div>
+										<div class="col-md-3">
+											<label for="inputParentescoJugador" class="form-label small">Parentesco</label>
+											<input type="text" id="inputParentescoJugador" class="form-select form-select-sm" list="opcionesParentescoJugador" placeholder="Ej: Padre, Madre..." required>
+											<datalist id="opcionesParentescoJugador">
+												<option value="Padre">
+												<option value="Madre">
+												<option value="Tutor Legal">
+												<option value="Abuelo/a">
+												<option value="Hermano/a">
+												<option value="Tío/a">
+												<option value="Otro">
+											</datalist>
+										</div>
+										<div class="col-md-2">
+											<div class="form-check pt-3">
+												<input class="form-check-input" type="checkbox" id="checkEsPrincipalJugador" value="1">
+												<label class="form-check-label small" for="checkEsPrincipalJugador">Principal</label>
+											</div>
+										</div>
+										<div class="col-md-2">
+											<button type="submit" class="btn btn-success btn-sm w-100">
+												<i class="bi bi-plus-lg"></i> Asignar
+											</button>
+										</div>
+									</div>
+								</form>
+							</div>
+						</div>
 					</div>
-					<div class="modal-footer">
-						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-						<button type="submit" class="btn btn-primary" onclick="guardarJugador(event)">Guardar
-							Cambios</button>
-					</div>
-				</form>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -164,6 +253,7 @@
 		jugadorModal.addEventListener('show.bs.modal', (event) => {
 			const button = event.relatedTarget;
 			const modalTitle = document.getElementById('jugadorModalLabel');
+			document.getElementById('mensajeModal').style.display = 'none';
 
 			if (!button) return;
 
@@ -171,7 +261,10 @@
 				// Nuevo Jugador
 				document.getElementById('jugadorForm').reset();
 				document.getElementById('id').value = '';
+				document.getElementById('ayudaFoto').style.display = 'none';
 				modalTitle.textContent = 'Nuevo Jugador';
+				document.getElementById('avisoNuevoJugador').style.display = 'block';
+				document.getElementById('contenidoFamiliaresJugador').style.display = 'none';
 			} else if (button.classList.contains('btn-warning')) {
 				// Editar Jugador
 				abrirModalEditar(button);
@@ -187,6 +280,7 @@
 			document.getElementById('apellidos').value = data.apellidos || '';
 			document.getElementById('dorsal').value = (data.dorsal !== 'null' && data.dorsal !== undefined) ? data.dorsal : '';
 			document.getElementById('posicion').value = data.posicion || '';
+			document.getElementById('ayudaFoto').style.display = 'block';
 
 			const equipoSelect = document.getElementById('equipo');
 			if (equipoSelect && data.equipo) {
@@ -197,6 +291,172 @@
 					}
 				});
 			}
+
+			if (data.id) {
+				document.getElementById('avisoNuevoJugador').style.display = 'none';
+				document.getElementById('contenidoFamiliaresJugador').style.display = 'block';
+				cargarFamiliaresDeJugador(data.id);
+			} else {
+				document.getElementById('avisoNuevoJugador').style.display = 'block';
+				document.getElementById('contenidoFamiliaresJugador').style.display = 'none';
+			}
+		}
+
+		function cargarFamiliaresDeJugador(jugadorId) {
+			if (!jugadorId) return;
+
+			fetch(`/admin/jugadores/${jugadorId}/familiares`)
+				.then(response => response.json())
+				.then(relaciones => {
+					const tbody = document.getElementById('cuerpoTablaFamiliaresJugador');
+					tbody.innerHTML = '';
+
+					if (!relaciones || relaciones.length === 0) {
+						tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-2">No tiene familiares asociados.</td></tr>';
+						return;
+					}
+
+					relaciones.forEach(rel => {
+						const familiarNombreCompleto = (rel.familiarNombre || '') + ' ' + (rel.familiarApellidos || '');
+						const principalBadge = rel.esPrincipal === 1
+							? '<span class="badge text-bg-primary"><i class="bi bi-star-fill me-1"></i>Principal</span>'
+							: '<span class="text-muted small">No</span>';
+
+						const tr = document.createElement('tr');
+						tr.innerHTML = `
+							<td><strong>${familiarNombreCompleto}</strong></td>
+							<td>${rel.familiarTelefono || '-'}</td>
+							<td>${rel.familiarEmail || '-'}</td>
+							<td><span class="badge text-bg-info">${rel.parentesco || '-'}</span></td>
+							<td class="text-center">
+								<div class="form-check d-inline-flex align-items-center justify-content-center">
+									<input class="form-check-input" type="radio" name="principal-jugador-${jugadorId}"
+										id="principal-relacion-${rel.id}" ${rel.esPrincipal === 1 ? 'checked' : ''}
+										onchange="marcarFamiliarPrincipal(${rel.id}, ${jugadorId}, this)"
+										title="Marcar como familiar principal">
+									<label class="form-check-label small ms-1" for="principal-relacion-${rel.id}">Principal</label>
+								</div>
+							</td>
+							<td class="text-center">
+								<button type="button" class="btn btn-outline-danger btn-sm" title="Desasignar relación"
+									onclick="desasignarFamiliarDeJugador(${rel.id}, ${jugadorId})">
+									<i class="bi bi-x-circle"></i>
+								</button>
+							</td>
+						`;
+						tbody.appendChild(tr);
+					});
+				})
+				.catch(err => {
+					console.error('Error al cargar familiares asociados:', err);
+				});
+		}
+
+		function asignarFamiliarAJugador(event) {
+			event.preventDefault();
+
+			const jugadorId = document.getElementById('id').value;
+			const familiarId = document.getElementById('selectFamiliar').value;
+			const parentesco = document.getElementById('inputParentescoJugador').value.trim();
+			const esPrincipal = document.getElementById('checkEsPrincipalJugador').checked ? 1 : 0;
+			const token = document.querySelector('input[name="_csrf"]').value;
+
+			if (!jugadorId) {
+				alert('Guarda el jugador antes de asignarle un familiar.');
+				return;
+			}
+			if (!familiarId) {
+				alert('Debes seleccionar un familiar.');
+				return;
+			}
+
+			const formData = new FormData();
+			formData.append('familiarId', familiarId);
+			formData.append('jugadorId', jugadorId);
+			formData.append('parentesco', parentesco);
+			formData.append('esPrincipal', esPrincipal);
+
+			fetch('/admin/familiar-jugador/asignar', {
+				method: 'POST',
+				headers: {'X-CSRF-TOKEN': token},
+				body: formData
+			})
+				.then(response => response.json().then(data => ({ status: response.status, body: data })))
+				.then(result => {
+					const msg = document.getElementById('mensajeModal');
+					if (result.status === 200) {
+						msg.className = 'alert alert-success';
+						msg.textContent = result.body.mensaje;
+						msg.style.display = 'block';
+
+						document.getElementById('formAsignarFamiliar').reset();
+						cargarFamiliaresDeJugador(jugadorId);
+					} else {
+						msg.className = 'alert alert-danger';
+						msg.textContent = result.body.error || 'Error al asignar familiar.';
+						msg.style.display = 'block';
+					}
+				})
+				.catch(err => {
+					console.error(err);
+					alert('Error al asignar el familiar.');
+				});
+		}
+
+		function marcarFamiliarPrincipal(relacionId, jugadorId, radio) {
+			if (!radio.checked) return;
+
+			const token = document.querySelector('input[name="_csrf"]').value;
+			fetch(`/admin/familiar-jugador/principal/${relacionId}`, {
+				method: 'POST',
+				headers: {'X-CSRF-TOKEN': token}
+			})
+				.then(response => response.json().then(data => ({ status: response.status, body: data })))
+				.then(result => {
+					const msg = document.getElementById('mensajeModal');
+					if (result.status === 200) {
+						msg.className = 'alert alert-success';
+						msg.textContent = result.body.mensaje;
+						msg.style.display = 'block';
+						cargarFamiliaresDeJugador(jugadorId);
+					} else {
+						msg.className = 'alert alert-danger';
+						msg.textContent = result.body.error || 'No se ha podido actualizar el familiar principal.';
+						msg.style.display = 'block';
+						cargarFamiliaresDeJugador(jugadorId);
+					}
+				})
+				.catch(err => {
+					console.error(err);
+					cargarFamiliaresDeJugador(jugadorId);
+				});
+		}
+
+		function desasignarFamiliarDeJugador(relacionId, jugadorId) {
+			if (!confirm('¿Deseas desasignar este familiar del jugador?')) {
+				return;
+			}
+
+			const token = document.querySelector('input[name="_csrf"]').value;
+
+			fetch(`/admin/familiar-jugador/desasignar/${relacionId}`, {
+				method: 'POST',
+				headers: {'X-CSRF-TOKEN': token}
+			})
+				.then(response => response.json())
+				.then(data => {
+					const msg = document.getElementById('mensajeModal');
+					if (data.mensaje) {
+						msg.className = 'alert alert-success';
+						msg.textContent = data.mensaje;
+						msg.style.display = 'block';
+					}
+					cargarFamiliaresDeJugador(jugadorId);
+				})
+				.catch(err => {
+					console.error(err);
+					alert('Error al desasignar el familiar.');
+				});
 		}
 
 		function guardarJugador(event) {
@@ -229,7 +489,7 @@
 					return response.json();
 				})
 				.then(data => {
-					if (data.mensaje) {
+					if (data && data.mensaje) {
 						const msg = document.getElementById('mensajeModal');
 						msg.className = 'alert alert-success';
 						msg.textContent = data.mensaje;
@@ -239,6 +499,52 @@
 					}
 				})
 				.catch(console.error);
+		}
+
+		function borrarJugador(btn) {
+			const jugadorId = btn.dataset.id;
+			const nombre = btn.dataset.nombre || 'este jugador';
+			const token = document.querySelector('input[name="_csrf"]').value;
+
+			if (!confirm(`¿Estás seguro de que deseas borrar a ${nombre}?`)) {
+				return;
+			}
+
+			fetch(`/admin/jugadores/borrar/${jugadorId}`, {
+				method: 'POST',
+				headers: { 'X-CSRF-TOKEN': token }
+			})
+				.then(response => response.json().then(data => ({ status: response.status, body: data })))
+				.then(result => {
+					const alerta = document.getElementById('alertaPrincipal');
+					if (result.status === 200) {
+						alerta.className = 'alert alert-success';
+						alerta.textContent = result.body.mensaje;
+						alerta.style.display = 'block';
+						setTimeout(() => window.location.reload(), 1000);
+					} else {
+						alerta.className = 'alert alert-danger';
+						alerta.textContent = result.body.error || 'No se ha podido borrar el jugador.';
+						alerta.style.display = 'block';
+						window.scrollTo({ top: 0, behavior: 'smooth' });
+					}
+				})
+				.catch(err => {
+					console.error(err);
+					alert('Error al borrar el jugador.');
+				});
+		}
+
+		function filtrarTabla() {
+			const texto = document.getElementById('filtroTexto').value.toLowerCase();
+			const categoria = document.getElementById('filtroCategoria').value;
+			const filas = document.querySelectorAll('#tablaJugadores tbody tr');
+
+			filas.forEach(fila => {
+				const coincideTexto = fila.textContent.toLowerCase().includes(texto);
+				const coincideCategoria = !categoria || fila.dataset.categoria === categoria;
+				fila.style.display = (coincideTexto && coincideCategoria) ? '' : 'none';
+			});
 		}
 	</script>
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

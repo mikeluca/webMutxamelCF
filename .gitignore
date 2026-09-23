@@ -9,3 +9,10 @@
 # Maven
 **/target/
 *.class
+/src/database
+mvc/src/main/resources/application-local.properties
+.vscode/settings.json
+.vscode/launch.json
+
+# Docker (contiene credenciales)
+docker-compose.yml

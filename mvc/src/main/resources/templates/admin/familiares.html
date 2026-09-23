@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Familiares | Mutxamel CF</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link th:href="@{/css/estilos.css}" rel="stylesheet">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+	<link href="https://fonts.googleapis.com/css2?family=Fredericka+the+Great&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
+</head>
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-K1DNQTT2X3"></script>
+<script>
+	window.dataLayer = window.dataLayer || [];
+	function gtag() { dataLayer.push(arguments); }
+	gtag('js', new Date());
+
+	gtag('config', 'G-K1DNQTT2X3');
+</script>
+
+<body>
+
+	<!-- Incluir el header -->
+	<div th:replace="~{admin/cabeceraAdmin.html}"></div>
+
+	<main class="admin-screen-shell lead">
+		<p class="dashboard-eyebrow mb-1">Administración Deportiva</p>
+		<h1 class="admin-screen-title">Gestión de Familiares</h1>
+
+		<div id="alertaPrincipal" class="alert" style="display:none; margin-bottom: 20px;"></div>
+
+		<!-- Botones y búsqueda -->
+		<div class="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-3">
+			<!-- Buscador en tiempo real -->
+			<div>
+				<label for="filtroTexto" class="form-label mb-1">Buscar</label>
+				<input type="text" id="filtroTexto" class="form-control form-control-sm" placeholder="Buscar familiar..." onkeyup="filtrarTabla()">
+			</div>
+
+			<!-- Nuevo Familiar -->
+			<button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#familiarModal" onclick="prepararNuevoFamiliar()">
+				<i class="bi bi-person-plus-fill me-1"></i> Nuevo Familiar
+			</button>
+		</div>
+
+		<!-- Tabla de familiares -->
+		<div class="admin-list-panel">
+			<table class="table table-striped w-100" id="tablaFamiliares">
+				<thead>
+					<tr>
+						<th style="width: 30%;">Nombre y Apellidos</th>
+						<th style="width: 20%;">Teléfono</th>
+						<th style="width: 25%;">Email</th>
+						<th style="width: 10%;" class="text-center">Info Club</th>
+						<th style="width: 10%;" class="text-center">WhatsApp</th>
+						<th style="width: 5%;" class="text-center">Acciones</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr th:each="familiar : ${familiares}">
+						<td class="align-middle fw-semibold" th:text="${familiar.nombre} + ' ' + ${familiar.apellidos}"></td>
+						<td class="align-middle" th:text="${familiar.telefono} != null and ${familiar.telefono} != '' ? ${familiar.telefono} : '-'"></td>
+						<td class="align-middle" th:text="${familiar.email} != null and ${familiar.email} != '' ? ${familiar.email} : '-'"></td>
+						<td class="align-middle text-center">
+							<span th:if="${familiar.recibeInfoClub == 1}" class="badge text-bg-success" title="Recibe información"><i class="bi bi-check-lg"></i> Sí</span>
+							<span th:unless="${familiar.recibeInfoClub == 1}" class="badge text-bg-secondary" title="No recibe información"><i class="bi bi-x-lg"></i> No</span>
+						</td>
+						<td class="align-middle text-center">
+							<span th:if="${familiar.whatsappActivo == 1}" class="badge text-bg-success" title="WhatsApp activo"><i class="bi bi-whatsapp"></i> Sí</span>
+							<span th:unless="${familiar.whatsappActivo == 1}" class="badge text-bg-secondary" title="WhatsApp no activo"><i class="bi bi-x-lg"></i> No</span>
+						</td>
+						<td class="align-middle text-center">
+							<div class="d-flex justify-content-center align-items-center gap-2">
+								<!-- Botón Editar -->
+								<button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
+									data-bs-target="#familiarModal"
+									th:attr="data-id=${familiar.id},
+									         data-nombre=${familiar.nombre},
+									         data-apellidos=${familiar.apellidos},
+									         data-telefono=${familiar.telefono},
+									         data-email=${familiar.email},
+									         data-recibe-info=${familiar.recibeInfoClub},
+									         data-whatsapp=${familiar.whatsappActivo}"
+									title="Editar familiar" onclick="abrirModalEditar(this)">
+									<i class="bi bi-pencil"></i>
+								</button>
+								<!-- Botón Borrar -->
+								<button type="button" class="btn btn-danger btn-sm"
+									th:attr="data-id=${familiar.id}, data-nombre=${familiar.nombre + ' ' + familiar.apellidos}"
+									onclick="borrarFamiliar(this)"
+									title="Borrar familiar">
+									<i class="bi bi-trash"></i>
+								</button>
+							</div>
+						</td>
+					</tr>
+					<tr th:if="${familiares == null or familiares.isEmpty()}">
+						<td colspan="6" class="text-center text-muted py-3">No hay familiares registrados.</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</main>
+
+	<!-- Modal Familiar -->
+	<div class="modal fade lead" id="familiarModal" tabindex="-1" aria-labelledby="familiarModalLabel" aria-hidden="true">
+		<div class="modal-dialog modal-lg">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 class="modal-title lead" id="familiarModalLabel">Familiar</h3>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+				</div>
+				<div class="modal-body">
+					<div id="mensajeModal" class="alert" style="display:none; margin-bottom: 15px;"></div>
+
+					<!-- Formulario de Datos del Familiar -->
+					<form id="familiarForm" onsubmit="guardarFamiliar(event)">
+						<input type="hidden" id="familiarId" name="id">
+						<div class="row">
+							<div class="col-md-6 mb-3">
+								<label for="nombre" class="form-label">Nombre <span class="text-danger">*</span></label>
+								<input type="text" class="form-control" id="nombre" name="nombre" required>
+							</div>
+							<div class="col-md-6 mb-3">
+								<label for="apellidos" class="form-label">Apellidos <span class="text-danger">*</span></label>
+								<input type="text" class="form-control" id="apellidos" name="apellidos" required>
+							</div>
+						</div>
+						<div class="row">
+							<div class="col-md-6 mb-3">
+								<label for="telefono" class="form-label">Teléfono <span class="text-danger">*</span></label>
+								<input type="tel" class="form-control" id="telefono" name="telefono" required>
+							</div>
+							<div class="col-md-6 mb-3">
+								<label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+								<input type="email" class="form-control" id="email" name="email" required>
+							</div>
+						</div>
+						<div class="row mb-3">
+							<div class="col-md-6">
+								<div class="form-check">
+									<input class="form-check-input" type="checkbox" id="recibeInfoClub" name="recibeInfoClub" value="1">
+									<label class="form-check-label" for="recibeInfoClub">
+										Recibe Información del Club
+									</label>
+								</div>
+							</div>
+							<div class="col-md-6">
+								<div class="form-check">
+									<input class="form-check-input" type="checkbox" id="whatsappActivo" name="whatsappActivo" value="1">
+									<label class="form-check-label" for="whatsappActivo">
+										WhatsApp Activo
+									</label>
+								</div>
+							</div>
+						</div>
+						<div class="d-flex justify-content-end mb-3">
+							<button type="submit" class="btn btn-primary" id="btnGuardarFamiliar">
+								<i class="bi bi-save me-1"></i> Guardar Datos del Familiar
+							</button>
+						</div>
+					</form>
+
+					<!-- Separador -->
+					<hr class="my-4">
+
+					<!-- Sección: Jugadores Asociados -->
+					<div id="seccionJugadoresAsociados">
+						<h4 class="h5 mb-3"><i class="bi bi-people-fill me-2"></i>Jugadores Asociados</h4>
+
+						<!-- Aviso para nuevo familiar -->
+						<div id="avisoNuevoFamiliar" class="alert alert-info py-2" style="display:none;">
+							<i class="bi bi-info-circle me-1"></i> Guarde los datos del familiar primero para poder asociar jugadores.
+						</div>
+
+						<!-- Contenido cuando ya existe el familiar -->
+						<div id="contenidoJugadoresFamiliar" style="display:none;">
+							<!-- Tabla de jugadores asociados -->
+							<div class="table-responsive mb-3">
+								<table class="table table-bordered table-hover align-middle">
+									<thead class="table-light">
+										<tr>
+											<th>Jugador</th>
+											<th>Equipo / Categoría</th>
+											<th>Parentesco</th>
+											<th class="text-center">Principal</th>
+											<th class="text-center" style="width: 80px;">Acción</th>
+										</tr>
+									</thead>
+									<tbody id="cuerpoTablaJugadoresFamiliar">
+										<!-- Cargado dinámicamente -->
+									</tbody>
+								</table>
+							</div>
+
+							<!-- Formulario para asignar un jugador existente -->
+							<div class="card p-3 bg-light border-0 rounded-3">
+								<h5 class="h6 mb-3"><i class="bi bi-link-45deg me-1"></i>Asignar Jugador</h5>
+								<form id="formAsignarJugador" onsubmit="asignarJugadorAFamiliar(event)">
+									<div class="row g-2 align-items-end">
+										<div class="col-md-5">
+											<label for="selectJugador" class="form-label small">Jugador</label>
+											<select id="selectJugador" class="form-select form-select-sm" required>
+												<option value="">-- Seleccionar Jugador --</option>
+												<option th:each="j : ${listaJugadores}" th:value="${j.id}"
+													th:text="${j.nombre + ' ' + j.apellidos + (j.equipo != null ? ' (' + j.equipo + ')' : '')}">
+												</option>
+											</select>
+										</div>
+										<div class="col-md-3">
+											<label for="inputParentesco" class="form-label small">Parentesco</label>
+											<input type="text" id="inputParentesco" class="form-select form-select-sm" list="opcionesParentesco" placeholder="Ej: Padre, Madre..." required>
+											<datalist id="opcionesParentesco">
+												<option value="Padre">
+												<option value="Madre">
+												<option value="Tutor Legal">
+												<option value="Abuelo/a">
+												<option value="Hermano/a">
+												<option value="Tío/a">
+												<option value="Otro">
+											</datalist>
+										</div>
+										<div class="col-md-2">
+											<div class="form-check pt-3">
+												<input class="form-check-input" type="checkbox" id="checkEsPrincipal" value="1">
+												<label class="form-check-label small" for="checkEsPrincipal">Principal</label>
+											</div>
+										</div>
+										<div class="col-md-2">
+											<button type="submit" class="btn btn-success btn-sm w-100">
+												<i class="bi bi-plus-lg"></i> Asignar
+											</button>
+										</div>
+									</div>
+								</form>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Token CSRF oculto -->
+	<input type="hidden" id="csrfToken" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+	<!-- Incluir el footer -->
+	<div th:replace="~{admin/footerAdmin.html}"></div>
+
+	<script>
+		const csrfToken = document.getElementById('csrfToken').value;
+
+		// Solo recargamos la tabla al cerrar el modal (no en cada guardado
+		// intermedio), para poder crear el familiar y asignarle jugadores
+		// sin salir del formulario.
+		let huboCambiosFamiliar = false;
+
+		document.getElementById('familiarModal').addEventListener('hidden.bs.modal', () => {
+			if (huboCambiosFamiliar) {
+				window.location.reload();
+			}
+		});
+
+		function filtrarTabla() {
+			const input = document.getElementById('filtroTexto');
+			const filter = input.value.toLowerCase();
+			const table = document.getElementById('tablaFamiliares');
+			const tr = table.getElementsByTagName('tr');
+
+			for (let i = 1; i < tr.length; i++) {
+				const tdNombre = tr[i].getElementsByTagName('td')[0];
+				const tdTel = tr[i].getElementsByTagName('td')[1];
+				const tdEmail = tr[i].getElementsByTagName('td')[2];
+				if (tdNombre || tdTel || tdEmail) {
+					const txtNombre = tdNombre ? (tdNombre.textContent || tdNombre.innerText) : '';
+					const txtTel = tdTel ? (tdTel.textContent || tdTel.innerText) : '';
+					const txtEmail = tdEmail ? (tdEmail.textContent || tdEmail.innerText) : '';
+					if (txtNombre.toLowerCase().indexOf(filter) > -1 ||
+						txtTel.toLowerCase().indexOf(filter) > -1 ||
+						txtEmail.toLowerCase().indexOf(filter) > -1) {
+						tr[i].style.display = '';
+					} else {
+						tr[i].style.display = 'none';
+					}
+				}
+			}
+		}
+
+		function prepararNuevoFamiliar() {
+			document.getElementById('familiarForm').reset();
+			document.getElementById('familiarId').value = '';
+			document.getElementById('familiarModalLabel').textContent = 'Nuevo Familiar';
+			document.getElementById('mensajeModal').style.display = 'none';
+
+			document.getElementById('avisoNuevoFamiliar').style.display = 'block';
+			document.getElementById('contenidoJugadoresFamiliar').style.display = 'none';
+		}
+
+		function abrirModalEditar(btn) {
+			const data = btn.dataset;
+			document.getElementById('familiarForm').reset();
+			document.getElementById('mensajeModal').style.display = 'none';
+			document.getElementById('familiarModalLabel').textContent = 'Editar Familiar';
+
+			document.getElementById('familiarId').value = data.id || '';
+			document.getElementById('nombre').value = data.nombre || '';
+			document.getElementById('apellidos').value = data.apellidos || '';
+			document.getElementById('telefono').value = (data.telefono !== 'null' && data.telefono !== undefined) ? data.telefono : '';
+			document.getElementById('email').value = (data.email !== 'null' && data.email !== undefined) ? data.email : '';
+			document.getElementById('recibeInfoClub').checked = data.recibeInfo == '1';
+			document.getElementById('whatsappActivo').checked = data.whatsapp == '1';
+
+			document.getElementById('avisoNuevoFamiliar').style.display = 'none';
+			document.getElementById('contenidoJugadoresFamiliar').style.display = 'block';
+
+			cargarJugadoresDeFamiliar(data.id);
+		}
+
+		function cargarJugadoresDeFamiliar(familiarId) {
+			if (!familiarId) return;
+
+			fetch(`/admin/familiares/${familiarId}/jugadores`)
+				.then(response => response.json())
+				.then(relaciones => {
+					const tbody = document.getElementById('cuerpoTablaJugadoresFamiliar');
+					tbody.innerHTML = '';
+
+					if (!relaciones || relaciones.length === 0) {
+						tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-2">No tiene jugadores asociados.</td></tr>';
+						return;
+					}
+
+					relaciones.forEach(rel => {
+						const jugadorNombreCompleto = (rel.jugadorNombre || '') + ' ' + (rel.jugadorApellidos || '');
+						const equipoCat = rel.jugadorEquipo ? (rel.jugadorEquipo + (rel.jugadorCategoria ? ' - ' + rel.jugadorCategoria : '')) : '-';
+						const principalBadge = rel.esPrincipal === 1
+							? '<span class="badge text-bg-primary"><i class="bi bi-star-fill me-1"></i>Principal</span>'
+							: '<span class="text-muted small">No</span>';
+
+						const tr = document.createElement('tr');
+						tr.innerHTML = `
+							<td><strong>${jugadorNombreCompleto}</strong></td>
+							<td>${equipoCat}</td>
+							<td><span class="badge text-bg-info">${rel.parentesco || '-'}</span></td>
+							<td class="text-center">${principalBadge}</td>
+							<td class="text-center">
+								<button type="button" class="btn btn-outline-danger btn-sm" title="Desasignar relación"
+									onclick="desasignarJugadorDeFamiliar(${rel.id}, ${familiarId})">
+									<i class="bi bi-x-circle"></i>
+								</button>
+							</td>
+						`;
+						tbody.appendChild(tr);
+					});
+				})
+				.catch(err => {
+					console.error('Error al cargar jugadores asociados:', err);
+				});
+		}
+
+		function guardarFamiliar(event) {
+			event.preventDefault();
+
+			const form = document.getElementById('familiarForm');
+			const formData = new FormData(form);
+			const eraNuevo = !document.getElementById('familiarId').value;
+
+			// Checkboxes
+			if (!document.getElementById('recibeInfoClub').checked) {
+				formData.set('recibeInfoClub', 0);
+			}
+			if (!document.getElementById('whatsappActivo').checked) {
+				formData.set('whatsappActivo', 0);
+			}
+
+			fetch('/admin/familiares/guardar', {
+				method: 'POST',
+				headers: {'X-CSRF-TOKEN': csrfToken},
+				body: formData
+			})
+				.then(response => response.json().then(data => ({ status: response.status, body: data })))
+				.then(result => {
+					const msg = document.getElementById('mensajeModal');
+					if (result.status === 200 && result.body.mensaje) {
+						msg.className = 'alert alert-success';
+						msg.textContent = result.body.mensaje;
+						msg.style.display = 'block';
+
+						huboCambiosFamiliar = true;
+
+						if (eraNuevo && result.body.familiar && result.body.familiar.id) {
+							// El familiar ya existe: activamos la sección de
+							// jugadores en el mismo modal, sin recargar la
+							// página, para poder asignarlos a continuación.
+							const nuevoId = result.body.familiar.id;
+
+							document.getElementById('familiarId').value = nuevoId;
+							document.getElementById('familiarModalLabel').textContent = 'Editar Familiar';
+
+							document.getElementById('avisoNuevoFamiliar').style.display = 'none';
+							document.getElementById('contenidoJugadoresFamiliar').style.display = 'block';
+
+							cargarJugadoresDeFamiliar(nuevoId);
+						}
+					} else {
+						msg.className = 'alert alert-danger';
+						msg.textContent = result.body.error || 'Error al guardar el familiar';
+						msg.style.display = 'block';
+					}
+				})
+				.catch(err => {
+					console.error(err);
+					const msg = document.getElementById('mensajeModal');
+					msg.className = 'alert alert-danger';
+					msg.textContent = 'Error inesperado al conectar con el servidor.';
+					msg.style.display = 'block';
+				});
+		}
+
+		function asignarJugadorAFamiliar(event) {
+			event.preventDefault();
+
+			const familiarId = document.getElementById('familiarId').value;
+			const jugadorId = document.getElementById('selectJugador').value;
+			const parentesco = document.getElementById('inputParentesco').value.trim();
+			const esPrincipal = document.getElementById('checkEsPrincipal').checked ? 1 : 0;
+
+			if (!familiarId) {
+				alert('Guarda el familiar antes de asignarle un jugador.');
+				return;
+			}
+			if (!jugadorId) {
+				alert('Debes seleccionar un jugador.');
+				return;
+			}
+
+			const formData = new FormData();
+			formData.append('familiarId', familiarId);
+			formData.append('jugadorId', jugadorId);
+			formData.append('parentesco', parentesco);
+			formData.append('esPrincipal', esPrincipal);
+
+			fetch('/admin/familiar-jugador/asignar', {
+				method: 'POST',
+				headers: {'X-CSRF-TOKEN': csrfToken},
+				body: formData
+			})
+				.then(response => response.json().then(data => ({ status: response.status, body: data })))
+				.then(result => {
+					const msg = document.getElementById('mensajeModal');
+					if (result.status === 200) {
+						msg.className = 'alert alert-success';
+						msg.textContent = result.body.mensaje;
+						msg.style.display = 'block';
+
+						huboCambiosFamiliar = true;
+
+						document.getElementById('formAsignarJugador').reset();
+						cargarJugadoresDeFamiliar(familiarId);
+					} else {
+						msg.className = 'alert alert-danger';
+						msg.textContent = result.body.error || 'Error al asignar jugador.';
+						msg.style.display = 'block';
+					}
+				})
+				.catch(err => {
+					console.error(err);
+					alert('Error al asignar el jugador.');
+				});
+		}
+
+		function desasignarJugadorDeFamiliar(relacionId, familiarId) {
+			if (!confirm('¿Deseas desasignar este jugador del familiar?')) {
+				return;
+			}
+
+			fetch(`/admin/familiar-jugador/desasignar/${relacionId}`, {
+				method: 'POST',
+				headers: {'X-CSRF-TOKEN': csrfToken}
+			})
+				.then(response => response.json())
+				.then(data => {
+					const msg = document.getElementById('mensajeModal');
+					if (data.mensaje) {
+						msg.className = 'alert alert-success';
+						msg.textContent = data.mensaje;
+						msg.style.display = 'block';
+						huboCambiosFamiliar = true;
+					}
+					cargarJugadoresDeFamiliar(familiarId);
+				})
+				.catch(err => {
+					console.error(err);
+					alert('Error al desasignar el jugador.');
+				});
+		}
+
+		function borrarFamiliar(btn) {
+			const familiarId = btn.dataset.id;
+			const nombre = btn.dataset.nombre || 'este familiar';
+
+			if (!confirm(`¿Estás seguro de que deseas borrar a ${nombre}?`)) {
+				return;
+			}
+
+			fetch(`/admin/familiares/borrar/${familiarId}`, {
+				method: 'POST',
+				headers: {'X-CSRF-TOKEN': csrfToken}
+			})
+				.then(response => response.json().then(data => ({ status: response.status, body: data })))
+				.then(result => {
+					const alerta = document.getElementById('alertaPrincipal');
+					if (result.status === 200) {
+						alerta.className = 'alert alert-success';
+						alerta.textContent = result.body.mensaje;
+						alerta.style.display = 'block';
+						setTimeout(() => window.location.reload(), 1000);
+					} else {
+						alerta.className = 'alert alert-danger';
+						alerta.textContent = result.body.error || 'No se ha podido borrar el familiar.';
+						alerta.style.display = 'block';
+						window.scrollTo({ top: 0, behavior: 'smooth' });
+					}
+				})
+				.catch(err => {
+					console.error(err);
+					alert('Error al borrar el familiar.');
+				});
+		}
+	</script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

@@ -9,13 +9,13 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -27,11 +27,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.HtmlUtils;
 
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoDTO;
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoForm;
 import com.mikedev.mutxamelcf.model.EquipoDTO;
+import com.mikedev.mutxamelcf.model.FamiliarDTO;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
 import com.mikedev.mutxamelcf.model.JugadorForm;
 import com.mikedev.mutxamelcf.model.NoticiaDTO;
@@ -39,45 +41,109 @@ import com.mikedev.mutxamelcf.model.NoticiaForm;
 import com.mikedev.mutxamelcf.model.ResultadoDTO;
 import com.mikedev.mutxamelcf.service.CuerpoTecnicoService;
 import com.mikedev.mutxamelcf.service.EquipoService;
+import com.mikedev.mutxamelcf.service.FamiliarService;
 import com.mikedev.mutxamelcf.service.JugadorService;
 import com.mikedev.mutxamelcf.service.NoticiaService;
+import com.mikedev.mutxamelcf.service.NotificacionAppService;
 import com.mikedev.mutxamelcf.service.ResultadoService;
 
 @Controller
 @RequestMapping("/admin") // Indica que todas las rutas dentro de esta clase comienzan con /admin
 public class AdminController {
 
-	private static final Logger logger = LoggerFactory.getLogger(AdminController.class); // Logger ¡
+	private static final Logger logger = LoggerFactory.getLogger(AdminController.class);
 
-	@Autowired
-	private JugadorService jugadoresService;
+	private final JugadorService jugadoresService;
 
-	@Autowired
-	private CuerpoTecnicoService cuerpoTecnicoService;
+	private final FamiliarService familiarService;
 
-	@Autowired
-	private NoticiaService noticiaService;
+	private final CuerpoTecnicoService cuerpoTecnicoService;
 
-	@Autowired
-	private ResultadoService resultadoService;
+	private final NoticiaService noticiaService;
 
-	@Autowired
-	private EquipoService equiposService;
+	private final ResultadoService resultadoService;
+
+	private final EquipoService equiposService;
+
+	private final NotificacionAppService notificacionAppService;
+
+	public AdminController(JugadorService jugadoresService, FamiliarService familiarService,
+			CuerpoTecnicoService cuerpoTecnicoService, NoticiaService noticiaService,
+			ResultadoService resultadoService, EquipoService equiposService,
+			NotificacionAppService notificacionAppService) {
+		this.jugadoresService = jugadoresService;
+		this.familiarService = familiarService;
+		this.cuerpoTecnicoService = cuerpoTecnicoService;
+		this.noticiaService = noticiaService;
+		this.resultadoService = resultadoService;
+		this.equiposService = equiposService;
+		this.notificacionAppService = notificacionAppService;
+	}
 
 	// Logos de patrocinadores
 	List<String> patrocinadores = Arrays.asList("patrocinador1.jpg", "patrocinador2.jpg", "patrocinador3.jpg",
 			"patrocinador4.jpg", "patrocinador5.jpg", "patrocinador6.jpg", "patrocinador7.jpg", "patrocinador8.jpg");
 
+	private static final Set<String> TIPOS_IMAGEN_PERMITIDOS = Set.of("image/jpeg", "image/png", "image/webp");
+	private static final long TAMANO_MAXIMO_FOTO = 5 * 1024 * 1024; // 5 MB
+
+	// Valida que el fichero subido sea una imagen de un tipo permitido y no
+	// supere el tamaño máximo indicado. Devuelve un mensaje de error o null si
+	// es válido.
+	private String validarImagen(MultipartFile archivo, long tamanoMaximo) {
+		if (archivo.getSize() > tamanoMaximo) {
+			return "La imagen excede el tamaño máximo permitido (" + (tamanoMaximo / (1024 * 1024)) + " MB).";
+		}
+		String contentType = archivo.getContentType();
+		if (contentType == null || !TIPOS_IMAGEN_PERMITIDOS.contains(contentType.toLowerCase(Locale.ROOT))) {
+			return "El archivo debe ser una imagen JPEG, PNG o WEBP.";
+		}
+		return null;
+	}
+
+	@GetMapping
+	public String dashboardPrincipal(org.springframework.security.core.Authentication authentication) {
+		logger.debug("Inicio dashboardPrincipal: autenticado={}", authentication != null);
+		String destino = authentication != null && authentication.getAuthorities().stream()
+				.anyMatch(authority -> "ROLE_SUPER".equals(authority.getAuthority()))
+						? "redirect:/admin/pagos"
+						: "redirect:/admin/admin";
+		logger.debug("Fin dashboardPrincipal: destino={}", destino);
+		return destino;
+	}
+
 	@GetMapping("/admin")
 	public String login(Model model) {
+		logger.debug("Inicio login");
 		List<JugadorDTO> jugadores = jugadoresService.obtenerTodos();
 		List<EquipoDTO> equipos = equiposService.obtenerTodos();
 		List<CuerpoTecnicoDTO> cuerpoTecnico = cuerpoTecnicoService.obtenerTodos();
 
-		long totalEntrenadores = cuerpoTecnico.stream()
+		long totalEntrenadores = contarEntrenadoresUnicos(cuerpoTecnico);
+		List<Map<String, Object>> resumenCategorias = construirResumenCategorias(jugadores, equipos, cuerpoTecnico);
+
+		model.addAttribute("totalJugadores", jugadores.size());
+		model.addAttribute("totalEquipos", equipos.size());
+		model.addAttribute("totalEntrenadores", totalEntrenadores);
+		model.addAttribute("resumenCategorias", resumenCategorias);
+		logger.debug("Fin login: jugadores={}, equipos={}, entrenadores={}, categorias={}", jugadores.size(),
+				equipos.size(), totalEntrenadores, resumenCategorias.size());
+		return "admin/admin";
+	}
+
+	// Cuenta entrenadores distintos por nombre completo, evitando duplicados si
+	// aparecen en varias categorias
+	private long contarEntrenadoresUnicos(List<CuerpoTecnicoDTO> cuerpoTecnico) {
+		return cuerpoTecnico.stream()
 				.map(entrenador -> (entrenador.getNombre() + " " + entrenador.getApellidos()).trim())
 				.distinct()
 				.count();
+	}
+
+	// Construye el resumen de equipos/jugadores/entrenadores agrupados por
+	// categoria, ordenados segun EquipoDTO
+	private List<Map<String, Object>> construirResumenCategorias(List<JugadorDTO> jugadores, List<EquipoDTO> equipos,
+			List<CuerpoTecnicoDTO> cuerpoTecnico) {
 		Map<String, String> ordenPorCategoria = equipos.stream()
 				.collect(Collectors.toMap(EquipoDTO::getCategoria, EquipoDTO::getOrden, (orden, siguiente) -> orden));
 		Map<String, Long> equiposPorCategoria = equipos.stream()
@@ -86,15 +152,17 @@ public class AdminController {
 				.collect(Collectors.groupingBy(JugadorDTO::getCategoria, Collectors.counting()));
 		Map<String, Set<String>> entrenadoresPorCategoria = cuerpoTecnico.stream()
 				.collect(Collectors.groupingBy(CuerpoTecnicoDTO::getCategoria, LinkedHashMap::new,
-						Collectors.mapping(entrenador -> (entrenador.getNombre() + " " + entrenador.getApellidos()).trim(),
+						Collectors.mapping(
+								entrenador -> (entrenador.getNombre() + " " + entrenador.getApellidos()).trim(),
 								Collectors.toSet())));
+
 		Set<String> categorias = new LinkedHashSet<>();
 		categorias.addAll(ordenPorCategoria.keySet());
 		categorias.addAll(jugadoresPorCategoria.keySet());
 		categorias.addAll(entrenadoresPorCategoria.keySet());
-		List<Map<String, Object>> resumenCategorias = categorias.stream()
-				.sorted(Comparator.comparing(categoria -> ordenPorCategoria.get(categoria),
-						Comparator.nullsLast(String::compareTo)))
+
+		return categorias.stream()
+				.sorted(Comparator.comparing(ordenPorCategoria::get, Comparator.nullsLast(String::compareTo)))
 				.map(categoria -> {
 					Map<String, Object> resumen = new LinkedHashMap<>();
 					resumen.put("categoria", categoria);
@@ -104,49 +172,46 @@ public class AdminController {
 					return resumen;
 				})
 				.collect(Collectors.toList());
-
-		model.addAttribute("totalJugadores", jugadores.size());
-		model.addAttribute("totalEquipos", equipos.size());
-		model.addAttribute("totalEntrenadores", totalEntrenadores);
-		model.addAttribute("resumenCategorias", resumenCategorias);
-		return "admin/admin";
 	}
 
 	@GetMapping("/logout")
 	public String logout() {
+		logger.debug("Inicio logout");
+		logger.debug("Fin logout");
 		return "index";
 	}
 
 	// Método para listar todos los equipos
 	@GetMapping("/equipos")
-	public String listarEquipos(@RequestParam(required = false) String categoria, Model model) {
+	public String listarEquipos(Model model) {
+		logger.debug("Inicio listarEquipos");
 		List<EquipoDTO> listaEquipos = equiposService.obtenerTodos(); // Obtener todos los equipos
 		model.addAttribute("listaEquipos", listaEquipos);
 		List<String> categorias = equiposService.obtenerCategorias(); // Obtener categorías de equipos
-		List<EquipoDTO> equipos;
 
-		// Filtrar equipos por categoría si se proporciona
-		if (categoria != null && !categoria.isEmpty()) {
-			equipos = equiposService.obtenerTodosPorCategoria(categoria);
-		} else {
-			equipos = equiposService.obtenerTodos();
-		}
+		// El filtro de categoría se aplica en el navegador (ver equipos.html)
+		List<EquipoDTO> equipos = listaEquipos;
 
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("equipos", equipos);
 
 		model.addAttribute("patrocinadores", patrocinadores);
 
+		logger.debug("Fin listarEquipos: total={}", equipos.size());
 		return "admin/equipos"; // Retornar la vista para listar equipos
 	}
 
 	@PostMapping("/equipos/guardar")
 	@ResponseBody
-	public ResponseEntity<Map<String, String>> guardarEquipo(@RequestParam String categoria,
-			@RequestParam String nombre, @RequestParam String grupo, @RequestParam String deporte) {
+	public ResponseEntity<Map<String, String>> guardarEquipo(@RequestParam(required = false) Long id,
+			@RequestParam String categoria, @RequestParam String nombre, @RequestParam String grupo,
+			@RequestParam String deporte) {
+		logger.debug("Inicio guardarEquipo: id={}, categoria={}, nombre={}, grupo={}, deporte={}", id, categoria,
+				nombre, grupo, deporte);
 		Map<String, String> response = new HashMap<>();
 		try {
 			EquipoDTO equipo = new EquipoDTO();
+			equipo.setId(id);
 			equipo.setCategoria(categoria);
 			equipo.setNombre(nombre);
 			equipo.setGrupo(grupo);
@@ -154,49 +219,65 @@ public class AdminController {
 
 			if (equiposService.guardar(equipo)) {
 				response.put("mensaje", "Equipo guardado correctamente.");
+				logger.debug("Fin guardarEquipo: resultado=OK");
 				return ResponseEntity.ok(response);
 			} else {
+				logger.warn("El equipo ya existe: categoria={}, nombre={}, grupo={}", categoria, nombre, grupo);
 				response.put("error", "Error. El equipo ya existe.");
+				logger.debug("Fin guardarEquipo: resultado=DUPLICADO");
 				return ResponseEntity.badRequest().body(response);
 			}
 		} catch (Exception e) {
 			logger.error("Error al guardar el equipo: {}", e.getMessage(), e);
 			response.put("error", "Error al guardar el equipo");
+			logger.debug("Fin guardarEquipo: resultado=ERROR");
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
 	}
 
 	// Método para borrar un equipo por su ID
 	@PostMapping("/equipos/borrar/{id}")
-	public String borrarEquipo(@PathVariable Long id) {
+	@ResponseBody
+	public ResponseEntity<Map<String, String>> borrarEquipo(@PathVariable Long id) {
+		logger.debug("Inicio borrarEquipo: id={}", id);
+		Map<String, String> response = new HashMap<>();
 		try {
-			equiposService.eliminarEquipo(id); // Eliminar el equipo de la base de datos
+			equiposService.eliminarEquipo(id);
+			response.put("mensaje", "Equipo eliminado correctamente.");
+			logger.debug("Fin borrarEquipo: id={}, resultado=OK", id);
+			return ResponseEntity.ok(response);
+		} catch (IllegalStateException e) {
+			logger.warn("No se ha podido borrar el equipo id={}: {}", id, e.getMessage());
+			response.put("error", e.getMessage());
+			logger.debug("Fin borrarEquipo: id={}, resultado=BLOQUEADO", id);
+			return ResponseEntity.badRequest().body(response);
 		} catch (Exception e) {
-			logger.error("Error al borrar el equipo: {}", e.getMessage(), e); // Registrar el error
+			logger.error("Error al borrar el equipo id={}: {}", id, e.getMessage(), e);
+			response.put("error", "No se ha podido eliminar el equipo.");
+			logger.debug("Fin borrarEquipo: id={}, resultado=ERROR", id);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
-		return "redirect:/admin/equipos"; // Redirigir a la lista de equipos
 	}
 
 	// Método para listar jugadores
 	@GetMapping("/jugadores")
-	public String listarJugadores(@RequestParam(required = false) String categoria, Model model) {
+	public String listarJugadores(Model model) {
+		logger.debug("Inicio listarJugadores");
 		List<EquipoDTO> listaEquipos = equiposService.obtenerTodos(); // Obtener todos los equipos
 		model.addAttribute("listaEquipos", listaEquipos);
-		List<JugadorDTO> jugadores;
 
-		// Filtrar jugadores por categoría si se proporciona
-		if (categoria != null && !categoria.isEmpty()) {
-			jugadores = jugadoresService.obtenerJugadoresPorCategoria(categoria);
-		} else {
-			jugadores = jugadoresService.obtenerTodos();
-		}
+		// El filtro de categoría se aplica en el navegador (ver jugadores.html)
+		List<JugadorDTO> jugadores = jugadoresService.obtenerTodos();
 
 		List<String> categorias = equiposService.obtenerCategorias();
+		List<FamiliarDTO> listaFamiliares = familiarService.obtenerTodos();
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("jugadores", jugadores);
+		model.addAttribute("listaFamiliares", listaFamiliares);
 
 		model.addAttribute("patrocinadores", patrocinadores);
 
+		logger.debug("Fin listarJugadores: total={}", jugadores.size());
 		return "admin/jugadores"; // Retornar la vista para listar jugadores
 	}
 
@@ -204,6 +285,7 @@ public class AdminController {
 	@PostMapping("/jugadores/guardar")
 	@ResponseBody
 	public ResponseEntity<Map<String, String>> guardarJugador(@ModelAttribute JugadorForm jugadorForm) {
+		logger.debug("Inicio guardarJugador: id={}, nombre={}", jugadorForm.getId(), jugadorForm.getNombre());
 		Map<String, String> response = new HashMap<>();
 
 		try {
@@ -215,6 +297,12 @@ public class AdminController {
 			jugador.setApellidos(jugadorForm.getApellidos());
 
 			EquipoDTO e = equiposService.obtenerEquipoPorId(jugadorForm.getEquipo());
+			if (e == null) {
+				logger.warn("Equipo inexistente al guardar jugador: equipoId={}", jugadorForm.getEquipo());
+				response.put("error", "El equipo seleccionado no existe.");
+				logger.debug("Fin guardarJugador: resultado=EQUIPO_INVALIDO");
+				return ResponseEntity.badRequest().body(response);
+			}
 			jugador.setCategoria(e.getCategoria());
 			jugador.setEquipo(e.getNombre());
 			jugador.setDeporte(e.getDeporte());
@@ -225,50 +313,76 @@ public class AdminController {
 			}
 			jugador.setPosicion(jugadorForm.getPosicion());
 
-			// Si hay una foto cargada, convertirla a byte[]
+			// Si hay una foto cargada, validarla y convertirla a byte[]
 			if (!jugadorForm.getFoto().isEmpty()) {
+				String errorImagen = validarImagen(jugadorForm.getFoto(), TAMANO_MAXIMO_FOTO);
+				if (errorImagen != null) {
+					logger.warn("Foto de jugador invalida: nombre={}, motivo={}", jugadorForm.getNombre(), errorImagen);
+					response.put("error", errorImagen);
+					logger.debug("Fin guardarJugador: resultado=FOTO_INVALIDA");
+					return ResponseEntity.badRequest().body(response);
+				}
 				jugador.setFoto(jugadorForm.getFoto().getBytes());
+			} else if (jugadorForm.getId() != null) {
+				// Editando sin subir foto nueva: se conserva la foto ya guardada
+				JugadorDTO existente = jugadoresService.obtenerJugadorPorId(jugadorForm.getId());
+				if (existente != null) {
+					jugador.setFoto(existente.getFoto());
+				}
 			}
 
 			if (jugadoresService.guardarJugador(jugador)) {
 				response.put("mensaje", "Jugador guardado correctamente.");
+				logger.debug("Fin guardarJugador: resultado=OK");
 				return ResponseEntity.ok(response);
 			} else {
 				response.put("error", "Error dando de alta al jugador.");
+				logger.warn("No se pudo dar de alta al jugador: nombre={}", jugadorForm.getNombre());
+				logger.debug("Fin guardarJugador: resultado=FALLIDO");
 				return ResponseEntity.badRequest().body(response);
 			}
 
 		} catch (Exception e) {
 			logger.error("Error al guardar el jugador: {}", e.getMessage(), e); // Registrar el error
 			response.put("error", "Error al guardar el jugador");
+			logger.debug("Fin guardarJugador: resultado=ERROR");
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
 	}
 
-	// Método para borrar un jugador por su DNI
+	// Método para borrar un jugador por su ID
 	@PostMapping("/jugadores/borrar/{id}")
-	public String borrarJugador(@PathVariable Long id) {
+	@ResponseBody
+	public ResponseEntity<Map<String, String>> borrarJugador(@PathVariable Long id) {
+		logger.debug("Inicio borrarJugador: id={}", id);
+		Map<String, String> response = new HashMap<>();
 		try {
-			jugadoresService.eliminarJugador(id); // Eliminar el jugador de la base de datos
+			jugadoresService.eliminarJugador(id);
+			response.put("mensaje", "Jugador eliminado correctamente.");
+			logger.debug("Fin borrarJugador: id={}, resultado=OK", id);
+			return ResponseEntity.ok(response);
+		} catch (IllegalStateException e) {
+			logger.warn("No se ha podido borrar el jugador id={}: {}", id, e.getMessage());
+			response.put("error", e.getMessage());
+			logger.debug("Fin borrarJugador: id={}, resultado=BLOQUEADO", id);
+			return ResponseEntity.badRequest().body(response);
 		} catch (Exception e) {
-			logger.error("Error al borrar el jugador: {}", e.getMessage(), e); // Registrar el error
+			logger.error("Error al borrar el jugador id={}: {}", id, e.getMessage(), e);
+			response.put("error", "No se ha podido eliminar el jugador.");
+			logger.debug("Fin borrarJugador: id={}, resultado=ERROR", id);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
-		return "redirect:/admin/jugadores"; // Redirigir a la lista de jugadores
 	}
 
 	// Método para listar el cuerpo técnico
 	@GetMapping("/cuerpo-tecnico")
-	public String listarCuerpoTecnico(@RequestParam(required = false) String categoria, Model model) {
+	public String listarCuerpoTecnico(Model model) {
+		logger.debug("Inicio listarCuerpoTecnico");
 		List<EquipoDTO> listaEquipos = equiposService.obtenerTodos(); // Obtener todos los equipos
 		model.addAttribute("listaEquipos", listaEquipos);
-		List<CuerpoTecnicoDTO> cuerpoTecnico;
 
-		// Filtrar cuerpo técnico por categoría si se proporciona
-		if (categoria != null && !categoria.isEmpty()) {
-			cuerpoTecnico = cuerpoTecnicoService.obtenerCuerpoTecnicoPorCategoria(categoria);
-		} else {
-			cuerpoTecnico = cuerpoTecnicoService.obtenerTodos();
-		}
+		// El filtro de categoría se aplica en el navegador (ver cuerpo-tecnico.html)
+		List<CuerpoTecnicoDTO> cuerpoTecnico = cuerpoTecnicoService.obtenerTodos();
 
 		List<String> categorias = equiposService.obtenerCategorias();
 		model.addAttribute("categorias", categorias);
@@ -276,6 +390,7 @@ public class AdminController {
 
 		model.addAttribute("patrocinadores", patrocinadores);
 
+		logger.debug("Fin listarCuerpoTecnico: total={}", cuerpoTecnico.size());
 		return "admin/cuerpo-tecnico"; // Retornar la vista para listar el cuerpo técnico
 	}
 
@@ -284,16 +399,24 @@ public class AdminController {
 	@ResponseBody
 	public ResponseEntity<Map<String, String>> guardarCuerpoTecnico(
 			@ModelAttribute CuerpoTecnicoForm cuerpoTecnicoForm) {
+		logger.debug("Inicio guardarCuerpoTecnico: id={}, nombre={}", cuerpoTecnicoForm.getId(),
+				cuerpoTecnicoForm.getNombre());
 		Map<String, String> response = new HashMap<>();
 		try {
 			CuerpoTecnicoDTO staff = new CuerpoTecnicoDTO();
-			if (staff.getId() != null) {
+			if (cuerpoTecnicoForm.getId() != null) {
 				staff.setId(cuerpoTecnicoForm.getId());
 			}
 			staff.setNombre(cuerpoTecnicoForm.getNombre());
 			staff.setApellidos(cuerpoTecnicoForm.getApellidos());
 
 			EquipoDTO e = equiposService.obtenerEquipoPorId(cuerpoTecnicoForm.getEquipo());
+			if (e == null) {
+				logger.warn("Equipo inexistente al guardar cuerpo tecnico: equipoId={}", cuerpoTecnicoForm.getEquipo());
+				response.put("error", "El equipo seleccionado no existe.");
+				logger.debug("Fin guardarCuerpoTecnico: resultado=EQUIPO_INVALIDO");
+				return ResponseEntity.badRequest().body(response);
+			}
 
 			staff.setCategoria(e.getCategoria());
 			staff.setEquipo(e.getNombre());
@@ -301,39 +424,71 @@ public class AdminController {
 
 			staff.setPuesto(cuerpoTecnicoForm.getPuesto());
 
-			// Si hay una foto cargada, convertirla a byte[]
+			// Si hay una foto cargada, validarla y convertirla a byte[]
 			if (!cuerpoTecnicoForm.getFoto().isEmpty()) {
+				String errorImagen = validarImagen(cuerpoTecnicoForm.getFoto(), TAMANO_MAXIMO_FOTO);
+				if (errorImagen != null) {
+					logger.warn("Foto de cuerpo tecnico invalida: nombre={}, motivo={}", cuerpoTecnicoForm.getNombre(),
+							errorImagen);
+					response.put("error", errorImagen);
+					logger.debug("Fin guardarCuerpoTecnico: resultado=FOTO_INVALIDA");
+					return ResponseEntity.badRequest().body(response);
+				}
 				staff.setFoto(cuerpoTecnicoForm.getFoto().getBytes());
+			} else if (cuerpoTecnicoForm.getId() != null) {
+				// Editando sin subir foto nueva: se conserva la foto ya guardada
+				CuerpoTecnicoDTO existente = cuerpoTecnicoService.obtenerCuerpoTecnicoPorId(cuerpoTecnicoForm.getId());
+				if (existente != null) {
+					staff.setFoto(existente.getFoto());
+				}
 			}
 
 			if (cuerpoTecnicoService.guardarCuerpoTecnico(staff)) {
 				response.put("mensaje", "Cuerpo técnico guardado correctamente.");
+				logger.debug("Fin guardarCuerpoTecnico: resultado=OK");
 				return ResponseEntity.ok(response);
 			} else {
 				response.put("error", "Error dando de alta al cuerpo técnico.");
+				logger.warn("No se pudo dar de alta al cuerpo tecnico: nombre={}", cuerpoTecnicoForm.getNombre());
+				logger.debug("Fin guardarCuerpoTecnico: resultado=FALLIDO");
 				return ResponseEntity.badRequest().body(response);
 			}
 		} catch (Exception e) {
 			logger.error("Error al guardar el cuerpo técnico: {}", e.getMessage(), e);
 			response.put("error", "Error al guardar el cuerpo técnico");
+			logger.debug("Fin guardarCuerpoTecnico: resultado=ERROR");
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
 	}
 
-	// Método para borrar un miembro del cuerpo técnico por su DNI
+	// Método para borrar un miembro del cuerpo técnico por su ID
 	@PostMapping("/cuerpo-tecnico/borrar/{id}")
-	public String borrarCuerpoTecnico(@PathVariable Long id) {
+	@ResponseBody
+	public ResponseEntity<Map<String, String>> borrarCuerpoTecnico(@PathVariable Long id) {
+		logger.debug("Inicio borrarCuerpoTecnico: id={}", id);
+		Map<String, String> response = new HashMap<>();
 		try {
-			cuerpoTecnicoService.eliminarCuerpoTecnico(id); // Eliminar el cuerpo técnico de la base de datos
+			cuerpoTecnicoService.eliminarCuerpoTecnico(id);
+			response.put("mensaje", "Miembro del cuerpo técnico eliminado correctamente.");
+			logger.debug("Fin borrarCuerpoTecnico: id={}, resultado=OK", id);
+			return ResponseEntity.ok(response);
+		} catch (IllegalStateException e) {
+			logger.warn("No se ha podido borrar el cuerpo tecnico id={}: {}", id, e.getMessage());
+			response.put("error", e.getMessage());
+			logger.debug("Fin borrarCuerpoTecnico: id={}, resultado=BLOQUEADO", id);
+			return ResponseEntity.badRequest().body(response);
 		} catch (Exception e) {
-			logger.error("Error al borrar el cuerpo técnico: {}", e.getMessage(), e); // Registrar el error
+			logger.error("Error al borrar el cuerpo técnico id={}: {}", id, e.getMessage(), e);
+			response.put("error", "No se ha podido eliminar el miembro del cuerpo técnico.");
+			logger.debug("Fin borrarCuerpoTecnico: id={}, resultado=ERROR", id);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
-		return "redirect:/admin/cuerpo-tecnico"; // Redirigir a la lista del cuerpo técnico
 	}
 
 	// Método para listar las noticias
 	@GetMapping("/noticias")
 	public String listarNoticias(Model model) {
+		logger.debug("Inicio listarNoticias");
 		List<EquipoDTO> listaEquipos = equiposService.obtenerTodos(); // Obtener todos los equipos
 		model.addAttribute("listaEquipos", listaEquipos);
 		List<NoticiaDTO> listaNoticias = noticiaService.obtenerTodas(); // Obtener todas las noticias
@@ -343,42 +498,83 @@ public class AdminController {
 
 		model.addAttribute("patrocinadores", patrocinadores);
 
+		logger.debug("Fin listarNoticias: total={}", listaNoticias.size());
 		return "admin/noticias"; // Retornar la vista para listar noticias
 	}
 
-	// Método para guardar una nueva noticia
+	// Método para crear o editar una noticia
 	@PostMapping("/noticias/guardar")
 	@ResponseBody
 	public ResponseEntity<Map<String, String>> guardarNoticia(@ModelAttribute NoticiaForm noticiaForm) {
+		logger.debug("Inicio guardarNoticia: id={}, titulo={}", noticiaForm.getId(), noticiaForm.getTitulo());
 		Map<String, String> response = new HashMap<>();
 		try {
+			NoticiaDTO noticiaExistente = null;
+
+			if (noticiaForm.getId() != null) {
+				noticiaExistente = noticiaService.obtenerNoticiaPorId(noticiaForm.getId().intValue());
+				if (noticiaExistente == null) {
+					logger.warn("Noticia inexistente al editar: id={}", noticiaForm.getId());
+					response.put("error", "La noticia que intentas editar ya no existe.");
+					logger.debug("Fin guardarNoticia: resultado=NO_ENCONTRADA");
+					return ResponseEntity.badRequest().body(response);
+				}
+			}
+
 			NoticiaDTO noticia = new NoticiaDTO();
+			if (noticiaExistente != null) {
+				noticia.setId(noticiaForm.getId().intValue());
+			}
 			noticia.setTitulo(noticiaForm.getTitulo());
 
 			// Convierte el texto antes de guardarlo poniéndole saltos de línea
 			String contenidoConSaltos = HtmlUtils.htmlEscape(noticiaForm.getContenido()).replaceAll("\n", "<br>");
 			noticia.setContenido(contenidoConSaltos);
-			noticia.setFecha(new Date()); // Establecer la fecha actual
+			// Al editar se conserva la fecha original; al crear, la fecha actual
+			noticia.setFecha(noticiaExistente != null ? noticiaExistente.getFecha() : new Date());
 
 			if (!noticiaForm.getImagen().isEmpty()) {
 				long maxSize = 2 * 1024 * 1024; // 2 MB (puedes ajustar el límite)
-				if (noticiaForm.getImagen().getSize() > maxSize) {
-					response.put("error", "La imagen excede el tamaño máximo permitido (2 MB).");
+				String errorImagen = validarImagen(noticiaForm.getImagen(), maxSize);
+				if (errorImagen != null) {
+					logger.warn("Imagen de noticia invalida: titulo={}, motivo={}", noticiaForm.getTitulo(), errorImagen);
+					response.put("error", errorImagen);
+					logger.debug("Fin guardarNoticia: resultado=IMAGEN_INVALIDA");
 					return ResponseEntity.badRequest().body(response);
 				}
 				noticia.setImagen(noticiaForm.getImagen().getBytes());
+			} else if (noticiaExistente != null) {
+				// Sin imagen nueva al editar: se conserva la imagen ya guardada
+				noticia.setImagen(noticiaService.obtenerImagenNoticia(noticiaExistente.getId()));
 			}
 
 			if (noticiaService.guardarNoticia(noticia)) {
-				response.put("mensaje", "Noticia generada correctamente.");
+				response.put("mensaje", noticiaExistente != null ? "Noticia actualizada correctamente."
+						: "Noticia generada correctamente.");
+
+				/*
+				 * Solo avisamos a la app cuando la noticia es nueva, no en
+				 * cada edición posterior.
+				 */
+				if (noticiaExistente == null) {
+					notificacionAppService.difundirATodos(
+							"NOTICIA",
+							"📰 Nueva noticia",
+							noticia.getTitulo(),
+							(long) noticia.getId());
+				}
+
+				logger.debug("Fin guardarNoticia: resultado=OK");
 				return ResponseEntity.ok(response);
 			} else {
-				response.put("error", "Error dando de alta la noticia.");
+				response.put("error", "Error guardando la noticia.");
+				logger.debug("Fin guardarNoticia: resultado=FALLIDO");
 				return ResponseEntity.badRequest().body(response);
 			}
 		} catch (Exception e) {
 			logger.error("Error al guardar la noticia: {}", e.getMessage(), e); // Registrar el error
-			response.put("error", "Error al guardar el equipo");
+			response.put("error", "Error al guardar la noticia");
+			logger.debug("Fin guardarNoticia: resultado=ERROR");
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
 	}
@@ -386,17 +582,20 @@ public class AdminController {
 	// Método para borrar una noticia por su ID
 	@PostMapping("/noticias/borrar/{id}")
 	public String borrarNoticia(@PathVariable int id) {
+		logger.debug("Inicio borrarNoticia: id={}", id);
 		try {
 			noticiaService.eliminarNoticia(id); // Eliminar la noticia de la base de datos
 		} catch (Exception e) {
 			logger.error("Error al borrar la noticia: {}", e.getMessage(), e); // Registrar el error
 		}
+		logger.debug("Fin borrarNoticia: id={}", id);
 		return "redirect:/admin/noticias"; // Redirigir a la lista de noticias
 	}
 
 	// Método para listar los resultados del calendario
 	@GetMapping("/calendario-resultados")
 	public String listarResultados(Model model) {
+		logger.debug("Inicio listarResultados");
 		List<EquipoDTO> listaEquipos = equiposService.obtenerTodos(); // Obtener todos los equipos
 		model.addAttribute("listaEquipos", listaEquipos);
 
@@ -410,6 +609,8 @@ public class AdminController {
 
 		model.addAttribute("patrocinadores", patrocinadores);
 
+		logger.debug("Fin listarResultados: futbol={}, futbolSala={}", resultadosFutbol.size(),
+				resultadosFutbolSala.size());
 		return "admin/calendario-resultados"; // Retornar la vista para listar resultados
 	}
 
@@ -418,6 +619,7 @@ public class AdminController {
 	public String actualizarResultado(@PathVariable String equipo, @RequestParam String categoria,
 			@RequestParam String resultado, @RequestParam String rival, @RequestParam String dia,
 			@RequestParam String hora, @RequestParam String campo) {
+		logger.debug("Inicio actualizarResultado: equipo={}, categoria={}, rival={}", equipo, categoria, rival);
 		ResultadoDTO resultadoDTO = new ResultadoDTO();
 		resultadoDTO.setCategoria(categoria);
 		resultadoDTO.setEquipo(equipo);
@@ -450,6 +652,7 @@ public class AdminController {
 																									// mensaje de error
 		}
 
+		logger.debug("Fin actualizarResultado: equipo={}", equipo);
 		return "redirect:/admin/calendario-resultados"; // Redirigir a la lista de resultados
 	}
 }

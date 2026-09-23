@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 
 <head>
-	<title>Mutxamel Club de Fútbol</title>
+	<title>Noticias | Mutxamel CF</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 	<link th:href="@{/css/estilos.css}" rel="stylesheet">
@@ -31,42 +31,59 @@
 	<!-- Incluir el header -->
 	<div th:replace="~{admin/cabeceraAdmin.html}"></div>
 
-	<div class="container mt-5 lead">
-		<h1 class="page-title">Gestión de las Noticias</h1>
+	<main class="admin-screen-shell lead">
+		<p class="dashboard-eyebrow mb-1">Contenido Web</p>
+		<h1 class="admin-screen-title">Gestión de las Noticias</h1>
 
-		<div class="d-flex justify-content-end mb-4">
-			<!-- Botón para nueva noticia -->
+		<div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-4">
+			<div>
+				<label for="filtroTexto" class="form-label mb-1">Buscar</label>
+				<input type="text" id="filtroTexto" class="form-control form-control-sm"
+					placeholder="Buscar noticia..." onkeyup="filtrarTabla()">
+			</div>
 			<button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#noticiaModal"
-				onclick="limpiarFormulario()">Nueva noticia</button>
+				onclick="prepararNuevaNoticia()">Nueva noticia</button>
 		</div>
 
 		<!-- Tabla de noticias -->
-		<table class="table table-striped w-100">
-			<thead>
-				<tr>
-					<th style="width: 70%;">Titulo</th> <!-- Ajusta el ancho de la columna -->
-					<th style="width: 20%;">Fecha</th> <!-- Ajuste mínimo para la columna de categoría -->
-					<th style="width: 10%;"></th> <!-- Ajuste mínimo para la columna de botones -->
-				</tr>
-			</thead>
-			<tbody>
-				<tr th:each="noticia : ${listaNoticias}">
-					<td th:text="${noticia.titulo}"></td>
-					<td th:text="${noticia.fecha}"></td>
-					<td>
-						<!-- Botón para borrar noticia -->
-						<form th:action="@{'/admin/noticias/borrar/' + ${noticia.id}}" method="post"
-							style="display:inline;">
-							<button type="submit" class="btn btn-danger btn-sm"
-								onclick="return confirm('¿Estás seguro de que deseas borrar esta noticia?');">
-								<i class="bi bi-trash"></i> <!-- Ícono de eliminar -->
-							</button>
-						</form>
-					</td>
-				</tr>
-			</tbody>
-		</table>
-	</div>
+		<div class="admin-list-panel">
+			<table class="table table-striped w-100" id="tablaNoticias">
+				<thead>
+					<tr>
+						<th style="width: 60%;">Titulo</th>
+						<th style="width: 20%;">Fecha</th>
+						<th style="width: 20%;"></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr th:each="noticia : ${listaNoticias}">
+						<td class="align-middle" th:text="${noticia.titulo}"></td>
+						<td class="align-middle" th:text="${noticia.fecha}"></td>
+						<td class="align-middle">
+							<div class="d-flex justify-content-center align-items-center gap-2">
+								<button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
+									data-bs-target="#noticiaModal" th:attr="data-id=${noticia.id},
+										                     data-titulo=${noticia.titulo},
+										                     data-contenido=${noticia.contenido}" title="Editar noticia"
+									onclick="abrirModalEditar(this)">
+									<i class="bi bi-pencil"></i>
+								</button>
+								<!-- Botón para borrar noticia -->
+								<form th:action="@{'/admin/noticias/borrar/' + ${noticia.id}}" method="post"
+									style="display:inline;">
+									<button type="submit" class="btn btn-danger btn-sm"
+										onclick="return confirm('¿Estás seguro de que deseas borrar esta noticia?');"
+										title="Borrar noticia">
+										<i class="bi bi-trash"></i>
+									</button>
+								</form>
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</main>
 
 	<!-- Modal para crear/editar noticia -->
 	<div class="modal fade lead" id="noticiaModal" tabindex="-1" role="dialog" aria-labelledby="noticiaModalLabel"
@@ -81,6 +98,7 @@
 				</div>
 				<form id="noticiaForm" enctype="multipart/form-data">
 					<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+					<input type="hidden" id="noticiaId" name="id">
 					<div class="modal-body">
 						<div id="mensajeModal" class="alert" style="display:none; margin: 10px;"></div>
 						<!-- Campo para el título -->
@@ -98,6 +116,8 @@
 						<div class="form-group">
 							<label for="imagen">Imagen</label>
 							<input type="file" class="form-control-file" id="imagen" name="imagen" accept="image/*">
+							<small id="ayudaImagen" class="form-text text-muted" style="display:none;">Deja este campo
+								vacío para mantener la imagen actual.</small>
 						</div>
 					</div>
 					<div class="modal-footer">
@@ -121,12 +141,6 @@
 			const formData = new FormData(document.getElementById('noticiaForm'));
 
 			const token = document.querySelector('input[name="_csrf"]').value;
-
-			// Enviar el formulario con AJAX
-			/*fetch('/admin/noticias/guardar', {
-				method: 'POST',
-				body: formData
-			}).catch(error => console.error('Error:', error));*/
 
 			// Enviar el formulario con AJAX
 			fetch('/admin/noticias/guardar', {
@@ -163,18 +177,49 @@
 				});
 		}
 
-		function limpiarFormulario() {
+		function prepararNuevaNoticia() {
+			document.getElementById('noticiaId').value = '';
 			document.getElementById('titulo').value = '';
 			document.getElementById('contenido').value = '';
 			document.getElementById('imagen').value = '';
+			document.getElementById('imagen').required = false;
+			document.getElementById('ayudaImagen').style.display = 'none';
 			document.getElementById('noticiaModalLabel').textContent = 'Nueva Noticia';
+			document.getElementById('mensajeModal').style.display = 'none';
 		}
 
+		// Revierte el contenido guardado (HTML-escapado, con <br> como salto de línea)
+		// al texto plano que espera el textarea de edición.
+		function decodificarContenido(contenidoGuardado) {
+			const conSaltos = (contenidoGuardado || '').replace(/<br\s*\/?>/gi, '\n');
+			const areaTemporal = document.createElement('textarea');
+			areaTemporal.innerHTML = conSaltos;
+			return areaTemporal.value;
+		}
+
+		function abrirModalEditar(btn) {
+			const data = btn.dataset;
+			document.getElementById('mensajeModal').style.display = 'none';
+			document.getElementById('noticiaModalLabel').textContent = 'Editar Noticia';
+
+			document.getElementById('noticiaId').value = data.id || '';
+			document.getElementById('titulo').value = data.titulo || '';
+			document.getElementById('contenido').value = decodificarContenido(data.contenido);
+			document.getElementById('imagen').value = '';
+			document.getElementById('imagen').required = false;
+			document.getElementById('ayudaImagen').style.display = 'block';
+		}
+
+		function filtrarTabla() {
+			const texto = document.getElementById('filtroTexto').value.toLowerCase();
+			const filas = document.querySelectorAll('#tablaNoticias tbody tr');
+
+			filas.forEach(fila => {
+				fila.style.display = fila.textContent.toLowerCase().includes(texto) ? '' : 'none';
+			});
+		}
 	</script>
-	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-	<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
-	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 
 </html>

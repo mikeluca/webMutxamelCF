@@ -10,4 +10,6 @@ public interface ResultadoService {
 
 	List<ResultadoDTO> obtenerResultados(String deporte);
 
+	ResultadoDTO obtenerResultadoPrimerEquipo();
+	
 }

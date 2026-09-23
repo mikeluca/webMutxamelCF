@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.service;
 import java.util.List;
 
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoDTO;
+import com.mikedev.mutxamelcf.model.CuerpoTecnicoPublicDTO;
 
 public interface CuerpoTecnicoService {
 
@@ -17,5 +18,8 @@ public interface CuerpoTecnicoService {
 	CuerpoTecnicoDTO obtenerCuerpoTecnicoPorId(Long id);
 
 	void eliminarCuerpoTecnico(Long id);
+
+	List<CuerpoTecnicoPublicDTO> obtenerCuerpoTecnicoPublicoPorEquipo(
+			String equipo);
 
 }
