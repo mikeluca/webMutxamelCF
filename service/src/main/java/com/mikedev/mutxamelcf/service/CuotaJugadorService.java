@@ -16,6 +16,8 @@ public interface CuotaJugadorService {
 
     List<CuotaJugadorDTO> obtenerTodos();
 
+    List<CuotaJugadorDTO> obtenerPorTemporada(Long temporadaId);
+
     void actualizarEstado(Long id);
 
     void eliminar(Long id);

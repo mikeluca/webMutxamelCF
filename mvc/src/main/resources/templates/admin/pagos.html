@@ -61,7 +61,7 @@
                                 th:text="${#numbers.formatDecimal(equipo.totalPendiente, 0, 0) + ' EUR'}">0
                                 EUR</b></span><span class="badge"
                             th:classappend="${equipo.totalPendiente.signum() == 0 ? 'text-bg-success' : equipo.totalPagado.signum() > 0 ? 'text-bg-warning' : 'text-bg-danger'}"
-                            th:text="${equipo.totalPendiente.signum() == 0 ? 'PAGADA' : equipo.totalPagado.signum() > 0 ? 'PARCIAL' : 'PENDIENTE'}">PENDIENTE</span><span
+                            th:text="${equipo.totalPendiente.signum() == 0 ? 'PAGADO' : equipo.totalPagado.signum() > 0 ? 'PARCIAL' : 'PENDIENTE'}">PENDIENTE</span><span
                             class="text-muted" th:text="${equipo.jugadores.size() + ' jugadores'}">0 jugadores</span>
                     </summary>
                     <div class="payment-player-list">
@@ -77,7 +77,7 @@
                                     th:text="${#numbers.formatDecimal(resumen.totalPendiente, 0, 0) + ' EUR'}">0
                                     EUR</span><span class="badge"
                                     th:classappend="${resumen.totalPendiente.signum() == 0 ? 'text-bg-success' : resumen.totalPagado.signum() > 0 ? 'text-bg-warning' : 'text-bg-danger'}"
-                                    th:text="${resumen.totalPendiente.signum() == 0 ? 'PAGADA' : resumen.totalPagado.signum() > 0 ? 'PARCIAL' : 'PENDIENTE'}">PENDIENTE</span>
+                                    th:text="${resumen.totalPendiente.signum() == 0 ? 'PAGADO' : resumen.totalPagado.signum() > 0 ? 'PARCIAL' : 'PENDIENTE'}">PENDIENTE</span>
                                 <!-- <form method="post" th:action="@{/admin/pagos/becado}" class="d-inline"
                                     onclick="event.stopPropagation()"
                                     onsubmit="return confirm('¿Marcar todas las cuotas pendientes de este jugador como pagadas por beca?');"
@@ -104,7 +104,7 @@
                                             EUR</span><span class="detail-pending"
                                             th:text="${#numbers.formatDecimal(detalle.pendiente, 0, 0) + ' EUR'}">0
                                             EUR</span><span class="badge detail-status"
-                                            th:classappend="${detalle.estadoCalculado == 'PAGADA' ? 'text-bg-success' : detalle.estadoCalculado == 'PARCIAL' ? 'text-bg-warning' : 'text-bg-danger'}"
+                                            th:classappend="${detalle.estadoCalculado == 'PAGADO' ? 'text-bg-success' : detalle.estadoCalculado == 'PARCIAL' ? 'text-bg-warning' : 'text-bg-danger'}"
                                             th:text="${detalle.estadoCalculado}">PENDIENTE</span></div>
                                     <div class="payment-history" th:if="${!detalle.pagos.isEmpty()}"><strong>Pagos
                                             registrados</strong>
@@ -225,7 +225,7 @@
             detail.querySelector('.detail-pending').textContent = pending.toFixed(0) + ' EUR';
             const status = detail.querySelector('.detail-status');
             status.className = 'badge detail-status ' + (pending === 0 ? 'text-bg-success' : paid > 0 ? 'text-bg-warning' : 'text-bg-danger');
-            status.textContent = pending === 0 ? 'PAGADA' : paid > 0 ? 'PARCIAL' : 'PENDIENTE';
+            status.textContent = pending === 0 ? 'PAGADO' : paid > 0 ? 'PARCIAL' : 'PENDIENTE';
             const addForm = detail.querySelector('form[action*="registrar-ajax"]');
             const addContainer = detail.querySelector('.payment-add-container');
             if (addForm) {
@@ -244,7 +244,7 @@
                     values[2].textContent = playerPending.toFixed(0) + ' EUR';
                     const playerStatus = player.querySelector(':scope > summary .badge');
                     playerStatus.className = 'badge ' + (playerPending === 0 ? 'text-bg-success' : playerPaid > 0 ? 'text-bg-warning' : 'text-bg-danger');
-                    playerStatus.textContent = playerPending === 0 ? 'PAGADA' : playerPaid > 0 ? 'PARCIAL' : 'PENDIENTE';
+                    playerStatus.textContent = playerPending === 0 ? 'PAGADO' : playerPaid > 0 ? 'PARCIAL' : 'PENDIENTE';
                     updateTeamSummary(player.closest('.payment-team'));
                 }
             }
@@ -269,7 +269,7 @@
             values[2].querySelector('b').textContent = pending.toFixed(0) + ' EUR';
             const status = summary.querySelector('.badge');
             status.className = 'badge ' + (pending === 0 ? 'text-bg-success' : paid > 0 ? 'text-bg-warning' : 'text-bg-danger');
-            status.textContent = pending === 0 ? 'PAGADA' : paid > 0 ? 'PARCIAL' : 'PENDIENTE';
+            status.textContent = pending === 0 ? 'PAGADO' : paid > 0 ? 'PARCIAL' : 'PENDIENTE';
         }
 
         function updateDashboardSummary(delta) {

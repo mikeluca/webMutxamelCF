@@ -82,7 +82,8 @@ public class PagosController {
 
         List<ConceptoPagoDTO> conceptos = temporada == null ? List.of()
                 : conceptoPagoService.obtenerPorTemporada(temporada.getId());
-        List<CuotaJugadorDTO> cuotas = cuotaJugadorService.obtenerTodos();
+        List<CuotaJugadorDTO> cuotas = temporada == null ? List.of()
+                : cuotaJugadorService.obtenerPorTemporada(temporada.getId());
         Map<Long, JugadorDTO> jugadoresPorId = indexarPorId(jugadorService.obtenerTodos(), JugadorDTO::getId);
         Map<Long, ConceptoPagoDTO> conceptosPorId = indexarPorId(conceptos, ConceptoPagoDTO::getId);
 
@@ -126,9 +127,14 @@ public class PagosController {
     }
 
     // Construye la fila de una cuota con sus datos calculados: pagado, pendiente,
-    // estado y pagos asociados
-    private Map<String, Object> construirFila(CuotaJugadorDTO cuota, ConceptoPagoDTO concepto, JugadorDTO jugador) {
-        BigDecimal pagado = pagoService.obtenerTotalPagado(cuota.getId());
+    // estado y pagos asociados. Los pagos ya vienen resueltos (una sola consulta
+    // para todas las cuotas, ver construirResumenCuotas) en vez de consultarse
+    // aqui uno a uno por cuota
+    private Map<String, Object> construirFila(CuotaJugadorDTO cuota, ConceptoPagoDTO concepto, JugadorDTO jugador,
+            List<PagoDTO> pagosDeLaCuota) {
+        BigDecimal pagado = pagosDeLaCuota.stream()
+                .map(pago -> zeroIfNull(pago.getImporte()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal importe = zeroIfNull(cuota.getImporte());
         BigDecimal pendiente = importe.subtract(pagado).max(BigDecimal.ZERO);
 
@@ -139,8 +145,8 @@ public class PagosController {
         fila.put("jugador", jugador);
         fila.put("pagado", pagado);
         fila.put("pendiente", pendiente);
-        fila.put("estadoCalculado", pendiente.signum() == 0 ? "PAGADA" : pagado.signum() > 0 ? "PARCIAL" : "PENDIENTE");
-        fila.put("pagos", pagoService.obtenerPorCuota(cuota.getId()));
+        fila.put("estadoCalculado", pendiente.signum() == 0 ? "PAGADO" : pagado.signum() > 0 ? "PARCIAL" : "PENDIENTE");
+        fila.put("pagos", pagosDeLaCuota);
         return fila;
     }
 
@@ -169,6 +175,7 @@ public class PagosController {
     private ResumenCuotas construirResumenCuotas(List<CuotaJugadorDTO> cuotas,
             Map<Long, ConceptoPagoDTO> conceptosPorId,
             Map<Long, JugadorDTO> jugadoresPorId) {
+        Map<Long, List<PagoDTO>> pagosPorCuota = obtenerPagosPorCuota(cuotas);
         ResumenCuotas resultado = new ResumenCuotas();
         for (CuotaJugadorDTO cuota : cuotas) {
             ConceptoPagoDTO concepto = conceptosPorId.get(cuota.getConceptoPagoId());
@@ -176,7 +183,8 @@ public class PagosController {
                 continue;
             }
             JugadorDTO jugador = jugadoresPorId.get(cuota.getJugadorId());
-            Map<String, Object> fila = construirFila(cuota, concepto, jugador);
+            List<PagoDTO> pagosDeLaCuota = pagosPorCuota.getOrDefault(cuota.getId(), List.of());
+            Map<String, Object> fila = construirFila(cuota, concepto, jugador, pagosDeLaCuota);
             BigDecimal importe = zeroIfNull(cuota.getImporte());
             BigDecimal pagado = (BigDecimal) fila.get("pagado");
             BigDecimal pendiente = (BigDecimal) fila.get("pendiente");
@@ -195,6 +203,14 @@ public class PagosController {
             resumen.put("totalPendiente", previsto.subtract(pagado).max(BigDecimal.ZERO));
         }
         return resultado;
+    }
+
+    // Trae de una sola vez los pagos de todas las cuotas recibidas y los agrupa
+    // por cuota, evitando una consulta a PAGOS por cada cuota
+    private Map<Long, List<PagoDTO>> obtenerPagosPorCuota(List<CuotaJugadorDTO> cuotas) {
+        List<Long> cuotaIds = cuotas.stream().map(CuotaJugadorDTO::getId).toList();
+        return pagoService.obtenerPorCuotas(cuotaIds).stream()
+                .collect(Collectors.groupingBy(PagoDTO::getCuotaJugadorId, LinkedHashMap::new, Collectors.toList()));
     }
 
     // Agrupa los resumenes por jugador en resumenes por equipo (o "Sin equipo" si

@@ -16,6 +16,10 @@ public interface CuotaJugadorDao {
 
     List<CuotaJugador> obtenerTodos();
 
+    // Cuotas cuyo concepto de pago pertenece a la temporada indicada (filtrado
+    // en SQL, sin traer las de otras temporadas)
+    List<CuotaJugador> obtenerPorTemporada(Long temporadaId);
+
     void actualizarEstado(Long id);
 
     void eliminar(Long id);

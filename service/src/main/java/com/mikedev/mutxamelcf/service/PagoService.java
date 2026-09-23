@@ -13,6 +13,8 @@ public interface PagoService {
 
     List<PagoDTO> obtenerPorCuota(Long cuotaJugadorId);
 
+    List<PagoDTO> obtenerPorCuotas(List<Long> cuotaJugadorIds);
+
     BigDecimal obtenerTotalPagado(Long cuotaJugadorId);
 
     void eliminar(Long id);
