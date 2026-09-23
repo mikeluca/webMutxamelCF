@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.dao.impl;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.Collections;
 import java.util.List;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -193,6 +194,34 @@ public class NotificacionAppDaoImpl implements NotificacionAppDao {
                                                   AND LEIDA = 0
                                                 """,
                                 usuarioId);
+        }
+
+        @Override
+        public void marcarLeidasPorReferencias(Long usuarioId, List<Long> referenciaIds) {
+
+                if (referenciaIds == null || referenciaIds.isEmpty()) {
+                        return;
+                }
+
+                String placeholders = String.join(
+                                ",",
+                                Collections.nCopies(referenciaIds.size(), "?"));
+
+                Object[] parametros = new Object[referenciaIds.size() + 1];
+                parametros[0] = usuarioId;
+                for (int i = 0; i < referenciaIds.size(); i++) {
+                        parametros[i + 1] = referenciaIds.get(i);
+                }
+
+                jdbcTemplate.update(
+                                """
+                                                UPDATE NOTIFICACIONES_APP
+                                                SET LEIDA = 1
+                                                WHERE USUARIO_APP_ID = ?
+                                                  AND LEIDA = 0
+                                                  AND REFERENCIA_ID IN (%s)
+                                                """.formatted(placeholders),
+                                parametros);
         }
 
         @Override

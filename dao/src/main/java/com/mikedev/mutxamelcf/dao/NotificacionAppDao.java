@@ -18,6 +18,13 @@ public interface NotificacionAppDao {
 
     void marcarTodasComoLeidas(Long usuarioId);
 
+    /**
+     * Marca como leídas las notificaciones del usuario cuya
+     * REFERENCIA_ID esté en la lista dada (usado para marcar de golpe
+     * todos los mensajes de una conversación privada al abrirla).
+     */
+    void marcarLeidasPorReferencias(Long usuarioId, List<Long> referenciaIds);
+
     int contarNoLeidas(Long usuarioId);
 
     int contarComunicacionesNoLeidas(Long usuarioId);
