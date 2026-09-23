@@ -1,46 +1,38 @@
 package com.mikedev.mutxamelcf.model;
 
-import jakarta.validation.constraints.NotBlank;
+import java.util.List;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 
 /**
  * Petición de SUPER para invitar a una persona del club a crearse
- * una cuenta en la app móvil.
+ * una cuenta en la app móvil, con uno o varios vínculos/roles a la
+ * vez (p. ej. jugador y familiar, o entrenador y coordinador).
  *
- * tipoVinculo: JUGADOR, FAMILIAR, ENTRENADOR o COORDINADOR.
- * personaId: obligatorio salvo cuando tipoVinculo es COORDINADOR
- * (validado en el servicio, no aquí, porque depende de tipoVinculo).
- * email: solo se usa el que envía el cliente si tipoVinculo NO es
- * FAMILIAR; para FAMILIAR el servicio ignora este campo y usa
- * siempre el email registrado en la ficha del familiar, por eso
- * aquí no lleva @NotBlank/@Email (la validación depende del tipo
- * y se hace en el servicio).
+ * email: solo se usa el que envía el cliente si ningún vínculo es
+ * FAMILIAR; si alguno de los vínculos es FAMILIAR, el servicio
+ * ignora este campo y usa siempre el email registrado en la ficha
+ * de ese familiar, por eso aquí no lleva @NotBlank/@Email (la
+ * validación depende de los vínculos y se hace en el servicio).
  */
 public class InvitarUsuarioAppRequest {
 
-    @NotBlank(message = "El tipo de vínculo es obligatorio")
-    private String tipoVinculo;
-
-    private Long personaId;
+    @NotEmpty(message = "Debes seleccionar al menos un rol/vínculo")
+    @Valid
+    private List<VinculoSolicitado> vinculos;
 
     private String email;
 
     public InvitarUsuarioAppRequest() {
     }
 
-    public String getTipoVinculo() {
-        return tipoVinculo;
+    public List<VinculoSolicitado> getVinculos() {
+        return vinculos;
     }
 
-    public void setTipoVinculo(String tipoVinculo) {
-        this.tipoVinculo = tipoVinculo;
-    }
-
-    public Long getPersonaId() {
-        return personaId;
-    }
-
-    public void setPersonaId(Long personaId) {
-        this.personaId = personaId;
+    public void setVinculos(List<VinculoSolicitado> vinculos) {
+        this.vinculos = vinculos;
     }
 
     public String getEmail() {
