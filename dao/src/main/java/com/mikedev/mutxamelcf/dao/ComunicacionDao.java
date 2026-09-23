@@ -67,4 +67,22 @@ public interface ComunicacionDao {
         List<DestinatarioComunicacion> obtenerDestinatariosDirectos(
                         Long usuarioAppId);
 
+        /**
+         * Hilo completo de mensajes privados (TIPO='PRIVADA') entre
+         * usuarioId y otroUsuarioId, en cualquiera de los dos
+         * sentidos, ordenado del más antiguo al más reciente.
+         */
+        List<Comunicacion> obtenerConversacion(
+                        Long usuarioId,
+                        Long otroUsuarioId);
+
+        /**
+         * Todos los mensajes privados (TIPO='PRIVADA') en los que
+         * usuarioId participa (como autor o como destinatario), con
+         * {@link Comunicacion#getContraparteId()} relleno, ordenados
+         * del más reciente al más antiguo.
+         */
+        List<Comunicacion> obtenerPrivadasDeUsuario(
+                        Long usuarioId);
+
 }
