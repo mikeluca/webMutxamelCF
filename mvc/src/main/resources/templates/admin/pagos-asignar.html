@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Asignar cuotas | Mutxamel CF</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link th:href="@{/css/estilos.css}" rel="stylesheet">
+</head>
+<body>
+<div th:replace="~{admin/cabeceraAdmin.html}"></div>
+<main class="admin-screen-shell admin-payments-page">
+    <p class="dashboard-eyebrow mb-1">Administración Económica</p>
+    <h1 class="admin-screen-title">Asignar cuotas</h1>
+    <div th:if="${mensaje}" class="alert alert-success" th:text="${mensaje}"></div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+
+    <form method="get" th:action="@{/admin/pagos/asignar-cuotas}" class="payment-panel mb-4 row g-3 align-items-end">
+        <div class="col-12 col-md-5">
+            <label class="form-label" for="temporadaId">Temporada</label>
+            <select id="temporadaId" name="temporadaId" class="form-select" onchange="this.form.submit()">
+                <option th:each="temporada : ${temporadas}" th:value="${temporada.id}" th:text="${temporada.nombre}" th:selected="${temporadaSeleccionada != null and temporada.id == temporadaSeleccionada.id}">Temporada</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-5">
+            <label class="form-label" for="equipo">Equipo</label>
+            <select id="equipo" name="equipo" class="form-select" onchange="this.form.submit()">
+                <option value="">Todos los equipos</option>
+                <option th:each="nombreEquipo : ${equipos}" th:value="${nombreEquipo}" th:text="${nombreEquipo}" th:selected="${nombreEquipo == equipoSeleccionado}">Equipo</option>
+            </select>
+        </div>
+    </form>
+
+    <section class="payment-panel" th:if="${temporadaSeleccionada != null}">
+        <h2>Asignar cuota a una categoría completa</h2>
+        <p class="text-muted">Se creará una cuota mensual para todos los jugadores actuales de la categoría.</p>
+        <form method="post" th:action="@{/admin/pagos/cuotas/guardar}" class="row g-3 align-items-end">
+            <input type="hidden" name="temporadaId" th:value="${temporadaSeleccionada.id}">
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="categoria">Categoría</label>
+                <select id="categoria" name="categoria" class="form-select" required>
+                    <option value="">Seleccionar categoría</option>
+                    <option th:each="categoria : ${categorias}" th:value="${categoria}" th:text="${categoria}">Categoría</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="conceptoPagoId">Concepto de pago</label>
+                <select id="conceptoPagoId" name="conceptoPagoId" class="form-select" required>
+                    <option value="">Seleccionar concepto</option>
+                    <option th:each="concepto : ${conceptos}" th:value="${concepto.id}" th:attr="data-nombre=${concepto.nombre}" th:text="${concepto.nombre + ' - ' + concepto.importe + ' €'}">Concepto</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-1">
+                <button class="btn btn-primary" type="submit">Asignar</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="payment-panel mt-4" th:if="${temporadaSeleccionada != null and !conceptos.isEmpty()}">
+        <h2>Asignar cuota a un jugador</h2>
+        <form method="post" th:action="@{/admin/pagos/cuotas/guardar-jugador}" class="row g-3 align-items-end">
+            <input type="hidden" name="temporadaId" th:value="${temporadaSeleccionada.id}">
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="jugadorId">Jugador</label>
+                <select id="jugadorId" name="jugadorId" class="form-select" required>
+                    <option value="">Seleccionar jugador</option>
+                    <option th:each="jugador : ${jugadoresDisponibles}" th:value="${jugador.id}" th:text="${jugador.nombre + ' ' + jugador.apellidos + ' - ' + jugador.equipo}">Jugador</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="conceptoPagoIdJugador">Concepto e importe</label>
+                <select id="conceptoPagoIdJugador" name="conceptoPagoId" class="form-select" required>
+                    <option value="">Seleccionar concepto</option>
+                    <option th:each="concepto : ${conceptos}" th:value="${concepto.id}" th:attr="data-nombre=${concepto.nombre}" th:text="${concepto.nombre + ' - ' + concepto.importe + ' €'}">Concepto</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-1">
+                <button class="btn btn-primary" type="submit">Asignar</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="payment-panel mt-4" th:if="${temporadaSeleccionada != null}">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h2 class="mb-0">Cuotas asignadas</h2>
+            <button type="submit" class="btn btn-outline-danger btn-sm" form="bulk-delete-form">
+                Borrar seleccionadas
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle assigned-player-table">
+                <thead><tr><th style="width: 3rem;"><input type="checkbox" id="selectAllCuotas" aria-label="Seleccionar todas las cuotas" onclick="document.querySelectorAll('.cuota-checkbox').forEach(function (checkbox) { checkbox.checked = this.checked; }, this);"></th><th>Jugador</th><th>Cuotas asignadas</th></tr></thead>
+                <tbody>
+                <tr th:each="jugador : ${cuotasPorJugador}">
+                    <td><input type="checkbox" class="player-cuota-selector" aria-label="Seleccionar cuotas del jugador"></td>
+                    <td class="assigned-player-name" th:text="${jugador.jugador != null ? jugador.jugador.nombre + ' ' + jugador.jugador.apellidos : 'Jugador eliminado'}">Jugador</td>
+                    <td><table class="table table-sm mb-0 assigned-fees-table"><thead><tr><th>Seleccionar</th><th>Cuota</th><th>Periodo</th><th>Importe</th><th>Acciones</th></tr></thead><tbody>
+                        <tr th:each="cuota : ${jugador.cuotas}"><td><input type="checkbox" name="cuotaIds" form="bulk-delete-form" th:value="${cuota.id}" class="cuota-checkbox"></td><td th:text="${conceptosPorId[cuota.conceptoPagoId] != null ? conceptosPorId[cuota.conceptoPagoId].nombre : 'Concepto no disponible'}">Cuota</td><td th:text="${cuota.periodo != null ? cuota.periodo : '-'}">-</td><td th:text="${cuota.importe + ' EUR'}">0 EUR</td><td class="d-flex gap-2"><form method="post" th:action="@{/admin/pagos/cuotas/editar}"><input type="hidden" name="id" th:value="${cuota.id}"><input type="hidden" name="conceptoPagoId" th:value="${cuota.conceptoPagoId}"><input type="hidden" name="temporadaId" th:value="${temporadaSeleccionada.id}"><input type="hidden" name="equipo" th:value="${equipoSeleccionado}"><input type="hidden" name="periodo" th:value="${cuota.periodo}"><button class="btn btn-sm btn-primary" type="submit">Guardar</button></form><form method="post" th:action="@{/admin/pagos/cuotas/borrar}"><input type="hidden" name="id" th:value="${cuota.id}"><input type="hidden" name="temporadaId" th:value="${temporadaSeleccionada.id}"><input type="hidden" name="equipo" th:value="${equipoSeleccionado}"><button class="btn btn-sm btn-outline-danger" type="submit" onclick="return confirm('¿Estás seguro de que deseas borrar esta cuota?');">Borrar</button></form></td></tr>
+                    </tbody></table></td>
+                </tr>
+                </tbody>
+            </table>
+            <p class="dashboard-empty" th:if="${cuotasPorJugador.isEmpty()}">No hay cuotas asignadas para esta temporada.</p>
+        </div>
+    </section>
+
+    <p class="text-muted payment-panel" th:if="${temporadaSeleccionada == null}">Crea primero una temporada.</p>
+</main>
+<div th:replace="~{admin/footerAdmin.html}"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<form id="bulk-delete-form" method="post" th:action="@{/admin/pagos/cuotas/borrar-multiple}" onsubmit="return document.querySelectorAll('.cuota-checkbox:checked').length > 0 && confirm('¿Seguro que quieres borrar las cuotas seleccionadas?');" style="display:none;">
+    <input type="hidden" name="temporadaId" th:value="${temporadaSeleccionada.id}">
+    <input type="hidden" name="equipo" th:value="${equipoSeleccionado}">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+</form>
+<script>
+    document.querySelectorAll('.player-cuota-selector').forEach(function (selector) {
+        selector.addEventListener('change', function () {
+            selector.closest('tr').querySelectorAll('.cuota-checkbox').forEach(function (checkbox) {
+                checkbox.checked = selector.checked;
+            });
+        });
+    });
+
+    document.querySelectorAll('form[action*="/cuotas/guardar"]').forEach(function (formulario) {
+        const equipo = new URLSearchParams(window.location.search).get('equipo');
+        if (equipo && !formulario.querySelector('[name="equipo"]')) {
+            const campo = document.createElement('input');
+            campo.type = 'hidden';
+            campo.name = 'equipo';
+            campo.value = equipo;
+            formulario.appendChild(campo);
+        }
+    });
+</script>
+</body>
+</html>

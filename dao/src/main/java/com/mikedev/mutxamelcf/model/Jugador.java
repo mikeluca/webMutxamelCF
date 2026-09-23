@@ -2,8 +2,6 @@ package com.mikedev.mutxamelcf.model;
 
 import java.util.Date;
 
-import jakarta.persistence.Lob;
-
 public class Jugador {
 	private Long id;
 	private String dni;
@@ -17,7 +15,6 @@ public class Jugador {
 	private String equipo;
 	private Integer dorsal;
 	private String posicion;
-	@Lob
 	private byte[] foto;
 
 	public Jugador(Long id, String dni, String nombre, String apellidos, Date fechaNacimiento, String poblacion,

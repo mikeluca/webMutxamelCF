@@ -6,54 +6,132 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
+import com.mikedev.mutxamelcf.dao.EntrenamientoDao;
 import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.model.EnumEquipos;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.EquipoDTO;
+import com.mikedev.mutxamelcf.service.CuerpoTecnicoService;
 import com.mikedev.mutxamelcf.service.EquipoService;
+import com.mikedev.mutxamelcf.service.JugadorService;
 
 @Service
 public class EquipoServiceImpl implements EquipoService {
 
-	@Autowired
-	EquipoDao equipoDao;
+	private static final Logger logger = LoggerFactory.getLogger(EquipoServiceImpl.class);
+
+	private final EquipoDao equipoDao;
+	private final JugadorService jugadorService;
+	private final CuerpoTecnicoService cuerpoTecnicoService;
+	private final ConvocatoriaDao convocatoriaDao;
+	private final EntrenamientoDao entrenamientoDao;
+
+	public EquipoServiceImpl(EquipoDao equipoDao, JugadorService jugadorService,
+			CuerpoTecnicoService cuerpoTecnicoService, ConvocatoriaDao convocatoriaDao,
+			EntrenamientoDao entrenamientoDao) {
+		this.equipoDao = equipoDao;
+		this.jugadorService = jugadorService;
+		this.cuerpoTecnicoService = cuerpoTecnicoService;
+		this.convocatoriaDao = convocatoriaDao;
+		this.entrenamientoDao = entrenamientoDao;
+	}
 
 	@Override
 	public boolean guardar(EquipoDTO equipo) {
-		return equipoDao.guardar(toEntity(equipo));
+		logger.debug("Inicio guardar: categoria={}, grupo={}", equipo == null ? null : equipo.getCategoria(),
+				equipo == null ? null : equipo.getGrupo());
+		boolean resultado = equipoDao.guardar(toEntity(equipo));
+		logger.debug("Fin guardar: resultado={}", resultado);
+		return resultado;
 	}
 
 	@Override
 	public EquipoDTO obtenerEquipoPorId(Long id) {
-		return toDTO(equipoDao.obtenerEquipoPorId(id));
+		logger.debug("Inicio obtenerEquipoPorId: id={}", id);
+		EquipoDTO equipo = toDTO(equipoDao.obtenerEquipoPorId(id));
+		logger.debug("Fin obtenerEquipoPorId: id={}", id);
+		return equipo;
 	}
 
 	@Override
 	public void eliminarEquipo(Long id) {
+		logger.debug("Inicio eliminarEquipo: id={}", id);
+
+		Equipo equipo = equipoDao.obtenerEquipoPorId(id);
+		if (equipo == null) {
+			logger.warn("Equipo inexistente al eliminar: id={}", id);
+			return;
+		}
+
+		List<String> motivos = new ArrayList<>();
+
+		if (!jugadorService.obtenerJugadoresPorEquipo(equipo.getNombre()).isEmpty()) {
+			motivos.add("tiene jugadores asignados");
+		}
+		if (!cuerpoTecnicoService.obtenerCuerpoTecnicoPorEquipo(equipo.getNombre()).isEmpty()) {
+			motivos.add("tiene cuerpo técnico asignado");
+		}
+		if (!convocatoriaDao.obtenerPorEquipo(id).isEmpty()) {
+			motivos.add("tiene convocatorias registradas");
+		}
+		if (!entrenamientoDao.obtenerPorEquipo(id).isEmpty()) {
+			motivos.add("tiene entrenamientos registrados");
+		}
+
+		if (!motivos.isEmpty()) {
+			logger.warn("No se puede eliminar el equipo id={}: {}", id, motivos);
+			throw new IllegalStateException(
+					"No se puede eliminar el equipo porque " + String.join(", ", motivos)
+							+ ". Reasigna o elimina antes esos datos.");
+		}
+
 		equipoDao.eliminarEquipo(id);
+		logger.debug("Fin eliminarEquipo: id={}", id);
 	}
 
 	@Override
 	public List<String> obtenerCategorias() {
-		return equipoDao.obtenerCategorias();
+		logger.debug("Inicio obtenerCategorias");
+		List<String> categorias = equipoDao.obtenerCategorias();
+		logger.debug("Fin obtenerCategorias: total={}", categorias.size());
+		return categorias;
 	}
 
 	@Override
 	public List<EquipoDTO> obtenerTodos() {
-		return toDTOList(equipoDao.obtenerTodos());
+		logger.debug("Inicio obtenerTodos");
+		List<EquipoDTO> equipos = toDTOList(equipoDao.obtenerTodos());
+		equipos.sort(Comparator
+				.comparing((EquipoDTO equipo) -> equipo.getOrden() == null ? "" : equipo.getOrden(),
+						Comparator.nullsLast(String::compareTo))
+				.thenComparing(EquipoDTO::getNombre, Comparator.nullsLast(String::compareTo)));
+		logger.debug("Fin obtenerTodos: total={}", equipos.size());
+		return equipos;
 	}
 
 	@Override
 	public List<EquipoDTO> obtenerTodosPorCategoria(String categoria) {
-		return toDTOList(equipoDao.obtenerTodosPorCategoria(categoria));
+		logger.debug("Inicio obtenerTodosPorCategoria: categoria={}", categoria);
+		List<EquipoDTO> equipos = toDTOList(equipoDao.obtenerTodosPorCategoria(categoria));
+		equipos.sort(Comparator
+				.comparing((EquipoDTO equipo) -> equipo.getOrden() == null ? "" : equipo.getOrden(),
+						Comparator.nullsLast(String::compareTo))
+				.thenComparing(EquipoDTO::getNombre, Comparator.nullsLast(String::compareTo)));
+		logger.debug("Fin obtenerTodosPorCategoria: categoria={}, total={}", categoria, equipos.size());
+		return equipos;
 	}
 
 	@Override
 	public Map<String, List<EquipoDTO>> obtenerEquiposAgrupadosPorCategoria(String deporte) {
-		return mapToEquipoDTO(equipoDao.obtenerEquiposAgrupadosPorCategoria(deporte));
+		logger.debug("Inicio obtenerEquiposAgrupadosPorCategoria: deporte={}", deporte);
+		Map<String, List<EquipoDTO>> agrupados = mapToEquipoDTO(equipoDao.obtenerEquiposAgrupadosPorCategoria(deporte));
+		logger.debug("Fin obtenerEquiposAgrupadosPorCategoria: deporte={}, grupos={}", deporte, agrupados.size());
+		return agrupados;
 	}
 
 	// Método para mapear EquipoDTO a Equipo
@@ -99,16 +177,15 @@ public class EquipoServiceImpl implements EquipoService {
 		return listaEquipos;
 	}
 
-	public Map<String, List<EquipoDTO>> mapToEquipoDTO(Map<String, List<Equipo>> equiposPorCategoria) {
-		return equiposPorCategoria.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, // Llave del mapa
-																									// (categoria)
-				entry -> entry.getValue().stream().sorted(Comparator.comparing(Equipo::getOrden)).map(this::toDTO) // Convierte
-																													// cada
-																													// Equipo
-																													// a
-																													// EquipoDTO
-						.collect(Collectors.toList()) // Recoge la lista ordenada
-		));
+	// Agrupa y ordena los equipos de cada categoria, convirtiendolos a DTO
+	private Map<String, List<EquipoDTO>> mapToEquipoDTO(Map<String, List<Equipo>> equiposPorCategoria) {
+		return equiposPorCategoria.entrySet().stream()
+				.collect(Collectors.toMap(
+						Map.Entry::getKey,
+						entry -> entry.getValue().stream()
+								.sorted(Comparator.comparing(Equipo::getOrden))
+								.map(this::toDTO)
+								.collect(Collectors.toList())));
 	}
 
 }

@@ -4,7 +4,6 @@ import java.util.Date;
 
 public class CuerpoTecnico {
 	private Long id;
-	private String dni;
 	private String nombre;
 	private String apellidos;
 	private Date fechaNacimiento;
@@ -16,11 +15,10 @@ public class CuerpoTecnico {
 	private String puesto;
 	private byte[] foto;
 
-	public CuerpoTecnico(Long id, String dni, String nombre, String apellidos, Date fechaNacimiento, String poblacion,
+	public CuerpoTecnico(Long id, String nombre, String apellidos, Date fechaNacimiento, String poblacion,
 			String nacionalidad, String categoria, String deporte, String equipo, String puesto, byte[] foto) {
 		super();
 		this.setId(id);
-		this.dni = dni;
 		this.nombre = nombre;
 		this.apellidos = apellidos;
 		this.fechaNacimiento = fechaNacimiento;
@@ -35,14 +33,6 @@ public class CuerpoTecnico {
 
 	public CuerpoTecnico() {
 		super();
-	}
-
-	public String getDni() {
-		return dni;
-	}
-
-	public void setDni(String dni) {
-		this.dni = dni;
 	}
 
 	public String getNombre() {

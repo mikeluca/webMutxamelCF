@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title>Pagos de jugadores | Mutxamel CF</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link th:href="@{/css/estilos.css}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
+</head>
+
+<body>
+    <div th:replace="~{admin/cabeceraAdmin.html}"></div>
+    <main class="admin-screen-shell admin-payments-page">
+        <div class="admin-dashboard-heading-row">
+            <div class="admin-screen-heading">
+                <p class="dashboard-eyebrow mb-1">Administración Económica</p>
+                <h1 class="admin-screen-title">Dashboard Económico</h1>
+            </div>
+            <div class="admin-screen-toolbar">
+                <form method="get" th:action="@{/admin/pagos}" class="d-flex align-items-end gap-2">
+                    <div><label for="temporadaId" class="form-label">Temporada</label><select id="temporadaId"
+                            name="temporadaId" class="form-select" onchange="this.form.submit()">
+                            <option th:each="temporada : ${temporadas}" th:value="${temporada.id}"
+                                th:text="${temporada.nombre}"
+                                th:selected="${temporadaSeleccionada != null and temporada.id == temporadaSeleccionada.id}">
+                                Temporada</option>
+                        </select></div>
+                </form>
+            </div>
+        </div>
+        <div th:if="${mensaje}" class="alert alert-success" role="status" th:text="${mensaje}"></div>
+        <div th:if="${error}" class="alert alert-danger" role="alert" th:text="${error}"></div>
+        <section class="row g-3 mb-4" aria-label="Resumen de pagos">
+            <div class="col-12 col-md-4">
+                <div class="payment-metric"><span>Previsto</span><strong class="dashboard-total"
+                        th:text="${#numbers.formatDecimal(totalPrevisto, 0, 0) + ' EUR'}">0 EUR</strong></div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="payment-metric payment-metric-success"><span>Cobrado</span><strong class="dashboard-paid"
+                        th:text="${#numbers.formatDecimal(totalPagado, 0, 0) + ' EUR'}">0 EUR</strong></div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="payment-metric payment-metric-warning"><span>Pendiente</span><strong
+                        class="dashboard-pending" th:text="${#numbers.formatDecimal(totalPendiente, 0, 0) + ' EUR'}">0
+                        EUR</strong><small class="dashboard-open-count"
+                        th:text="${cuotasPendientes + ' cuotas abiertas'}">0 cuotas abiertas</small></div>
+            </div>
+        </section>
+        <section class="payment-panel">
+            <h2>Resumen por equipo</h2>
+            <div class="payment-table-head"><span>Equipo</span><span>Total cuotas</span><span>Total
+                    pagado</span><span>Total pendiente</span><span>Estado</span><span>Jugadores</span></div>
+            <div class="payment-team-list">
+                <details th:each="equipo : ${resumenEquipos}" class="payment-team">
+                    <summary><strong th:text="${equipo.nombre}">Equipo</strong><span><small>Total cuotas</small><br><b
+                                th:text="${#numbers.formatDecimal(equipo.totalPrevisto, 0, 0) + ' EUR'}">0
+                                EUR</b></span><span><small>Total pagado</small><br><b
+                                th:text="${#numbers.formatDecimal(equipo.totalPagado, 0, 0) + ' EUR'}">0
+                                EUR</b></span><span><small>Total pendiente</small><br><b
+                                th:text="${#numbers.formatDecimal(equipo.totalPendiente, 0, 0) + ' EUR'}">0
+                                EUR</b></span><span class="badge"
+                            th:classappend="${equipo.totalPendiente.signum() == 0 ? 'text-bg-success' : equipo.totalPagado.signum() > 0 ? 'text-bg-warning' : 'text-bg-danger'}"
+                            th:text="${equipo.totalPendiente.signum() == 0 ? 'PAGADO' : equipo.totalPagado.signum() > 0 ? 'PARCIAL' : 'PENDIENTE'}">PENDIENTE</span><span
+                            class="text-muted" th:text="${equipo.jugadores.size() + ' jugadores'}">0 jugadores</span>
+                    </summary>
+                    <div class="payment-player-list">
+                        <div class="payment-player-head"><span>Jugador</span><span>Total cuotas</span><span>Total
+                                pagado</span><span>Total pendiente</span><span>Estado</span><span></span></div>
+                        <details th:each="resumen : ${equipo.jugadores}" class="payment-player">
+                            <summary><strong
+                                    th:text="${resumen.jugador != null ? resumen.jugador.nombre + ' ' + resumen.jugador.apellidos : 'Jugador eliminado'}">Jugador</strong><span
+                                    th:text="${#numbers.formatDecimal(resumen.totalPrevisto, 0, 0) + ' EUR'}">0
+                                    EUR</span><span
+                                    th:text="${#numbers.formatDecimal(resumen.totalPagado, 0, 0) + ' EUR'}">0
+                                    EUR</span><span
+                                    th:text="${#numbers.formatDecimal(resumen.totalPendiente, 0, 0) + ' EUR'}">0
+                                    EUR</span><span class="badge"
+                                    th:classappend="${resumen.totalPendiente.signum() == 0 ? 'text-bg-success' : resumen.totalPagado.signum() > 0 ? 'text-bg-warning' : 'text-bg-danger'}"
+                                    th:text="${resumen.totalPendiente.signum() == 0 ? 'PAGADO' : resumen.totalPagado.signum() > 0 ? 'PARCIAL' : 'PENDIENTE'}">PENDIENTE</span>
+                                <!-- <form method="post" th:action="@{/admin/pagos/becado}" class="d-inline"
+                                    onclick="event.stopPropagation()"
+                                    onsubmit="return confirm('¿Marcar todas las cuotas pendientes de este jugador como pagadas por beca?');"
+                                    th:if="${resumen.totalPendiente.signum() > 0}"><input type="hidden" name="jugadorId"
+                                        th:value="${resumen.jugador.id}"><input type="hidden" name="temporadaId"
+                                        th:value="${temporadaSeleccionada != null ? temporadaSeleccionada.id : ''}"><input
+                                        type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                                        <button type="submit" class="btn btn-sm btn-success"
+                                        title="Marcar todas las cuotas como pagadas por beca"><i
+                                            class="bi bi-award-fill me-1"></i>BECADO</button></form> -->
+                            </summary>
+                            <div class="payment-player-details">
+                                <div class="payment-detail-headings">
+                                    <span>Concepto</span><span>Periodo</span><span>Importe</span><span>Pagado</span><span>Pendiente</span><span>Estado</span>
+                                </div>
+                                <article th:each="detalle : ${resumen.cuotas}" class="payment-detail-row"
+                                    th:data-cuota-id="${detalle.cuota.id}" th:data-importe="${detalle.cuota.importe}">
+                                    <div class="payment-detail-summary"><strong
+                                            th:text="${detalle.concepto.nombre}">Cuota</strong><span
+                                            th:text="${detalle.periodoTexto}">-</span><span class="detail-total"
+                                            th:text="${#numbers.formatDecimal(detalle.cuota.importe, 0, 0) + ' EUR'}">0
+                                            EUR</span><span class="detail-paid"
+                                            th:text="${#numbers.formatDecimal(detalle.pagado, 0, 0) + ' EUR'}">0
+                                            EUR</span><span class="detail-pending"
+                                            th:text="${#numbers.formatDecimal(detalle.pendiente, 0, 0) + ' EUR'}">0
+                                            EUR</span><span class="badge detail-status"
+                                            th:classappend="${detalle.estadoCalculado == 'PAGADO' ? 'text-bg-success' : detalle.estadoCalculado == 'PARCIAL' ? 'text-bg-warning' : 'text-bg-danger'}"
+                                            th:text="${detalle.estadoCalculado}">PENDIENTE</span></div>
+                                    <div class="payment-history" th:if="${!detalle.pagos.isEmpty()}"><strong>Pagos
+                                            registrados</strong>
+                                        <div th:each="pago : ${detalle.pagos}" class="payment-history-row"
+                                            th:data-pago-id="${pago.id}">
+                                            <form method="post" th:action="@{/admin/pagos/editar-ajax}"
+                                                class="payment-ajax-form row g-2 align-items-end"><input type="hidden"
+                                                    name="id" th:value="${pago.id}"><input type="hidden"
+                                                    name="cuotaJugadorId" th:value="${detalle.cuota.id}"><input
+                                                    type="hidden" th:name="${_csrf.parameterName}"
+                                                    th:value="${_csrf.token}">
+                                                <div class="col-12 col-md-2"><label
+                                                        class="form-label">Importe</label><input name="importe"
+                                                        type="number" step="0.01" min="0.01"
+                                                        class="form-control form-control-sm" th:value="${pago.importe}"
+                                                        required></div>
+                                                <div class="col-12 col-md-2"><label
+                                                        class="form-label">Fecha</label><input name="fechaPago"
+                                                        type="date" class="form-control form-control-sm"
+                                                        th:value="${#dates.format(pago.fechaPago, 'yyyy-MM-dd')}"
+                                                        required></div>
+                                                <div class="col-12 col-md-3"><label
+                                                        class="form-label">Metodo</label><select name="metodoPago"
+                                                        class="form-select form-select-sm">
+                                                        <option th:selected="${pago.metodoPago == 'Transferencia'}">
+                                                            Transferencia</option>
+                                                        <option th:selected="${pago.metodoPago == 'Efectivo'}">Efectivo
+                                                        </option>
+                                                        <option th:selected="${pago.metodoPago == 'Tarjeta'}">Tarjeta
+                                                        </option>
+                                                        <option th:selected="${pago.metodoPago == 'Domiciliacion'}">
+                                                            Domiciliacion</option>
+                                                    </select></div>
+                                                <div class="col-auto"><button class="btn btn-sm btn-primary"
+                                                        type="submit">Guardar</button></div>
+                                                <div class="payment-ajax-error text-danger small"></div>
+                                            </form>
+                                            <form method="post" th:action="@{/admin/pagos/borrar-ajax}"
+                                                class="payment-delete-ajax-form"><input type="hidden" name="id"
+                                                    th:value="${pago.id}"><input type="hidden"
+                                                    th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><button
+                                                    class="btn btn-sm btn-outline-danger" type="submit">Borrar
+                                                    pago</button><span
+                                                    class="payment-ajax-error text-danger small"></span></form>
+                                        </div>
+                                    </div>
+                                    <div class="payment-add-container" th:hidden="${detalle.pendiente.signum() == 0}">
+                                        <form method="post" th:action="@{/admin/pagos/registrar-ajax}"
+                                            class="payment-ajax-form row g-2 align-items-end mt-2"><input type="hidden"
+                                                name="cuotaJugadorId" th:value="${detalle.cuota.id}"><input
+                                                type="hidden" th:name="${_csrf.parameterName}"
+                                                th:value="${_csrf.token}">
+                                            <div class="col-12 col-md-3"><label class="form-label">Nuevo
+                                                    pago</label><input name="importe" type="number" step="0.01"
+                                                    min="0.01" class="form-control form-control-sm"
+                                                    th:max="${detalle.pendiente}" required></div>
+                                            <div class="col-12 col-md-3"><label class="form-label">Fecha</label><input
+                                                    name="fechaPago" type="date" class="form-control form-control-sm"
+                                                    th:value="${fechaHoy}" required></div>
+                                            <div class="col-12 col-md-3"><label class="form-label">Metodo</label><select
+                                                    name="metodoPago" class="form-select form-select-sm">
+                                                    <option>Transferencia</option>
+                                                    <option>Efectivo</option>
+                                                    <option>Tarjeta</option>
+                                                    <option>Domiciliacion</option>
+                                                </select></div>
+                                            <div class="col-auto"><button class="btn btn-sm btn-primary" type="submit"
+                                                    th:disabled="${detalle.pendiente.signum() == 0}">Registrar
+                                                    pago</button>
+                                            </div>
+                                            <div class="payment-ajax-error text-danger small"></div>
+                                        </form>
+                                    </div>
+                                </article>
+                            </div>
+                        </details>
+                    </div>
+                </details>
+            </div>
+            <p class="dashboard-empty" th:if="${resumenJugadores.isEmpty()}">No hay cuotas asignadas en esta temporada.
+            </p>
+        </section>
+    </main>
+    <div th:replace="~{admin/footerAdmin.html}"></div>
+    <script>
+        async function submitPaymentForm(form, removeRow) {
+            const error = form.querySelector('.payment-ajax-error');
+            if (error) error.textContent = '';
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: new FormData(form)
+            });
+            const body = await response.text();
+            let data;
+            try {
+                data = JSON.parse(body);
+            } catch (parseError) {
+                const xmlError = body.match(/<error>([\s\S]*?)<\/error>/i);
+                const message = xmlError ? xmlError[1] : 'El servidor devolvio una respuesta no valida.';
+                throw new Error(message);
+            }
+            if (!response.ok) throw new Error(data.error || 'No se pudo actualizar el pago.');
+            const row = form.closest('.payment-history-row');
+            const detail = form.closest('.payment-detail-row');
+            const paidElement = detail.querySelector('.detail-paid');
+            const previousPaid = Number(paidElement.textContent.replace(' EUR', ''));
+            if (removeRow && row) row.remove();
+            updatePaymentDetail(detail, data, previousPaid);
+            return data;
+        }
+
+        function updatePaymentDetail(detail, data, previousPaid) {
+            const total = Number(detail.dataset.importe);
+            const paid = Number(data.pagado);
+            const pending = Number(data.pendiente);
+            detail.querySelector('.detail-paid').textContent = paid.toFixed(0) + ' EUR';
+            detail.querySelector('.detail-pending').textContent = pending.toFixed(0) + ' EUR';
+            const status = detail.querySelector('.detail-status');
+            status.className = 'badge detail-status ' + (pending === 0 ? 'text-bg-success' : paid > 0 ? 'text-bg-warning' : 'text-bg-danger');
+            status.textContent = pending === 0 ? 'PAGADO' : paid > 0 ? 'PARCIAL' : 'PENDIENTE';
+            const addForm = detail.querySelector('form[action*="registrar-ajax"]');
+            const addContainer = detail.querySelector('.payment-add-container');
+            if (addForm) {
+                addForm.querySelector('[name="importe"]').max = pending;
+                addForm.querySelector('button[type="submit"]').disabled = pending <= 0;
+            }
+            if (addContainer) addContainer.hidden = pending <= 0;
+            const delta = paid - previousPaid;
+            const player = detail.closest('.payment-player');
+            if (player) {
+                const values = player.querySelectorAll('summary > span');
+                if (values.length >= 3) {
+                    const playerPaid = Number(values[1].textContent.replace(' EUR', '')) + delta;
+                    const playerPending = Math.max(0, Number(values[2].textContent.replace(' EUR', '')) - delta);
+                    values[1].textContent = playerPaid.toFixed(0) + ' EUR';
+                    values[2].textContent = playerPending.toFixed(0) + ' EUR';
+                    const playerStatus = player.querySelector(':scope > summary .badge');
+                    playerStatus.className = 'badge ' + (playerPending === 0 ? 'text-bg-success' : playerPaid > 0 ? 'text-bg-warning' : 'text-bg-danger');
+                    playerStatus.textContent = playerPending === 0 ? 'PAGADO' : playerPaid > 0 ? 'PARCIAL' : 'PENDIENTE';
+                    updateTeamSummary(player.closest('.payment-team'));
+                }
+            }
+            updateDashboardSummary(delta);
+        }
+
+        function updateTeamSummary(team) {
+            if (!team) return;
+            let total = 0;
+            let paid = 0;
+            let pending = 0;
+            team.querySelectorAll(':scope > .payment-player-list > .payment-player > summary').forEach(function (summary) {
+                const values = summary.querySelectorAll(':scope > span');
+                total += Number(values[0].textContent.replace(' EUR', ''));
+                paid += Number(values[1].textContent.replace(' EUR', ''));
+                pending += Number(values[2].textContent.replace(' EUR', ''));
+            });
+            const summary = team.querySelector(':scope > summary');
+            const values = summary.querySelectorAll(':scope > span');
+            values[0].nextElementSibling.querySelector('b').textContent = total.toFixed(0) + ' EUR';
+            values[1].querySelector('b').textContent = paid.toFixed(0) + ' EUR';
+            values[2].querySelector('b').textContent = pending.toFixed(0) + ' EUR';
+            const status = summary.querySelector('.badge');
+            status.className = 'badge ' + (pending === 0 ? 'text-bg-success' : paid > 0 ? 'text-bg-warning' : 'text-bg-danger');
+            status.textContent = pending === 0 ? 'PAGADO' : paid > 0 ? 'PARCIAL' : 'PENDIENTE';
+        }
+
+        function updateDashboardSummary(delta) {
+            const paid = document.querySelector('.dashboard-paid');
+            const pending = document.querySelector('.dashboard-pending');
+            if (!paid || !pending) return;
+            const newPaid = Number(paid.textContent.replace(' EUR', '')) + delta;
+            const newPending = Math.max(0, Number(pending.textContent.replace(' EUR', '')) - delta);
+            paid.textContent = newPaid.toFixed(0) + ' EUR';
+            pending.textContent = newPending.toFixed(0) + ' EUR';
+        }
+
+        document.querySelectorAll('.payment-ajax-form').forEach(function (form) {
+            form.addEventListener('submit', async function (event) {
+                event.preventDefault();
+                try {
+                    const isNew = !form.querySelector('[name="id"]');
+                    const data = await submitPaymentForm(form, false);
+                    if (isNew) {
+                        const detail = form.closest('.payment-detail-row');
+                        const history = detail.querySelector('.payment-history') || document.createElement('div');
+                        if (!history.classList.contains('payment-history')) {
+                            history.className = 'payment-history';
+                            history.innerHTML = '<strong>Pagos registrados</strong>';
+                            detail.insertBefore(history, form.closest('.payment-add-container'));
+                        }
+                        const row = document.createElement('div');
+                        row.className = 'payment-history-row';
+                        row.dataset.pagoId = data.pago.id;
+                        const csrf = form.querySelector('input[name="_csrf"]');
+                        const fechaPago = new Date(data.pago.fechaPago).toISOString().slice(0, 10);
+                        row.innerHTML = '<form method="post" action="/admin/pagos/editar-ajax" class="payment-ajax-form row g-2 align-items-end">'
+                            + '<input type="hidden" name="id" value="' + data.pago.id + '"><input type="hidden" name="cuotaJugadorId" value="' + form.querySelector('[name="cuotaJugadorId"]').value + '">'
+                            + '<input type="hidden" name="_csrf" value="' + (csrf ? csrf.value : '') + '">'
+                            + '<div class="col-12 col-md-2"><label class="form-label">Importe</label><input name="importe" type="number" step="0.01" min="0.01" class="form-control form-control-sm" value="' + data.pago.importe + '" required></div>'
+                            + '<div class="col-12 col-md-2"><label class="form-label">Fecha</label><input name="fechaPago" type="date" class="form-control form-control-sm" value="' + fechaPago + '" required></div>'
+                            + '<div class="col-12 col-md-3"><label class="form-label">Metodo</label><select name="metodoPago" class="form-select form-select-sm"><option>Transferencia</option><option>Efectivo</option><option>Tarjeta</option><option>Domiciliacion</option></select></div>'
+                            + '<div class="col-auto"><button class="btn btn-sm btn-primary" type="submit">Guardar</button></div><div class="payment-ajax-error text-danger small"></div></form>'
+                            + '<form method="post" action="/admin/pagos/borrar-ajax" class="payment-delete-ajax-form mt-2">'
+                            + '<input type="hidden" name="id" value="' + data.pago.id + '">'
+                            + '<input type="hidden" name="_csrf" value="' + (csrf ? csrf.value : '') + '">'
+                            + '<button class="btn btn-sm btn-outline-danger" type="submit">Borrar pago</button>'
+                            + '<span class="payment-ajax-error text-danger small"></span></form>';
+                        row.querySelector('[name="metodoPago"]').value = data.pago.metodoPago;
+                        history.appendChild(row);
+                        bindPaymentRow(row);
+                        form.reset();
+                        form.querySelector('[name="fechaPago"]').value = new Date().toISOString().slice(0, 10);
+                    }
+                } catch (error) {
+                    const target = form.querySelector('.payment-ajax-error');
+                    if (target) target.textContent = error.message;
+                }
+            });
+        });
+
+        document.querySelectorAll('.payment-delete-ajax-form').forEach(function (form) {
+            form.addEventListener('submit', async function (event) {
+                event.preventDefault();
+                if (!confirm('¿Seguro que quieres borrar este pago?')) return;
+                try {
+                    await submitPaymentForm(form, true);
+                } catch (error) {
+                    const target = form.querySelector('.payment-ajax-error');
+                    if (target) target.textContent = error.message;
+                }
+            });
+        });
+
+        function bindPaymentRow(row) {
+            const editForm = row.querySelector('.payment-ajax-form');
+            const deleteForm = row.querySelector('.payment-delete-ajax-form');
+            editForm.addEventListener('submit', async function (event) {
+                event.preventDefault();
+                try { await submitPaymentForm(editForm, false); }
+                catch (error) { editForm.querySelector('.payment-ajax-error').textContent = error.message; }
+            });
+            deleteForm.addEventListener('submit', async function (event) {
+                event.preventDefault();
+                if (!confirm('¿Seguro que quieres borrar este pago?')) return;
+                try { await submitPaymentForm(deleteForm, true); }
+                catch (error) { deleteForm.querySelector('.payment-ajax-error').textContent = error.message; }
+            });
+        }
+    </script>
+</body>
+
+</html>

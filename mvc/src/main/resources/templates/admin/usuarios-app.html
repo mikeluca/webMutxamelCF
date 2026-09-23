@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Usuarios App | Mutxamel CF</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link th:href="@{/css/estilos.css}" rel="stylesheet">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+	<link href="https://fonts.googleapis.com/css2?family=Fredericka+the+Great&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
+</head>
+
+<body>
+
+	<!-- Incluir el header -->
+	<div th:replace="~{admin/cabeceraAdmin.html}"></div>
+
+	<main class="admin-screen-shell lead">
+		<p class="dashboard-eyebrow mb-1">Administración de la App</p>
+		<h1 class="admin-screen-title">Usuarios de la App</h1>
+		<p>Gestiona quién tiene acceso a la app móvil del club: jugadores, familiares, entrenadores y coordinadores.
+			Una misma cuenta puede combinar varios roles/vínculos a la vez.</p>
+
+		<div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-4">
+			<div>
+				<label for="filtroTexto" class="form-label mb-1">Buscar</label>
+				<input type="text" id="filtroTexto" class="form-control form-control-sm"
+					placeholder="Buscar por email, nombre o rol..." onkeyup="filtrarTabla()">
+			</div>
+			<button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#invitarModal">
+				Invitar usuario
+			</button>
+		</div>
+
+		<div id="mensajeGeneral" class="alert" style="display:none; margin-bottom: 15px;"></div>
+
+		<div class="admin-list-panel">
+			<table class="table table-striped w-100" id="tablaUsuariosApp">
+				<thead>
+					<tr>
+						<th>Email</th>
+						<th>Nombre</th>
+						<th>Rol</th>
+						<th>Vínculo</th>
+						<th>Estado</th>
+						<th>Último acceso</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr th:each="usuario : ${usuarios}" th:id="'fila-usuario-' + ${usuario.id}">
+						<td class="align-middle" th:text="${usuario.email}"></td>
+						<td class="align-middle">
+							<span th:if="${!#lists.isEmpty(usuario.vinculos)}"
+								th:text="${usuario.vinculos[0].nombreCompleto}"></span>
+							<span th:if="${#lists.isEmpty(usuario.vinculos)}" class="text-muted">&mdash;</span>
+						</td>
+						<td class="align-middle" th:text="${#strings.listJoin(usuario.roles, ', ')}"></td>
+						<td class="align-middle">
+							<div th:each="vinculo : ${usuario.vinculos}">
+								<span th:text="${vinculo.tipo}"></span>
+								<span th:if="${vinculo.detalle} != null" th:text="' — ' + ${vinculo.detalle}"></span>
+							</div>
+							<span th:if="${#lists.isEmpty(usuario.vinculos)}" class="text-muted">Sin vincular</span>
+						</td>
+						<td class="align-middle">
+							<span th:if="${usuario.activo}" class="badge text-bg-success">Activa</span>
+							<span th:if="!${usuario.activo} and ${usuario.tokenExpirado}"
+								class="badge text-bg-danger">Invitación caducada</span>
+							<span th:if="!${usuario.activo} and !${usuario.tokenExpirado} and ${usuario.tokenPendiente}"
+								class="badge text-bg-warning">Pendiente de activar</span>
+							<span th:if="!${usuario.activo} and !${usuario.tokenPendiente}"
+								class="badge text-bg-secondary">Desactivada</span>
+						</td>
+						<td class="align-middle"
+							th:text="${usuario.fechaUltimoAcceso} != null ? ${#dates.format(usuario.fechaUltimoAcceso, 'dd/MM/yyyy HH:mm')} : 'Nunca'">
+						</td>
+						<td class="align-middle">
+							<div class="d-flex justify-content-center align-items-center gap-2">
+								<button type="button" class="btn btn-outline-secondary btn-sm"
+									title="Editar vínculos y roles" th:attr="data-id=${usuario.id},
+										data-tiene-jugador=${usuario.tieneJugador},
+										data-tiene-familiar=${usuario.tieneFamiliar},
+										data-tiene-coordinador=${usuario.tieneCoordinador},
+										data-tiene-retransmision=${usuario.tieneRetransmision}"
+									onclick="abrirEditar(this)">
+									<i class="bi bi-pencil"></i>
+								</button>
+								<button th:if="!${usuario.activo}" type="button" class="btn btn-outline-primary btn-sm"
+									title="Reenviar invitación" th:attr="data-id=${usuario.id}"
+									onclick="reenviarInvitacion(this)">
+									<i class="bi bi-arrow-repeat"></i>
+								</button>
+								<button th:if="!${usuario.activo}" type="button" class="btn btn-outline-success btn-sm"
+									title="Activar manualmente" th:attr="data-id=${usuario.id}"
+									onclick="cambiarEstado(this, 'activar')">
+									<i class="bi bi-check-circle"></i>
+								</button>
+								<button th:if="${usuario.activo}" type="button" class="btn btn-outline-danger btn-sm"
+									title="Desactivar cuenta" th:attr="data-id=${usuario.id}"
+									onclick="cambiarEstado(this, 'desactivar')">
+									<i class="bi bi-slash-circle"></i>
+								</button>
+								<button th:if="!${usuario.activo}" type="button" class="btn btn-danger btn-sm"
+									title="Eliminar invitación" th:attr="data-id=${usuario.id}"
+									onclick="eliminarInvitacion(this)">
+									<i class="bi bi-trash"></i>
+								</button>
+							</div>
+						</td>
+					</tr>
+					<tr th:if="${#lists.isEmpty(usuarios)}">
+						<td colspan="7" class="text-center">Todavía no hay ninguna cuenta de la app creada.</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+		<!-- Plantillas ocultas con los vínculos/roles actuales de cada cuenta, -->
+		<!-- clonadas en el modal "Editar" al pulsar su botón. -->
+		<template th:each="usuario : ${usuarios}" th:id="'plantilla-vinculos-' + ${usuario.id}">
+			<div th:each="vinculo : ${usuario.vinculos}"
+				class="d-flex justify-content-between align-items-center border-bottom py-2">
+				<div>
+					<strong th:text="${vinculo.tipo}"></strong>
+					<span th:if="${vinculo.nombreCompleto} != null" th:text="' — ' + ${vinculo.nombreCompleto}"></span>
+					<span th:if="${vinculo.detalle} != null" class="text-muted d-block small"
+						th:text="${vinculo.detalle}"></span>
+				</div>
+				<button type="button" class="btn btn-outline-danger btn-sm" title="Quitar este vínculo"
+					th:attr="data-tipo=${vinculo.tipo}, data-persona-id=${vinculo.personaId}"
+					onclick="quitarVinculo(this)">
+					<i class="bi bi-x-circle"></i>
+				</button>
+			</div>
+			<div th:if="${usuario.tieneCoordinador}"
+				class="d-flex justify-content-between align-items-center border-bottom py-2">
+				<strong>Coordinador/a del club</strong>
+				<button type="button" class="btn btn-outline-danger btn-sm" title="Quitar este rol"
+					data-tipo="COORDINADOR" onclick="quitarVinculo(this)">
+					<i class="bi bi-x-circle"></i>
+				</button>
+			</div>
+			<div th:if="${usuario.tieneRetransmision}"
+				class="d-flex justify-content-between align-items-center border-bottom py-2">
+				<strong>Retransmisión en directo</strong>
+				<button type="button" class="btn btn-outline-danger btn-sm" title="Quitar este rol"
+					data-tipo="RETRANSMISION" onclick="quitarVinculo(this)">
+					<i class="bi bi-x-circle"></i>
+				</button>
+			</div>
+			<div th:if="${#lists.isEmpty(usuario.vinculos)} and !${usuario.tieneCoordinador} and !${usuario.tieneRetransmision}"
+				class="text-muted py-2">
+				Esta cuenta no tiene ningún vínculo ni rol de club todavía.
+			</div>
+		</template>
+	</main>
+
+	<!-- Modal invitar usuario -->
+	<div class="modal fade lead" id="invitarModal" tabindex="-1" aria-labelledby="invitarModalLabel" aria-hidden="true">
+		<div class="modal-dialog modal-lg">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 class="modal-title lead" id="invitarModalLabel">Invitar usuario a la app</h3>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+				</div>
+				<div class="modal-body">
+					<div id="mensajeModal" class="alert" style="display:none; margin-bottom: 15px;"></div>
+					<form id="invitarForm">
+						<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+						<div class="mb-3">
+							<label class="form-label">¿A quién das de alta? <span class="text-danger">*</span>
+								<small class="text-muted">(puedes marcar varios a la vez)</small>
+							</label>
+							<div class="form-check">
+								<input class="form-check-input tipo-vinculo-check" type="checkbox" value="JUGADOR"
+									id="checkJugador" onchange="alternarGrupoVinculo('JUGADOR', this)">
+								<label class="form-check-label" for="checkJugador">Jugador/a (acceso propio)</label>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input tipo-vinculo-check" type="checkbox" value="FAMILIAR"
+									id="checkFamiliar" onchange="alternarGrupoVinculo('FAMILIAR', this)">
+								<label class="form-check-label" for="checkFamiliar">Familiar de un jugador/a</label>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input tipo-vinculo-check" type="checkbox" value="ENTRENADOR"
+									id="checkEntrenador" onchange="alternarGrupoVinculo('ENTRENADOR', this)">
+								<label class="form-check-label" for="checkEntrenador">Entrenador/a (cuerpo técnico)</label>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input tipo-vinculo-check" type="checkbox" value="COORDINADOR"
+									id="checkCoordinador" onchange="alternarGrupoVinculo('COORDINADOR', this)">
+								<label class="form-check-label" for="checkCoordinador">Coordinador/a del club (sin
+									vincular a un equipo)</label>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input tipo-vinculo-check" type="checkbox" value="RETRANSMISION"
+									id="checkRetransmision" onchange="alternarGrupoVinculo('RETRANSMISION', this)">
+								<label class="form-check-label" for="checkRetransmision">Retransmisión en directo del
+									primer equipo</label>
+							</div>
+						</div>
+
+						<div class="mb-3" id="grupoJugador" style="display:none;">
+							<label for="personaJugador">Jugador/a <span class="text-danger">*</span></label>
+							<select id="personaJugador" class="form-control persona-select">
+								<option value="">Selecciona un jugador/a...</option>
+								<option th:each="jugador : ${personasVinculables.jugadores}" th:value="${jugador.id}"
+									th:text="${jugador.nombreCompleto} + ' (' + ${jugador.equipo} + ')'"></option>
+							</select>
+							<small class="text-muted">Solo aparecen jugadores sin cuenta todavía.</small>
+						</div>
+
+						<div class="mb-3" id="grupoFamiliar" style="display:none;">
+							<label for="personaFamiliar">Familiar <span class="text-danger">*</span></label>
+							<select id="personaFamiliar" class="form-control persona-select">
+								<option value="">Selecciona un familiar...</option>
+								<option th:each="familiar : ${personasVinculables.familiares}" th:value="${familiar.id}"
+									th:text="${familiar.nombreCompleto}"
+									th:attr="data-email=${familiar.email}"></option>
+							</select>
+							<small class="text-muted">Solo aparecen familiares sin cuenta todavía.</small>
+						</div>
+
+						<div class="mb-3" id="grupoEntrenador" style="display:none;">
+							<label for="personaEntrenador">Entrenador/a <span class="text-danger">*</span></label>
+							<select id="personaEntrenador" class="form-control persona-select">
+								<option value="">Selecciona un entrenador/a...</option>
+								<option th:each="tecnico : ${personasVinculables.cuerpoTecnico}" th:value="${tecnico.id}"
+									th:text="${tecnico.nombreCompleto} + ' (' + ${tecnico.equipo} + ')'"></option>
+							</select>
+							<small class="text-muted">Solo aparecen miembros del cuerpo técnico sin cuenta
+								todavía.</small>
+						</div>
+
+						<div class="mb-3">
+							<label for="email">Email de acceso <span class="text-danger">*</span></label>
+							<input type="email" class="form-control" id="email" name="email" required>
+							<small id="ayudaEmail" class="text-muted">
+								Aquí se enviará el código para activar la cuenta desde la app.
+							</small>
+							<small id="avisoSinEmailFamiliar" class="text-danger" style="display:none;">
+								Este familiar no tiene email registrado. Añádelo primero desde
+								<a href="/admin/familiares" target="_blank">Familiares</a> y vuelve a intentarlo.
+							</small>
+						</div>
+					</form>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+					<button type="button" class="btn btn-success" onclick="invitarUsuario()">Enviar invitación</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Modal editar vínculos/roles de una cuenta ya existente -->
+	<div class="modal fade lead" id="editarModal" tabindex="-1" aria-labelledby="editarModalLabel" aria-hidden="true">
+		<div class="modal-dialog modal-lg">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 class="modal-title lead" id="editarModalLabel">Vínculos y roles de la cuenta</h3>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+				</div>
+				<div class="modal-body">
+					<div id="mensajeEditarModal" class="alert" style="display:none; margin-bottom: 15px;"></div>
+					<input type="hidden" id="editarUsuarioId">
+
+					<h4 class="lead">Vínculos y roles actuales</h4>
+					<div id="editarVinculosActuales" class="mb-4"></div>
+
+					<h4 class="lead">Añadir un vínculo o rol nuevo</h4>
+					<form id="editarForm">
+						<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+						<div class="mb-3">
+							<div class="form-check">
+								<input class="form-check-input tipo-vinculo-check-editar" type="checkbox"
+									value="JUGADOR" id="checkEditarJugador"
+									onchange="alternarGrupoVinculo('JUGADOR', this, 'Editar')">
+								<label class="form-check-label" for="checkEditarJugador">Jugador/a (acceso
+									propio)</label>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input tipo-vinculo-check-editar" type="checkbox"
+									value="FAMILIAR" id="checkEditarFamiliar"
+									onchange="alternarGrupoVinculo('FAMILIAR', this, 'Editar')">
+								<label class="form-check-label" for="checkEditarFamiliar">Familiar de un
+									jugador/a</label>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input tipo-vinculo-check-editar" type="checkbox"
+									value="ENTRENADOR" id="checkEditarEntrenador"
+									onchange="alternarGrupoVinculo('ENTRENADOR', this, 'Editar')">
+								<label class="form-check-label" for="checkEditarEntrenador">Entrenador/a (cuerpo
+									técnico)</label>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input tipo-vinculo-check-editar" type="checkbox"
+									value="COORDINADOR" id="checkEditarCoordinador"
+									onchange="alternarGrupoVinculo('COORDINADOR', this, 'Editar')">
+								<label class="form-check-label" for="checkEditarCoordinador">Coordinador/a del club
+									(sin vincular a un equipo)</label>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input tipo-vinculo-check-editar" type="checkbox"
+									value="RETRANSMISION" id="checkEditarRetransmision"
+									onchange="alternarGrupoVinculo('RETRANSMISION', this, 'Editar')">
+								<label class="form-check-label" for="checkEditarRetransmision">Retransmisión en
+									directo del primer equipo</label>
+							</div>
+							<small class="text-muted d-block mt-1">
+								Un tipo ya asignado aparece deshabilitado; quítalo antes si quieres volver a
+								vincularlo (salvo Entrenador/a, que admite varios equipos a la vez).
+							</small>
+						</div>
+
+						<div class="mb-3" id="grupoEditarJugador" style="display:none;">
+							<label for="personaEditarJugador">Jugador/a <span class="text-danger">*</span></label>
+							<select id="personaEditarJugador" class="form-control persona-select-editar">
+								<option value="">Selecciona un jugador/a...</option>
+								<option th:each="jugador : ${personasVinculables.jugadores}" th:value="${jugador.id}"
+									th:text="${jugador.nombreCompleto} + ' (' + ${jugador.equipo} + ')'"></option>
+							</select>
+							<small class="text-muted">Solo aparecen jugadores sin cuenta todavía.</small>
+						</div>
+
+						<div class="mb-3" id="grupoEditarFamiliar" style="display:none;">
+							<label for="personaEditarFamiliar">Familiar <span class="text-danger">*</span></label>
+							<select id="personaEditarFamiliar" class="form-control persona-select-editar">
+								<option value="">Selecciona un familiar...</option>
+								<option th:each="familiar : ${personasVinculables.familiares}" th:value="${familiar.id}"
+									th:text="${familiar.nombreCompleto}"></option>
+							</select>
+							<small class="text-muted">Solo aparecen familiares sin cuenta todavía. El email de la
+								cuenta no cambia al añadir un familiar.</small>
+						</div>
+
+						<div class="mb-3" id="grupoEditarEntrenador" style="display:none;">
+							<label for="personaEditarEntrenador">Entrenador/a <span class="text-danger">*</span></label>
+							<select id="personaEditarEntrenador" class="form-control persona-select-editar">
+								<option value="">Selecciona un entrenador/a...</option>
+								<option th:each="tecnico : ${personasVinculables.cuerpoTecnico}" th:value="${tecnico.id}"
+									th:text="${tecnico.nombreCompleto} + ' (' + ${tecnico.equipo} + ')'"></option>
+							</select>
+							<small class="text-muted">Solo aparecen miembros del cuerpo técnico sin cuenta
+								todavía.</small>
+						</div>
+					</form>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+					<button type="button" class="btn btn-success" onclick="anadirVinculos()">Añadir</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		// Tipos de vínculo que son un rol de club sin persona asociada
+		// (a diferencia de Jugador/Familiar/Entrenador, que sí la piden).
+		const TIPOS_VINCULO_SIN_PERSONA = ['COORDINADOR', 'RETRANSMISION'];
+
+		function alternarGrupoVinculo(tipo, checkbox, sufijo) {
+			const grupos = {
+				JUGADOR: 'grupo' + (sufijo || '') + 'Jugador',
+				FAMILIAR: 'grupo' + (sufijo || '') + 'Familiar',
+				ENTRENADOR: 'grupo' + (sufijo || '') + 'Entrenador'
+			};
+
+			const grupoId = grupos[tipo];
+
+			if (grupoId) {
+				const grupo = document.getElementById(grupoId);
+				grupo.style.display = checkbox.checked ? 'block' : 'none';
+				if (!checkbox.checked) {
+					grupo.querySelector('select').value = '';
+				}
+			}
+
+			if (!sufijo) {
+				actualizarEstadoEmail();
+			}
+		}
+
+		function actualizarEstadoEmail() {
+			const esFamiliar = document.getElementById('checkFamiliar').checked;
+			const email = document.getElementById('email');
+
+			email.readOnly = esFamiliar;
+			email.classList.toggle('bg-light', esFamiliar);
+			document.getElementById('ayudaEmail').style.display = esFamiliar ? 'none' : 'block';
+
+			if (!esFamiliar) {
+				email.value = '';
+				document.getElementById('avisoSinEmailFamiliar').style.display = 'none';
+			}
+		}
+
+		document.getElementById('personaFamiliar')?.addEventListener('change', function () {
+			const opcion = this.options[this.selectedIndex];
+			const email = opcion ? opcion.getAttribute('data-email') : '';
+			const campoEmail = document.getElementById('email');
+
+			campoEmail.value = email || '';
+			document.getElementById('avisoSinEmailFamiliar').style.display =
+				(this.value && !email) ? 'block' : 'none';
+		});
+
+		function obtenerPersonaIdSeleccionada(tipo, sufijo) {
+			const idsPorTipo = {
+				JUGADOR: 'persona' + (sufijo || '') + 'Jugador',
+				FAMILIAR: 'persona' + (sufijo || '') + 'Familiar',
+				ENTRENADOR: 'persona' + (sufijo || '') + 'Entrenador'
+			};
+
+			const selectId = idsPorTipo[tipo];
+			if (!selectId) {
+				return null;
+			}
+
+			const valor = document.getElementById(selectId).value;
+			return valor ? parseInt(valor, 10) : null;
+		}
+
+		function mostrarMensaje(elementoId, tipo, texto) {
+			const msg = document.getElementById(elementoId);
+			msg.className = 'alert ' + (tipo === 'error' ? 'alert-danger' : 'alert-success');
+			msg.textContent = texto;
+			msg.style.display = 'block';
+		}
+
+		// Lee la respuesta como texto (nunca falla) y solo intenta interpretarla
+		// como JSON después. Así, si el cuerpo no es JSON válido por lo que sea
+		// (por ejemplo una página de error HTML), no se confunde con un fallo de
+		// red: se ve el estado HTTP real y el texto recibido en la consola.
+		function leerRespuesta(response) {
+			return response.text().then(texto => {
+				let datos = null;
+
+				if (texto) {
+					try {
+						datos = JSON.parse(texto);
+					} catch (errorParseo) {
+						console.error(
+							'Respuesta no es JSON. Estado ' + response.status + ': ' + texto);
+					}
+				}
+
+				if (!datos) {
+					datos = { mensaje: texto || null, error: texto || 'Respuesta vacía del servidor.' };
+				}
+
+				return { ok: response.ok, status: response.status, data: datos };
+			});
+		}
+
+		function invitarUsuario() {
+			const marcados = Array.from(document.querySelectorAll('.tipo-vinculo-check:checked'));
+			const email = document.getElementById('email').value.trim();
+			const token = document.querySelector('#invitarForm input[name="_csrf"]').value;
+
+			if (marcados.length === 0) {
+				mostrarMensaje('mensajeModal', 'error', 'Selecciona al menos un rol/vínculo.');
+				return;
+			}
+
+			const esFamiliar = marcados.some(check => check.value === 'FAMILIAR');
+
+			if (!email) {
+				const mensaje = esFamiliar
+					? 'Este familiar no tiene email registrado. Añádelo primero en Familiares.'
+					: 'El email es obligatorio.';
+				mostrarMensaje('mensajeModal', 'error', mensaje);
+				return;
+			}
+
+			const vinculos = [];
+
+			for (const check of marcados) {
+				const tipo = check.value;
+				const personaId = obtenerPersonaIdSeleccionada(tipo);
+
+				if (!TIPOS_VINCULO_SIN_PERSONA.includes(tipo) && !personaId) {
+					mostrarMensaje('mensajeModal', 'error', 'Selecciona la persona a vincular en cada tipo marcado.');
+					return;
+				}
+
+				vinculos.push({ tipo, personaId });
+			}
+
+			fetch('/admin/usuarios-app/invitar', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-TOKEN': token
+				},
+				body: JSON.stringify({ vinculos, email })
+			})
+				.then(leerRespuesta)
+				.then(({ ok, data }) => {
+					if (!ok) {
+						mostrarMensaje('mensajeModal', 'error', data.error || 'Error desconocido');
+						return;
+					}
+					mostrarMensaje('mensajeModal', 'exito', data.mensaje);
+					setTimeout(() => window.location.href = '/admin/usuarios-app', 1200);
+				})
+				.catch(err => {
+					console.error(err);
+					mostrarMensaje('mensajeModal', 'error',
+						'No se ha podido contactar con el servidor. Revisa tu conexión e inténtalo de nuevo.');
+				});
+		}
+
+		function abrirEditar(boton) {
+			const id = boton.getAttribute('data-id');
+
+			document.getElementById('editarUsuarioId').value = id;
+			document.getElementById('mensajeEditarModal').style.display = 'none';
+
+			const plantilla = document.getElementById('plantilla-vinculos-' + id);
+			const contenedor = document.getElementById('editarVinculosActuales');
+			contenedor.innerHTML = '';
+			contenedor.appendChild(plantilla.content.cloneNode(true));
+
+			document.querySelectorAll('.tipo-vinculo-check-editar').forEach(check => {
+				check.checked = false;
+				check.disabled = false;
+			});
+
+			document.getElementById('checkEditarJugador').disabled = boton.getAttribute('data-tiene-jugador') === 'true';
+			document.getElementById('checkEditarFamiliar').disabled = boton.getAttribute('data-tiene-familiar') === 'true';
+			document.getElementById('checkEditarCoordinador').disabled = boton.getAttribute('data-tiene-coordinador') === 'true';
+			document.getElementById('checkEditarRetransmision').disabled = boton.getAttribute('data-tiene-retransmision') === 'true';
+
+			document.querySelectorAll('#editarForm .persona-select-editar').forEach(select => select.value = '');
+			document.getElementById('grupoEditarJugador').style.display = 'none';
+			document.getElementById('grupoEditarFamiliar').style.display = 'none';
+			document.getElementById('grupoEditarEntrenador').style.display = 'none';
+
+			new bootstrap.Modal(document.getElementById('editarModal')).show();
+		}
+
+		function anadirVinculos() {
+			const marcados = Array.from(document.querySelectorAll('.tipo-vinculo-check-editar:checked'));
+			const usuarioId = document.getElementById('editarUsuarioId').value;
+			const token = document.querySelector('#editarForm input[name="_csrf"]').value;
+
+			if (marcados.length === 0) {
+				mostrarMensaje('mensajeEditarModal', 'error', 'Selecciona al menos un rol/vínculo a añadir.');
+				return;
+			}
+
+			const vinculos = [];
+
+			for (const check of marcados) {
+				const tipo = check.value;
+				const personaId = obtenerPersonaIdSeleccionada(tipo, 'Editar');
+
+				if (!TIPOS_VINCULO_SIN_PERSONA.includes(tipo) && !personaId) {
+					mostrarMensaje('mensajeEditarModal', 'error', 'Selecciona la persona a vincular en cada tipo marcado.');
+					return;
+				}
+
+				vinculos.push({ tipo, personaId });
+			}
+
+			fetch('/admin/usuarios-app/' + usuarioId + '/vinculos', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-TOKEN': token
+				},
+				body: JSON.stringify({ vinculos })
+			})
+				.then(leerRespuesta)
+				.then(({ ok, data }) => {
+					if (!ok) {
+						mostrarMensaje('mensajeEditarModal', 'error', data.error || 'Error desconocido');
+						return;
+					}
+					window.location.href = '/admin/usuarios-app';
+				})
+				.catch(err => {
+					console.error(err);
+					mostrarMensaje('mensajeEditarModal', 'error',
+						'No se ha podido contactar con el servidor. Revisa tu conexión e inténtalo de nuevo.');
+				});
+		}
+
+		function quitarVinculo(boton) {
+			if (!confirm('¿Quitar este vínculo/rol de la cuenta?')) {
+				return;
+			}
+
+			const usuarioId = document.getElementById('editarUsuarioId').value;
+			const tipo = boton.getAttribute('data-tipo');
+			const personaIdTexto = boton.getAttribute('data-persona-id');
+			const personaId = personaIdTexto ? parseInt(personaIdTexto, 10) : null;
+			const token = document.querySelector('#editarForm input[name="_csrf"]').value;
+
+			fetch('/admin/usuarios-app/' + usuarioId + '/vinculos/quitar', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-TOKEN': token
+				},
+				body: JSON.stringify({ tipo, personaId })
+			})
+				.then(leerRespuesta)
+				.then(({ ok, data }) => {
+					if (!ok) {
+						mostrarMensaje('mensajeEditarModal', 'error', data.error || 'Error desconocido');
+						return;
+					}
+					window.location.href = '/admin/usuarios-app';
+				})
+				.catch(err => {
+					console.error(err);
+					mostrarMensaje('mensajeEditarModal', 'error',
+						'No se ha podido contactar con el servidor. Revisa tu conexión e inténtalo de nuevo.');
+				});
+		}
+
+		function llamarAccion(boton, url) {
+			const id = boton.getAttribute('data-id');
+			const token = document.querySelector('input[name="_csrf"]').value;
+
+			return fetch(url.replace('{id}', id), {
+				method: 'POST',
+				headers: { 'X-CSRF-TOKEN': token }
+			}).then(leerRespuesta);
+		}
+
+		function reenviarInvitacion(boton) {
+			llamarAccion(boton, '/admin/usuarios-app/{id}/reenviar')
+				.then(({ ok, data }) => {
+					mostrarMensaje('mensajeGeneral', ok ? 'exito' : 'error', data.mensaje || data.error);
+				})
+				.catch(err => {
+					console.error(err);
+					mostrarMensaje('mensajeGeneral', 'error', 'Error de red al reenviar la invitación.');
+				});
+		}
+
+		function eliminarInvitacion(boton) {
+			if (!confirm('¿Eliminar esta invitación? Podrás volver a invitar a la misma persona con el email correcto.')) {
+				return;
+			}
+
+			llamarAccion(boton, '/admin/usuarios-app/{id}/eliminar')
+				.then(({ ok, data }) => {
+					if (!ok) {
+						mostrarMensaje('mensajeGeneral', 'error', data.error);
+						return;
+					}
+					const id = boton.getAttribute('data-id');
+					document.getElementById('fila-usuario-' + id)?.remove();
+					mostrarMensaje('mensajeGeneral', 'exito', data.mensaje);
+				})
+				.catch(err => {
+					console.error(err);
+					mostrarMensaje('mensajeGeneral', 'error', 'Error de red al eliminar la invitación.');
+				});
+		}
+
+		function cambiarEstado(boton, accion) {
+			if (accion === 'desactivar' && !confirm('¿Seguro que quieres desactivar el acceso de este usuario?')) {
+				return;
+			}
+
+			llamarAccion(boton, '/admin/usuarios-app/{id}/' + accion)
+				.then(({ ok, data }) => {
+					if (!ok) {
+						mostrarMensaje('mensajeGeneral', 'error', data.error);
+						return;
+					}
+					window.location.href = '/admin/usuarios-app';
+				})
+				.catch(err => {
+					console.error(err);
+					mostrarMensaje('mensajeGeneral', 'error', 'Error de red al cambiar el estado.');
+				});
+		}
+
+		function filtrarTabla() {
+			const texto = document.getElementById('filtroTexto').value.toLowerCase();
+			const filas = document.querySelectorAll('#tablaUsuariosApp tbody tr');
+
+			filas.forEach(fila => {
+				fila.style.display = fila.textContent.toLowerCase().includes(texto) ? '' : 'none';
+			});
+		}
+	</script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

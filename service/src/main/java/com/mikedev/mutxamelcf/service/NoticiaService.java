@@ -2,10 +2,11 @@ package com.mikedev.mutxamelcf.service;
 
 import java.util.List;
 
+import com.mikedev.mutxamelcf.model.NoticiaAppDTO;
 import com.mikedev.mutxamelcf.model.NoticiaDTO;
 
 public interface NoticiaService {
-	
+
 	boolean guardarNoticia(NoticiaDTO noticia);
 
 	List<NoticiaDTO> obtenerNoticiasParaMostrar();
@@ -15,5 +16,13 @@ public interface NoticiaService {
 	NoticiaDTO obtenerNoticiaPorId(int id);
 
 	void eliminarNoticia(int id);
-	
+
+	List<NoticiaAppDTO> obtenerNoticiasParaApp();
+
+	NoticiaAppDTO obtenerNoticiaParaApp(int id);
+
+	byte[] obtenerImagenNoticia(int id);
+
+	byte[] obtenerImagenNoticiaMini(int id);
+
 }
