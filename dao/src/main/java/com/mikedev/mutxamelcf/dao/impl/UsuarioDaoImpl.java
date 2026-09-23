@@ -30,18 +30,14 @@ public class UsuarioDaoImpl implements UsuarioDao {
 		this.jdbcTemplate = jdbcTemplate;
 	}
 
-	public Usuario validarUsuario(String usuario, String password) {
-		logger.debug("Inicio validarUsuario: usuario={}", usuario);
+	public Usuario obtenerPorUsuario(String usuario) {
+		logger.debug("Inicio obtenerPorUsuario: usuario={}", usuario);
 		String sql = "SELECT usuario, password, rol FROM usuarios WHERE usuario = ?";
 
 		try {
 			Usuario usuarioBD = jdbcTemplate.queryForObject(sql, usuarioRowMapper, usuario);
-			boolean credencialesValidas = usuarioBD != null && password.equals(usuarioBD.getPassword());
-			if (!credencialesValidas) {
-				logger.warn("Contraseña incorrecta para el usuario={}", usuario);
-			}
-			logger.debug("Fin validarUsuario: usuario={}, valido={}", usuario, credencialesValidas);
-			return credencialesValidas ? usuarioBD : null;
+			logger.debug("Fin obtenerPorUsuario: usuario={}, encontrado={}", usuario, usuarioBD != null);
+			return usuarioBD;
 		} catch (EmptyResultDataAccessException e) {
 			logger.warn("Usuario no encontrado: usuario={}", usuario);
 			return null;
