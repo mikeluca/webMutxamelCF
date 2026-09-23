@@ -432,7 +432,24 @@
               "host": ["{{baseUrl}}"],
               "path": ["app", "comunicaciones"]
             },
-            "description": "Se puede dirigir por equipoIds, categorias o destinatariosIds (usuarios concretos, ver endpoint 'Destinatarios directos'). 403 si no tienes permiso para comunicar con el público elegido."
+            "description": "Se puede dirigir por equipoIds, categorias o destinatariosIds (usuarios concretos, ver endpoint 'Destinatarios directos'), nunca combinando varios modos. 403 si no tienes permiso para comunicar con el público elegido."
+          }
+        },
+        {
+          "name": "Enviar mensaje privado (chat)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contenido\": \"Hola, ¿tienes un momento?\",\n  \"equipoIds\": [],\n  \"categorias\": [],\n  \"destinatariosIds\": [{{usuarioAppId}}]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/comunicaciones",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "comunicaciones"]
+            },
+            "description": "Mismo endpoint que crear una comunicación normal: al usar destinatariosIds con una sola persona, el mensaje se guarda sin título (tipo PRIVADA) y pasa a formar parte del chat con esa persona. Enviar una respuesta en un chat ya existente es exactamente la misma llamada."
           }
         },
         {
@@ -444,7 +461,21 @@
               "raw": "{{baseUrl}}/app/comunicaciones",
               "host": ["{{baseUrl}}"],
               "path": ["app", "comunicaciones"]
-            }
+            },
+            "description": "Solo avisos de equipo/categoría (tipo GRUPAL). Las conversaciones privadas viven en 'Mis conversaciones privadas'."
+          }
+        },
+        {
+          "name": "Mis conversaciones privadas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/comunicaciones/conversaciones",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "comunicaciones", "conversaciones"]
+            },
+            "description": "Una entrada por cada chat privado (con el último mensaje y el número de no leídos), para la pestaña 'Conversaciones'."
           }
         },
         {
@@ -495,6 +526,32 @@
               "path": ["app", "comunicaciones", "destinatarios"]
             },
             "description": "Lista de usuarios a los que el autenticado puede escribir individualmente (para usar en destinatariosIds al crear una comunicación)."
+          }
+        },
+        {
+          "name": "Hilo de conversación privada",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/comunicaciones/conversacion/{{usuarioAppId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "comunicaciones", "conversacion", "{{usuarioAppId}}"]
+            },
+            "description": "Todos los mensajes privados entre el autenticado y el usuario indicado, ordenados del más antiguo al más reciente (como un chat). 403 si ese usuario no es un destinatario directo permitido."
+          }
+        },
+        {
+          "name": "Marcar conversación privada como leída",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/comunicaciones/conversacion/{{usuarioAppId}}/leida",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "comunicaciones", "conversacion", "{{usuarioAppId}}", "leida"]
+            },
+            "description": "204 sin contenido. Marca de golpe como leídos todos los mensajes de esa conversación enviados por el otro usuario. Se llama al abrir el chat."
           }
         }
       ]

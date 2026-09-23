@@ -7,7 +7,11 @@ import jakarta.validation.constraints.Size;
 
 public class ComunicacionRequest {
 
-    @NotBlank(message = "El título es obligatorio")
+    /**
+     * Obligatorio para avisos de equipo/categoría; para mensajes
+     * privados (destinatariosIds) se ignora y se guarda como null
+     * (comprobado en ComunicacionServiceImpl.validarDatosBasicos).
+     */
     private String titulo;
 
     @NotBlank(message = "El contenido es obligatorio")

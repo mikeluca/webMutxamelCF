@@ -11,6 +11,15 @@ public class Comunicacion {
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaPublicacion;
     private Integer activa;
+    private String tipo;
+
+    /**
+     * Id de la otra persona de la conversación privada, desde el punto
+     * de vista del usuario consultado. Solo se rellena en las
+     * consultas de conversaciones/resumen de chats privados; en el
+     * resto de consultas queda null.
+     */
+    private Long contraparteId;
 
     public Comunicacion() {
     }
@@ -69,5 +78,21 @@ public class Comunicacion {
 
     public void setActiva(Integer activa) {
         this.activa = activa;
+    }
+
+    public String getTipo() {
+        return tipo;
+    }
+
+    public void setTipo(String tipo) {
+        this.tipo = tipo;
+    }
+
+    public Long getContraparteId() {
+        return contraparteId;
+    }
+
+    public void setContraparteId(Long contraparteId) {
+        this.contraparteId = contraparteId;
     }
 }

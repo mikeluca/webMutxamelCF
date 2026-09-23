@@ -3,8 +3,13 @@ package com.mikedev.mutxamelcf.serviceimpl;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -12,9 +17,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.mikedev.mutxamelcf.dao.ComunicacionDao;
+import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
 import com.mikedev.mutxamelcf.model.Comunicacion;
+import com.mikedev.mutxamelcf.model.ComunicacionResponse;
 import com.mikedev.mutxamelcf.model.DestinatarioComunicacion;
 import com.mikedev.mutxamelcf.model.DestinatarioComunicacionResponse;
+import com.mikedev.mutxamelcf.model.MensajeConversacionResponse;
+import com.mikedev.mutxamelcf.model.NotificacionAppResponse;
+import com.mikedev.mutxamelcf.model.UsuarioApp;
+import com.mikedev.mutxamelcf.model.VinculoUsuarioApp;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
@@ -32,16 +43,20 @@ public class ComunicacionServiceImpl
 
         private final FcmPushService fcmPushService;
 
+        private final UsuarioAppVinculoDao usuarioAppVinculoDao;
+
         public ComunicacionServiceImpl(
                         ComunicacionDao comunicacionDao,
                         UsuarioAppService usuarioAppService,
                         NotificacionAppService notificacionAppService,
-                        FcmPushService fcmPushService) {
+                        FcmPushService fcmPushService,
+                        UsuarioAppVinculoDao usuarioAppVinculoDao) {
 
                 this.comunicacionDao = comunicacionDao;
                 this.usuarioAppService = usuarioAppService;
                 this.notificacionAppService = notificacionAppService;
                 this.fcmPushService = fcmPushService;
+                this.usuarioAppVinculoDao = usuarioAppVinculoDao;
         }
 
         @Override
@@ -105,6 +120,25 @@ public class ComunicacionServiceImpl
                                                         + "equipos, a categorías o a una persona "
                                                         + "en privado, no a varios tipos a la vez");
                 }
+
+                boolean esPrivada = !destinatarios.isEmpty();
+
+                if (esPrivada) {
+
+                        /*
+                         * Los mensajes privados no tienen título: se
+                         * ignora lo que llegue en el request.
+                         */
+                        comunicacion.setTitulo(null);
+
+                } else if (comunicacion.getTitulo() == null
+                                || comunicacion.getTitulo().isBlank()) {
+
+                        throw new IllegalArgumentException(
+                                        "El título es obligatorio");
+                }
+
+                comunicacion.setTipo(esPrivada ? "PRIVADA" : "GRUPAL");
 
                 /*
                  * Comprobamos que todos los equipos existen.
@@ -186,15 +220,36 @@ public class ComunicacionServiceImpl
 
                 comunicacion.setId(comunicacionId);
 
+                /*
+                 * Un mensaje privado no tiene título propio, pero la
+                 * notificación push del sistema operativo necesita
+                 * algo que mostrar: usamos el nombre de quien escribe.
+                 */
+                String tituloNotificacion = esPrivada
+                                ? nombreParaNotificacion(usuarioId)
+                                : comunicacion.getTitulo();
+
                 generarNotificaciones(
                                 comunicacionId,
-                                comunicacion.getTitulo(),
+                                tituloNotificacion,
                                 comunicacion.getContenido(),
                                 equipos,
                                 categoriasNormalizadas,
-                                destinatarios);
+                                destinatarios,
+                                esPrivada ? usuarioId : null);
 
                 return comunicacion;
+        }
+
+        private String nombreParaNotificacion(Long usuarioId) {
+
+                List<VinculoUsuarioApp> vinculos = usuarioAppVinculoDao.obtenerVinculos(usuarioId.intValue());
+
+                return vinculos.stream()
+                                .map(VinculoUsuarioApp::getNombreCompleto)
+                                .filter(nombre -> nombre != null && !nombre.isBlank())
+                                .findFirst()
+                                .orElse("Mensaje privado");
         }
 
         private void validarDestinatariosDirectos(
@@ -575,13 +630,6 @@ public class ComunicacionServiceImpl
                                         "La comunicación es obligatoria");
                 }
 
-                if (comunicacion.getTitulo() == null
-                                || comunicacion.getTitulo().trim().isEmpty()) {
-
-                        throw new IllegalArgumentException(
-                                        "El título es obligatorio");
-                }
-
                 if (comunicacion.getContenido() == null
                                 || comunicacion.getContenido().trim().isEmpty()) {
 
@@ -589,8 +637,16 @@ public class ComunicacionServiceImpl
                                         "El contenido es obligatorio");
                 }
 
-                comunicacion.setTitulo(
-                                comunicacion.getTitulo().trim());
+                /*
+                 * El título solo es obligatorio para avisos de equipo
+                 * o categoría; para mensajes privados se comprueba (y
+                 * se fuerza a null) en crear(), una vez se sabe el
+                 * modo.
+                 */
+                if (comunicacion.getTitulo() != null) {
+                        comunicacion.setTitulo(
+                                        comunicacion.getTitulo().trim());
+                }
 
                 comunicacion.setContenido(
                                 comunicacion.getContenido().trim());
@@ -828,7 +884,8 @@ public class ComunicacionServiceImpl
                         String contenido,
                         List<Long> equipoIds,
                         List<String> categorias,
-                        List<Long> destinatariosDirectos) {
+                        List<Long> destinatariosDirectos,
+                        Long autorIdParaChatPrivado) {
 
                 Set<Long> usuariosDestinatarios = new HashSet<>();
 
@@ -865,9 +922,17 @@ public class ComunicacionServiceImpl
                  */
                 for (Long usuarioId : usuariosDestinatarios) {
 
+                        /*
+                         * "MENSAJE" es la categoría de preferencias que
+                         * controla el único interruptor "Mensajes" que
+                         * tiene la app (ver ajustes_page.dart); el tipo
+                         * "COMUNICACION" de más abajo es el de enrutado
+                         * en el cliente/lista de notificaciones y no debe
+                         * tocarse.
+                         */
                         if (!notificacionAppService.puedeRecibir(
                                         usuarioId,
-                                        "COMUNICACION")) {
+                                        "MENSAJE")) {
 
                                 continue;
                         }
@@ -879,12 +944,27 @@ public class ComunicacionServiceImpl
                                         contenido,
                                         comunicacionId);
 
-                        fcmPushService.enviarNotificacionAUsuario(
-                                        usuarioId,
-                                        "COMUNICACION",
-                                        titulo,
-                                        contenido,
-                                        comunicacionId);
+                        if (autorIdParaChatPrivado != null) {
+
+                                fcmPushService.enviarNotificacionAUsuario(
+                                                usuarioId,
+                                                "COMUNICACION",
+                                                titulo,
+                                                contenido,
+                                                comunicacionId,
+                                                Map.of(
+                                                                "esPrivada", "true",
+                                                                "autorId", autorIdParaChatPrivado.toString()));
+
+                        } else {
+
+                                fcmPushService.enviarNotificacionAUsuario(
+                                                usuarioId,
+                                                "COMUNICACION",
+                                                titulo,
+                                                contenido,
+                                                comunicacionId);
+                        }
                 }
         }
 
@@ -1089,9 +1169,17 @@ public class ComunicacionServiceImpl
                  */
                 for (Long destinatarioId : destinatarios) {
 
+                        /*
+                         * "MENSAJE" es la categoría de preferencias que
+                         * controla el único interruptor "Mensajes" que
+                         * tiene la app (ver ajustes_page.dart); el tipo
+                         * "COMUNICACION" de más abajo es el de enrutado
+                         * en el cliente/lista de notificaciones y no debe
+                         * tocarse.
+                         */
                         if (!notificacionAppService.puedeRecibir(
                                         destinatarioId,
-                                        "COMUNICACION")) {
+                                        "MENSAJE")) {
 
                                 continue;
                         }
@@ -1151,6 +1239,268 @@ public class ComunicacionServiceImpl
                                         return response;
                                 })
                                 .toList();
+        }
+
+        @Override
+        public List<ComunicacionResponse> listarParaUsuario(Long usuarioId) {
+
+                if (usuarioId == null) {
+                        throw new SecurityException("Usuario no autenticado");
+                }
+
+                List<ComunicacionResponse> resultado = obtenerParaUsuario(usuarioId)
+                                .stream()
+                                .map(this::construirResponseGrupal)
+                                .collect(Collectors.toCollection(ArrayList::new));
+
+                resultado.sort(
+                                Comparator.comparing(
+                                                ComunicacionResponse::getFecha,
+                                                Comparator.nullsLast(Comparator.<LocalDateTime>reverseOrder())));
+
+                return resultado;
+        }
+
+        @Override
+        public List<ComunicacionResponse> listarConversacionesParaUsuario(Long usuarioId) {
+
+                if (usuarioId == null) {
+                        throw new SecurityException("Usuario no autenticado");
+                }
+
+                List<ComunicacionResponse> resultado = new ArrayList<>(
+                                resumenConversacionesPrivadas(usuarioId));
+
+                resultado.sort(
+                                Comparator.comparing(
+                                                ComunicacionResponse::getFecha,
+                                                Comparator.nullsLast(Comparator.<LocalDateTime>reverseOrder())));
+
+                return resultado;
+        }
+
+        @Override
+        public List<ComunicacionResponse> listarEnviadasParaUsuario(Long usuarioId) {
+
+                if (usuarioId == null) {
+                        throw new SecurityException("Usuario no autenticado");
+                }
+
+                return obtenerEnviadasPorUsuario(usuarioId)
+                                .stream()
+                                .map(this::construirResponseGrupal)
+                                .toList();
+        }
+
+        @Override
+        public List<MensajeConversacionResponse> obtenerConversacion(
+                        Long usuarioId,
+                        Long otroUsuarioId) {
+
+                if (usuarioId == null) {
+                        throw new SecurityException("Usuario no autenticado");
+                }
+
+                if (otroUsuarioId == null) {
+                        throw new IllegalArgumentException(
+                                        "Falta el otro usuario de la conversación");
+                }
+
+                validarDestinatariosDirectos(usuarioId, List.of(otroUsuarioId));
+
+                List<Comunicacion> mensajes = comunicacionDao.obtenerConversacion(usuarioId, otroUsuarioId);
+
+                Set<Long> idsNoLeidos = idsComunicacionNoLeidos(usuarioId);
+
+                List<MensajeConversacionResponse> resultado = new ArrayList<>();
+
+                for (Comunicacion mensaje : mensajes) {
+
+                        MensajeConversacionResponse response = new MensajeConversacionResponse();
+
+                        response.setId(mensaje.getId());
+                        response.setContenido(mensaje.getContenido());
+                        response.setFecha(fechaOrden(mensaje));
+                        response.setAutorId(mensaje.getUsuarioAutorId());
+                        response.setEsMia(usuarioId.equals(mensaje.getUsuarioAutorId()));
+                        response.setLeida(!idsNoLeidos.contains(mensaje.getId()));
+
+                        resultado.add(response);
+                }
+
+                return resultado;
+        }
+
+        @Override
+        public void marcarConversacionLeida(
+                        Long usuarioId,
+                        Long otroUsuarioId) {
+
+                if (usuarioId == null) {
+                        throw new SecurityException("Usuario no autenticado");
+                }
+
+                if (otroUsuarioId == null) {
+                        return;
+                }
+
+                List<Long> idsDelOtro = comunicacionDao.obtenerConversacion(usuarioId, otroUsuarioId)
+                                .stream()
+                                .filter(mensaje -> otroUsuarioId.equals(mensaje.getUsuarioAutorId()))
+                                .map(Comunicacion::getId)
+                                .toList();
+
+                notificacionAppService.marcarLeidasPorReferencias(usuarioId, idsDelOtro);
+        }
+
+        private List<ComunicacionResponse> resumenConversacionesPrivadas(Long usuarioId) {
+
+                List<Comunicacion> privadas = comunicacionDao.obtenerPrivadasDeUsuario(usuarioId);
+
+                if (privadas.isEmpty()) {
+                        return List.of();
+                }
+
+                /*
+                 * Las privadas ya vienen ordenadas de más reciente a
+                 * más antigua: nos quedamos con la primera aparición
+                 * de cada contraparte (su último mensaje).
+                 */
+                Map<Long, Comunicacion> ultimoPorContraparte = new LinkedHashMap<>();
+
+                for (Comunicacion mensaje : privadas) {
+                        ultimoPorContraparte.putIfAbsent(mensaje.getContraparteId(), mensaje);
+                }
+
+                Set<Long> idsNoLeidos = idsComunicacionNoLeidos(usuarioId);
+
+                Map<Long, Integer> noLeidosPorContraparte = new HashMap<>();
+
+                for (Comunicacion mensaje : privadas) {
+
+                        if (idsNoLeidos.contains(mensaje.getId())) {
+
+                                noLeidosPorContraparte.merge(
+                                                mensaje.getContraparteId(),
+                                                1,
+                                                Integer::sum);
+                        }
+                }
+
+                List<ComunicacionResponse> resultado = new ArrayList<>();
+
+                for (Comunicacion ultimo : ultimoPorContraparte.values()) {
+
+                        ComunicacionResponse response = new ComunicacionResponse();
+
+                        response.setId(ultimo.getId());
+                        response.setTipo("PRIVADA");
+                        response.setTitulo(null);
+                        response.setContenido(ultimo.getContenido());
+                        response.setFecha(fechaOrden(ultimo));
+                        response.setAutorId(ultimo.getUsuarioAutorId());
+
+                        NombreRol autor = resolverNombreYRol(ultimo.getUsuarioAutorId());
+                        response.setAutorNombre(autor.nombre());
+                        response.setAutorRol(autor.rol());
+
+                        response.setContraparteId(ultimo.getContraparteId());
+
+                        NombreRol contraparte = resolverNombreYRol(ultimo.getContraparteId());
+                        response.setContraparteNombre(contraparte.nombre());
+                        response.setContraparteRol(contraparte.rol());
+
+                        int noLeidos = noLeidosPorContraparte.getOrDefault(ultimo.getContraparteId(), 0);
+                        response.setNoLeidos(noLeidos);
+                        response.setLeida(noLeidos == 0);
+
+                        resultado.add(response);
+                }
+
+                return resultado;
+        }
+
+        private ComunicacionResponse construirResponseGrupal(Comunicacion grupal) {
+
+                ComunicacionResponse response = new ComunicacionResponse();
+
+                response.setId(grupal.getId());
+                response.setTipo("GRUPAL");
+                response.setTitulo(grupal.getTitulo());
+                response.setContenido(grupal.getContenido());
+                response.setFecha(fechaOrden(grupal));
+                response.setAutorId(grupal.getUsuarioAutorId());
+
+                NombreRol autor = resolverNombreYRol(grupal.getUsuarioAutorId());
+                response.setAutorNombre(autor.nombre());
+                response.setAutorRol(autor.rol());
+
+                return response;
+        }
+
+        private LocalDateTime fechaOrden(Comunicacion comunicacion) {
+
+                return comunicacion.getFechaPublicacion() != null
+                                ? comunicacion.getFechaPublicacion()
+                                : comunicacion.getFechaCreacion();
+        }
+
+        private Set<Long> idsComunicacionNoLeidos(Long usuarioId) {
+
+                return notificacionAppService.obtenerNoLeidas(usuarioId)
+                                .stream()
+                                .filter(notificacion -> "COMUNICACION".equalsIgnoreCase(notificacion.getTipo()))
+                                .map(NotificacionAppResponse::getReferenciaId)
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toSet());
+        }
+
+        private record NombreRol(String nombre, String rol) {
+        }
+
+        private NombreRol resolverNombreYRol(Long usuarioId) {
+
+                if (usuarioId == null) {
+                        return new NombreRol(null, null);
+                }
+
+                List<VinculoUsuarioApp> vinculos = usuarioAppVinculoDao.obtenerVinculos(usuarioId.intValue());
+
+                String nombre = vinculos.stream()
+                                .map(VinculoUsuarioApp::getNombreCompleto)
+                                .filter(n -> n != null && !n.isBlank())
+                                .findFirst()
+                                .orElse(null);
+
+                if (nombre != null) {
+
+                        String rol = vinculos.stream()
+                                        .map(VinculoUsuarioApp::getTipo)
+                                        .filter(tipo -> tipo != null && !tipo.isBlank())
+                                        .distinct()
+                                        .collect(Collectors.joining(", "));
+
+                        return new NombreRol(nombre, rol.isBlank() ? null : rol);
+                }
+
+                if (usuarioAppService.tieneRol(usuarioId.intValue(), "ADMIN_APP")) {
+                        return new NombreRol(nombreDesdeEmail(usuarioId), "ADMIN_APP");
+                }
+
+                if (usuarioAppService.tieneRol(usuarioId.intValue(), "COORDINADOR")) {
+                        return new NombreRol(nombreDesdeEmail(usuarioId), "COORDINADOR");
+                }
+
+                return new NombreRol(nombreDesdeEmail(usuarioId), null);
+        }
+
+        private String nombreDesdeEmail(Long usuarioId) {
+
+                UsuarioApp usuario = usuarioAppService.obtenerPorId(usuarioId.intValue());
+
+                return usuario != null && usuario.getEmail() != null
+                                ? usuario.getEmail()
+                                : "Usuario";
         }
 
 }

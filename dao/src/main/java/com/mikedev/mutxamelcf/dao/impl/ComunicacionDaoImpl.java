@@ -12,16 +12,20 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import com.mikedev.mutxamelcf.dao.ComunicacionDao;
+import com.mikedev.mutxamelcf.dao.RolAppDao;
 import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.DestinatarioComunicacion;
+import com.mikedev.mutxamelcf.model.RolApp;
 
 @Repository
 public class ComunicacionDaoImpl implements ComunicacionDao {
 
     private final JdbcTemplate jdbcTemplate;
+    private final RolAppDao rolAppDao;
 
-    public ComunicacionDaoImpl(JdbcTemplate jdbcTemplate) {
+    public ComunicacionDaoImpl(JdbcTemplate jdbcTemplate, RolAppDao rolAppDao) {
         this.jdbcTemplate = jdbcTemplate;
+        this.rolAppDao = rolAppDao;
     }
 
     private static final RowMapper<Comunicacion> COMUNICACION_ROW_MAPPER = new RowMapper<Comunicacion>() {
@@ -56,6 +60,9 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
             comunicacion.setActiva(
                     rs.getInt("ACTIVA"));
 
+            comunicacion.setTipo(
+                    rs.getString("TIPO"));
+
             return comunicacion;
         }
     };
@@ -75,9 +82,10 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                     CONTENIDO,
                     USUARIO_AUTOR_ID,
                     FECHA_PUBLICACION,
-                    ACTIVA
+                    ACTIVA,
+                    TIPO
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """;
 
         jdbcTemplate.update(
@@ -87,7 +95,8 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                 comunicacion.getContenido(),
                 comunicacion.getUsuarioAutorId(),
                 comunicacion.getFechaPublicacion(),
-                comunicacion.getActiva());
+                comunicacion.getActiva(),
+                comunicacion.getTipo() != null ? comunicacion.getTipo() : "GRUPAL");
 
         comunicacion.setId(id);
 
@@ -105,7 +114,8 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                     USUARIO_AUTOR_ID,
                     FECHA_CREACION,
                     FECHA_PUBLICACION,
-                    ACTIVA
+                    ACTIVA,
+                    TIPO
                 FROM COMUNICACIONES
                 WHERE ID = ?
                 """;
@@ -133,7 +143,8 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                     USUARIO_AUTOR_ID,
                     FECHA_CREACION,
                     FECHA_PUBLICACION,
-                    ACTIVA
+                    ACTIVA,
+                    TIPO
                 FROM COMUNICACIONES
                 WHERE ACTIVA = 1
                 ORDER BY
@@ -157,7 +168,8 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                     c.USUARIO_AUTOR_ID,
                     c.FECHA_CREACION,
                     c.FECHA_PUBLICACION,
-                    c.ACTIVA
+                    c.ACTIVA,
+                    c.TIPO
                 FROM COMUNICACIONES c
                 INNER JOIN COMUNICACION_EQUIPO ce
                     ON ce.COMUNICACION_ID = c.ID
@@ -185,7 +197,8 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                     c.USUARIO_AUTOR_ID,
                     c.FECHA_CREACION,
                     c.FECHA_PUBLICACION,
-                    c.ACTIVA
+                    c.ACTIVA,
+                    c.TIPO
                 FROM COMUNICACIONES c
                 INNER JOIN COMUNICACION_CATEGORIA cc
                     ON cc.COMUNICACION_ID = c.ID
@@ -481,7 +494,8 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                     c.USUARIO_AUTOR_ID,
                     c.FECHA_CREACION,
                     c.FECHA_PUBLICACION,
-                    c.ACTIVA
+                    c.ACTIVA,
+                    c.TIPO
                 FROM COMUNICACIONES c
                 LEFT JOIN COMUNICACION_EQUIPO ce
                     ON ce.COMUNICACION_ID = c.ID
@@ -650,12 +664,14 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                     c.USUARIO_AUTOR_ID,
                     c.FECHA_CREACION,
                     c.FECHA_PUBLICACION,
-                    c.ACTIVA
+                    c.ACTIVA,
+                    c.TIPO
                 FROM COMUNICACIONES c
                 INNER JOIN COMUNICACION_USUARIO cu
                     ON cu.COMUNICACION_ID = c.ID
                 WHERE cu.USUARIO_APP_ID = ?
                   AND c.ACTIVA = 1
+                  AND c.TIPO = 'GRUPAL'
                 ORDER BY
                     c.FECHA_PUBLICACION DESC NULLS LAST,
                     c.FECHA_CREACION DESC
@@ -930,10 +946,12 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                     USUARIO_AUTOR_ID,
                     FECHA_CREACION,
                     FECHA_PUBLICACION,
-                    ACTIVA
+                    ACTIVA,
+                    TIPO
                 FROM COMUNICACIONES
                 WHERE USUARIO_AUTOR_ID = ?
                   AND ACTIVA = 1
+                  AND TIPO = 'GRUPAL'
                 ORDER BY
                     FECHA_PUBLICACION DESC NULLS LAST,
                     FECHA_CREACION DESC
@@ -973,8 +991,7 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                         F.APELLIDOS,
                         CT.APELLIDOS,
                         ''
-                    ) AS APELLIDOS,
-                    R.CODIGO AS ROL
+                    ) AS APELLIDOS
                 FROM USUARIOS_APP U
 
                 INNER JOIN USUARIOS_APP_ROLES UAR
@@ -1014,14 +1031,103 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                     APELLIDOS
                 """.formatted(placeholders);
 
-        return jdbcTemplate.query(
+        List<DestinatarioComunicacion> destinatarios = jdbcTemplate.query(
                 sql,
                 (rs, rowNum) -> new DestinatarioComunicacion(
                         rs.getLong("ID"),
                         rs.getString("NOMBRE"),
                         rs.getString("APELLIDOS"),
-                        rs.getString("ROL")),
+                        null),
                 idsPermitidos.toArray());
+
+        for (DestinatarioComunicacion destinatario : destinatarios) {
+
+            String roles = rolAppDao.obtenerPorUsuario(destinatario.getId().intValue())
+                    .stream()
+                    .map(RolApp::getCodigo)
+                    .distinct()
+                    .reduce((a, b) -> a + ", " + b)
+                    .orElse(null);
+
+            destinatario.setRol(roles);
+        }
+
+        return destinatarios;
+    }
+
+    @Override
+    public List<Comunicacion> obtenerConversacion(
+            Long usuarioId,
+            Long otroUsuarioId) {
+
+        String sql = """
+                SELECT DISTINCT
+                    c.ID,
+                    c.TITULO,
+                    c.CONTENIDO,
+                    c.USUARIO_AUTOR_ID,
+                    c.FECHA_CREACION,
+                    c.FECHA_PUBLICACION,
+                    c.ACTIVA,
+                    c.TIPO
+                FROM COMUNICACIONES c
+                INNER JOIN COMUNICACION_USUARIO cu
+                    ON cu.COMUNICACION_ID = c.ID
+                WHERE c.TIPO = 'PRIVADA'
+                  AND c.ACTIVA = 1
+                  AND (
+                        (c.USUARIO_AUTOR_ID = ? AND cu.USUARIO_APP_ID = ?)
+                     OR (c.USUARIO_AUTOR_ID = ? AND cu.USUARIO_APP_ID = ?)
+                  )
+                ORDER BY c.FECHA_CREACION ASC
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                COMUNICACION_ROW_MAPPER,
+                usuarioId,
+                otroUsuarioId,
+                otroUsuarioId,
+                usuarioId);
+    }
+
+    @Override
+    public List<Comunicacion> obtenerPrivadasDeUsuario(
+            Long usuarioId) {
+
+        String sql = """
+                SELECT DISTINCT
+                    c.ID,
+                    c.TITULO,
+                    c.CONTENIDO,
+                    c.USUARIO_AUTOR_ID,
+                    c.FECHA_CREACION,
+                    c.FECHA_PUBLICACION,
+                    c.ACTIVA,
+                    c.TIPO,
+                    CASE
+                        WHEN c.USUARIO_AUTOR_ID = ? THEN cu.USUARIO_APP_ID
+                        ELSE c.USUARIO_AUTOR_ID
+                    END AS CONTRAPARTE_ID
+                FROM COMUNICACIONES c
+                INNER JOIN COMUNICACION_USUARIO cu
+                    ON cu.COMUNICACION_ID = c.ID
+                WHERE c.TIPO = 'PRIVADA'
+                  AND c.ACTIVA = 1
+                  AND (c.USUARIO_AUTOR_ID = ? OR cu.USUARIO_APP_ID = ?)
+                ORDER BY c.FECHA_CREACION DESC
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> {
+                    Comunicacion comunicacion = COMUNICACION_ROW_MAPPER.mapRow(rs, rowNum);
+                    comunicacion.setContraparteId(rs.getLong("CONTRAPARTE_ID"));
+                    return comunicacion;
+                },
+                usuarioId,
+                usuarioId,
+                usuarioId);
     }
 
 }
