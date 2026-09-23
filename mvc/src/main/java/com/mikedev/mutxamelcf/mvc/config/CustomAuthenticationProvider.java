@@ -7,9 +7,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.stereotype.Component;
 
 import com.mikedev.mutxamelcf.model.UsuarioDTO;
@@ -21,9 +23,11 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 	private static final Logger logger = LoggerFactory.getLogger(CustomAuthenticationProvider.class);
 
 	private final UsuarioService userService;
+	private final LoginRateLimiter rateLimiter;
 
-	public CustomAuthenticationProvider(UsuarioService userService) {
+	public CustomAuthenticationProvider(UsuarioService userService, LoginRateLimiter rateLimiter) {
 		this.userService = userService;
+		this.rateLimiter = rateLimiter;
 	}
 
 	@Override
@@ -33,11 +37,22 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 		// Nunca se registra la contraseña, solo el nombre de usuario
 		logger.debug("Inicio authenticate: username={}", username);
 
+		String ip = obtenerIp(authentication);
+		String clave = rateLimiter.clave(ip, username);
+
+		if (rateLimiter.estaBloqueado(clave)) {
+			logger.warn("Login bloqueado por demasiados intentos fallidos: username={}, ip={}", username, ip);
+			throw new LockedException("Demasiados intentos fallidos. Inténtalo de nuevo en unos minutos.");
+		}
+
 		UsuarioDTO usuario = userService.validarUsuario(username, password);
 		if (usuario == null) {
+			rateLimiter.registrarFallo(clave);
 			logger.warn("Autenticacion fallida, credenciales incorrectas: username={}", username);
 			throw new BadCredentialsException("Credenciales incorrectas");
 		}
+
+		rateLimiter.registrarExito(clave);
 
 		// Aquí podrías agregar roles y permisos si es necesario
 		logger.debug("Fin authenticate: username={}, autenticado=true", username);
@@ -51,5 +66,12 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 	@Override
 	public boolean supports(Class<?> authentication) {
 		return UsernamePasswordAuthenticationToken.class.isAssignableFrom(authentication);
+	}
+
+	private String obtenerIp(Authentication authentication) {
+		if (authentication.getDetails() instanceof WebAuthenticationDetails details) {
+			return details.getRemoteAddress();
+		}
+		return null;
 	}
 }

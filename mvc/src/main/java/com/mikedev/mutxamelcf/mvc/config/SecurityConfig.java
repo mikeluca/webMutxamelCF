@@ -6,6 +6,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -121,8 +122,14 @@ public class SecurityConfig {
                                                 .defaultSuccessUrl(
                                                                 "/admin/admin",
                                                                 true)
-                                                .failureUrl(
-                                                                "/login?error=true")
+                                                .failureHandler((request, response, exception) -> {
+                                                        String motivo = exception instanceof LockedException
+                                                                        ? "bloqueado"
+                                                                        : "true";
+                                                        response.sendRedirect(
+                                                                        request.getContextPath()
+                                                                                        + "/login?error=" + motivo);
+                                                })
                                                 .permitAll())
 
                                 /*

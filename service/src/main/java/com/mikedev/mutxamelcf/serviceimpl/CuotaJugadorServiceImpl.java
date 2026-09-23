@@ -81,6 +81,7 @@ public class CuotaJugadorServiceImpl implements CuotaJugadorService {
     }
 
     @Override
+    @Transactional
     public void eliminar(Long id) {
         logger.debug("Inicio eliminar: id={}", id);
         cuotaJugadorDao.eliminar(id);

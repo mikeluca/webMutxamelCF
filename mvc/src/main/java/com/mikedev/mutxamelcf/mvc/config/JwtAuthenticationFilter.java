@@ -14,6 +14,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -22,6 +24,15 @@ import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    /*
+     * Solo la API de la app móvil usa JWT: la web de administración
+     * se autentica con sesión. Sin esta restricción, este filtro
+     * intentaría interpretar el header Authorization en cada
+     * petición de la web/admin también.
+     */
+    private static final RequestMatcher API_APP_MATCHER = PathPatternRequestMatcher.withDefaults()
+            .matcher("/api/app/**");
 
     private final JwtService jwtService;
     private final UsuarioAppService usuarioAppService;
@@ -32,6 +43,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         this.jwtService = jwtService;
         this.usuarioAppService = usuarioAppService;
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return !API_APP_MATCHER.matches(request);
     }
 
     @Override

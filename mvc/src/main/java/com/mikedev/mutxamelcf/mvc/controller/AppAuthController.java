@@ -1,6 +1,7 @@
 package com.mikedev.mutxamelcf.mvc.controller;
 
 import com.mikedev.mutxamelcf.model.LoginAppResponse;
+import com.mikedev.mutxamelcf.mvc.config.LoginRateLimiter;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 import com.mikedev.mutxamelcf.model.ActivarCuentaAppRequest;
 import com.mikedev.mutxamelcf.model.LoginAppRequest;
@@ -16,6 +17,7 @@ import java.util.List;
 
 import org.springframework.security.core.Authentication;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -23,11 +25,14 @@ import jakarta.validation.Valid;
 public class AppAuthController {
 
     private final UsuarioAppService usuarioAppService;
+    private final LoginRateLimiter rateLimiter;
 
     public AppAuthController(
-            UsuarioAppService usuarioAppService) {
+            UsuarioAppService usuarioAppService,
+            LoginRateLimiter rateLimiter) {
 
         this.usuarioAppService = usuarioAppService;
+        this.rateLimiter = rateLimiter;
     }
 
     /**
@@ -35,13 +40,27 @@ public class AppAuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<?> login(
-            @Valid @RequestBody LoginAppRequest request) {
+            @Valid @RequestBody LoginAppRequest request,
+            HttpServletRequest httpRequest) {
+
+        String clave = rateLimiter.clave(
+                httpRequest.getRemoteAddr(),
+                request.getEmail());
+
+        if (rateLimiter.estaBloqueado(clave)) {
+
+            return ResponseEntity
+                    .status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body("Demasiados intentos fallidos. Inténtalo de nuevo en unos minutos.");
+        }
 
         try {
 
             LoginAppResponse response = usuarioAppService.login(
                     request.getEmail(),
                     request.getPassword());
+
+            rateLimiter.registrarExito(clave);
 
             return ResponseEntity.ok(response);
 
@@ -52,6 +71,8 @@ public class AppAuthController {
                     .body(e.getMessage());
 
         } catch (IllegalArgumentException e) {
+
+            rateLimiter.registrarFallo(clave);
 
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)

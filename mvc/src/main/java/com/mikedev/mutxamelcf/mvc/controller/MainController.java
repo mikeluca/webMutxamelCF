@@ -62,7 +62,9 @@ public class MainController {
 	@GetMapping("/login")
 	public String login(@RequestParam(required = false) String error, Model model) {
 		logger.debug("Inicio login: error={}", error);
-		if (error != null) {
+		if ("bloqueado".equals(error)) {
+			model.addAttribute("errorMessage", "Demasiados intentos fallidos. Inténtalo de nuevo en unos minutos.");
+		} else if (error != null) {
 			model.addAttribute("errorMessage", "Usuario o contraseña incorrectos");
 		}
 		logger.debug("Fin login");
