@@ -34,6 +34,7 @@
 		</div>
 		<div class="login-panel">
 			<form th:action="@{/login}" method="post">
+				<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 				<div>
 					<label for="username">Usuario:</label>
 					<input class="form-control" type="text" id="username" name="username" required>

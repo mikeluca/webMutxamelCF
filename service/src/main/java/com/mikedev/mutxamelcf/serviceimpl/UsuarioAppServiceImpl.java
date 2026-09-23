@@ -174,6 +174,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
     }
 
     @Override
+    @Transactional
     public UsuarioApp activarCuenta(
             String email,
             String codigo,
