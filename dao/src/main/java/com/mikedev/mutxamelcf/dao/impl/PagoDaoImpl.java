@@ -3,7 +3,9 @@ package com.mikedev.mutxamelcf.dao.impl;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -128,6 +130,31 @@ public class PagoDaoImpl implements PagoDao {
         List<Pago> pagos = jdbcTemplate.query(sql, PAGO_ROW_MAPPER, cuotaJugadorId);
         logger.debug("Fin obtenerPorCuota: cuotaJugadorId={}, total={}", cuotaJugadorId, pagos.size());
         return pagos;
+    }
+
+    // Oracle limita las clausulas IN a 1000 elementos, de ahi el troceado
+    private static final int TAMANO_LOTE_IN = 900;
+
+    @Override
+    public List<Pago> obtenerPorCuotas(List<Long> cuotaJugadorIds) {
+        logger.debug("Inicio obtenerPorCuotas: total={}", cuotaJugadorIds == null ? 0 : cuotaJugadorIds.size());
+
+        if (cuotaJugadorIds == null || cuotaJugadorIds.isEmpty()) {
+            logger.debug("Fin obtenerPorCuotas: sin ids, total=0");
+            return List.of();
+        }
+
+        List<Pago> resultado = new ArrayList<>();
+        for (int inicio = 0; inicio < cuotaJugadorIds.size(); inicio += TAMANO_LOTE_IN) {
+            List<Long> lote = cuotaJugadorIds.subList(inicio, Math.min(inicio + TAMANO_LOTE_IN, cuotaJugadorIds.size()));
+            String placeholders = lote.stream().map(id -> "?").collect(Collectors.joining(","));
+            String sql = "SELECT * FROM PAGOS WHERE CUOTA_JUGADOR_ID IN (" + placeholders
+                    + ") ORDER BY CUOTA_JUGADOR_ID, FECHA_PAGO DESC";
+            resultado.addAll(jdbcTemplate.query(sql, PAGO_ROW_MAPPER, lote.toArray()));
+        }
+
+        logger.debug("Fin obtenerPorCuotas: total={}", resultado.size());
+        return resultado;
     }
 
     @Override

@@ -57,6 +57,14 @@ public class PagoServiceImpl implements PagoService {
     }
 
     @Override
+    public List<PagoDTO> obtenerPorCuotas(List<Long> cuotaJugadorIds) {
+        logger.debug("Inicio obtenerPorCuotas: total={}", cuotaJugadorIds == null ? 0 : cuotaJugadorIds.size());
+        List<PagoDTO> pagos = toDTOList(pagoDao.obtenerPorCuotas(cuotaJugadorIds));
+        logger.debug("Fin obtenerPorCuotas: total={}", pagos.size());
+        return pagos;
+    }
+
+    @Override
     public BigDecimal obtenerTotalPagado(Long cuotaJugadorId) {
         logger.debug("Inicio obtenerTotalPagado: cuotaJugadorId={}", cuotaJugadorId);
         BigDecimal total = pagoDao.obtenerTotalPagado(cuotaJugadorId);

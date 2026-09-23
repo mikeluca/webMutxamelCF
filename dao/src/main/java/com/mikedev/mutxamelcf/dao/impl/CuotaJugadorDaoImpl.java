@@ -150,12 +150,29 @@ public class CuotaJugadorDaoImpl implements CuotaJugadorDao {
     }
 
     @Override
+    public List<CuotaJugador> obtenerPorTemporada(Long temporadaId) {
+        logger.debug("Inicio obtenerPorTemporada: temporadaId={}", temporadaId);
+        List<CuotaJugador> cuotas = jdbcTemplate.query(
+                """
+                SELECT cuota.*
+                FROM CUOTAS_JUGADOR cuota
+                JOIN CONCEPTOS_PAGO concepto ON concepto.ID = cuota.CONCEPTO_PAGO_ID
+                WHERE concepto.TEMPORADA_ID = ?
+                ORDER BY cuota.JUGADOR_ID, cuota.PERIODO, cuota.FECHA_LIMITE
+                """,
+                CUOTA_ROW_MAPPER, temporadaId
+        );
+        logger.debug("Fin obtenerPorTemporada: temporadaId={}, total={}", temporadaId, cuotas.size());
+        return cuotas;
+    }
+
+    @Override
     public void actualizarEstado(Long id) {
         logger.debug("Inicio actualizarEstado: id={}", id);
         jdbcTemplate.update("""
                 UPDATE CUOTAS_JUGADOR cuota
                 SET ESTADO = CASE
-                    WHEN NVL((SELECT SUM(p.IMPORTE) FROM PAGOS p WHERE p.CUOTA_JUGADOR_ID = cuota.ID), 0) >= cuota.IMPORTE THEN 'PAGADA'
+                    WHEN NVL((SELECT SUM(p.IMPORTE) FROM PAGOS p WHERE p.CUOTA_JUGADOR_ID = cuota.ID), 0) >= cuota.IMPORTE THEN 'PAGADO'
                     WHEN NVL((SELECT SUM(p.IMPORTE) FROM PAGOS p WHERE p.CUOTA_JUGADOR_ID = cuota.ID), 0) > 0 THEN 'PARCIAL'
                     ELSE 'PENDIENTE'
                 END

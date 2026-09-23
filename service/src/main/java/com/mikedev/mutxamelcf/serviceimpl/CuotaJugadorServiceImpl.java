@@ -66,6 +66,14 @@ public class CuotaJugadorServiceImpl implements CuotaJugadorService {
     }
 
     @Override
+    public List<CuotaJugadorDTO> obtenerPorTemporada(Long temporadaId) {
+        logger.debug("Inicio obtenerPorTemporada: temporadaId={}", temporadaId);
+        List<CuotaJugadorDTO> cuotas = toDTOList(cuotaJugadorDao.obtenerPorTemporada(temporadaId));
+        logger.debug("Fin obtenerPorTemporada: temporadaId={}, total={}", temporadaId, cuotas.size());
+        return cuotas;
+    }
+
+    @Override
     public void actualizarEstado(Long id) {
         logger.debug("Inicio actualizarEstado: id={}", id);
         cuotaJugadorDao.actualizarEstado(id);
