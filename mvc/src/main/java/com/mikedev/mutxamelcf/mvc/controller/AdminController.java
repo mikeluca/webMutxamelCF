@@ -44,6 +44,7 @@ import com.mikedev.mutxamelcf.service.EquipoService;
 import com.mikedev.mutxamelcf.service.FamiliarService;
 import com.mikedev.mutxamelcf.service.JugadorService;
 import com.mikedev.mutxamelcf.service.NoticiaService;
+import com.mikedev.mutxamelcf.service.NotificacionAppService;
 import com.mikedev.mutxamelcf.service.ResultadoService;
 
 @Controller
@@ -64,15 +65,19 @@ public class AdminController {
 
 	private final EquipoService equiposService;
 
+	private final NotificacionAppService notificacionAppService;
+
 	public AdminController(JugadorService jugadoresService, FamiliarService familiarService,
 			CuerpoTecnicoService cuerpoTecnicoService, NoticiaService noticiaService,
-			ResultadoService resultadoService, EquipoService equiposService) {
+			ResultadoService resultadoService, EquipoService equiposService,
+			NotificacionAppService notificacionAppService) {
 		this.jugadoresService = jugadoresService;
 		this.familiarService = familiarService;
 		this.cuerpoTecnicoService = cuerpoTecnicoService;
 		this.noticiaService = noticiaService;
 		this.resultadoService = resultadoService;
 		this.equiposService = equiposService;
+		this.notificacionAppService = notificacionAppService;
 	}
 
 	// Logos de patrocinadores
@@ -546,6 +551,19 @@ public class AdminController {
 			if (noticiaService.guardarNoticia(noticia)) {
 				response.put("mensaje", noticiaExistente != null ? "Noticia actualizada correctamente."
 						: "Noticia generada correctamente.");
+
+				/*
+				 * Solo avisamos a la app cuando la noticia es nueva, no en
+				 * cada edición posterior.
+				 */
+				if (noticiaExistente == null) {
+					notificacionAppService.difundirATodos(
+							"NOTICIA",
+							"📰 Nueva noticia",
+							noticia.getTitulo(),
+							(long) noticia.getId());
+				}
+
 				logger.debug("Fin guardarNoticia: resultado=OK");
 				return ResponseEntity.ok(response);
 			} else {

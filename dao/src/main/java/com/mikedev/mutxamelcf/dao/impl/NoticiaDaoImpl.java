@@ -1,14 +1,18 @@
 package com.mikedev.mutxamelcf.dao.impl;
 
 import java.sql.Blob;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import com.mikedev.mutxamelcf.dao.NoticiaDao;
@@ -38,9 +42,24 @@ public class NoticiaDaoImpl implements NoticiaDao {
 	private boolean insertarNoticia(Noticia noticia) {
 		String sql = "INSERT INTO noticias (titulo, contenido, fecha, imagen) VALUES (?, ?, ?, ?)";
 
-		boolean insertada = jdbcTemplate.update(sql, noticia.getTitulo(), noticia.getContenido(), noticia.getFecha(),
-				noticia.getImagen()) == 1;
-		logger.info("Noticia insertada: titulo={}, insertada={}", noticia.getTitulo(), insertada);
+		KeyHolder keyHolder = new GeneratedKeyHolder();
+
+		boolean insertada = jdbcTemplate.update(connection -> {
+			PreparedStatement ps = connection.prepareStatement(sql, new String[] { "id" });
+			ps.setString(1, noticia.getTitulo());
+			ps.setString(2, noticia.getContenido());
+			ps.setTimestamp(3, new Timestamp(noticia.getFecha().getTime()));
+			ps.setBytes(4, noticia.getImagen());
+			return ps;
+		}, keyHolder) == 1;
+
+		if (insertada) {
+			Number key = keyHolder.getKey();
+			noticia.setId(key != null ? key.intValue() : 0);
+		}
+
+		logger.info("Noticia insertada: id={}, titulo={}, insertada={}", noticia.getId(), noticia.getTitulo(),
+				insertada);
 		return insertada;
 	}
 

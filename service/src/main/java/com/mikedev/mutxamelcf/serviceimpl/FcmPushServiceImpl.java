@@ -12,6 +12,7 @@ import com.mikedev.mutxamelcf.model.DispositivoApp;
 import com.mikedev.mutxamelcf.service.FcmPushService;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class FcmPushServiceImpl implements FcmPushService {
@@ -98,6 +99,24 @@ public class FcmPushServiceImpl implements FcmPushService {
                         String mensaje,
                         Long referenciaId) {
 
+                enviarNotificacionAUsuario(
+                                usuarioId,
+                                tipo,
+                                titulo,
+                                mensaje,
+                                referenciaId,
+                                Map.of());
+        }
+
+        @Override
+        public void enviarNotificacionAUsuario(
+                        Long usuarioId,
+                        String tipo,
+                        String titulo,
+                        String mensaje,
+                        Long referenciaId,
+                        Map<String, String> datosExtra) {
+
                 if (usuarioId == null) {
                         return;
                 }
@@ -113,88 +132,105 @@ public class FcmPushServiceImpl implements FcmPushService {
                 }
 
                 for (DispositivoApp dispositivo : dispositivos) {
+                        enviarADispositivo(dispositivo, tipo, titulo, mensaje, referenciaId, datosExtra);
+                }
+        }
 
-                        String tokenFcm = dispositivo.getTokenFcm();
+        /**
+         * Construye y envía el mensaje a un único dispositivo, capturando
+         * cualquier error de FCM sin propagarlo (un fallo de push no debe
+         * romper la operación principal), y desactivando el dispositivo si
+         * Firebase informa de que su token ya no es válido.
+         */
+        private void enviarADispositivo(
+                        DispositivoApp dispositivo,
+                        String tipo,
+                        String titulo,
+                        String mensaje,
+                        Long referenciaId,
+                        Map<String, String> datosExtra) {
 
-                        if (tokenFcm == null || tokenFcm.isBlank()) {
-                                continue;
-                        }
+                String tokenFcm = dispositivo.getTokenFcm();
 
-                        Message message = Message.builder()
-                                        .setToken(tokenFcm)
-                                        .setNotification(
-                                                        Notification.builder()
-                                                                        .setTitle(titulo)
-                                                                        .setBody(mensaje)
-                                                                        .build())
-                                        .putData(
-                                                        "tipo",
-                                                        tipo != null ? tipo : "")
-                                        .putData(
-                                                        "referenciaId",
-                                                        referenciaId != null
-                                                                        ? referenciaId.toString()
-                                                                        : "")
-                                        .build();
+                if (tokenFcm == null || tokenFcm.isBlank()) {
+                        return;
+                }
 
-                        try {
+                Message message = Message.builder()
+                                .setToken(tokenFcm)
+                                .setNotification(
+                                                Notification.builder()
+                                                                .setTitle(titulo)
+                                                                .setBody(mensaje)
+                                                                .build())
+                                .putData(
+                                                "tipo",
+                                                tipo != null ? tipo : "")
+                                .putData(
+                                                "referenciaId",
+                                                referenciaId != null
+                                                                ? referenciaId.toString()
+                                                                : "")
+                                .putAllData(
+                                                datosExtra != null ? datosExtra : Map.of())
+                                .build();
 
-                                String response = FirebaseMessaging
-                                                .getInstance()
-                                                .send(message);
+                try {
 
-                                System.out.println(
-                                                "NOTIFICACIÓN FCM ENVIADA: "
-                                                                + "usuario=" + usuarioId
-                                                                + ", dispositivo=" + dispositivo.getId()
-                                                                + ", response=" + response);
+                        String response = FirebaseMessaging
+                                        .getInstance()
+                                        .send(message);
 
-                        } catch (FirebaseMessagingException e) {
+                        System.out.println(
+                                        "NOTIFICACIÓN FCM ENVIADA: "
+                                                        + "usuario=" + dispositivo.getUsuarioAppId()
+                                                        + ", dispositivo=" + dispositivo.getId()
+                                                        + ", response=" + response);
 
-                                System.err.println(
-                                                "ERROR FCM PARA USUARIO "
-                                                                + usuarioId
-                                                                + ", dispositivo="
-                                                                + dispositivo.getId()
-                                                                + ": "
-                                                                + e.getMessage());
+                } catch (FirebaseMessagingException e) {
 
-                                /*
-                                 * Firebase informa de que el token ya no es válido.
-                                 * Lo desactivamos para evitar futuros intentos.
-                                 */
-                                if (e.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED) {
+                        System.err.println(
+                                        "ERROR FCM PARA USUARIO "
+                                                        + dispositivo.getUsuarioAppId()
+                                                        + ", dispositivo="
+                                                        + dispositivo.getId()
+                                                        + ": "
+                                                        + e.getMessage());
 
-                                        System.err.println(
-                                                        "TOKEN FCM NO VÁLIDO. "
-                                                                        + "Desactivando dispositivo "
-                                                                        + dispositivo.getId());
-
-                                        dispositivoAppDao.desactivar(
-                                                        usuarioId,
-                                                        tokenFcm);
-                                }
-
-                                /*
-                                 * IMPORTANTE:
-                                 *
-                                 * No lanzamos la excepción.
-                                 *
-                                 * Si FCM falla, la comunicación y la notificación
-                                 * interna siguen siendo válidas.
-                                 */
-                                continue;
-
-                        } catch (Exception e) {
+                        /*
+                         * Firebase informa de que el token ya no es válido.
+                         * Lo desactivamos para evitar futuros intentos.
+                         */
+                        if (e.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED) {
 
                                 System.err.println(
-                                                "ERROR INESPERADO FCM PARA USUARIO "
-                                                                + usuarioId
-                                                                + ": "
-                                                                + e.getMessage());
+                                                "TOKEN FCM NO VÁLIDO. "
+                                                                + "Desactivando dispositivo "
+                                                                + dispositivo.getId());
 
-                                // Continuamos con el siguiente dispositivo.
+                                dispositivoAppDao.desactivar(
+                                                dispositivo.getUsuarioAppId(),
+                                                tokenFcm);
                         }
+
+                        /*
+                         * IMPORTANTE:
+                         *
+                         * No lanzamos la excepción.
+                         *
+                         * Si FCM falla, la comunicación y la notificación
+                         * interna siguen siendo válidas.
+                         */
+
+                } catch (Exception e) {
+
+                        System.err.println(
+                                        "ERROR INESPERADO FCM PARA USUARIO "
+                                                        + dispositivo.getUsuarioAppId()
+                                                        + ": "
+                                                        + e.getMessage());
+
+                        // Continuamos con el siguiente dispositivo.
                 }
         }
 }

@@ -7,9 +7,12 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.NotificacionAppDao;
+import com.mikedev.mutxamelcf.dao.UsuarioAppDao;
 import com.mikedev.mutxamelcf.model.NotificacionApp;
 import com.mikedev.mutxamelcf.model.NotificacionAppResponse;
 import com.mikedev.mutxamelcf.model.NotificacionesNoLeidasResponse;
+import com.mikedev.mutxamelcf.model.UsuarioApp;
+import com.mikedev.mutxamelcf.service.FcmPushService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
 import com.mikedev.mutxamelcf.service.PreferenciasNotificacionService;
 
@@ -21,12 +24,20 @@ public class NotificacionAppServiceImpl
 
         private final PreferenciasNotificacionService preferenciasService;
 
+        private final UsuarioAppDao usuarioAppDao;
+
+        private final FcmPushService fcmPushService;
+
         public NotificacionAppServiceImpl(
                         NotificacionAppDao notificacionAppDao,
-                        PreferenciasNotificacionService preferenciasService) {
+                        PreferenciasNotificacionService preferenciasService,
+                        UsuarioAppDao usuarioAppDao,
+                        FcmPushService fcmPushService) {
 
                 this.notificacionAppDao = notificacionAppDao;
                 this.preferenciasService = preferenciasService;
+                this.usuarioAppDao = usuarioAppDao;
+                this.fcmPushService = fcmPushService;
         }
 
         @Override
@@ -123,6 +134,21 @@ public class NotificacionAppServiceImpl
         }
 
         @Override
+        public void marcarLeidasPorReferencias(
+                        Long usuarioId,
+                        List<Long> referenciaIds) {
+
+                if (usuarioId == null) {
+                        throw new IllegalArgumentException(
+                                        "El usuario es obligatorio");
+                }
+
+                notificacionAppDao.marcarLeidasPorReferencias(
+                                usuarioId,
+                                referenciaIds);
+        }
+
+        @Override
         public NotificacionesNoLeidasResponse contarNoLeidas(
                         Long usuarioId) {
 
@@ -162,5 +188,37 @@ public class NotificacionAppServiceImpl
         @Override
         public int contarComunicacionesNoLeidas(Long usuarioId) {
                 return notificacionAppDao.contarComunicacionesNoLeidas(usuarioId);
+        }
+
+        @Override
+        public void difundirATodos(
+                        String tipo,
+                        String titulo,
+                        String mensaje,
+                        Long referenciaId) {
+
+                List<UsuarioApp> usuarios = usuarioAppDao.listarTodos();
+
+                for (UsuarioApp usuario : usuarios) {
+
+                        if (!usuario.isActivo()) {
+                                continue;
+                        }
+
+                        Long usuarioId = (long) usuario.getId();
+
+                        if (!puedeRecibir(usuarioId, tipo)) {
+                                continue;
+                        }
+
+                        crear(usuarioId, tipo, titulo, mensaje, referenciaId);
+
+                        fcmPushService.enviarNotificacionAUsuario(
+                                        usuarioId,
+                                        tipo,
+                                        titulo,
+                                        mensaje,
+                                        referenciaId);
+                }
         }
 }

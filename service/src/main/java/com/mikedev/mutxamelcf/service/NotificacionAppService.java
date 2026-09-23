@@ -28,6 +28,10 @@ public interface NotificacionAppService {
         void marcarTodasComoLeidas(
                         Long usuarioId);
 
+        void marcarLeidasPorReferencias(
+                        Long usuarioId,
+                        List<Long> referenciaIds);
+
         NotificacionesNoLeidasResponse contarNoLeidas(
                         Long usuarioId);
 
@@ -36,4 +40,17 @@ public interface NotificacionAppService {
                         String tipo);
 
         int contarComunicacionesNoLeidas(Long usuarioId);
+
+        /**
+         * Crea la notificación interna y manda el push a todas las cuentas
+         * activas de la app cuyas preferencias permitan recibir avisos de
+         * este {@code tipo} (p. ej. "NOTICIA" o "RESULTADO"). A diferencia
+         * de una comunicación, no hay destinatarios que elegir: es siempre
+         * todo el mundo que no lo haya desactivado.
+         */
+        void difundirATodos(
+                        String tipo,
+                        String titulo,
+                        String mensaje,
+                        Long referenciaId);
 }

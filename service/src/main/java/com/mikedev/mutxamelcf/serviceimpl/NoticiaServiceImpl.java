@@ -36,7 +36,16 @@ public class NoticiaServiceImpl implements NoticiaService {
 	@Override
 	public boolean guardarNoticia(NoticiaDTO noticia) {
 		logger.debug("Inicio guardarNoticia: titulo={}", noticia == null ? null : noticia.getTitulo());
-		boolean resultado = noticiaDao.guardarNoticia(toEntity(noticia));
+		Noticia entidad = toEntity(noticia);
+		boolean resultado = noticiaDao.guardarNoticia(entidad);
+
+		// Propagamos el id generado (alta nueva) de vuelta al DTO
+		// para que el llamador pueda, por ejemplo, referenciarlo en
+		// la notificación push de "nueva noticia".
+		if (resultado) {
+			noticia.setId(entidad.getId());
+		}
+
 		logger.debug("Fin guardarNoticia: resultado={}", resultado);
 		return resultado;
 	}
