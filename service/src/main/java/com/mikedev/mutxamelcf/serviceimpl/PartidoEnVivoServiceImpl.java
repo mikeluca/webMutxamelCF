@@ -1,0 +1,148 @@
+package com.mikedev.mutxamelcf.serviceimpl;
+
+import org.springframework.stereotype.Service;
+
+import com.mikedev.mutxamelcf.dao.PartidoLiveDao;
+import com.mikedev.mutxamelcf.dao.ResultadoDao;
+import com.mikedev.mutxamelcf.model.PartidoLiveEstado;
+import com.mikedev.mutxamelcf.model.Resultado;
+import com.mikedev.mutxamelcf.service.NotificacionAppService;
+import com.mikedev.mutxamelcf.service.PartidoEnVivoService;
+import com.mikedev.mutxamelcf.service.UsuarioAppService;
+
+@Service
+public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
+
+    /*
+     * Los avisos del partido en directo caen dentro de la categoría de
+     * preferencias "Resultados" (ver PreferenciasNotificacionService):
+     * quien la tenga desactivada no debe recibirlos.
+     */
+    private static final String TIPO_PUSH = "RESULTADO";
+
+    private final PartidoLiveDao partidoLiveDao;
+    private final ResultadoDao resultadoDao;
+    private final NotificacionAppService notificacionAppService;
+    private final UsuarioAppService usuarioAppService;
+
+    public PartidoEnVivoServiceImpl(
+            PartidoLiveDao partidoLiveDao,
+            ResultadoDao resultadoDao,
+            NotificacionAppService notificacionAppService,
+            UsuarioAppService usuarioAppService) {
+
+        this.partidoLiveDao = partidoLiveDao;
+        this.resultadoDao = resultadoDao;
+        this.notificacionAppService = notificacionAppService;
+        this.usuarioAppService = usuarioAppService;
+    }
+
+    @Override
+    public void enviarAlineacion(Long usuarioId, String onceInicial, String suplentes) {
+
+        validarRolRetransmision(usuarioId);
+
+        String mensaje = "Once inicial: " + onceInicial + "\n\nSuplentes: " + suplentes;
+
+        notificacionAppService.difundirATodos(TIPO_PUSH, "📋 Alineación del Mutxamel CF", mensaje, null);
+    }
+
+    @Override
+    public void enviarInicioPartido(Long usuarioId) {
+
+        validarRolRetransmision(usuarioId);
+
+        partidoLiveDao.reiniciar();
+
+        String mensaje = "Mutxamel CF - " + nombreRival();
+
+        notificacionAppService.difundirATodos(TIPO_PUSH, "⚽ ¡Comienza el partido!", mensaje, null);
+    }
+
+    @Override
+    public void enviarGolFavor(Long usuarioId, String autor) {
+
+        validarRolRetransmision(usuarioId);
+
+        partidoLiveDao.sumarGolFavor(autor);
+
+        String mensaje = autor + "\n\n" + textoMarcador();
+
+        notificacionAppService.difundirATodos(TIPO_PUSH, "⚽ ¡GOOOL del Mutxamel CF!", mensaje, null);
+    }
+
+    @Override
+    public void enviarGolContra(Long usuarioId) {
+
+        validarRolRetransmision(usuarioId);
+
+        partidoLiveDao.sumarGolContra();
+
+        notificacionAppService.difundirATodos(TIPO_PUSH, "Gol en contra", textoMarcador(), null);
+    }
+
+    @Override
+    public void enviarDescanso(Long usuarioId) {
+
+        validarRolRetransmision(usuarioId);
+
+        notificacionAppService.difundirATodos(TIPO_PUSH, "⏸️ Descanso", textoMarcador(), null);
+    }
+
+    @Override
+    public void enviarSegundaParte(Long usuarioId) {
+
+        validarRolRetransmision(usuarioId);
+
+        String mensaje = "Mutxamel CF - " + nombreRival();
+
+        notificacionAppService.difundirATodos(TIPO_PUSH, "▶️ ¡Comienza la segunda parte!", mensaje, null);
+    }
+
+    @Override
+    public void enviarFinalPartido(Long usuarioId) {
+
+        validarRolRetransmision(usuarioId);
+
+        PartidoLiveEstado estado = partidoLiveDao.obtenerEstado();
+
+        String goleadores = estado.getGoleadores() == null || estado.getGoleadores().isEmpty()
+                ? "Sin goleadores"
+                : String.join(", ", estado.getGoleadores());
+
+        String mensaje = textoMarcador(estado)
+                + "\n\nGoleadores: " + goleadores
+                + "\n\nHa finalizado el partido.";
+
+        notificacionAppService.difundirATodos(TIPO_PUSH, "🏁 Final del partido", mensaje, null);
+    }
+
+    private void validarRolRetransmision(Long usuarioId) {
+
+        if (usuarioId == null || !usuarioAppService.tieneRol(usuarioId.intValue(), "RETRANSMISION")) {
+
+            throw new SecurityException(
+                    "No tienes permiso para enviar avisos del partido en directo");
+        }
+    }
+
+    private String nombreRival() {
+
+        Resultado resultado = resultadoDao.obtenerResultadoPrimerEquipo();
+
+        return resultado != null && resultado.getRival() != null
+                ? resultado.getRival()
+                : "el rival";
+    }
+
+    private String textoMarcador() {
+        return textoMarcador(partidoLiveDao.obtenerEstado());
+    }
+
+    private String textoMarcador(PartidoLiveEstado estado) {
+
+        return "Mutxamel CF " + estado.getGolesFavor()
+                + " - " + estado.getGolesContra()
+                + " " + nombreRival();
+    }
+}
