@@ -4,6 +4,6 @@ import com.mikedev.mutxamelcf.model.Usuario;
 
 public interface UsuarioDao {
 
-	Usuario validarUsuario(String usuario, String password);
+	Usuario obtenerPorUsuario(String usuario);
 
 }
