@@ -190,12 +190,31 @@ class MainControllerTest {
     }
 
     @Test
-    void mostrarResultadosRellenaLosResultadosDeFutbol() {
-        when(partidoService.obtenerResultados("F")).thenReturn(List.of(new ResultadoDTO()));
+    void mostrarResultadosAgrupaLosResultadosPorCategoria() {
+        ResultadoDTO senior1 = new ResultadoDTO();
+        senior1.setCategoria("Senior");
+        senior1.setEquipo("Senior A");
+
+        ResultadoDTO senior2 = new ResultadoDTO();
+        senior2.setCategoria("Senior");
+        senior2.setEquipo("Senior B");
+
+        ResultadoDTO juvenil = new ResultadoDTO();
+        juvenil.setCategoria("Juvenil");
+        juvenil.setEquipo("Juvenil A");
+
+        when(partidoService.obtenerResultados("F")).thenReturn(List.of(senior1, senior2, juvenil));
 
         Model model = new ExtendedModelMap();
         assertEquals("resultados", controller.mostrarResultados(model));
-        assertEquals(1, ((List<?>) model.getAttribute("resultadosFutbol")).size());
+
+        @SuppressWarnings("unchecked")
+        Map<String, List<ResultadoDTO>> resultadosPorCategoria = (Map<String, List<ResultadoDTO>>) model
+                .getAttribute("resultadosPorCategoria");
+
+        assertEquals(List.of("Senior", "Juvenil"), List.copyOf(resultadosPorCategoria.keySet()));
+        assertEquals(2, resultadosPorCategoria.get("Senior").size());
+        assertEquals(1, resultadosPorCategoria.get("Juvenil").size());
     }
 
     @Test
