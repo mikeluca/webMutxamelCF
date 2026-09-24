@@ -57,8 +57,8 @@
 					<table>
 						<thead>
 							<tr>
-								<th style="width: 22%;">EQUIPO</th>
 								<th>TIPO</th>
+								<th style="width: 22%;">EQUIPO</th>
 								<th>RESULTADO</th>
 								<th>RIVAL</th>
 								<th>DIA</th>
@@ -70,10 +70,10 @@
 							<!-- Iteramos sobre los resultados de esta categoria -->
 							<tr th:each="resultado : ${entrada.value}"
 								th:classappend="${resultado.tipo != null ? 'tipo-' + #strings.toLowerCase(resultado.tipo) : ''}">
-								<td th:text="${resultado.equipo}" style="width: 22%;"></td>
 								<td>
 									<span th:if="${resultado.tipo != null}" th:text="${resultado.tipo}" th:class="${'tipo-badge tipo-badge-' + #strings.toLowerCase(resultado.tipo)}"></span>
 								</td>
+								<td th:text="${resultado.equipo}" style="width: 22%;"></td>
 								<!-- Equipo sin proximo partido ni ultimo resultado: fila "placeholder" -->
 								<td th:if="${resultado.rival == null or #strings.isEmpty(resultado.rival)}" colspan="5" class="text-center text-muted">No tiene partido</td>
 								<th:block th:unless="${resultado.rival == null or #strings.isEmpty(resultado.rival)}">

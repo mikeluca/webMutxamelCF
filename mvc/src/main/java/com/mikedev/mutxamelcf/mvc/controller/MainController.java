@@ -5,8 +5,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import com.mikedev.mutxamelcf.mvc.communication.ComunicacionesService;
+import com.mikedev.mutxamelcf.mvc.communication.PedidoTiendaHelper;
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoDTO;
 import com.mikedev.mutxamelcf.model.EquipoDTO;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
@@ -140,67 +140,33 @@ public class MainController {
 			@RequestParam(name = "cantidad", required = false) List<String> cantidades,
 			@RequestParam(name = "talla", required = false) List<String> tallas) {
 		logger.debug("Inicio crearPedido: nombre={}, email={}", nombre, email);
-		if (!esPedidoValido(nombre, email, prendas, cantidades, tallas)) {
+
+		if (!PedidoTiendaHelper.esPedidoValido(nombre, email, prendas, cantidades, tallas)) {
 			logger.warn("Pedido invalido recibido: nombre={}, email={}", nombre, email);
 			logger.debug("Fin crearPedido: resultado=INVALIDO");
 			return "redirect:/tienda?error=true";
 		}
 
-		try {
-			List<Integer> cantidadesValidadas = cantidades.stream().map(Integer::parseInt)
-					.filter(cantidad -> cantidad > 0 && cantidad <= 20).collect(Collectors.toList());
-			if (cantidadesValidadas.size() != cantidades.size()) {
-				logger.warn("Cantidades fuera de rango en el pedido: nombre={}", nombre);
-				logger.debug("Fin crearPedido: resultado=CANTIDAD_INVALIDA");
-				return "redirect:/tienda?error=true";
-			}
+		Optional<List<Integer>> cantidadesValidadas = PedidoTiendaHelper.parsearCantidadesValidas(cantidades);
 
-			String textoPedido = construirTextoPedido(nombre, telefono, email, prendas, cantidadesValidadas, tallas);
-
-			if (!comunicacionesService.enviarPedidoTienda(nombre, email, textoPedido)) {
-				logger.warn("No se pudo enviar el pedido por email: nombre={}", nombre);
-				logger.debug("Fin crearPedido: resultado=ERROR_ENVIO");
-				return "redirect:/tienda?error=true";
-			}
-			logger.info("Pedido enviado por email correctamente: nombre={}", nombre);
-			logger.debug("Fin crearPedido: resultado=OK");
-			return "redirect:/tienda?pedido=ok";
-		} catch (NumberFormatException exception) {
-			logger.error("Error al procesar el pedido: {}", exception.getMessage(), exception);
-			logger.debug("Fin crearPedido: resultado=ERROR");
+		if (cantidadesValidadas.isEmpty()) {
+			logger.warn("Cantidades fuera de rango en el pedido: nombre={}", nombre);
+			logger.debug("Fin crearPedido: resultado=CANTIDAD_INVALIDA");
 			return "redirect:/tienda?error=true";
 		}
-	}
 
-	// Valida que el pedido tenga los datos obligatorios y que las prendas/tallas
-	// sean opciones permitidas
-	private boolean esPedidoValido(String nombre, String email, List<String> prendas, List<String> cantidades,
-			List<String> tallas) {
-		Set<String> prendasValidas = Set.of("Camiseta oficial", "Segunda equipacion - colaboracion AECC");
-		Set<String> tallasValidas = Set.of("2", "4", "6", "8", "10", "12", "14", "S", "M", "L", "XL", "XXL", "3XL",
-				"4XL");
+		String textoPedido = PedidoTiendaHelper.construirTextoPedido(nombre, telefono, email, prendas,
+				cantidadesValidadas.get(), tallas);
 
-		if (nombre.isBlank() || email.isBlank() || prendas == null || cantidades == null || tallas == null
-				|| prendas.size() != cantidades.size() || cantidades.size() != tallas.size() || prendas.isEmpty()) {
-			return false;
+		if (!comunicacionesService.enviarPedidoTienda(nombre, email, textoPedido)) {
+			logger.warn("No se pudo enviar el pedido por email: nombre={}", nombre);
+			logger.debug("Fin crearPedido: resultado=ERROR_ENVIO");
+			return "redirect:/tienda?error=true";
 		}
-		if (!prendas.stream().allMatch(prendasValidas::contains)) {
-			return false;
-		}
-		return tallas.stream().flatMap(talla -> Arrays.stream(talla.split(",\\s*"))).allMatch(tallasValidas::contains);
-	}
 
-	// Construye el texto del email de pedido a partir de los datos del formulario
-	private String construirTextoPedido(String nombre, String telefono, String email, List<String> prendas,
-			List<Integer> cantidadesValidadas, List<String> tallas) {
-		StringBuilder pedido = new StringBuilder("Datos del cliente\nNombre: ").append(nombre)
-				.append("\nTelefono: ").append(telefono).append("\nEmail: ").append(email)
-				.append("\n\nPrendas seleccionadas\n");
-		for (int i = 0; i < prendas.size(); i++) {
-			pedido.append("- ").append(prendas.get(i)).append(" | Cantidad: ")
-					.append(cantidadesValidadas.get(i)).append(" | Tallas: ").append(tallas.get(i)).append("\n");
-		}
-		return pedido.toString();
+		logger.info("Pedido enviado por email correctamente: nombre={}", nombre);
+		logger.debug("Fin crearPedido: resultado=OK");
+		return "redirect:/tienda?pedido=ok";
 	}
 
 	// Método para obtener la lista de resultados y mostrarlos en una página HTML
