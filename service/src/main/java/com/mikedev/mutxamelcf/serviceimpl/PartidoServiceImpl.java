@@ -5,8 +5,12 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
@@ -30,6 +34,9 @@ public class PartidoServiceImpl implements PartidoService {
 	private static final Logger logger = LoggerFactory.getLogger(PartidoServiceImpl.class);
 
 	private static final Pattern PATRON_RESULTADO = Pattern.compile("^\\d{1,2}-\\d{1,2}$");
+
+	private static final Set<String> TIPOS_VALIDOS = Set.of("AMISTOSO", "LIGA", "COPA", "TORNEO");
+	private static final String TIPO_POR_DEFECTO = "LIGA";
 
 	/*
 	 * Nombre/categoría literales del equipo cuyo próximo/último partido se
@@ -301,13 +308,42 @@ public class PartidoServiceImpl implements PartidoService {
 		 */
 		List<Equipo> equipos = equipoDao.obtenerTodosPorDeporte(deporte);
 
-		List<ResultadoDTO> resultados = new ArrayList<>();
+		List<EquipoConPartidoMasReciente> equiposConPartido = new ArrayList<>();
 
 		for (Equipo equipo : equipos) {
 
 			Partido partido = partidoDao.obtenerMasRelevantePorEquipo(equipo.getId());
 
-			resultados.add(toResultadoDTO(partido, equipo));
+			equiposConPartido.add(new EquipoConPartidoMasReciente(equipo, partido));
+		}
+
+		/*
+		 * Agrupados por categoría (mismo orden de categorías que ya usa
+		 * equipoDao.obtenerCategorias(), que es "ORDER BY orden") y,
+		 * dentro de cada categoría, por fecha del partido descendente,
+		 * con los equipos sin partido (dia == null) al final de su
+		 * categoría.
+		 */
+		List<String> categoriasOrdenadas = equipoDao.obtenerCategorias();
+
+		Map<String, Integer> ordenCategoria = new HashMap<>();
+		for (int i = 0; i < categoriasOrdenadas.size(); i++) {
+			ordenCategoria.putIfAbsent(categoriasOrdenadas.get(i), i);
+		}
+
+		Comparator<EquipoConPartidoMasReciente> comparador = Comparator
+				.<EquipoConPartidoMasReciente>comparingInt(
+						ep -> ordenCategoria.getOrDefault(ep.equipo.getCategoria(), Integer.MAX_VALUE))
+				.thenComparing(
+						ep -> ep.partido != null ? ep.partido.getDia() : null,
+						Comparator.nullsLast(Comparator.reverseOrder()));
+
+		equiposConPartido.sort(comparador);
+
+		List<ResultadoDTO> resultados = new ArrayList<>();
+
+		for (EquipoConPartidoMasReciente ep : equiposConPartido) {
+			resultados.add(toResultadoDTO(ep.partido, ep.equipo));
 		}
 
 		logger.debug("Fin obtenerResultados: deporte={}, total={}", deporte, resultados.size());
@@ -334,6 +370,7 @@ public class PartidoServiceImpl implements PartidoService {
 		resultado.setEquipo(EQUIPO_PRIMER_EQUIPO);
 		resultado.setRival(partido.getRival());
 		resultado.setResultado(partido.getResultado());
+		resultado.setTipo(partido.getTipo());
 		aplicarFecha(partido.getDia(), resultado::setDia, resultado::setDiaFormateado);
 		resultado.setHora(partido.getHora());
 		resultado.setCampo(partido.getCampo());
@@ -370,6 +407,16 @@ public class PartidoServiceImpl implements PartidoService {
 			throw new IllegalArgumentException(
 					"El resultado debe tener el formato 'goles locales-goles visitantes' (ej. 2-1)");
 		}
+
+		String tipo = request.getTipo();
+
+		if (tipo != null
+				&& !tipo.isBlank()
+				&& !TIPOS_VALIDOS.contains(tipo.trim().toUpperCase())) {
+
+			throw new IllegalArgumentException(
+					"El tipo de partido debe ser AMISTOSO, LIGA, COPA o TORNEO");
+		}
 	}
 
 	/*
@@ -400,10 +447,15 @@ public class PartidoServiceImpl implements PartidoService {
 		partido.setHora(request.getHora());
 		partido.setCampo(request.getCampo());
 		partido.setResultado(normalizarResultado(request.getResultado()));
+		partido.setTipo(normalizarTipo(request.getTipo()));
 	}
 
 	private static String normalizarResultado(String resultado) {
 		return (resultado == null || resultado.isBlank()) ? null : resultado;
+	}
+
+	private static String normalizarTipo(String tipo) {
+		return (tipo == null || tipo.isBlank()) ? TIPO_POR_DEFECTO : tipo.trim().toUpperCase();
 	}
 
 	private static Date toDate(LocalDate localDate) {
@@ -427,6 +479,7 @@ public class PartidoServiceImpl implements PartidoService {
 
 		dto.setRival(partido.getRival());
 		dto.setResultado(partido.getResultado());
+		dto.setTipo(partido.getTipo());
 		aplicarFecha(partido.getDia(), dto::setDia, dto::setDiaFormateado);
 		dto.setHora(partido.getHora());
 		dto.setCampo(partido.getCampo());
@@ -449,6 +502,7 @@ public class PartidoServiceImpl implements PartidoService {
 		if (partido == null) {
 			dto.setRival(null);
 			dto.setResultado(null);
+			dto.setTipo(null);
 			dto.setDia(null);
 			dto.setDiaFormateado(null);
 			dto.setHora(null);
@@ -458,6 +512,7 @@ public class PartidoServiceImpl implements PartidoService {
 
 		dto.setRival(partido.getRival());
 		dto.setResultado(partido.getResultado());
+		dto.setTipo(partido.getTipo());
 		aplicarFecha(partido.getDia(), dto::setDia, dto::setDiaFormateado);
 		dto.setHora(partido.getHora());
 		dto.setCampo(partido.getCampo());
@@ -485,6 +540,22 @@ public class PartidoServiceImpl implements PartidoService {
 			resultado.add(construirDTO(partido));
 		}
 		return resultado;
+	}
+
+	/*
+	 * Par (equipo, partido más relevante de ese equipo) usado únicamente
+	 * para poder ordenar/agrupar obtenerResultados() antes de mapear a
+	 * ResultadoDTO.
+	 */
+	private static final class EquipoConPartidoMasReciente {
+
+		private final Equipo equipo;
+		private final Partido partido;
+
+		private EquipoConPartidoMasReciente(Equipo equipo, Partido partido) {
+			this.equipo = equipo;
+			this.partido = partido;
+		}
 	}
 
 }

@@ -12,6 +12,7 @@ public class Partido {
     private String hora;
     private String campo;
     private String resultado;
+    private String tipo;
     private Long usuarioActualizoId;
     private Timestamp fechaActualizacion;
 
@@ -27,6 +28,7 @@ public class Partido {
             String hora,
             String campo,
             String resultado,
+            String tipo,
             Long usuarioActualizoId,
             Timestamp fechaActualizacion) {
 
@@ -38,6 +40,7 @@ public class Partido {
         this.hora = hora;
         this.campo = campo;
         this.resultado = resultado;
+        this.tipo = tipo;
         this.usuarioActualizoId = usuarioActualizoId;
         this.fechaActualizacion = fechaActualizacion;
     }
@@ -96,6 +99,14 @@ public class Partido {
 
     public void setResultado(String resultado) {
         this.resultado = resultado;
+    }
+
+    public String getTipo() {
+        return tipo;
+    }
+
+    public void setTipo(String tipo) {
+        this.tipo = tipo;
     }
 
     public Long getUsuarioActualizoId() {

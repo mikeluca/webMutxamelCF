@@ -74,7 +74,7 @@ class ResultadoAdminControllerTest {
 
     @Test
     void crearRedirigeConErrorSiLaFechaEsInvalida() {
-        String vista = controller.crear(1L, "Rival", "fecha-invalida", "18:00", "Campo municipal", "2-1");
+        String vista = controller.crear(1L, "Rival", "fecha-invalida", "18:00", "Campo municipal", "2-1", "LIGA");
 
         assertEquals("redirect:/admin/calendario-resultados?error=Fecha inválida", vista);
         verify(partidoService, never()).crearComoAdmin(any());
@@ -82,7 +82,7 @@ class ResultadoAdminControllerTest {
 
     @Test
     void crearAceptaDiaVacio() {
-        String vista = controller.crear(1L, "Rival", "", "18:00", "Campo municipal", null);
+        String vista = controller.crear(1L, "Rival", "", "18:00", "Campo municipal", null, "LIGA");
 
         assertEquals("redirect:/admin/calendario-resultados", vista);
         verify(partidoService).crearComoAdmin(any());
@@ -92,14 +92,14 @@ class ResultadoAdminControllerTest {
     void crearRedirigeConErrorSiElServicioFalla() {
         org.mockito.Mockito.doThrow(new RuntimeException("fallo bd")).when(partidoService).crearComoAdmin(any());
 
-        String vista = controller.crear(1L, "Rival", "01/01/2026", "18:00", "Campo municipal", "2-1");
+        String vista = controller.crear(1L, "Rival", "01/01/2026", "18:00", "Campo municipal", "2-1", "LIGA");
 
         assertEquals("redirect:/admin/calendario-resultados?error=Error al crear el partido", vista);
     }
 
     @Test
     void crearRedirigeCorrectamenteCuandoTieneExitoYConstruyeElRequest() {
-        String vista = controller.crear(1L, "Rival", "01/01/2026", "18:00", "Campo municipal", "2-1");
+        String vista = controller.crear(1L, "Rival", "01/01/2026", "18:00", "Campo municipal", "2-1", "COPA");
 
         assertEquals("redirect:/admin/calendario-resultados", vista);
 
@@ -114,13 +114,15 @@ class ResultadoAdminControllerTest {
         assertEquals("18:00", request.getHora());
         assertEquals("Campo municipal", request.getCampo());
         assertEquals("2-1", request.getResultado());
+        assertEquals("COPA", request.getTipo());
     }
 
     // ---------- actualizar ----------
 
     @Test
     void actualizarRedirigeConErrorSiLaFechaEsInvalida() {
-        String vista = controller.actualizar(5L, 1L, "Rival", "fecha-invalida", "18:00", "Campo municipal", "2-1");
+        String vista = controller.actualizar(5L, 1L, "Rival", "fecha-invalida", "18:00", "Campo municipal", "2-1",
+                "LIGA");
 
         assertEquals("redirect:/admin/calendario-resultados?error=Fecha inválida", vista);
         verify(partidoService, never()).actualizarComoAdmin(eq(5L), any());
@@ -128,7 +130,7 @@ class ResultadoAdminControllerTest {
 
     @Test
     void actualizarAceptaDiaVacio() {
-        String vista = controller.actualizar(5L, 1L, "Rival", "", "18:00", "Campo municipal", null);
+        String vista = controller.actualizar(5L, 1L, "Rival", "", "18:00", "Campo municipal", null, "LIGA");
 
         assertEquals("redirect:/admin/calendario-resultados", vista);
         verify(partidoService).actualizarComoAdmin(eq(5L), any());
@@ -139,14 +141,16 @@ class ResultadoAdminControllerTest {
         org.mockito.Mockito.doThrow(new RuntimeException("fallo bd")).when(partidoService)
                 .actualizarComoAdmin(eq(5L), any());
 
-        String vista = controller.actualizar(5L, 1L, "Rival", "01/01/2026", "18:00", "Campo municipal", "2-1");
+        String vista = controller.actualizar(5L, 1L, "Rival", "01/01/2026", "18:00", "Campo municipal", "2-1",
+                "LIGA");
 
         assertEquals("redirect:/admin/calendario-resultados?error=Error al actualizar el partido", vista);
     }
 
     @Test
     void actualizarRedirigeCorrectamenteCuandoTieneExito() {
-        String vista = controller.actualizar(5L, 1L, "Rival", "01/01/2026", "18:00", "Campo municipal", "2-1");
+        String vista = controller.actualizar(5L, 1L, "Rival", "01/01/2026", "18:00", "Campo municipal", "2-1",
+                "TORNEO");
 
         assertEquals("redirect:/admin/calendario-resultados", vista);
 
@@ -154,6 +158,7 @@ class ResultadoAdminControllerTest {
                 .forClass(PartidoGuardarRequest.class);
         verify(partidoService).actualizarComoAdmin(eq(5L), captor.capture());
         assertEquals("Rival", captor.getValue().getRival());
+        assertEquals("TORNEO", captor.getValue().getTipo());
     }
 
     // ---------- eliminar ----------

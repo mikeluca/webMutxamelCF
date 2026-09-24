@@ -42,6 +42,7 @@ class PartidoDaoImplTest {
                 .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()));
         partido.setHora("18:00");
         partido.setCampo("Campo Municipal");
+        partido.setTipo("COPA");
 
         ArgumentCaptor<PreparedStatementCreator> pscCaptor = ArgumentCaptor.forClass(PreparedStatementCreator.class);
         ArgumentCaptor<KeyHolder> keyHolderCaptor = ArgumentCaptor.forClass(KeyHolder.class);
@@ -64,6 +65,7 @@ class PartidoDaoImplTest {
         verify(ps).setString(2, "Rival CF");
         verify(ps).setString(4, "18:00");
         verify(ps).setString(5, "Campo Municipal");
+        verify(ps).setString(7, "COPA");
     }
 
     @Test
@@ -118,6 +120,7 @@ class PartidoDaoImplTest {
         partido.setHora("18:00");
         partido.setCampo("Campo Municipal");
         partido.setResultado("2-1");
+        partido.setTipo("LIGA");
         partido.setUsuarioActualizoId(9L);
         Timestamp ahora = Timestamp.valueOf("2026-03-02 10:00:00");
         partido.setFechaActualizacion(ahora);
@@ -125,7 +128,7 @@ class PartidoDaoImplTest {
         dao.actualizar(partido);
 
         verify(jdbcTemplate).update(anyString(), eq("Rival CF"), eq((Object) null), eq("18:00"),
-                eq("Campo Municipal"), eq("2-1"), eq(9L), eq(ahora), eq(1L));
+                eq("Campo Municipal"), eq("2-1"), eq("LIGA"), eq(9L), eq(ahora), eq(1L));
     }
 
     @Test
@@ -159,6 +162,7 @@ class PartidoDaoImplTest {
         when(rs.getString("HORA")).thenReturn("18:00");
         when(rs.getString("CAMPO")).thenReturn("Campo Municipal");
         when(rs.getString("RESULTADO")).thenReturn("2-1");
+        when(rs.getString("TIPO")).thenReturn("AMISTOSO");
         when(rs.getLong("USUARIO_ACTUALIZO_ID")).thenReturn(9L);
         when(rs.wasNull()).thenReturn(false);
         Timestamp ahora = Timestamp.valueOf("2026-03-02 10:00:00");
@@ -172,6 +176,7 @@ class PartidoDaoImplTest {
         assertThat(mapeado.getHora()).isEqualTo("18:00");
         assertThat(mapeado.getCampo()).isEqualTo("Campo Municipal");
         assertThat(mapeado.getResultado()).isEqualTo("2-1");
+        assertThat(mapeado.getTipo()).isEqualTo("AMISTOSO");
         assertThat(mapeado.getUsuarioActualizoId()).isEqualTo(9L);
         assertThat(mapeado.getFechaActualizacion()).isEqualTo(ahora);
     }

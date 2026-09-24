@@ -57,6 +57,12 @@ class PartidoServiceImplTest {
         return equipo;
     }
 
+    private static Equipo equipoConCategoria(Long id, String categoria) {
+        Equipo equipo = equipo(id);
+        equipo.setCategoria(categoria);
+        return equipo;
+    }
+
     // ---------- crear ----------
 
     @Test
@@ -143,6 +149,64 @@ class PartidoServiceImplTest {
         PartidoDTO resultado = service.crear(1L, request);
 
         assertThat(resultado.getResultado()).isEqualTo("2-1");
+    }
+
+    // ---------- tipo ----------
+
+    @Test
+    void crearLanzaExcepcionSiElTipoNoEsValido() {
+        PartidoGuardarRequest request = new PartidoGuardarRequest(1L, "Rival CF", null, null, null, null,
+                "INVENTADO");
+
+        assertThatThrownBy(() -> service.crear(1L, request)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("AMISTOSO, LIGA, COPA o TORNEO");
+
+        verify(partidoDao, never()).crear(any());
+    }
+
+    @Test
+    void crearAsignaLigaPorDefectoSiElTipoNoViene() {
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(partidoDao.crear(any(Partido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PartidoDTO resultado = service.crear(1L, requestValido());
+
+        assertThat(resultado.getTipo()).isEqualTo("LIGA");
+    }
+
+    @Test
+    void crearAsignaLigaPorDefectoSiElTipoVieneEnBlanco() {
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(partidoDao.crear(any(Partido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PartidoGuardarRequest request = new PartidoGuardarRequest(1L, "Rival CF", null, null, null, null, "   ");
+
+        PartidoDTO resultado = service.crear(1L, request);
+
+        assertThat(resultado.getTipo()).isEqualTo("LIGA");
+    }
+
+    @Test
+    void crearNormalizaElTipoAMayusculas() {
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(partidoDao.crear(any(Partido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PartidoGuardarRequest request = new PartidoGuardarRequest(1L, "Rival CF", null, null, null, null, "copa");
+
+        PartidoDTO resultado = service.crear(1L, request);
+
+        assertThat(resultado.getTipo()).isEqualTo("COPA");
+    }
+
+    @Test
+    void crearComoAdminLanzaExcepcionSiElTipoNoEsValido() {
+        PartidoGuardarRequest request = new PartidoGuardarRequest(1L, "Rival CF", null, null, null, null, "TORNEOS");
+
+        assertThatThrownBy(() -> service.crearComoAdmin(request)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("AMISTOSO, LIGA, COPA o TORNEO");
     }
 
     @Test
@@ -486,6 +550,7 @@ class PartidoServiceImplTest {
         partido.setEquipoId(1L);
         partido.setRival("Rival CF");
         partido.setResultado("2-1");
+        partido.setTipo("COPA");
 
         when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipoA, equipoB));
         when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(partido);
@@ -498,6 +563,72 @@ class PartidoServiceImplTest {
         assertThat(resultados.get(0).getEquipo()).isEqualTo("Senior A");
         assertThat(resultados.get(0).getCategoria()).isEqualTo("SENIOR");
         assertThat(resultados.get(0).getRival()).isEqualTo("Rival CF");
+        assertThat(resultados.get(0).getTipo()).isEqualTo("COPA");
+    }
+
+    @Test
+    void obtenerResultadosAgrupaPorCategoriaYOrdenaPorFechaDescendenteDentroDeCadaCategoria() {
+        Equipo equipoSeniorA = equipoConCategoria(1L, "Senior");
+        Equipo equipoSeniorB = equipoConCategoria(2L, "Senior");
+        Equipo equipoJuvenil = equipoConCategoria(3L, "Juvenil");
+
+        /*
+         * Deliberadamente en un orden distinto al esperado, para probar
+         * que el service reordena por categoría y fecha en vez de
+         * limitarse a devolver el orden que trae equipoDao.
+         */
+        when(equipoDao.obtenerTodosPorDeporte("F"))
+                .thenReturn(List.of(equipoJuvenil, equipoSeniorB, equipoSeniorA));
+        when(equipoDao.obtenerCategorias()).thenReturn(List.of("Senior", "Juvenil"));
+
+        Partido partidoSeniorA = new Partido();
+        partidoSeniorA.setRival("Rival Reciente");
+        partidoSeniorA.setDia(java.sql.Date.valueOf("2026-05-01"));
+
+        Partido partidoSeniorB = new Partido();
+        partidoSeniorB.setRival("Rival Antiguo");
+        partidoSeniorB.setDia(java.sql.Date.valueOf("2026-01-01"));
+
+        when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(partidoSeniorA);
+        when(partidoDao.obtenerMasRelevantePorEquipo(2L)).thenReturn(partidoSeniorB);
+        when(partidoDao.obtenerMasRelevantePorEquipo(3L)).thenReturn(null);
+
+        List<ResultadoDTO> resultados = service.obtenerResultados("F");
+
+        assertThat(resultados).hasSize(3);
+
+        assertThat(resultados.get(0).getCategoria()).isEqualTo("Senior");
+        assertThat(resultados.get(0).getRival()).isEqualTo("Rival Reciente");
+
+        assertThat(resultados.get(1).getCategoria()).isEqualTo("Senior");
+        assertThat(resultados.get(1).getRival()).isEqualTo("Rival Antiguo");
+
+        assertThat(resultados.get(2).getCategoria()).isEqualTo("Juvenil");
+        assertThat(resultados.get(2).getRival()).isNull();
+    }
+
+    @Test
+    void obtenerResultadosPonePartidosSinFechaAlFinalDeSuCategoria() {
+        Equipo equipoConFecha = equipoConCategoria(1L, "Senior");
+        Equipo equipoSinFecha = equipoConCategoria(2L, "Senior");
+
+        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipoSinFecha, equipoConFecha));
+        when(equipoDao.obtenerCategorias()).thenReturn(List.of("Senior"));
+
+        Partido partidoConFecha = new Partido();
+        partidoConFecha.setDia(java.sql.Date.valueOf("2026-05-01"));
+
+        Partido partidoSinFecha = new Partido();
+        partidoSinFecha.setDia(null);
+
+        when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(partidoConFecha);
+        when(partidoDao.obtenerMasRelevantePorEquipo(2L)).thenReturn(partidoSinFecha);
+
+        List<ResultadoDTO> resultados = service.obtenerResultados("F");
+
+        assertThat(resultados).hasSize(2);
+        assertThat(resultados.get(0).getDia()).isNotNull();
+        assertThat(resultados.get(1).getDia()).isNull();
     }
 
     @Test
@@ -516,6 +647,7 @@ class PartidoServiceImplTest {
         assertThat(placeholder.getCategoria()).isEqualTo("SENIOR");
         assertThat(placeholder.getRival()).isNull();
         assertThat(placeholder.getResultado()).isNull();
+        assertThat(placeholder.getTipo()).isNull();
         assertThat(placeholder.getDia()).isNull();
         assertThat(placeholder.getDiaFormateado()).isNull();
         assertThat(placeholder.getHora()).isNull();

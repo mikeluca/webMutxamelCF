@@ -1,0 +1,25 @@
+-- ============================================================================
+-- ALTER TABLE PARTIDOS: añade el tipo de partido (Amistoso/Liga/Copa/Torneo)
+--
+-- El cliente quiere poder marcar cada partido como Amistoso, Liga, Copa o
+-- Torneo, y que la web/app lo muestren con un borde de color distinto según
+-- el tipo. Este script añade la columna TIPO a la tabla PARTIDOS que ya
+-- existe en dev/producción (creada con
+-- sql/2026-09-24_crear_tabla_partidos.sql).
+--
+-- Se usa DEFAULT 'LIGA' NOT NULL para que las filas ya existentes queden
+-- automáticamente con TIPO='LIGA' (la gran mayoría de partidos son de liga)
+-- y para que la columna nunca quede NULL en insertados futuros que no la
+-- indiquen explícitamente (aunque la capa de servicio ya aplica ese mismo
+-- valor por defecto antes de guardar).
+--
+-- Sintaxis Oracle: ALTER TABLE ... ADD (columna tipo DEFAULT valor NOT NULL)
+-- aplica el valor por defecto también a las filas ya existentes al añadir
+-- la columna, sin necesidad de un UPDATE posterior.
+--
+-- IMPORTANTE: este script NO se ejecuta automáticamente (el proyecto no usa
+-- Flyway/Liquibase). Debe ejecutarse a mano en dev y en producción antes de
+-- desplegar el commit que añade el campo TIPO.
+-- ============================================================================
+
+ALTER TABLE PARTIDOS ADD (TIPO VARCHAR2(20) DEFAULT 'LIGA' NOT NULL);
