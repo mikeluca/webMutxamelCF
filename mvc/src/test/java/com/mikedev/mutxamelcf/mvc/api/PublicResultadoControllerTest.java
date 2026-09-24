@@ -1,7 +1,7 @@
 package com.mikedev.mutxamelcf.mvc.api;
 
 import com.mikedev.mutxamelcf.model.ResultadoDTO;
-import com.mikedev.mutxamelcf.service.ResultadoService;
+import com.mikedev.mutxamelcf.service.PartidoService;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -17,7 +17,7 @@ class PublicResultadoControllerTest {
 
     @Test
     void obtenerResultadosPideLosDeFutbol() {
-        ResultadoService service = mock(ResultadoService.class);
+        PartidoService service = mock(PartidoService.class);
         PublicResultadoController controller = new PublicResultadoController(service);
 
         when(service.obtenerResultados("F")).thenReturn(List.of(new ResultadoDTO()));
@@ -27,7 +27,7 @@ class PublicResultadoControllerTest {
 
     @Test
     void obtenerResultadoPrimerEquipoDevuelve404SiNoHayResultado() {
-        ResultadoService service = mock(ResultadoService.class);
+        PartidoService service = mock(PartidoService.class);
         PublicResultadoController controller = new PublicResultadoController(service);
 
         when(service.obtenerResultadoPrimerEquipo()).thenReturn(null);
@@ -37,7 +37,7 @@ class PublicResultadoControllerTest {
 
     @Test
     void obtenerResultadoPrimerEquipoDevuelveElResultado() {
-        ResultadoService service = mock(ResultadoService.class);
+        PartidoService service = mock(PartidoService.class);
         PublicResultadoController controller = new PublicResultadoController(service);
 
         ResultadoDTO resultado = new ResultadoDTO();

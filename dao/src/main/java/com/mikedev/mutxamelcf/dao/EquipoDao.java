@@ -17,6 +17,8 @@ public interface EquipoDao {
 
 	Equipo obtenerEquipoPorId(Long id);
 
+	Equipo obtenerEquipoPorNombre(String nombre);
+
 	void eliminarEquipo(Long id);
 
 	Map<String, List<Equipo>> obtenerEquiposAgrupadosPorCategoria(String deporte);
