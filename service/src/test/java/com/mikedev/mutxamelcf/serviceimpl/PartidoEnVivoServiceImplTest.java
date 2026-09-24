@@ -70,7 +70,7 @@ class PartidoEnVivoServiceImplTest {
     void enviarInicioPartidoReiniciaElMarcadorYMandaComoResultado() {
 
         when(usuarioAppService.tieneRol(5, "RETRANSMISION")).thenReturn(true);
-        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Mutxamel CF", "Primer Equipo")).thenReturn(partidoRival());
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partidoRival());
 
         service.enviarInicioPartido(5L);
 
@@ -83,7 +83,7 @@ class PartidoEnVivoServiceImplTest {
     void enviarGolFavorSumaElGolConElAutorYMuestraElMarcador() {
 
         when(usuarioAppService.tieneRol(5, "RETRANSMISION")).thenReturn(true);
-        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Mutxamel CF", "Primer Equipo")).thenReturn(partidoRival());
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partidoRival());
         when(partidoLiveDao.obtenerEstado()).thenReturn(
                 new PartidoLiveEstado(1, 0, List.of("Juan Perez")));
 
@@ -101,7 +101,7 @@ class PartidoEnVivoServiceImplTest {
     void enviarGolContraSumaElGolYMuestraElMarcador() {
 
         when(usuarioAppService.tieneRol(5, "RETRANSMISION")).thenReturn(true);
-        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Mutxamel CF", "Primer Equipo")).thenReturn(partidoRival());
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partidoRival());
         when(partidoLiveDao.obtenerEstado()).thenReturn(
                 new PartidoLiveEstado(0, 1, List.of()));
 
@@ -116,7 +116,7 @@ class PartidoEnVivoServiceImplTest {
     void enviarFinalPartidoIncluyeElMarcadorYLosGoleadores() {
 
         when(usuarioAppService.tieneRol(5, "RETRANSMISION")).thenReturn(true);
-        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Mutxamel CF", "Primer Equipo")).thenReturn(partidoRival());
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partidoRival());
         when(partidoLiveDao.obtenerEstado()).thenReturn(
                 new PartidoLiveEstado(2, 1, List.of("Juan Perez", "Ana Gomez")));
 
