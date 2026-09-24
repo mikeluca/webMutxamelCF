@@ -6,6 +6,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 public class ResultadoDTO {
 	private String categoria;
+	private Long equipoId;
 	private String equipo;
 	private String rival;
 	private String resultado;
@@ -94,6 +95,14 @@ public class ResultadoDTO {
 
 	public void setEquipo(String equipo) {
 		this.equipo = equipo;
+	}
+
+	public Long getEquipoId() {
+		return equipoId;
+	}
+
+	public void setEquipoId(Long equipoId) {
+		this.equipoId = equipoId;
 	}
 
 	public String getDiaFormateado() {

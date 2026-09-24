@@ -377,6 +377,7 @@ public class PartidoServiceImpl implements PartidoService {
 
 		ResultadoDTO resultado = new ResultadoDTO();
 		resultado.setCategoria(CATEGORIA_PRIMER_EQUIPO);
+		resultado.setEquipoId(partido.getEquipoId());
 		resultado.setEquipo(EQUIPO_PRIMER_EQUIPO);
 		resultado.setRival(partido.getRival());
 		resultado.setResultado(partido.getResultado());
@@ -502,6 +503,7 @@ public class PartidoServiceImpl implements PartidoService {
 		ResultadoDTO dto = new ResultadoDTO();
 
 		dto.setCategoria(equipo != null ? equipo.getCategoria() : null);
+		dto.setEquipoId(equipo != null ? equipo.getId() : null);
 		dto.setEquipo(equipo != null ? equipo.getNombre() : null);
 
 		/*
