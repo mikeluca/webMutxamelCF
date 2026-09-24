@@ -16,8 +16,10 @@ public interface PartidoDao {
 
     List<Partido> obtenerUltimosPorEquipo(Long equipoId, int limite);
 
-    List<Partido> obtenerPorDeporte(String deporte, int limitePorEquipo);
-
     Partido obtenerMasRelevantePorEquipoNombre(String equipoNombre, String categoria);
+
+    Partido obtenerMasRelevantePorEquipo(Long equipoId);
+
+    void eliminar(Long id);
 
 }

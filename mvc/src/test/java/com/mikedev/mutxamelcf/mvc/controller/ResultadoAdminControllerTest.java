@@ -155,4 +155,24 @@ class ResultadoAdminControllerTest {
         verify(partidoService).actualizarComoAdmin(eq(5L), captor.capture());
         assertEquals("Rival", captor.getValue().getRival());
     }
+
+    // ---------- eliminar ----------
+
+    @Test
+    void eliminarRedirigeCorrectamenteCuandoTieneExito() {
+        String vista = controller.eliminar(5L);
+
+        assertEquals("redirect:/admin/calendario-resultados", vista);
+        verify(partidoService).eliminarComoAdmin(5L);
+    }
+
+    @Test
+    void eliminarRedirigeConErrorSiElServicioFalla() {
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("no existe")).when(partidoService)
+                .eliminarComoAdmin(5L);
+
+        String vista = controller.eliminar(5L);
+
+        assertEquals("redirect:/admin/calendario-resultados?error=Error al eliminar el partido", vista);
+    }
 }

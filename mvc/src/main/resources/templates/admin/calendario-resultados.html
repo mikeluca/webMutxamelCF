@@ -72,9 +72,15 @@
 										<th>HORA</th>
 										<th>CAMPO</th>
 										<th></th>
+										<th></th>
 									</tr>
 								</thead>
 								<tbody>
+									<!-- Aviso cuando el equipo todavía no tiene ningún partido -->
+									<tr th:if="${#lists.isEmpty(equipoConPartidos.partidos)}">
+										<td colspan="7" class="text-center text-muted">No tiene partido</td>
+									</tr>
+
 									<!-- Una fila por partido existente del equipo -->
 									<tr th:each="partido : ${equipoConPartidos.partidos}" class="partido-fila"
 										th:data-filtro="${partido.rival}">
@@ -102,6 +108,15 @@
 												<button type="submit" class="btn btn-primary">Actualizar</button>
 											</td>
 										</form>
+										<td>
+											<form
+												th:action="@{/admin/calendario-resultados/{id}/eliminar(id=${partido.id})}"
+												method="post"
+												onsubmit="return confirm('¿Eliminar este partido?');">
+												<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+												<button type="submit" class="btn btn-danger">Eliminar</button>
+											</form>
+										</td>
 									</tr>
 
 									<!-- Fila para añadir un partido nuevo a este equipo -->

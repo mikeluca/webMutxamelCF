@@ -128,6 +128,15 @@ public class EquipoDaoImpl implements EquipoDao {
 	}
 
 	@Override
+	public List<Equipo> obtenerTodosPorDeporte(String deporte) {
+		logger.debug("Inicio obtenerTodosPorDeporte: deporte={}", deporte);
+		String sql = "SELECT * FROM equipo WHERE deporte = ? ORDER BY orden, nombre";
+		List<Equipo> equipos = jdbcTemplate.query(sql, EQUIPO_ROW_MAPPER, deporte);
+		logger.debug("Fin obtenerTodosPorDeporte: deporte={}, total={}", deporte, equipos.size());
+		return equipos;
+	}
+
+	@Override
 	public Map<String, List<Equipo>> obtenerEquiposAgrupadosPorCategoria(String deporte) {
 		logger.debug("Inicio obtenerEquiposAgrupadosPorCategoria: deporte={}", deporte);
 		String sql = "SELECT id, nombre, categoria, grupo, orden, deporte FROM equipo WHERE deporte = ? and orden <> 'I' ORDER BY orden, nombre";

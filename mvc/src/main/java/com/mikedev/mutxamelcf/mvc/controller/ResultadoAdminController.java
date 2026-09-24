@@ -125,6 +125,23 @@ public class ResultadoAdminController {
 		return "redirect:/admin/calendario-resultados";
 	}
 
+	// Método para eliminar un partido existente.
+	@PostMapping("/calendario-resultados/{id}/eliminar")
+	public String eliminar(@PathVariable Long id) {
+
+		logger.debug("Inicio eliminar: id={}", id);
+
+		try {
+			partidoService.eliminarComoAdmin(id);
+		} catch (Exception e) {
+			logger.error("Error al eliminar el partido: {}", e.getMessage(), e);
+			return "redirect:/admin/calendario-resultados?error=Error al eliminar el partido";
+		}
+
+		logger.debug("Fin eliminar: id={}", id);
+		return "redirect:/admin/calendario-resultados";
+	}
+
 	private PartidoGuardarRequest construirRequest(Long equipoId, String rival, String dia, String hora,
 			String campo, String resultado) {
 

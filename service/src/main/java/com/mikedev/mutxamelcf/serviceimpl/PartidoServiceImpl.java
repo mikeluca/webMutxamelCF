@@ -39,8 +39,6 @@ public class PartidoServiceImpl implements PartidoService {
 	private static final String EQUIPO_PRIMER_EQUIPO = "Mutxamel CF";
 	private static final String CATEGORIA_PRIMER_EQUIPO = "Primer Equipo";
 
-	private static final int MAX_PARTIDOS_POR_EQUIPO_EN_RESULTADOS = 10;
-
 	private final PartidoDao partidoDao;
 	private final EquipoGestionDao equipoGestionDao;
 	private final EquipoDao equipoDao;
@@ -75,6 +73,8 @@ public class PartidoServiceImpl implements PartidoService {
 		if (!equipoGestionDao.puedeGestionarEquipo(usuarioAppId, equipoId)) {
 			throw new SecurityException("El usuario no puede gestionar este equipo");
 		}
+
+		validarPartidoAnteriorTieneResultado(equipoId);
 
 		Partido partido = new Partido();
 		partido.setEquipoId(equipoId);
@@ -148,6 +148,8 @@ public class PartidoServiceImpl implements PartidoService {
 			throw new IllegalArgumentException("El equipo no existe");
 		}
 
+		validarPartidoAnteriorTieneResultado(equipoId);
+
 		Partido partido = new Partido();
 		partido.setEquipoId(equipoId);
 		aplicarCambios(partido, request);
@@ -198,6 +200,52 @@ public class PartidoServiceImpl implements PartidoService {
 	}
 
 	@Override
+	@Transactional
+	public void eliminar(Long usuarioAppId, Long partidoId) {
+		logger.debug("Inicio eliminar: usuarioAppId={}, partidoId={}", usuarioAppId, partidoId);
+
+		if (usuarioAppId == null) {
+			throw new SecurityException("Usuario no autenticado");
+		}
+
+		if (partidoId == null) {
+			throw new IllegalArgumentException("El ID del partido es obligatorio");
+		}
+
+		Partido partido = partidoDao.obtenerPorId(partidoId);
+
+		if (partido == null) {
+			throw new IllegalArgumentException("El partido no existe");
+		}
+
+		if (!equipoGestionDao.puedeGestionarEquipo(usuarioAppId, partido.getEquipoId())) {
+			throw new SecurityException("El usuario no puede gestionar este equipo");
+		}
+
+		partidoDao.eliminar(partidoId);
+
+		logger.debug("Fin eliminar: partidoId={}", partidoId);
+	}
+
+	@Override
+	@Transactional
+	public void eliminarComoAdmin(Long partidoId) {
+		logger.debug("Inicio eliminarComoAdmin: partidoId={}", partidoId);
+
+		if (partidoId == null) {
+			throw new IllegalArgumentException("El ID del partido es obligatorio");
+		}
+
+		if (partidoDao.obtenerPorId(partidoId) == null) {
+			throw new IllegalArgumentException("El partido no existe");
+		}
+
+		partidoDao.eliminar(partidoId);
+
+		logger.debug("Fin eliminarComoAdmin: partidoId={}", partidoId);
+	}
+
+	@Override
 	@Transactional(readOnly = true)
 	public List<PartidoDTO> obtenerUltimosPorEquipo(Long equipoId, int limite) {
 		logger.debug("Inicio obtenerUltimosPorEquipo: equipoId={}, limite={}", equipoId, limite);
@@ -245,14 +293,21 @@ public class PartidoServiceImpl implements PartidoService {
 	public List<ResultadoDTO> obtenerResultados(String deporte) {
 		logger.debug("Inicio obtenerResultados: deporte={}", deporte);
 
-		List<Partido> partidos = partidoDao.obtenerPorDeporte(
-				deporte,
-				MAX_PARTIDOS_POR_EQUIPO_EN_RESULTADOS);
+		/*
+		 * Debe aparecer EXACTAMENTE una entrada por cada equipo de ese
+		 * deporte (aunque no tenga ningún partido todavía), con su
+		 * partido más relevante: el próximo sin resultado o, si no hay
+		 * ninguno futuro, el último jugado.
+		 */
+		List<Equipo> equipos = equipoDao.obtenerTodosPorDeporte(deporte);
 
 		List<ResultadoDTO> resultados = new ArrayList<>();
 
-		for (Partido partido : partidos) {
-			resultados.add(toResultadoDTO(partido, obtenerEquipo(partido.getEquipoId())));
+		for (Equipo equipo : equipos) {
+
+			Partido partido = partidoDao.obtenerMasRelevantePorEquipo(equipo.getId());
+
+			resultados.add(toResultadoDTO(partido, equipo));
 		}
 
 		logger.debug("Fin obtenerResultados: deporte={}, total={}", deporte, resultados.size());
@@ -317,6 +372,28 @@ public class PartidoServiceImpl implements PartidoService {
 		}
 	}
 
+	/*
+	 * Regla de negocio: no se puede crear un partido nuevo para un
+	 * equipo si el partido anterior de ese equipo todavía no tiene
+	 * resultado puesto. Si el equipo no tiene ningún partido previo, se
+	 * puede crear sin restricción (es el primero).
+	 */
+	private void validarPartidoAnteriorTieneResultado(Long equipoId) {
+
+		List<Partido> partidosEquipo = partidoDao.obtenerPorEquipo(equipoId);
+
+		if (partidosEquipo.isEmpty()) {
+			return;
+		}
+
+		Partido ultimoPartido = partidosEquipo.get(0);
+
+		if (ultimoPartido.getResultado() == null || ultimoPartido.getResultado().isBlank()) {
+			throw new IllegalArgumentException(
+					"No se puede crear un partido nuevo mientras el partido anterior no tenga el resultado puesto");
+		}
+	}
+
 	private void aplicarCambios(Partido partido, PartidoGuardarRequest request) {
 		partido.setRival(request.getRival());
 		partido.setDia(toDate(request.getDia()));
@@ -363,6 +440,22 @@ public class PartidoServiceImpl implements PartidoService {
 
 		dto.setCategoria(equipo != null ? equipo.getCategoria() : null);
 		dto.setEquipo(equipo != null ? equipo.getNombre() : null);
+
+		/*
+		 * Equipo sin ningún partido todavía: entrada "placeholder" con
+		 * rival=null (no cadena vacía), para que la app/la web puedan
+		 * distinguirlo de un partido real y mostrar "No tiene partido".
+		 */
+		if (partido == null) {
+			dto.setRival(null);
+			dto.setResultado(null);
+			dto.setDia(null);
+			dto.setDiaFormateado(null);
+			dto.setHora(null);
+			dto.setCampo(null);
+			return dto;
+		}
+
 		dto.setRival(partido.getRival());
 		dto.setResultado(partido.getResultado());
 		aplicarFecha(partido.getDia(), dto::setDia, dto::setDiaFormateado);
