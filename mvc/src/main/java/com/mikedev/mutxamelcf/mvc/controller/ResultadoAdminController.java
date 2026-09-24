@@ -83,12 +83,13 @@ public class ResultadoAdminController {
 	@PostMapping("/calendario-resultados/crear")
 	public String crear(@RequestParam Long equipoId, @RequestParam String rival,
 			@RequestParam(required = false) String dia, @RequestParam(required = false) String hora,
-			@RequestParam(required = false) String campo, @RequestParam(required = false) String resultado) {
+			@RequestParam(required = false) String campo, @RequestParam(required = false) String resultado,
+			@RequestParam(required = false) String tipo) {
 
 		logger.debug("Inicio crear: equipoId={}, rival={}", equipoId, rival);
 
 		try {
-			PartidoGuardarRequest request = construirRequest(equipoId, rival, dia, hora, campo, resultado);
+			PartidoGuardarRequest request = construirRequest(equipoId, rival, dia, hora, campo, resultado, tipo);
 			partidoService.crearComoAdmin(request);
 		} catch (FechaInvalidaException e) {
 			logger.error("Error al parsear la fecha del partido: {}", e.getMessage(), e);
@@ -106,12 +107,13 @@ public class ResultadoAdminController {
 	@PostMapping("/calendario-resultados/{id}/actualizar")
 	public String actualizar(@PathVariable Long id, @RequestParam Long equipoId, @RequestParam String rival,
 			@RequestParam(required = false) String dia, @RequestParam(required = false) String hora,
-			@RequestParam(required = false) String campo, @RequestParam(required = false) String resultado) {
+			@RequestParam(required = false) String campo, @RequestParam(required = false) String resultado,
+			@RequestParam(required = false) String tipo) {
 
 		logger.debug("Inicio actualizar: id={}, equipoId={}", id, equipoId);
 
 		try {
-			PartidoGuardarRequest request = construirRequest(equipoId, rival, dia, hora, campo, resultado);
+			PartidoGuardarRequest request = construirRequest(equipoId, rival, dia, hora, campo, resultado, tipo);
 			partidoService.actualizarComoAdmin(id, request);
 		} catch (FechaInvalidaException e) {
 			logger.error("Error al parsear la fecha del partido: {}", e.getMessage(), e);
@@ -143,7 +145,7 @@ public class ResultadoAdminController {
 	}
 
 	private PartidoGuardarRequest construirRequest(Long equipoId, String rival, String dia, String hora,
-			String campo, String resultado) {
+			String campo, String resultado, String tipo) {
 
 		LocalDate fecha = null;
 
@@ -155,7 +157,7 @@ public class ResultadoAdminController {
 			}
 		}
 
-		return new PartidoGuardarRequest(equipoId, rival, fecha, hora, campo, resultado);
+		return new PartidoGuardarRequest(equipoId, rival, fecha, hora, campo, resultado, tipo);
 	}
 
 	private static final class FechaInvalidaException extends RuntimeException {

@@ -25,7 +25,7 @@ public class PartidoDaoImpl implements PartidoDao {
 	private static final RowMapper<Partido> PARTIDO_ROW_MAPPER = PartidoDaoImpl::mapRow;
 
 	private static final String CAMPOS_SELECT = """
-			P.ID, P.EQUIPO_ID, P.RIVAL, P.DIA, P.HORA, P.CAMPO, P.RESULTADO,
+			P.ID, P.EQUIPO_ID, P.RIVAL, P.DIA, P.HORA, P.CAMPO, P.RESULTADO, P.TIPO,
 			P.USUARIO_ACTUALIZO_ID, P.FECHA_ACTUALIZACION
 			""";
 
@@ -46,9 +46,10 @@ public class PartidoDaoImpl implements PartidoDao {
 				    DIA,
 				    HORA,
 				    CAMPO,
-				    RESULTADO
+				    RESULTADO,
+				    TIPO
 				)
-				VALUES (?, ?, ?, ?, ?, ?)
+				VALUES (?, ?, ?, ?, ?, ?, ?)
 				""";
 
 		KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -70,6 +71,7 @@ public class PartidoDaoImpl implements PartidoDao {
 			ps.setString(4, partido.getHora());
 			ps.setString(5, partido.getCampo());
 			ps.setString(6, partido.getResultado());
+			ps.setString(7, partido.getTipo());
 
 			return ps;
 		}, keyHolder);
@@ -100,6 +102,7 @@ public class PartidoDaoImpl implements PartidoDao {
 				    HORA = ?,
 				    CAMPO = ?,
 				    RESULTADO = ?,
+				    TIPO = ?,
 				    USUARIO_ACTUALIZO_ID = ?,
 				    FECHA_ACTUALIZACION = ?
 				WHERE ID = ?
@@ -114,6 +117,7 @@ public class PartidoDaoImpl implements PartidoDao {
 				partido.getHora(),
 				partido.getCampo(),
 				partido.getResultado(),
+				partido.getTipo(),
 				partido.getUsuarioActualizoId(),
 				partido.getFechaActualizacion(),
 				partido.getId());
@@ -127,7 +131,7 @@ public class PartidoDaoImpl implements PartidoDao {
 		logger.debug("Inicio obtenerPorId: id={}", id);
 
 		String sql = """
-				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO,
+				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
 				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION
 				FROM PARTIDOS
 				WHERE ID = ?
@@ -147,7 +151,7 @@ public class PartidoDaoImpl implements PartidoDao {
 		logger.debug("Inicio obtenerPorEquipo: equipoId={}", equipoId);
 
 		String sql = """
-				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO,
+				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
 				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION
 				FROM PARTIDOS
 				WHERE EQUIPO_ID = ?
@@ -166,7 +170,7 @@ public class PartidoDaoImpl implements PartidoDao {
 		logger.debug("Inicio obtenerUltimosPorEquipo: equipoId={}, limite={}", equipoId, limite);
 
 		String sql = """
-				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO,
+				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
 				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION
 				FROM PARTIDOS
 				WHERE EQUIPO_ID = ?
@@ -284,6 +288,7 @@ public class PartidoDaoImpl implements PartidoDao {
 		partido.setHora(rs.getString("HORA"));
 		partido.setCampo(rs.getString("CAMPO"));
 		partido.setResultado(rs.getString("RESULTADO"));
+		partido.setTipo(rs.getString("TIPO"));
 
 		long usuarioActualizoId = rs.getLong("USUARIO_ACTUALIZO_ID");
 		partido.setUsuarioActualizoId(rs.wasNull() ? null : usuarioActualizoId);

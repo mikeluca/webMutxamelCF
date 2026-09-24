@@ -21,6 +21,8 @@ public class PartidoGuardarRequest {
 
     private String resultado;
 
+    private String tipo;
+
     public PartidoGuardarRequest() {
     }
 
@@ -32,12 +34,25 @@ public class PartidoGuardarRequest {
             String campo,
             String resultado) {
 
+        this(equipoId, rival, dia, hora, campo, resultado, null);
+    }
+
+    public PartidoGuardarRequest(
+            Long equipoId,
+            String rival,
+            LocalDate dia,
+            String hora,
+            String campo,
+            String resultado,
+            String tipo) {
+
         this.equipoId = equipoId;
         this.rival = rival;
         this.dia = dia;
         this.hora = hora;
         this.campo = campo;
         this.resultado = resultado;
+        this.tipo = tipo;
     }
 
     public Long getEquipoId() {
@@ -86,5 +101,13 @@ public class PartidoGuardarRequest {
 
     public void setResultado(String resultado) {
         this.resultado = resultado;
+    }
+
+    public String getTipo() {
+        return tipo;
+    }
+
+    public void setTipo(String tipo) {
+        this.tipo = tipo;
     }
 }
