@@ -190,11 +190,18 @@ public class PartidoDaoImpl implements PartidoDao {
 		logger.debug("Inicio obtenerMasRelevantePorEquipoNombre: equipoNombre={}, categoria={}", equipoNombre,
 				categoria);
 
+		/*
+		 * La categoria se compara normalizada (UPPER/TRIM), igual que
+		 * el nombre del equipo: la categoria es texto libre en el
+		 * admin y una diferencia de mayusculas o espacios en blanco
+		 * (p.ej. "Primer Equipo " vs "Primer equipo") hacia que esta
+		 * consulta no encontrara nunca el partido del primer equipo.
+		 */
 		String sqlProximo = "SELECT " + CAMPOS_SELECT + """
 				FROM PARTIDOS P
 				INNER JOIN EQUIPO E ON E.ID = P.EQUIPO_ID
 				WHERE UPPER(TRIM(E.NOMBRE)) = UPPER(TRIM(?))
-				  AND E.CATEGORIA = ?
+				  AND UPPER(TRIM(E.CATEGORIA)) = UPPER(TRIM(?))
 				  AND P.RESULTADO IS NULL
 				  AND P.DIA >= TRUNC(SYSDATE)
 				ORDER BY P.DIA ASC, P.ID ASC
@@ -205,7 +212,7 @@ public class PartidoDaoImpl implements PartidoDao {
 				FROM PARTIDOS P
 				INNER JOIN EQUIPO E ON E.ID = P.EQUIPO_ID
 				WHERE UPPER(TRIM(E.NOMBRE)) = UPPER(TRIM(?))
-				  AND E.CATEGORIA = ?
+				  AND UPPER(TRIM(E.CATEGORIA)) = UPPER(TRIM(?))
 				  AND P.RESULTADO IS NOT NULL
 				ORDER BY P.DIA DESC, P.ID DESC
 				FETCH FIRST 1 ROW ONLY
