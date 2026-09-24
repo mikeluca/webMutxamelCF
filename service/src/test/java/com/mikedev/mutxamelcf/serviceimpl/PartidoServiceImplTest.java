@@ -579,7 +579,13 @@ class PartidoServiceImplTest {
          */
         when(equipoDao.obtenerTodosPorDeporte("F"))
                 .thenReturn(List.of(equipoJuvenil, equipoSeniorB, equipoSeniorA));
-        when(equipoDao.obtenerCategorias()).thenReturn(List.of("Senior", "Juvenil"));
+        /*
+         * equipoDao.obtenerCategorias() devuelve el orden ASCENDENTE de
+         * EQUIPO.orden ("Juvenil" antes que "Senior"); el service lo
+         * invierte para que la categoría más "alta" (Senior) salga
+         * primero en el listado de partidos.
+         */
+        when(equipoDao.obtenerCategorias()).thenReturn(List.of("Juvenil", "Senior"));
 
         Partido partidoSeniorA = new Partido();
         partidoSeniorA.setRival("Rival Reciente");

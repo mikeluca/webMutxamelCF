@@ -5,6 +5,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
@@ -318,13 +319,20 @@ public class PartidoServiceImpl implements PartidoService {
 		}
 
 		/*
-		 * Agrupados por categoría (mismo orden de categorías que ya usa
-		 * equipoDao.obtenerCategorias(), que es "ORDER BY orden") y,
-		 * dentro de cada categoría, por fecha del partido descendente,
-		 * con los equipos sin partido (dia == null) al final de su
-		 * categoría.
+		 * Agrupados por categoría, en orden DESCENDENTE del campo
+		 * EQUIPO.orden (equipoDao.obtenerCategorias() ya lo devuelve
+		 * ascendente, así que aquí lo invertimos) para que el Primer
+		 * Equipo aparezca arriba del todo y la Escuelita abajo del
+		 * todo. Dentro de cada categoría, por fecha del partido
+		 * descendente, con los equipos sin partido (dia == null) al
+		 * final de su categoría.
+		 *
+		 * Ojo: esta inversión es solo para este listado de "Partidos";
+		 * equipoDao.obtenerCategorias() se sigue usando ascendente tal
+		 * cual en el resto de pantallas (filtros de admin, etc.).
 		 */
-		List<String> categoriasOrdenadas = equipoDao.obtenerCategorias();
+		List<String> categoriasOrdenadas = new ArrayList<>(equipoDao.obtenerCategorias());
+		Collections.reverse(categoriasOrdenadas);
 
 		Map<String, Integer> ordenCategoria = new HashMap<>();
 		for (int i = 0; i < categoriasOrdenadas.size(); i++) {
