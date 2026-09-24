@@ -1,6 +1,8 @@
 package com.mikedev.mutxamelcf.mvc.controller;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -206,11 +208,26 @@ public class MainController {
 	public String mostrarResultados(Model model) {
 		logger.debug("Inicio mostrarResultados");
 		List<ResultadoDTO> resultadosFutbol = partidoService.obtenerResultados("F");
-		model.addAttribute("resultadosFutbol", resultadosFutbol);
 
+		/*
+		 * partidoService.obtenerResultados ya devuelve la lista agrupada
+		 * por categoría (en el mismo orden de categorías del proyecto) y
+		 * ordenada por fecha dentro de cada una; aquí solo la partimos en
+		 * tramos consecutivos por categoría para que la plantilla pinte
+		 * una sección/tabla por categoría, sin reordenar nada.
+		 */
+		Map<String, List<ResultadoDTO>> resultadosPorCategoria = new LinkedHashMap<>();
+		for (ResultadoDTO resultado : resultadosFutbol) {
+			resultadosPorCategoria
+					.computeIfAbsent(resultado.getCategoria(), categoria -> new ArrayList<>())
+					.add(resultado);
+		}
+
+		model.addAttribute("resultadosPorCategoria", resultadosPorCategoria);
 		model.addAttribute("patrocinadores", patrocinadores);
 
-		logger.debug("Fin mostrarResultados: total={}", resultadosFutbol.size());
+		logger.debug("Fin mostrarResultados: total={}, categorias={}", resultadosFutbol.size(),
+				resultadosPorCategoria.size());
 		return "resultados";
 	}
 
