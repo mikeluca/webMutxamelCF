@@ -1292,10 +1292,15 @@ public class ComunicacionServiceImpl
                                 .toList();
         }
 
+        private static final int LIMITE_MENSAJES_POR_DEFECTO = 20;
+        private static final int LIMITE_MENSAJES_MAXIMO = 50;
+
         @Override
-        public List<MensajeConversacionResponse> obtenerConversacion(
+        public List<MensajeConversacionResponse> obtenerConversacionPagina(
                         Long usuarioId,
-                        Long otroUsuarioId) {
+                        Long otroUsuarioId,
+                        Long antesDeId,
+                        Integer limite) {
 
                 if (usuarioId == null) {
                         throw new SecurityException("Usuario no autenticado");
@@ -1308,7 +1313,29 @@ public class ComunicacionServiceImpl
 
                 validarDestinatariosDirectos(usuarioId, List.of(otroUsuarioId));
 
-                List<Comunicacion> mensajes = comunicacionDao.obtenerConversacion(usuarioId, otroUsuarioId);
+                int limiteEfectivo = limite == null
+                                ? LIMITE_MENSAJES_POR_DEFECTO
+                                : Math.max(1, Math.min(LIMITE_MENSAJES_MAXIMO, limite));
+
+                /*
+                 * El DAO devuelve la página en orden descendente (más
+                 * reciente primero, para poder limitar con
+                 * FETCH FIRST/ID < ?); la invertimos para que el
+                 * cliente pueda anteponerla directamente al hilo que ya
+                 * tiene cargado (más antiguo primero).
+                 */
+                List<Comunicacion> mensajesDescendente = comunicacionDao.obtenerConversacionPagina(
+                                usuarioId, otroUsuarioId, antesDeId, limiteEfectivo);
+
+                List<Comunicacion> mensajesAscendente = new ArrayList<>(mensajesDescendente);
+                Collections.reverse(mensajesAscendente);
+
+                return mapearMensajes(mensajesAscendente, usuarioId);
+        }
+
+        private List<MensajeConversacionResponse> mapearMensajes(
+                        List<Comunicacion> mensajes,
+                        Long usuarioId) {
 
                 Set<Long> idsNoLeidos = idsComunicacionNoLeidos(usuarioId);
 

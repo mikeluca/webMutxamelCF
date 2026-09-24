@@ -82,6 +82,16 @@ public class EquipoDaoImpl implements EquipoDao {
 	}
 
 	@Override
+	public Equipo obtenerEquipoPorNombre(String nombre) {
+		logger.debug("Inicio obtenerEquipoPorNombre: nombre={}", nombre);
+		String sql = "SELECT * FROM equipo WHERE UPPER(TRIM(nombre)) = UPPER(TRIM(?))";
+		List<Equipo> equipos = jdbcTemplate.query(sql, EQUIPO_ROW_MAPPER, nombre);
+		Equipo equipo = equipos.isEmpty() ? null : equipos.get(0);
+		logger.debug("Fin obtenerEquipoPorNombre: nombre={}, encontrado={}", nombre, equipo != null);
+		return equipo;
+	}
+
+	@Override
 	public void eliminarEquipo(Long id) {
 		logger.debug("Inicio eliminarEquipo: id={}", id);
 		String sql = "DELETE FROM equipo WHERE id = ?";
@@ -114,6 +124,15 @@ public class EquipoDaoImpl implements EquipoDao {
 		String sql = "SELECT * FROM equipo WHERE categoria = ? ORDER BY deporte, orden, nombre";
 		List<Equipo> equipos = jdbcTemplate.query(sql, EQUIPO_ROW_MAPPER, categoria);
 		logger.debug("Fin obtenerTodosPorCategoria: categoria={}, total={}", categoria, equipos.size());
+		return equipos;
+	}
+
+	@Override
+	public List<Equipo> obtenerTodosPorDeporte(String deporte) {
+		logger.debug("Inicio obtenerTodosPorDeporte: deporte={}", deporte);
+		String sql = "SELECT * FROM equipo WHERE deporte = ? ORDER BY orden, nombre";
+		List<Equipo> equipos = jdbcTemplate.query(sql, EQUIPO_ROW_MAPPER, deporte);
+		logger.debug("Fin obtenerTodosPorDeporte: deporte={}, total={}", deporte, equipos.size());
 		return equipos;
 	}
 

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import org.springframework.web.bind.annotation.PutMapping;
@@ -398,13 +399,20 @@ public class AppComunicacionController {
         }
 
         /**
-         * Hilo completo de la conversación privada con otro usuario.
+         * Página de la conversación privada con otro usuario, más
+         * reciente primero por defecto.
          *
          * GET /api/app/comunicaciones/conversacion/{otroUsuarioId}
+         * Sin parámetros: últimos 20 mensajes.
+         * ?antesId={id}: los mensajes inmediatamente anteriores a ese
+         * mensaje (para cargar historial anterior de 20 en 20).
+         * ?limite={n}: tamaño de página (por defecto 20, entre 1 y 50).
          */
         @GetMapping("/conversacion/{otroUsuarioId}")
         public ResponseEntity<?> obtenerConversacion(
                         @PathVariable Long otroUsuarioId,
+                        @RequestParam(required = false) Long antesId,
+                        @RequestParam(required = false) Integer limite,
                         Authentication authentication) {
 
                 if (authentication == null
@@ -420,7 +428,7 @@ public class AppComunicacionController {
                         Long usuarioId = Long.parseLong(authentication.getName());
 
                         List<MensajeConversacionResponse> mensajes = comunicacionService
-                                        .obtenerConversacion(usuarioId, otroUsuarioId);
+                                        .obtenerConversacionPagina(usuarioId, otroUsuarioId, antesId, limite);
 
                         return ResponseEntity.ok(mensajes);
 

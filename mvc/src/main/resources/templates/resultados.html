@@ -9,6 +9,26 @@
 	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
 	<link href="https://fonts.googleapis.com/css2?family=Fredericka+the+Great&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css">
+	<style>
+		.categoria-seccion { margin-top: 2rem; }
+		.categoria-titulo { margin-bottom: 0.75rem; font-weight: bold; }
+		.tipo-liga { border-left: 4px solid #0d6efd; }
+		.tipo-amistoso { border-left: 4px solid #6c757d; }
+		.tipo-copa { border-left: 4px solid #ffc107; }
+		.tipo-torneo { border-left: 4px solid #6f42c1; }
+		.tipo-badge {
+			display: inline-block;
+			padding: 0.2em 0.6em;
+			border-radius: 0.75rem;
+			font-size: 0.75rem;
+			font-weight: bold;
+			color: #fff;
+		}
+		.tipo-badge-liga { background-color: #0d6efd; }
+		.tipo-badge-amistoso { background-color: #6c757d; }
+		.tipo-badge-copa { background-color: #ffc107; color: #212529; }
+		.tipo-badge-torneo { background-color: #6f42c1; }
+	</style>
 </head>
 
 <!-- Google tag (gtag.js) -->
@@ -27,36 +47,49 @@
 	<div th:replace="~{cabecera.html}"></div>
 
 	<main class="container-fluid">
-		<!-- Mostramos los resultadosFutbol en una tabla si existen -->
 		<div>
 			<h1 class="page-title">Calendario / Resultados Fútbol</h1>
-			<div class="table-responsive">
-			<table>
-				<thead>
-					<tr>
-						<th>EQUIPO</th>
-						<th>RESULTADO</th>
-						<th>RIVAL</th>
-						<th>DIA</th>
-						<th>HORA</th>
-						<th>CAMPO</th>
-					</tr>
-				</thead>
-				<tbody>
-					<!-- Iteramos sobre la lista de resultados -->
-					<tr th:each="resultado : ${resultadosFutbol}">
-						<td th:text="${resultado.equipo}" style="width: auto;"></td>
-						<td th:text="${resultado.resultado}" style="width: 80px;"></td>
-						<td th:text="${resultado.rival}" style="width: auto;"></td>
-						<td th:text="${#dates.format(resultado.dia, 'dd/MM/yyyy')}" style="width: 80px; "></td>
-						<td th:text="${resultado.hora}" style="width: 80px;"></td>
-						<td th:text="${resultado.campo}" style="width: auto;"></td>
-					</tr>
-				</tbody>
-			</table>
+
+			<!-- Una seccion con su propia tabla por cada categoria, ya agrupadas y ordenadas por MainController -->
+			<div th:each="entrada : ${resultadosPorCategoria}" class="categoria-seccion">
+				<h2 class="categoria-titulo" th:text="${entrada.key}"></h2>
+				<div class="table-responsive">
+					<table>
+						<thead>
+							<tr>
+								<th>TIPO</th>
+								<th style="width: 22%;">EQUIPO</th>
+								<th>RESULTADO</th>
+								<th>RIVAL</th>
+								<th>DIA</th>
+								<th>HORA</th>
+								<th style="width: 22%;">CAMPO</th>
+							</tr>
+						</thead>
+						<tbody>
+							<!-- Iteramos sobre los resultados de esta categoria -->
+							<tr th:each="resultado : ${entrada.value}"
+								th:classappend="${resultado.tipo != null ? 'tipo-' + #strings.toLowerCase(resultado.tipo) : ''}">
+								<td>
+									<span th:if="${resultado.tipo != null}" th:text="${resultado.tipo}" th:class="${'tipo-badge tipo-badge-' + #strings.toLowerCase(resultado.tipo)}"></span>
+								</td>
+								<td th:text="${resultado.equipo}" style="width: 22%;"></td>
+								<!-- Equipo sin proximo partido ni ultimo resultado: fila "placeholder" -->
+								<td th:if="${resultado.rival == null or #strings.isEmpty(resultado.rival)}" colspan="5" class="text-center text-muted">No tiene partido</td>
+								<th:block th:unless="${resultado.rival == null or #strings.isEmpty(resultado.rival)}">
+									<td th:text="${resultado.resultado}" style="width: 80px;"></td>
+									<td th:text="${resultado.rival}" style="width: auto;"></td>
+									<td th:text="${#dates.format(resultado.dia, 'dd/MM/yyyy')}" style="width: 80px; "></td>
+									<td th:text="${resultado.hora}" style="width: 80px;"></td>
+									<td th:text="${resultado.campo}" style="width: 22%;"></td>
+								</th:block>
+							</tr>
+						</tbody>
+					</table>
+				</div>
 			</div>
 		</div>
-		<!-- Mostramos los resultadosFutbol en una tabla si existen -->
+		<!-- Mostramos los resultadosFutbolSala en una tabla si existen -->
 		<!--		<div th:if="${!resultadosFutbolSala.isEmpty()}">-->
 		<!--			<h1 class="text-center my-5 fw-bold">Calendario / Restultados Fútbol Sala</h1>-->
 		<!--			<table>-->

@@ -2,10 +2,10 @@ package com.mikedev.mutxamelcf.serviceimpl;
 
 import org.springframework.stereotype.Service;
 
+import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoLiveDao;
-import com.mikedev.mutxamelcf.dao.ResultadoDao;
+import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.PartidoLiveEstado;
-import com.mikedev.mutxamelcf.model.Resultado;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
 import com.mikedev.mutxamelcf.service.PartidoEnVivoService;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
@@ -20,19 +20,28 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
      */
     private static final String TIPO_PUSH = "RESULTADO";
 
+    /*
+     * En EQUIPO, la fila del primer equipo tiene NOMBRE = "Primer Equipo"
+     * (no "Mutxamel CF", que es el nombre del club, no de esa fila) y
+     * CATEGORIA = "Primer Equipo" - confirmado en /admin/equipos
+     * (id=21, orden='I').
+     */
+    private static final String EQUIPO_PRIMER_EQUIPO = "Primer Equipo";
+    private static final String CATEGORIA_PRIMER_EQUIPO = "Primer Equipo";
+
     private final PartidoLiveDao partidoLiveDao;
-    private final ResultadoDao resultadoDao;
+    private final PartidoDao partidoDao;
     private final NotificacionAppService notificacionAppService;
     private final UsuarioAppService usuarioAppService;
 
     public PartidoEnVivoServiceImpl(
             PartidoLiveDao partidoLiveDao,
-            ResultadoDao resultadoDao,
+            PartidoDao partidoDao,
             NotificacionAppService notificacionAppService,
             UsuarioAppService usuarioAppService) {
 
         this.partidoLiveDao = partidoLiveDao;
-        this.resultadoDao = resultadoDao;
+        this.partidoDao = partidoDao;
         this.notificacionAppService = notificacionAppService;
         this.usuarioAppService = usuarioAppService;
     }
@@ -128,10 +137,12 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
     private String nombreRival() {
 
-        Resultado resultado = resultadoDao.obtenerResultadoPrimerEquipo();
+        Partido partido = partidoDao.obtenerMasRelevantePorEquipoNombre(
+                EQUIPO_PRIMER_EQUIPO,
+                CATEGORIA_PRIMER_EQUIPO);
 
-        return resultado != null && resultado.getRival() != null
-                ? resultado.getRival()
+        return partido != null && partido.getRival() != null
+                ? partido.getRival()
                 : "el rival";
     }
 

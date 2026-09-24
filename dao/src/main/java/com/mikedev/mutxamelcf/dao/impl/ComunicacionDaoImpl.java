@@ -1092,6 +1092,59 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
     }
 
     @Override
+    public List<Comunicacion> obtenerConversacionPagina(
+            Long usuarioId,
+            Long otroUsuarioId,
+            Long antesDeId,
+            int limite) {
+
+        String sql = """
+                SELECT DISTINCT
+                    c.ID,
+                    c.TITULO,
+                    c.CONTENIDO,
+                    c.USUARIO_AUTOR_ID,
+                    c.FECHA_CREACION,
+                    c.FECHA_PUBLICACION,
+                    c.ACTIVA,
+                    c.TIPO
+                FROM COMUNICACIONES c
+                INNER JOIN COMUNICACION_USUARIO cu
+                    ON cu.COMUNICACION_ID = c.ID
+                WHERE c.TIPO = 'PRIVADA'
+                  AND c.ACTIVA = 1
+                  AND (
+                        (c.USUARIO_AUTOR_ID = ? AND cu.USUARIO_APP_ID = ?)
+                     OR (c.USUARIO_AUTOR_ID = ? AND cu.USUARIO_APP_ID = ?)
+                  )
+                """
+                + (antesDeId != null ? "  AND c.ID < ?\n" : "")
+                + """
+                ORDER BY c.ID DESC
+                FETCH FIRST ? ROWS ONLY
+                """;
+
+        return antesDeId != null
+                ? jdbcTemplate.query(
+                        sql,
+                        COMUNICACION_ROW_MAPPER,
+                        usuarioId,
+                        otroUsuarioId,
+                        otroUsuarioId,
+                        usuarioId,
+                        antesDeId,
+                        limite)
+                : jdbcTemplate.query(
+                        sql,
+                        COMUNICACION_ROW_MAPPER,
+                        usuarioId,
+                        otroUsuarioId,
+                        otroUsuarioId,
+                        usuarioId,
+                        limite);
+    }
+
+    @Override
     public List<Comunicacion> obtenerPrivadasDeUsuario(
             Long usuarioId) {
 

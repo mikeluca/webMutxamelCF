@@ -15,7 +15,11 @@ public interface EquipoDao {
 
 	List<Equipo> obtenerTodosPorCategoria(String categoria);
 
+	List<Equipo> obtenerTodosPorDeporte(String deporte);
+
 	Equipo obtenerEquipoPorId(Long id);
+
+	Equipo obtenerEquipoPorNombre(String nombre);
 
 	void eliminarEquipo(Long id);
 

@@ -464,6 +464,66 @@ class ComunicacionDaoImplTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void obtenerConversacionPaginaSinAntesDeIdPasaElLimiteComoUltimoParametro() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        RolAppDao rolAppDao = mock(RolAppDao.class);
+        ComunicacionDaoImpl dao = new ComunicacionDaoImpl(jdbcTemplate, rolAppDao);
+
+        List<Comunicacion> esperado = List.of(new Comunicacion());
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(1L), eq(2L), eq(2L), eq(1L), eq(20)))
+                .thenReturn(esperado);
+
+        assertThat(dao.obtenerConversacionPagina(1L, 2L, null, 20)).isSameAs(esperado);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerConversacionPaginaConAntesDeIdAnadeLaCondicionYElBind() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        RolAppDao rolAppDao = mock(RolAppDao.class);
+        ComunicacionDaoImpl dao = new ComunicacionDaoImpl(jdbcTemplate, rolAppDao);
+
+        List<Comunicacion> esperado = List.of(new Comunicacion());
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(1L), eq(2L), eq(2L), eq(1L), eq(99L), eq(20)))
+                .thenReturn(esperado);
+
+        assertThat(dao.obtenerConversacionPagina(1L, 2L, 99L, 20)).isSameAs(esperado);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerConversacionPaginaSinAntesDeIdNoIncluyeElBindDeAntesDeId() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        RolAppDao rolAppDao = mock(RolAppDao.class);
+        ComunicacionDaoImpl dao = new ComunicacionDaoImpl(jdbcTemplate, rolAppDao);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        when(jdbcTemplate.query(sqlCaptor.capture(), any(RowMapper.class), eq(1L), eq(2L), eq(2L), eq(1L), eq(20)))
+                .thenReturn(List.of());
+
+        dao.obtenerConversacionPagina(1L, 2L, null, 20);
+
+        assertThat(sqlCaptor.getValue()).doesNotContain("c.ID < ?");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerConversacionPaginaConAntesDeIdIncluyeLaCondicionEnElSql() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        RolAppDao rolAppDao = mock(RolAppDao.class);
+        ComunicacionDaoImpl dao = new ComunicacionDaoImpl(jdbcTemplate, rolAppDao);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        when(jdbcTemplate.query(sqlCaptor.capture(), any(RowMapper.class), eq(1L), eq(2L), eq(2L), eq(1L), eq(99L),
+                eq(20))).thenReturn(List.of());
+
+        dao.obtenerConversacionPagina(1L, 2L, 99L, 20);
+
+        assertThat(sqlCaptor.getValue()).contains("c.ID < ?");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void obtenerPrivadasDeUsuarioAnadeLaContraparte() throws Exception {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         RolAppDao rolAppDao = mock(RolAppDao.class);
