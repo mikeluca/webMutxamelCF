@@ -194,6 +194,20 @@ class EquipoDaoImplTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void obtenerTodosPorDeporteFiltraPorDeporte() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        EquipoDaoImpl dao = new EquipoDaoImpl(jdbcTemplate);
+
+        List<Equipo> esperado = List.of(new Equipo());
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq("F"))).thenReturn(esperado);
+
+        List<Equipo> resultado = dao.obtenerTodosPorDeporte("F");
+
+        assertThat(resultado).isSameAs(esperado);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void obtenerEquiposAgrupadosPorCategoriaAgrupaPorOrden() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         EquipoDaoImpl dao = new EquipoDaoImpl(jdbcTemplate);

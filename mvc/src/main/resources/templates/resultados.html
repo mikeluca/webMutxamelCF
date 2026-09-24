@@ -46,11 +46,15 @@
 					<!-- Iteramos sobre la lista de resultados -->
 					<tr th:each="resultado : ${resultadosFutbol}">
 						<td th:text="${resultado.equipo}" style="width: auto;"></td>
-						<td th:text="${resultado.resultado}" style="width: 80px;"></td>
-						<td th:text="${resultado.rival}" style="width: auto;"></td>
-						<td th:text="${#dates.format(resultado.dia, 'dd/MM/yyyy')}" style="width: 80px; "></td>
-						<td th:text="${resultado.hora}" style="width: 80px;"></td>
-						<td th:text="${resultado.campo}" style="width: auto;"></td>
+						<!-- Equipo sin proximo partido ni ultimo resultado: fila "placeholder" -->
+						<td th:if="${resultado.rival == null or #strings.isEmpty(resultado.rival)}" colspan="5" class="text-center text-muted">No tiene partido</td>
+						<th:block th:unless="${resultado.rival == null or #strings.isEmpty(resultado.rival)}">
+							<td th:text="${resultado.resultado}" style="width: 80px;"></td>
+							<td th:text="${resultado.rival}" style="width: auto;"></td>
+							<td th:text="${#dates.format(resultado.dia, 'dd/MM/yyyy')}" style="width: 80px; "></td>
+							<td th:text="${resultado.hora}" style="width: 80px;"></td>
+							<td th:text="${resultado.campo}" style="width: auto;"></td>
+						</th:block>
 					</tr>
 				</tbody>
 			</table>

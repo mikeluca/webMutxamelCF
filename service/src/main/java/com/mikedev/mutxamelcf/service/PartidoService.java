@@ -18,6 +18,10 @@ public interface PartidoService {
 
 	PartidoDTO actualizarComoAdmin(Long partidoId, PartidoGuardarRequest request);
 
+	void eliminar(Long usuarioAppId, Long partidoId);
+
+	void eliminarComoAdmin(Long partidoId);
+
 	// Lectura pública (sin auth)
 	List<PartidoDTO> obtenerUltimosPorEquipo(Long equipoId, int limite);
 

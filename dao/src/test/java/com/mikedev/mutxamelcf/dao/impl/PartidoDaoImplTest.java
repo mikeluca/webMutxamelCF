@@ -225,18 +225,6 @@ class PartidoDaoImplTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void obtenerPorDeportePasaElDeporteYElLimitePorEquipo() {
-        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
-        PartidoDaoImpl dao = new PartidoDaoImpl(jdbcTemplate);
-
-        List<Partido> esperado = List.of(new Partido());
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq("F"), eq(10))).thenReturn(esperado);
-
-        assertThat(dao.obtenerPorDeporte("F", 10)).isSameAs(esperado);
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
     void obtenerMasRelevantePorEquipoNombreDevuelveElProximoPartidoSinResultado() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         PartidoDaoImpl dao = new PartidoDaoImpl(jdbcTemplate);
@@ -276,5 +264,54 @@ class PartidoDaoImplTest {
                 .thenReturn(Collections.emptyList());
 
         assertThat(dao.obtenerMasRelevantePorEquipoNombre("Mutxamel CF", "Primer Equipo")).isNull();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerMasRelevantePorEquipoDevuelveElProximoPartidoSinResultado() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        PartidoDaoImpl dao = new PartidoDaoImpl(jdbcTemplate);
+
+        Partido proximo = new Partido();
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(1L)))
+                .thenReturn(List.of(proximo));
+
+        assertThat(dao.obtenerMasRelevantePorEquipo(1L)).isSameAs(proximo);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerMasRelevantePorEquipoDevuelveElUltimoJugadoSiNoHayProximo() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        PartidoDaoImpl dao = new PartidoDaoImpl(jdbcTemplate);
+
+        Partido ultimo = new Partido();
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(1L)))
+                .thenReturn(Collections.emptyList())
+                .thenReturn(List.of(ultimo));
+
+        assertThat(dao.obtenerMasRelevantePorEquipo(1L)).isSameAs(ultimo);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerMasRelevantePorEquipoDevuelveNullSiNoHayNinguno() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        PartidoDaoImpl dao = new PartidoDaoImpl(jdbcTemplate);
+
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(1L)))
+                .thenReturn(Collections.emptyList());
+
+        assertThat(dao.obtenerMasRelevantePorEquipo(1L)).isNull();
+    }
+
+    @Test
+    void eliminarEjecutaElDelete() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        PartidoDaoImpl dao = new PartidoDaoImpl(jdbcTemplate);
+
+        dao.eliminar(1L);
+
+        verify(jdbcTemplate).update(anyString(), eq(1L));
     }
 }

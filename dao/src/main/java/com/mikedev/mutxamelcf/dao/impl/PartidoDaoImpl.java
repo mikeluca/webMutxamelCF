@@ -182,46 +182,10 @@ public class PartidoDaoImpl implements PartidoDao {
 	}
 
 	@Override
-	public List<Partido> obtenerPorDeporte(String deporte, int limitePorEquipo) {
-		logger.debug("Inicio obtenerPorDeporte: deporte={}, limitePorEquipo={}", deporte, limitePorEquipo);
-
-		/*
-		 * Acotamos a un máximo de 'limitePorEquipo' partidos por equipo
-		 * mediante una subconsulta correlacionada (portable entre motores
-		 * SQL, sin depender de funciones de ventana): contamos cuántos
-		 * partidos del mismo equipo son "más recientes" que el partido
-		 * actual y solo nos quedamos con los que ocupan una posición por
-		 * debajo del límite.
-		 */
-		String sql = "SELECT " + CAMPOS_SELECT + """
-				FROM PARTIDOS P
-				INNER JOIN EQUIPO E ON E.ID = P.EQUIPO_ID
-				WHERE E.DEPORTE = ?
-				  AND (
-				        SELECT COUNT(*)
-				        FROM PARTIDOS P2
-				        WHERE P2.EQUIPO_ID = P.EQUIPO_ID
-				          AND (P2.DIA > P.DIA OR (P2.DIA = P.DIA AND P2.ID > P.ID))
-				      ) < ?
-				ORDER BY E.ORDEN, E.NOMBRE, P.DIA DESC, P.ID DESC
-				""";
-
-		List<Partido> partidos = jdbcTemplate.query(sql, PARTIDO_ROW_MAPPER, deporte, limitePorEquipo);
-
-		logger.debug("Fin obtenerPorDeporte: deporte={}, total={}", deporte, partidos.size());
-
-		return partidos;
-	}
-
-	@Override
 	public Partido obtenerMasRelevantePorEquipoNombre(String equipoNombre, String categoria) {
 		logger.debug("Inicio obtenerMasRelevantePorEquipoNombre: equipoNombre={}, categoria={}", equipoNombre,
 				categoria);
 
-		/*
-		 * Criterio: el próximo partido sin resultado (si lo hay) o, si no
-		 * hay ninguno futuro, el último jugado.
-		 */
 		String sqlProximo = "SELECT " + CAMPOS_SELECT + """
 				FROM PARTIDOS P
 				INNER JOIN EQUIPO E ON E.ID = P.EQUIPO_ID
@@ -233,13 +197,6 @@ public class PartidoDaoImpl implements PartidoDao {
 				FETCH FIRST 1 ROW ONLY
 				""";
 
-		List<Partido> proximos = jdbcTemplate.query(sqlProximo, PARTIDO_ROW_MAPPER, equipoNombre, categoria);
-
-		if (!proximos.isEmpty()) {
-			logger.debug("Fin obtenerMasRelevantePorEquipoNombre: encontrado=proximo");
-			return proximos.get(0);
-		}
-
 		String sqlUltimo = "SELECT " + CAMPOS_SELECT + """
 				FROM PARTIDOS P
 				INNER JOIN EQUIPO E ON E.ID = P.EQUIPO_ID
@@ -250,13 +207,70 @@ public class PartidoDaoImpl implements PartidoDao {
 				FETCH FIRST 1 ROW ONLY
 				""";
 
-		List<Partido> ultimos = jdbcTemplate.query(sqlUltimo, PARTIDO_ROW_MAPPER, equipoNombre, categoria);
-
-		Partido resultado = ultimos.isEmpty() ? null : ultimos.get(0);
+		Partido resultado = obtenerMasRelevante(sqlProximo, sqlUltimo, equipoNombre, categoria);
 
 		logger.debug("Fin obtenerMasRelevantePorEquipoNombre: encontrado={}", resultado != null);
 
 		return resultado;
+	}
+
+	@Override
+	public Partido obtenerMasRelevantePorEquipo(Long equipoId) {
+		logger.debug("Inicio obtenerMasRelevantePorEquipo: equipoId={}", equipoId);
+
+		String sqlProximo = "SELECT " + CAMPOS_SELECT + """
+				FROM PARTIDOS P
+				WHERE P.EQUIPO_ID = ?
+				  AND P.RESULTADO IS NULL
+				  AND P.DIA >= TRUNC(SYSDATE)
+				ORDER BY P.DIA ASC, P.ID ASC
+				FETCH FIRST 1 ROW ONLY
+				""";
+
+		String sqlUltimo = "SELECT " + CAMPOS_SELECT + """
+				FROM PARTIDOS P
+				WHERE P.EQUIPO_ID = ?
+				  AND P.RESULTADO IS NOT NULL
+				ORDER BY P.DIA DESC, P.ID DESC
+				FETCH FIRST 1 ROW ONLY
+				""";
+
+		Partido resultado = obtenerMasRelevante(sqlProximo, sqlUltimo, equipoId);
+
+		logger.debug("Fin obtenerMasRelevantePorEquipo: equipoId={}, encontrado={}", equipoId, resultado != null);
+
+		return resultado;
+	}
+
+	/*
+	 * Criterio compartido de "partido más relevante": el próximo partido
+	 * sin resultado (si lo hay) o, si no hay ninguno futuro, el último
+	 * jugado. sqlProximo/sqlUltimo comparten exactamente los mismos
+	 * parámetros de filtrado (equipo, por nombre+categoría o por id).
+	 */
+	private Partido obtenerMasRelevante(String sqlProximo, String sqlUltimo, Object... params) {
+
+		List<Partido> proximos = jdbcTemplate.query(sqlProximo, PARTIDO_ROW_MAPPER, params);
+
+		if (!proximos.isEmpty()) {
+			return proximos.get(0);
+		}
+
+		List<Partido> ultimos = jdbcTemplate.query(sqlUltimo, PARTIDO_ROW_MAPPER, params);
+
+		return ultimos.isEmpty() ? null : ultimos.get(0);
+	}
+
+	@Override
+	public void eliminar(Long id) {
+		logger.debug("Inicio eliminar: id={}", id);
+
+		int filasAfectadas = jdbcTemplate.update(
+				"DELETE FROM PARTIDOS WHERE ID = ?",
+				id);
+
+		logger.info("Partido eliminado: id={}, filasAfectadas={}", id, filasAfectadas);
+		logger.debug("Fin eliminar: id={}", id);
 	}
 
 	private static Partido mapRow(ResultSet rs, int rowNum) throws SQLException {

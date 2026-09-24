@@ -165,4 +165,70 @@ class AppPartidoControllerTest {
         assertThat(controller.actualizar(5L, request, autenticado("1")).getStatusCode())
                 .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    // ---------- eliminar ----------
+
+    @Test
+    void eliminarDevuelve401SinAutenticacion() {
+        PartidoService service = mock(PartidoService.class);
+        AppPartidoController controller = new AppPartidoController(service);
+
+        ResponseEntity<?> response = controller.eliminar(5L, null);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void eliminarDevuelve401SiElNombreDeUsuarioNoEsNumerico() {
+        PartidoService service = mock(PartidoService.class);
+        AppPartidoController controller = new AppPartidoController(service);
+
+        ResponseEntity<?> response = controller.eliminar(5L, autenticado("no-numero"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void eliminarDevuelve204SinContenidoCuandoTieneExito() {
+        PartidoService service = mock(PartidoService.class);
+        AppPartidoController controller = new AppPartidoController(service);
+
+        ResponseEntity<?> response = controller.eliminar(5L, autenticado("1"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(response.getBody()).isNull();
+    }
+
+    @Test
+    void eliminarDevuelve403SiElServicioDeniegaPorPermiso() {
+        PartidoService service = mock(PartidoService.class);
+        AppPartidoController controller = new AppPartidoController(service);
+
+        org.mockito.Mockito.doThrow(new SecurityException("sin permiso")).when(service).eliminar(1L, 5L);
+
+        assertThat(controller.eliminar(5L, autenticado("1")).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void eliminarDevuelve400SiElServicioLanzaIllegalArgument() {
+        PartidoService service = mock(PartidoService.class);
+        AppPartidoController controller = new AppPartidoController(service);
+
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("no existe")).when(service).eliminar(1L, 5L);
+
+        assertThat(controller.eliminar(5L, autenticado("1")).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void eliminarDevuelve500SiElServicioLanzaExcepcionInesperada() {
+        PartidoService service = mock(PartidoService.class);
+        AppPartidoController controller = new AppPartidoController(service);
+
+        org.mockito.Mockito.doThrow(new RuntimeException("fallo")).when(service).eliminar(1L, 5L);
+
+        assertThat(controller.eliminar(5L, autenticado("1")).getStatusCode())
+                .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 }

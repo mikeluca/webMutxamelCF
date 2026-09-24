@@ -145,6 +145,82 @@ class PartidoServiceImplTest {
         assertThat(resultado.getResultado()).isEqualTo("2-1");
     }
 
+    @Test
+    void crearPermiteCrearSiNoHayPartidosPreviosDelEquipo() {
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of());
+        when(partidoDao.crear(any(Partido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThat(service.crear(1L, requestValido())).isNotNull();
+    }
+
+    @Test
+    void crearPermiteCrearSiElUltimoPartidoTieneResultado() {
+        Partido anterior = new Partido();
+        anterior.setResultado("1-0");
+
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of(anterior));
+        when(partidoDao.crear(any(Partido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThat(service.crear(1L, requestValido())).isNotNull();
+    }
+
+    @Test
+    void crearRechazaSiElUltimoPartidoNoTieneResultado() {
+        Partido anterior = new Partido();
+        anterior.setResultado(null);
+
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of(anterior));
+
+        assertThatThrownBy(() -> service.crear(1L, requestValido())).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no tenga el resultado puesto");
+
+        verify(partidoDao, never()).crear(any());
+    }
+
+    @Test
+    void crearRechazaSiElUltimoPartidoTieneResultadoEnBlanco() {
+        Partido anterior = new Partido();
+        anterior.setResultado("  ");
+
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of(anterior));
+
+        assertThatThrownBy(() -> service.crear(1L, requestValido())).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void crearComoAdminRechazaSiElUltimoPartidoNoTieneResultado() {
+        Partido anterior = new Partido();
+        anterior.setResultado(null);
+
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of(anterior));
+
+        assertThatThrownBy(() -> service.crearComoAdmin(requestValido())).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no tenga el resultado puesto");
+
+        verify(partidoDao, never()).crear(any());
+    }
+
+    @Test
+    void crearComoAdminPermiteCrearSiElUltimoPartidoTieneResultado() {
+        Partido anterior = new Partido();
+        anterior.setResultado("1-0");
+
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of(anterior));
+        when(partidoDao.crear(any(Partido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThat(service.crearComoAdmin(requestValido())).isNotNull();
+    }
+
     // ---------- actualizar ----------
 
     @Test
@@ -280,6 +356,81 @@ class PartidoServiceImplTest {
                 .hasMessageContaining("cambiar el equipo");
     }
 
+    // ---------- eliminar ----------
+
+    @Test
+    void eliminarLanzaExcepcionSiElUsuarioNoEstaAutenticado() {
+        assertThatThrownBy(() -> service.eliminar(null, 5L)).isInstanceOf(SecurityException.class);
+    }
+
+    @Test
+    void eliminarLanzaExcepcionSiFaltaElId() {
+        assertThatThrownBy(() -> service.eliminar(1L, null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void eliminarLanzaExcepcionSiElPartidoNoExiste() {
+        when(partidoDao.obtenerPorId(5L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.eliminar(1L, 5L)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void eliminarLanzaExcepcionSiElUsuarioNoPuedeGestionarElEquipo() {
+        Partido existente = new Partido();
+        existente.setId(5L);
+        existente.setEquipoId(1L);
+
+        when(partidoDao.obtenerPorId(5L)).thenReturn(existente);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.eliminar(1L, 5L)).isInstanceOf(SecurityException.class);
+
+        verify(partidoDao, never()).eliminar(any());
+    }
+
+    @Test
+    void eliminarBorraElPartidoCuandoElUsuarioPuedeGestionarElEquipo() {
+        Partido existente = new Partido();
+        existente.setId(5L);
+        existente.setEquipoId(1L);
+
+        when(partidoDao.obtenerPorId(5L)).thenReturn(existente);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+
+        service.eliminar(1L, 5L);
+
+        verify(partidoDao).eliminar(5L);
+    }
+
+    @Test
+    void eliminarComoAdminLanzaExcepcionSiFaltaElId() {
+        assertThatThrownBy(() -> service.eliminarComoAdmin(null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void eliminarComoAdminLanzaExcepcionSiElPartidoNoExiste() {
+        when(partidoDao.obtenerPorId(5L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.eliminarComoAdmin(5L)).isInstanceOf(IllegalArgumentException.class);
+
+        verify(partidoDao, never()).eliminar(any());
+    }
+
+    @Test
+    void eliminarComoAdminBorraElPartidoSinComprobarPermisos() {
+        Partido existente = new Partido();
+        existente.setId(5L);
+        existente.setEquipoId(1L);
+
+        when(partidoDao.obtenerPorId(5L)).thenReturn(existente);
+
+        service.eliminarComoAdmin(5L);
+
+        verify(partidoDao).eliminar(5L);
+        verify(equipoGestionDao, never()).puedeGestionarEquipo(any(), any());
+    }
+
     // ---------- lecturas ----------
 
     @Test
@@ -326,22 +477,56 @@ class PartidoServiceImplTest {
     }
 
     @Test
-    void obtenerResultadosMapeaCategoriaYEquipoDesdeElJoin() {
+    void obtenerResultadosDevuelveUnaEntradaPorCadaEquipoDelDeporte() {
+        Equipo equipoA = equipo(1L);
+        Equipo equipoB = equipo(2L);
+
         Partido partido = new Partido();
         partido.setId(1L);
         partido.setEquipoId(1L);
         partido.setRival("Rival CF");
         partido.setResultado("2-1");
 
-        when(partidoDao.obtenerPorDeporte("F", 10)).thenReturn(List.of(partido));
-        when(equipoDao.obtenerEquipoPorId(1L)).thenReturn(equipo(1L));
+        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipoA, equipoB));
+        when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(partido);
+        when(partidoDao.obtenerMasRelevantePorEquipo(2L)).thenReturn(null);
+
+        List<ResultadoDTO> resultados = service.obtenerResultados("F");
+
+        assertThat(resultados).hasSize(2);
+
+        assertThat(resultados.get(0).getEquipo()).isEqualTo("Senior A");
+        assertThat(resultados.get(0).getCategoria()).isEqualTo("SENIOR");
+        assertThat(resultados.get(0).getRival()).isEqualTo("Rival CF");
+    }
+
+    @Test
+    void obtenerResultadosIncluyePlaceholderConRivalNuloParaEquiposSinPartidos() {
+        Equipo equipoSinPartidos = equipo(2L);
+
+        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipoSinPartidos));
+        when(partidoDao.obtenerMasRelevantePorEquipo(2L)).thenReturn(null);
 
         List<ResultadoDTO> resultados = service.obtenerResultados("F");
 
         assertThat(resultados).hasSize(1);
-        assertThat(resultados.get(0).getEquipo()).isEqualTo("Senior A");
-        assertThat(resultados.get(0).getCategoria()).isEqualTo("SENIOR");
-        assertThat(resultados.get(0).getRival()).isEqualTo("Rival CF");
+        ResultadoDTO placeholder = resultados.get(0);
+
+        assertThat(placeholder.getEquipo()).isEqualTo("Senior A");
+        assertThat(placeholder.getCategoria()).isEqualTo("SENIOR");
+        assertThat(placeholder.getRival()).isNull();
+        assertThat(placeholder.getResultado()).isNull();
+        assertThat(placeholder.getDia()).isNull();
+        assertThat(placeholder.getDiaFormateado()).isNull();
+        assertThat(placeholder.getHora()).isNull();
+        assertThat(placeholder.getCampo()).isNull();
+    }
+
+    @Test
+    void obtenerResultadosDevuelveListaVaciaSiNoHayEquiposDeEseDeporte() {
+        when(equipoDao.obtenerTodosPorDeporte("FS")).thenReturn(List.of());
+
+        assertThat(service.obtenerResultados("FS")).isEmpty();
     }
 
     @Test
