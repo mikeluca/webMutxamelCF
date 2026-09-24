@@ -669,7 +669,7 @@ class PartidoServiceImplTest {
 
     @Test
     void obtenerResultadoPrimerEquipoDevuelveNullSiNoHayPartido() {
-        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Mutxamel CF", "Primer Equipo")).thenReturn(null);
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(null);
 
         assertThat(service.obtenerResultadoPrimerEquipo()).isNull();
     }
@@ -680,11 +680,11 @@ class PartidoServiceImplTest {
         partido.setRival("Rival CF");
         partido.setResultado("1-0");
 
-        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Mutxamel CF", "Primer Equipo")).thenReturn(partido);
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partido);
 
         ResultadoDTO resultado = service.obtenerResultadoPrimerEquipo();
 
-        assertThat(resultado.getEquipo()).isEqualTo("Mutxamel CF");
+        assertThat(resultado.getEquipo()).isEqualTo("Primer Equipo");
         assertThat(resultado.getCategoria()).isEqualTo("Primer Equipo");
         assertThat(resultado.getRival()).isEqualTo("Rival CF");
     }
@@ -694,7 +694,7 @@ class PartidoServiceImplTest {
         Partido partido = new Partido();
         partido.setDia(null);
 
-        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Mutxamel CF", "Primer Equipo")).thenReturn(partido);
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partido);
 
         ResultadoDTO resultado = service.obtenerResultadoPrimerEquipo();
 

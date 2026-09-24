@@ -21,10 +21,12 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     private static final String TIPO_PUSH = "RESULTADO";
 
     /*
-     * Mismo criterio literal de equipo/categoria que usaba antes
-     * ResultadoDaoImpl.obtenerResultadoPrimerEquipo().
+     * En EQUIPO, la fila del primer equipo tiene NOMBRE = "Primer Equipo"
+     * (no "Mutxamel CF", que es el nombre del club, no de esa fila) y
+     * CATEGORIA = "Primer Equipo" - confirmado en /admin/equipos
+     * (id=21, orden='I').
      */
-    private static final String EQUIPO_PRIMER_EQUIPO = "Mutxamel CF";
+    private static final String EQUIPO_PRIMER_EQUIPO = "Primer Equipo";
     private static final String CATEGORIA_PRIMER_EQUIPO = "Primer Equipo";
 
     private final PartidoLiveDao partidoLiveDao;

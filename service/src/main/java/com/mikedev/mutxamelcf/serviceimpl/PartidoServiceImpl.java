@@ -41,10 +41,12 @@ public class PartidoServiceImpl implements PartidoService {
 
 	/*
 	 * Nombre/categoría literales del equipo cuyo próximo/último partido se
-	 * muestra en la portada pública. Mismo criterio que usaba
-	 * ResultadoDaoImpl.obtenerResultadoPrimerEquipo().
+	 * muestra en la portada pública. En EQUIPO, la fila del primer equipo
+	 * tiene NOMBRE = "Primer Equipo" (no "Mutxamel CF", que es el nombre
+	 * del club, no de esa fila) y CATEGORIA = "Primer Equipo" -
+	 * confirmado en /admin/equipos (id=21, orden='I').
 	 */
-	private static final String EQUIPO_PRIMER_EQUIPO = "Mutxamel CF";
+	private static final String EQUIPO_PRIMER_EQUIPO = "Primer Equipo";
 	private static final String CATEGORIA_PRIMER_EQUIPO = "Primer Equipo";
 
 	private final PartidoDao partidoDao;
