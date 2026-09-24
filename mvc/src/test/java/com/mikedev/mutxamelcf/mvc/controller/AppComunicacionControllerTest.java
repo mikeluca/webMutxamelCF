@@ -146,13 +146,44 @@ class AppComunicacionControllerTest {
     }
 
     @Test
-    void obtenerConversacionDevuelveLosMensajes() {
+    void obtenerConversacionSinParametrosUsaElLimitePorDefecto() {
         ComunicacionService service = mock(ComunicacionService.class);
         AppComunicacionController controller = new AppComunicacionController(service);
 
-        when(service.obtenerConversacion(1L, 2L)).thenReturn(List.of(new MensajeConversacionResponse()));
+        when(service.obtenerConversacionPagina(1L, 2L, null, null))
+                .thenReturn(List.of(new MensajeConversacionResponse()));
 
-        assertThat(controller.obtenerConversacion(2L, autenticado("1")).getStatusCode()).isEqualTo(HttpStatus.OK);
+        ResponseEntity<?> response = controller.obtenerConversacion(2L, null, null, autenticado("1"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((List<?>) response.getBody()).hasSize(1);
+        verify(service).obtenerConversacionPagina(1L, 2L, null, null);
+    }
+
+    @Test
+    void obtenerConversacionConAntesIdLoPasaAlServicio() {
+        ComunicacionService service = mock(ComunicacionService.class);
+        AppComunicacionController controller = new AppComunicacionController(service);
+
+        when(service.obtenerConversacionPagina(1L, 2L, 50L, null)).thenReturn(List.of());
+
+        ResponseEntity<?> response = controller.obtenerConversacion(2L, 50L, null, autenticado("1"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(service).obtenerConversacionPagina(1L, 2L, 50L, null);
+    }
+
+    @Test
+    void obtenerConversacionConLimiteExplicitoLoPasaAlServicio() {
+        ComunicacionService service = mock(ComunicacionService.class);
+        AppComunicacionController controller = new AppComunicacionController(service);
+
+        when(service.obtenerConversacionPagina(1L, 2L, null, 10)).thenReturn(List.of());
+
+        ResponseEntity<?> response = controller.obtenerConversacion(2L, null, 10, autenticado("1"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(service).obtenerConversacionPagina(1L, 2L, null, 10);
     }
 
     @Test
@@ -366,16 +397,17 @@ class AppComunicacionControllerTest {
         ComunicacionService service = mock(ComunicacionService.class);
         AppComunicacionController controller = new AppComunicacionController(service);
 
-        assertThat(controller.obtenerConversacion(2L, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(controller.obtenerConversacion(2L, null, null, null).getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
     void obtenerConversacionDevuelve403SiElServicioDeniegaPorRol() {
         ComunicacionService service = mock(ComunicacionService.class);
         AppComunicacionController controller = new AppComunicacionController(service);
-        when(service.obtenerConversacion(1L, 2L)).thenThrow(new SecurityException("sin permiso"));
+        when(service.obtenerConversacionPagina(1L, 2L, null, null)).thenThrow(new SecurityException("sin permiso"));
 
-        assertThat(controller.obtenerConversacion(2L, autenticado("1")).getStatusCode())
+        assertThat(controller.obtenerConversacion(2L, null, null, autenticado("1")).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
     }
 
@@ -383,9 +415,10 @@ class AppComunicacionControllerTest {
     void obtenerConversacionDevuelve400SiElServicioLanzaIllegalArgument() {
         ComunicacionService service = mock(ComunicacionService.class);
         AppComunicacionController controller = new AppComunicacionController(service);
-        when(service.obtenerConversacion(1L, 2L)).thenThrow(new IllegalArgumentException("otro usuario invalido"));
+        when(service.obtenerConversacionPagina(1L, 2L, null, null))
+                .thenThrow(new IllegalArgumentException("otro usuario invalido"));
 
-        assertThat(controller.obtenerConversacion(2L, autenticado("1")).getStatusCode())
+        assertThat(controller.obtenerConversacion(2L, null, null, autenticado("1")).getStatusCode())
                 .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
@@ -393,9 +426,9 @@ class AppComunicacionControllerTest {
     void obtenerConversacionDevuelve500SiElServicioLanzaExcepcionInesperada() {
         ComunicacionService service = mock(ComunicacionService.class);
         AppComunicacionController controller = new AppComunicacionController(service);
-        when(service.obtenerConversacion(1L, 2L)).thenThrow(new RuntimeException("fallo"));
+        when(service.obtenerConversacionPagina(1L, 2L, null, null)).thenThrow(new RuntimeException("fallo"));
 
-        assertThat(controller.obtenerConversacion(2L, autenticado("1")).getStatusCode())
+        assertThat(controller.obtenerConversacion(2L, null, null, autenticado("1")).getStatusCode())
                 .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
@@ -477,7 +510,7 @@ class AppComunicacionControllerTest {
         ComunicacionService service = mock(ComunicacionService.class);
         AppComunicacionController controller = new AppComunicacionController(service);
 
-        assertThat(controller.obtenerConversacion(2L, autenticado("no-numero")).getStatusCode())
+        assertThat(controller.obtenerConversacion(2L, null, null, autenticado("no-numero")).getStatusCode())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 

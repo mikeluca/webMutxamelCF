@@ -68,14 +68,22 @@ public interface ComunicacionService {
                         Long usuarioId);
 
         /**
-         * Hilo completo (ascendente) de la conversación privada entre
-         * usuarioId y otroUsuarioId. Valida que otroUsuarioId sea un
-         * destinatario permitido para usuarioId, igual que al crear
-         * un mensaje nuevo.
+         * Una página (ascendente: más antiguo primero) del hilo de la
+         * conversación privada entre usuarioId y otroUsuarioId. Valida
+         * que otroUsuarioId sea un destinatario permitido para
+         * usuarioId, igual que al crear un mensaje nuevo.
+         *
+         * Sin antesDeId, devuelve los últimos "limite" mensajes (los
+         * más recientes). Con antesDeId, devuelve los "limite"
+         * mensajes inmediatamente anteriores a ese mensaje (para
+         * cargar historial anterior). limite es opcional: si viene
+         * null se usa 20; en cualquier caso se acota entre 1 y 50.
          */
-        List<MensajeConversacionResponse> obtenerConversacion(
+        List<MensajeConversacionResponse> obtenerConversacionPagina(
                         Long usuarioId,
-                        Long otroUsuarioId);
+                        Long otroUsuarioId,
+                        Long antesDeId,
+                        Integer limite);
 
         /**
          * Marca como leídos, de golpe, todos los mensajes de la
