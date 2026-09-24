@@ -9,6 +9,7 @@ public class ResultadoDTO {
 	private String equipo;
 	private String rival;
 	private String resultado;
+	private String tipo;
 	@DateTimeFormat(pattern = "dd/MM/yyyy")
 	private Date dia;
 	private String diaFormateado;
@@ -53,6 +54,14 @@ public class ResultadoDTO {
 
 	public void setResultado(String resultado) {
 		this.resultado = resultado;
+	}
+
+	public String getTipo() {
+		return tipo;
+	}
+
+	public void setTipo(String tipo) {
+		this.tipo = tipo;
 	}
 
 	public Date getDia() {

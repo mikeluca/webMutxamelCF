@@ -248,39 +248,94 @@ class ComunicacionServiceImplTest {
     }
 
     @Test
-    void obtenerConversacionConUsuarioNoPermitidoLanzaExcepcion() {
-        when(comunicacionDao.obtenerDestinatariosDirectosPermitidos(USUARIO_ID))
-                .thenReturn(List.of());
-
-        assertThatThrownBy(() -> service.obtenerConversacion(USUARIO_ID, 99L))
+    void obtenerConversacionPaginaSinUsuarioLanzaExcepcion() {
+        assertThatThrownBy(() -> service.obtenerConversacionPagina(null, 99L, null, null))
                 .isInstanceOf(SecurityException.class);
     }
 
     @Test
-    void obtenerConversacionDevuelveMensajesConEsMiaCorrecto() {
+    void obtenerConversacionPaginaSinOtroUsuarioLanzaExcepcion() {
+        assertThatThrownBy(() -> service.obtenerConversacionPagina(USUARIO_ID, null, null, null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void obtenerConversacionPaginaConUsuarioNoPermitidoLanzaExcepcion() {
+        when(comunicacionDao.obtenerDestinatariosDirectosPermitidos(USUARIO_ID))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.obtenerConversacionPagina(USUARIO_ID, 99L, null, null))
+                .isInstanceOf(SecurityException.class);
+    }
+
+    @Test
+    void obtenerConversacionPaginaSinLimiteUsaVeinteYReconstruyeElOrdenAscendente() {
         when(comunicacionDao.obtenerDestinatariosDirectosPermitidos(USUARIO_ID))
                 .thenReturn(List.of(99L));
-
-        Comunicacion mio = new Comunicacion();
-        mio.setId(1L);
-        mio.setContenido("Hola");
-        mio.setUsuarioAutorId(USUARIO_ID);
 
         Comunicacion suyo = new Comunicacion();
         suyo.setId(2L);
         suyo.setContenido("¿Qué tal?");
         suyo.setUsuarioAutorId(99L);
 
-        when(comunicacionDao.obtenerConversacion(USUARIO_ID, 99L))
-                .thenReturn(List.of(mio, suyo));
+        Comunicacion mio = new Comunicacion();
+        mio.setId(1L);
+        mio.setContenido("Hola");
+        mio.setUsuarioAutorId(USUARIO_ID);
+
+        // El DAO devuelve descendente (mas reciente primero).
+        when(comunicacionDao.obtenerConversacionPagina(USUARIO_ID, 99L, null, 20))
+                .thenReturn(List.of(suyo, mio));
         when(notificacionAppService.obtenerNoLeidas(USUARIO_ID)).thenReturn(List.of());
 
-        List<com.mikedev.mutxamelcf.model.MensajeConversacionResponse> hilo =
-                service.obtenerConversacion(USUARIO_ID, 99L);
+        List<com.mikedev.mutxamelcf.model.MensajeConversacionResponse> pagina =
+                service.obtenerConversacionPagina(USUARIO_ID, 99L, null, null);
 
-        assertThat(hilo).hasSize(2);
-        assertThat(hilo.get(0).isEsMia()).isTrue();
-        assertThat(hilo.get(1).isEsMia()).isFalse();
+        assertThat(pagina).hasSize(2);
+        // Reconstruida a ascendente: el mas antiguo (mio, id=1) primero.
+        assertThat(pagina.get(0).getId()).isEqualTo(1L);
+        assertThat(pagina.get(0).isEsMia()).isTrue();
+        assertThat(pagina.get(1).getId()).isEqualTo(2L);
+        assertThat(pagina.get(1).isEsMia()).isFalse();
+    }
+
+    @Test
+    void obtenerConversacionPaginaConAntesDeIdLoPasaAlDao() {
+        when(comunicacionDao.obtenerDestinatariosDirectosPermitidos(USUARIO_ID))
+                .thenReturn(List.of(99L));
+        when(comunicacionDao.obtenerConversacionPagina(USUARIO_ID, 99L, 50L, 20))
+                .thenReturn(List.of());
+        when(notificacionAppService.obtenerNoLeidas(USUARIO_ID)).thenReturn(List.of());
+
+        service.obtenerConversacionPagina(USUARIO_ID, 99L, 50L, null);
+
+        org.mockito.Mockito.verify(comunicacionDao).obtenerConversacionPagina(USUARIO_ID, 99L, 50L, 20);
+    }
+
+    @Test
+    void obtenerConversacionPaginaAcotaElLimiteMaximo() {
+        when(comunicacionDao.obtenerDestinatariosDirectosPermitidos(USUARIO_ID))
+                .thenReturn(List.of(99L));
+        when(comunicacionDao.obtenerConversacionPagina(USUARIO_ID, 99L, null, 50))
+                .thenReturn(List.of());
+        when(notificacionAppService.obtenerNoLeidas(USUARIO_ID)).thenReturn(List.of());
+
+        service.obtenerConversacionPagina(USUARIO_ID, 99L, null, 1000);
+
+        org.mockito.Mockito.verify(comunicacionDao).obtenerConversacionPagina(USUARIO_ID, 99L, null, 50);
+    }
+
+    @Test
+    void obtenerConversacionPaginaAcotaElLimiteMinimo() {
+        when(comunicacionDao.obtenerDestinatariosDirectosPermitidos(USUARIO_ID))
+                .thenReturn(List.of(99L));
+        when(comunicacionDao.obtenerConversacionPagina(USUARIO_ID, 99L, null, 1))
+                .thenReturn(List.of());
+        when(notificacionAppService.obtenerNoLeidas(USUARIO_ID)).thenReturn(List.of());
+
+        service.obtenerConversacionPagina(USUARIO_ID, 99L, null, -5);
+
+        org.mockito.Mockito.verify(comunicacionDao).obtenerConversacionPagina(USUARIO_ID, 99L, null, 1);
     }
 
     @Test

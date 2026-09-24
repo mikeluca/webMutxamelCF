@@ -77,6 +77,21 @@ public interface ComunicacionDao {
                         Long otroUsuarioId);
 
         /**
+         * Una página del hilo de mensajes privados entre usuarioId y
+         * otroUsuarioId (mismo criterio de participación que
+         * {@link #obtenerConversacion}), devuelta en orden
+         * DESCENDENTE (más reciente primero). Si antesDeId no es
+         * null, solo devuelve mensajes con ID menor que antesDeId
+         * (para pedir la página anterior a un cursor). limite acota
+         * el número máximo de mensajes devueltos.
+         */
+        List<Comunicacion> obtenerConversacionPagina(
+                        Long usuarioId,
+                        Long otroUsuarioId,
+                        Long antesDeId,
+                        int limite);
+
+        /**
          * Todos los mensajes privados (TIPO='PRIVADA') en los que
          * usuarioId participa (como autor o como destinatario), con
          * {@link Comunicacion#getContraparteId()} relleno, ordenados

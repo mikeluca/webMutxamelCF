@@ -17,10 +17,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoLiveDao;
-import com.mikedev.mutxamelcf.dao.ResultadoDao;
+import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.PartidoLiveEstado;
-import com.mikedev.mutxamelcf.model.Resultado;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
@@ -31,7 +31,7 @@ class PartidoEnVivoServiceImplTest {
     private PartidoLiveDao partidoLiveDao;
 
     @Mock
-    private ResultadoDao resultadoDao;
+    private PartidoDao partidoDao;
 
     @Mock
     private NotificacionAppService notificacionAppService;
@@ -44,13 +44,13 @@ class PartidoEnVivoServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new PartidoEnVivoServiceImpl(
-                partidoLiveDao, resultadoDao, notificacionAppService, usuarioAppService);
+                partidoLiveDao, partidoDao, notificacionAppService, usuarioAppService);
     }
 
-    private Resultado resultadoRival() {
-        Resultado resultado = new Resultado();
-        resultado.setRival("CD Rival");
-        return resultado;
+    private Partido partidoRival() {
+        Partido partido = new Partido();
+        partido.setRival("CD Rival");
+        return partido;
     }
 
     @Test
@@ -70,7 +70,7 @@ class PartidoEnVivoServiceImplTest {
     void enviarInicioPartidoReiniciaElMarcadorYMandaComoResultado() {
 
         when(usuarioAppService.tieneRol(5, "RETRANSMISION")).thenReturn(true);
-        when(resultadoDao.obtenerResultadoPrimerEquipo()).thenReturn(resultadoRival());
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partidoRival());
 
         service.enviarInicioPartido(5L);
 
@@ -83,7 +83,7 @@ class PartidoEnVivoServiceImplTest {
     void enviarGolFavorSumaElGolConElAutorYMuestraElMarcador() {
 
         when(usuarioAppService.tieneRol(5, "RETRANSMISION")).thenReturn(true);
-        when(resultadoDao.obtenerResultadoPrimerEquipo()).thenReturn(resultadoRival());
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partidoRival());
         when(partidoLiveDao.obtenerEstado()).thenReturn(
                 new PartidoLiveEstado(1, 0, List.of("Juan Perez")));
 
@@ -101,7 +101,7 @@ class PartidoEnVivoServiceImplTest {
     void enviarGolContraSumaElGolYMuestraElMarcador() {
 
         when(usuarioAppService.tieneRol(5, "RETRANSMISION")).thenReturn(true);
-        when(resultadoDao.obtenerResultadoPrimerEquipo()).thenReturn(resultadoRival());
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partidoRival());
         when(partidoLiveDao.obtenerEstado()).thenReturn(
                 new PartidoLiveEstado(0, 1, List.of()));
 
@@ -116,7 +116,7 @@ class PartidoEnVivoServiceImplTest {
     void enviarFinalPartidoIncluyeElMarcadorYLosGoleadores() {
 
         when(usuarioAppService.tieneRol(5, "RETRANSMISION")).thenReturn(true);
-        when(resultadoDao.obtenerResultadoPrimerEquipo()).thenReturn(resultadoRival());
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partidoRival());
         when(partidoLiveDao.obtenerEstado()).thenReturn(
                 new PartidoLiveEstado(2, 1, List.of("Juan Perez", "Ana Gomez")));
 
