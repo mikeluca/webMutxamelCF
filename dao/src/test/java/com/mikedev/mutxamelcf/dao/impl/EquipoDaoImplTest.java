@@ -117,6 +117,32 @@ class EquipoDaoImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void obtenerEquipoPorNombreDevuelveElEquipoEncontrado() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        EquipoDaoImpl dao = new EquipoDaoImpl(jdbcTemplate);
+
+        Equipo esperado = new Equipo();
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq("Senior A"))).thenReturn(List.of(esperado));
+
+        Equipo resultado = dao.obtenerEquipoPorNombre("Senior A");
+
+        assertThat(resultado).isSameAs(esperado);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerEquipoPorNombreDevuelveNullSiNoExiste() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        EquipoDaoImpl dao = new EquipoDaoImpl(jdbcTemplate);
+
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq("Senior A")))
+                .thenReturn(java.util.Collections.emptyList());
+
+        assertThat(dao.obtenerEquipoPorNombre("Senior A")).isNull();
+    }
+
+    @Test
     void eliminarEquipoEjecutaElDelete() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         EquipoDaoImpl dao = new EquipoDaoImpl(jdbcTemplate);

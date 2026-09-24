@@ -8,29 +8,29 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mikedev.mutxamelcf.model.ResultadoDTO;
-import com.mikedev.mutxamelcf.service.ResultadoService;
+import com.mikedev.mutxamelcf.service.PartidoService;
 
 @RestController
 @RequestMapping("/api/public/resultados")
 public class PublicResultadoController {
 
-    private final ResultadoService resultadoService;
+    private final PartidoService partidoService;
 
     public PublicResultadoController(
-            ResultadoService resultadoService) {
-        this.resultadoService = resultadoService;
+            PartidoService partidoService) {
+        this.partidoService = partidoService;
     }
 
     @GetMapping
     public List<ResultadoDTO> obtenerResultados() {
 
-        return resultadoService.obtenerResultados("F");
+        return partidoService.obtenerResultados("F");
     }
 
     @GetMapping("/primer-equipo")
     public ResponseEntity<ResultadoDTO> obtenerResultadoPrimerEquipo() {
 
-        ResultadoDTO resultado = resultadoService.obtenerResultadoPrimerEquipo();
+        ResultadoDTO resultado = partidoService.obtenerResultadoPrimerEquipo();
 
         if (resultado == null) {
             return ResponseEntity.notFound().build();

@@ -1,0 +1,397 @@
+package com.mikedev.mutxamelcf.serviceimpl;
+
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.regex.Pattern;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.mikedev.mutxamelcf.dao.EquipoDao;
+import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
+import com.mikedev.mutxamelcf.dao.PartidoDao;
+import com.mikedev.mutxamelcf.model.Equipo;
+import com.mikedev.mutxamelcf.model.Partido;
+import com.mikedev.mutxamelcf.model.PartidoDTO;
+import com.mikedev.mutxamelcf.model.PartidoGuardarRequest;
+import com.mikedev.mutxamelcf.model.ResultadoDTO;
+import com.mikedev.mutxamelcf.service.PartidoService;
+
+@Service
+public class PartidoServiceImpl implements PartidoService {
+
+	private static final Logger logger = LoggerFactory.getLogger(PartidoServiceImpl.class);
+
+	private static final Pattern PATRON_RESULTADO = Pattern.compile("^\\d{1,2}-\\d{1,2}$");
+
+	/*
+	 * Nombre/categoría literales del equipo cuyo próximo/último partido se
+	 * muestra en la portada pública. Mismo criterio que usaba
+	 * ResultadoDaoImpl.obtenerResultadoPrimerEquipo().
+	 */
+	private static final String EQUIPO_PRIMER_EQUIPO = "Mutxamel CF";
+	private static final String CATEGORIA_PRIMER_EQUIPO = "Primer Equipo";
+
+	private static final int MAX_PARTIDOS_POR_EQUIPO_EN_RESULTADOS = 10;
+
+	private final PartidoDao partidoDao;
+	private final EquipoGestionDao equipoGestionDao;
+	private final EquipoDao equipoDao;
+
+	public PartidoServiceImpl(
+			PartidoDao partidoDao,
+			EquipoGestionDao equipoGestionDao,
+			EquipoDao equipoDao) {
+
+		this.partidoDao = partidoDao;
+		this.equipoGestionDao = equipoGestionDao;
+		this.equipoDao = equipoDao;
+	}
+
+	@Override
+	@Transactional
+	public PartidoDTO crear(Long usuarioAppId, PartidoGuardarRequest request) {
+		logger.debug("Inicio crear: usuarioAppId={}", usuarioAppId);
+
+		if (usuarioAppId == null) {
+			throw new SecurityException("Usuario no autenticado");
+		}
+
+		validarRequest(request);
+
+		Long equipoId = request.getEquipoId();
+
+		if (!equipoGestionDao.existeEquipo(equipoId)) {
+			throw new IllegalArgumentException("El equipo no existe");
+		}
+
+		if (!equipoGestionDao.puedeGestionarEquipo(usuarioAppId, equipoId)) {
+			throw new SecurityException("El usuario no puede gestionar este equipo");
+		}
+
+		Partido partido = new Partido();
+		partido.setEquipoId(equipoId);
+		aplicarCambios(partido, request);
+
+		partido = partidoDao.crear(partido);
+
+		logger.debug("Fin crear: id={}", partido.getId());
+
+		return construirDTO(partido);
+	}
+
+	@Override
+	@Transactional
+	public PartidoDTO actualizar(Long usuarioAppId, Long partidoId, PartidoGuardarRequest request) {
+		logger.debug("Inicio actualizar: usuarioAppId={}, partidoId={}", usuarioAppId, partidoId);
+
+		if (usuarioAppId == null) {
+			throw new SecurityException("Usuario no autenticado");
+		}
+
+		if (partidoId == null) {
+			throw new IllegalArgumentException("El ID del partido es obligatorio");
+		}
+
+		validarRequest(request);
+
+		Partido partido = partidoDao.obtenerPorId(partidoId);
+
+		if (partido == null) {
+			throw new IllegalArgumentException("El partido no existe");
+		}
+
+		/*
+		 * No se permite cambiar el equipo de un partido al editarlo.
+		 */
+		if (!partido.getEquipoId().equals(request.getEquipoId())) {
+			throw new IllegalArgumentException("No se puede cambiar el equipo del partido");
+		}
+
+		/*
+		 * Comprobamos permiso sobre el equipo del partido ya existente,
+		 * no sobre el que viniera (potencialmente manipulado) en el
+		 * request.
+		 */
+		if (!equipoGestionDao.puedeGestionarEquipo(usuarioAppId, partido.getEquipoId())) {
+			throw new SecurityException("El usuario no puede gestionar este equipo");
+		}
+
+		aplicarCambios(partido, request);
+		partido.setUsuarioActualizoId(usuarioAppId);
+		partido.setFechaActualizacion(Timestamp.valueOf(LocalDateTime.now()));
+
+		partidoDao.actualizar(partido);
+
+		logger.debug("Fin actualizar: id={}", partido.getId());
+
+		return construirDTO(partido);
+	}
+
+	@Override
+	@Transactional
+	public PartidoDTO crearComoAdmin(PartidoGuardarRequest request) {
+		logger.debug("Inicio crearComoAdmin");
+
+		validarRequest(request);
+
+		Long equipoId = request.getEquipoId();
+
+		if (!equipoGestionDao.existeEquipo(equipoId)) {
+			throw new IllegalArgumentException("El equipo no existe");
+		}
+
+		Partido partido = new Partido();
+		partido.setEquipoId(equipoId);
+		aplicarCambios(partido, request);
+
+		partido = partidoDao.crear(partido);
+
+		logger.debug("Fin crearComoAdmin: id={}", partido.getId());
+
+		return construirDTO(partido);
+	}
+
+	@Override
+	@Transactional
+	public PartidoDTO actualizarComoAdmin(Long partidoId, PartidoGuardarRequest request) {
+		logger.debug("Inicio actualizarComoAdmin: partidoId={}", partidoId);
+
+		if (partidoId == null) {
+			throw new IllegalArgumentException("El ID del partido es obligatorio");
+		}
+
+		validarRequest(request);
+
+		Partido partido = partidoDao.obtenerPorId(partidoId);
+
+		if (partido == null) {
+			throw new IllegalArgumentException("El partido no existe");
+		}
+
+		if (!partido.getEquipoId().equals(request.getEquipoId())) {
+			throw new IllegalArgumentException("No se puede cambiar el equipo del partido");
+		}
+
+		aplicarCambios(partido, request);
+
+		/*
+		 * El admin web ya está autorizado por el filtro /admin/** y no
+		 * dispone de un usuarioAppId; no se asocia el cambio a ningún
+		 * entrenador de la app.
+		 */
+		partido.setUsuarioActualizoId(null);
+		partido.setFechaActualizacion(Timestamp.valueOf(LocalDateTime.now()));
+
+		partidoDao.actualizar(partido);
+
+		logger.debug("Fin actualizarComoAdmin: id={}", partido.getId());
+
+		return construirDTO(partido);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<PartidoDTO> obtenerUltimosPorEquipo(Long equipoId, int limite) {
+		logger.debug("Inicio obtenerUltimosPorEquipo: equipoId={}, limite={}", equipoId, limite);
+
+		List<Partido> partidos = partidoDao.obtenerUltimosPorEquipo(equipoId, limite);
+
+		List<PartidoDTO> resultado = toDTOList(partidos);
+
+		logger.debug("Fin obtenerUltimosPorEquipo: equipoId={}, total={}", equipoId, resultado.size());
+
+		return resultado;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<PartidoDTO> obtenerUltimosPorEquipoNombre(String equipoNombre, int limite) {
+		logger.debug("Inicio obtenerUltimosPorEquipoNombre: equipoNombre={}, limite={}", equipoNombre, limite);
+
+		Equipo equipo = equipoDao.obtenerEquipoPorNombre(equipoNombre);
+
+		if (equipo == null) {
+			logger.debug("Fin obtenerUltimosPorEquipoNombre: equipo no encontrado");
+			return List.of();
+		}
+
+		return obtenerUltimosPorEquipo(equipo.getId(), limite);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<PartidoDTO> obtenerPorEquipo(Long equipoId) {
+		logger.debug("Inicio obtenerPorEquipo: equipoId={}", equipoId);
+
+		List<Partido> partidos = partidoDao.obtenerPorEquipo(equipoId);
+
+		List<PartidoDTO> resultado = toDTOList(partidos);
+
+		logger.debug("Fin obtenerPorEquipo: equipoId={}, total={}", equipoId, resultado.size());
+
+		return resultado;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<ResultadoDTO> obtenerResultados(String deporte) {
+		logger.debug("Inicio obtenerResultados: deporte={}", deporte);
+
+		List<Partido> partidos = partidoDao.obtenerPorDeporte(
+				deporte,
+				MAX_PARTIDOS_POR_EQUIPO_EN_RESULTADOS);
+
+		List<ResultadoDTO> resultados = new ArrayList<>();
+
+		for (Partido partido : partidos) {
+			resultados.add(toResultadoDTO(partido, obtenerEquipo(partido.getEquipoId())));
+		}
+
+		logger.debug("Fin obtenerResultados: deporte={}, total={}", deporte, resultados.size());
+
+		return resultados;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ResultadoDTO obtenerResultadoPrimerEquipo() {
+		logger.debug("Inicio obtenerResultadoPrimerEquipo");
+
+		Partido partido = partidoDao.obtenerMasRelevantePorEquipoNombre(
+				EQUIPO_PRIMER_EQUIPO,
+				CATEGORIA_PRIMER_EQUIPO);
+
+		if (partido == null) {
+			logger.debug("Fin obtenerResultadoPrimerEquipo: encontrado=false");
+			return null;
+		}
+
+		ResultadoDTO resultado = new ResultadoDTO();
+		resultado.setCategoria(CATEGORIA_PRIMER_EQUIPO);
+		resultado.setEquipo(EQUIPO_PRIMER_EQUIPO);
+		resultado.setRival(partido.getRival());
+		resultado.setResultado(partido.getResultado());
+		aplicarFecha(partido.getDia(), resultado::setDia, resultado::setDiaFormateado);
+		resultado.setHora(partido.getHora());
+		resultado.setCampo(partido.getCampo());
+
+		logger.debug("Fin obtenerResultadoPrimerEquipo: encontrado=true");
+
+		return resultado;
+	}
+
+	private Equipo obtenerEquipo(Long equipoId) {
+		return equipoId == null ? null : equipoDao.obtenerEquipoPorId(equipoId);
+	}
+
+	private void validarRequest(PartidoGuardarRequest request) {
+
+		if (request == null) {
+			throw new IllegalArgumentException("La petición es obligatoria");
+		}
+
+		if (request.getEquipoId() == null) {
+			throw new IllegalArgumentException("El equipo es obligatorio");
+		}
+
+		if (request.getRival() == null || request.getRival().isBlank()) {
+			throw new IllegalArgumentException("El rival es obligatorio");
+		}
+
+		String resultado = request.getResultado();
+
+		if (resultado != null
+				&& !resultado.isBlank()
+				&& !PATRON_RESULTADO.matcher(resultado).matches()) {
+
+			throw new IllegalArgumentException(
+					"El resultado debe tener el formato 'goles locales-goles visitantes' (ej. 2-1)");
+		}
+	}
+
+	private void aplicarCambios(Partido partido, PartidoGuardarRequest request) {
+		partido.setRival(request.getRival());
+		partido.setDia(toDate(request.getDia()));
+		partido.setHora(request.getHora());
+		partido.setCampo(request.getCampo());
+		partido.setResultado(normalizarResultado(request.getResultado()));
+	}
+
+	private static String normalizarResultado(String resultado) {
+		return (resultado == null || resultado.isBlank()) ? null : resultado;
+	}
+
+	private static Date toDate(LocalDate localDate) {
+		return localDate == null ? null : java.sql.Date.valueOf(localDate);
+	}
+
+	private PartidoDTO construirDTO(Partido partido) {
+
+		PartidoDTO dto = new PartidoDTO();
+
+		dto.setId(partido.getId());
+		dto.setEquipoId(partido.getEquipoId());
+
+		Equipo equipo = obtenerEquipo(partido.getEquipoId());
+
+		if (equipo != null) {
+			dto.setEquipo(equipo.getNombre());
+			dto.setCategoria(equipo.getCategoria());
+			dto.setDeporte(equipo.getDeporte());
+		}
+
+		dto.setRival(partido.getRival());
+		dto.setResultado(partido.getResultado());
+		aplicarFecha(partido.getDia(), dto::setDia, dto::setDiaFormateado);
+		dto.setHora(partido.getHora());
+		dto.setCampo(partido.getCampo());
+
+		return dto;
+	}
+
+	private static ResultadoDTO toResultadoDTO(Partido partido, Equipo equipo) {
+
+		ResultadoDTO dto = new ResultadoDTO();
+
+		dto.setCategoria(equipo != null ? equipo.getCategoria() : null);
+		dto.setEquipo(equipo != null ? equipo.getNombre() : null);
+		dto.setRival(partido.getRival());
+		dto.setResultado(partido.getResultado());
+		aplicarFecha(partido.getDia(), dto::setDia, dto::setDiaFormateado);
+		dto.setHora(partido.getHora());
+		dto.setCampo(partido.getCampo());
+
+		return dto;
+	}
+
+	private static void aplicarFecha(
+			Date dia,
+			java.util.function.Consumer<Date> setDia,
+			java.util.function.Consumer<String> setDiaFormateado) {
+
+		if (dia != null) {
+			setDia.accept(dia);
+			setDiaFormateado.accept(new SimpleDateFormat("dd/MM/yyyy").format(dia));
+		} else {
+			setDia.accept(null);
+			setDiaFormateado.accept("");
+		}
+	}
+
+	private List<PartidoDTO> toDTOList(List<Partido> partidos) {
+		List<PartidoDTO> resultado = new ArrayList<>();
+		for (Partido partido : partidos) {
+			resultado.add(construirDTO(partido));
+		}
+		return resultado;
+	}
+
+}

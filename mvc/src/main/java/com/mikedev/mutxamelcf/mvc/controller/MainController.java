@@ -25,7 +25,7 @@ import com.mikedev.mutxamelcf.service.CuerpoTecnicoService;
 import com.mikedev.mutxamelcf.service.EquipoService;
 import com.mikedev.mutxamelcf.service.JugadorService;
 import com.mikedev.mutxamelcf.service.NoticiaService;
-import com.mikedev.mutxamelcf.service.ResultadoService;
+import com.mikedev.mutxamelcf.service.PartidoService;
 
 @Controller
 public class MainController {
@@ -40,18 +40,18 @@ public class MainController {
 
 	private final NoticiaService noticiaService;
 
-	private final ResultadoService resultadoService;
+	private final PartidoService partidoService;
 
 	private final EquipoService equipoService;
 
 	public MainController(ComunicacionesService comunicacionesService, JugadorService jugadoresService,
 			CuerpoTecnicoService cuerpoTecnicoService, NoticiaService noticiaService,
-			ResultadoService resultadoService, EquipoService equipoService) {
+			PartidoService partidoService, EquipoService equipoService) {
 		this.comunicacionesService = comunicacionesService;
 		this.jugadoresService = jugadoresService;
 		this.cuerpoTecnicoService = cuerpoTecnicoService;
 		this.noticiaService = noticiaService;
-		this.resultadoService = resultadoService;
+		this.partidoService = partidoService;
 		this.equipoService = equipoService;
 	}
 
@@ -205,7 +205,7 @@ public class MainController {
 	@GetMapping("/resultados")
 	public String mostrarResultados(Model model) {
 		logger.debug("Inicio mostrarResultados");
-		List<ResultadoDTO> resultadosFutbol = resultadoService.obtenerResultados("F");
+		List<ResultadoDTO> resultadosFutbol = partidoService.obtenerResultados("F");
 		model.addAttribute("resultadosFutbol", resultadosFutbol);
 
 		model.addAttribute("patrocinadores", patrocinadores);

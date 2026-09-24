@@ -10,7 +10,7 @@ import com.mikedev.mutxamelcf.service.CuerpoTecnicoService;
 import com.mikedev.mutxamelcf.service.EquipoService;
 import com.mikedev.mutxamelcf.service.JugadorService;
 import com.mikedev.mutxamelcf.service.NoticiaService;
-import com.mikedev.mutxamelcf.service.ResultadoService;
+import com.mikedev.mutxamelcf.service.PartidoService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +36,7 @@ class MainControllerTest {
     private JugadorService jugadoresService;
     private CuerpoTecnicoService cuerpoTecnicoService;
     private NoticiaService noticiaService;
-    private ResultadoService resultadoService;
+    private PartidoService partidoService;
     private EquipoService equipoService;
     private MainController controller;
 
@@ -46,10 +46,10 @@ class MainControllerTest {
         jugadoresService = mock(JugadorService.class);
         cuerpoTecnicoService = mock(CuerpoTecnicoService.class);
         noticiaService = mock(NoticiaService.class);
-        resultadoService = mock(ResultadoService.class);
+        partidoService = mock(PartidoService.class);
         equipoService = mock(EquipoService.class);
         controller = new MainController(comunicacionesService, jugadoresService, cuerpoTecnicoService, noticiaService,
-                resultadoService, equipoService);
+                partidoService, equipoService);
     }
 
     @Test
@@ -191,7 +191,7 @@ class MainControllerTest {
 
     @Test
     void mostrarResultadosRellenaLosResultadosDeFutbol() {
-        when(resultadoService.obtenerResultados("F")).thenReturn(List.of(new ResultadoDTO()));
+        when(partidoService.obtenerResultados("F")).thenReturn(List.of(new ResultadoDTO()));
 
         Model model = new ExtendedModelMap();
         assertEquals("resultados", controller.mostrarResultados(model));
