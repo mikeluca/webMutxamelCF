@@ -160,4 +160,52 @@ class FcmPushServiceImplTest {
 
         verify(dispositivoAppDao, never()).desactivar(any(), any());
     }
+
+    @Test
+    void enviarATopicNoHaceNadaSiElTopicEsVacio() {
+        service.enviarATopic("  ", "Titulo", "Mensaje");
+
+        verifyNoInteractions(firebaseMessaging);
+    }
+
+    @Test
+    void enviarATopicNoHaceNadaSiElTopicEsNull() {
+        service.enviarATopic(null, "Titulo", "Mensaje");
+
+        verifyNoInteractions(firebaseMessaging);
+    }
+
+    @Test
+    void enviarATopicSinDatosExtraEnviaElMensaje() throws Exception {
+        when(firebaseMessaging.send(any(Message.class))).thenReturn("msg-id");
+
+        service.enviarATopic("noticias", "Titulo", "Mensaje");
+
+        verify(firebaseMessaging).send(any(Message.class));
+    }
+
+    @Test
+    void enviarATopicConDatosExtraEnviaElMensaje() throws Exception {
+        when(firebaseMessaging.send(any(Message.class))).thenReturn("msg-id");
+
+        service.enviarATopic("resultados", "Titulo", "Mensaje", Map.of("extra", "dato"));
+
+        verify(firebaseMessaging).send(any(Message.class));
+    }
+
+    @Test
+    void enviarATopicNoPropagaLaExcepcionDeFirebase() throws Exception {
+        FirebaseMessagingException excepcion = mock(FirebaseMessagingException.class);
+        when(firebaseMessaging.send(any(Message.class))).thenThrow(excepcion);
+
+        // No debe lanzar la excepcion, un fallo de push no debe romper la operacion
+        service.enviarATopic("noticias", "Titulo", "Mensaje");
+    }
+
+    @Test
+    void enviarATopicNoPropagaUnaExcepcionInesperada() throws Exception {
+        when(firebaseMessaging.send(any(Message.class))).thenThrow(new RuntimeException("fallo"));
+
+        service.enviarATopic("noticias", "Titulo", "Mensaje");
+    }
 }
