@@ -204,6 +204,25 @@ class NoticiaServiceImplTest {
     }
 
     @Test
+    void obtenerNoticiaParaAppDecodificaEntidadesHtmlYConvierteBrEnSaltosDeLinea() {
+        // Tal como los guarda NoticiaAdminController.guardarNoticia:
+        // HtmlUtils.htmlEscape(...) + "\n" -> "<br>".
+        Noticia noticia = new Noticia();
+        noticia.setId(1);
+        noticia.setTitulo("Informaci&oacute;n del club");
+        noticia.setContenido("Primer p&aacute;rrafo.<br><br>Segundo p&aacute;rrafo con &ntilde;.");
+        noticia.setFecha(new Date());
+
+        when(noticiaDao.obtenerNoticiaPorId(1)).thenReturn(noticia);
+
+        NoticiaAppDTO resultado = service.obtenerNoticiaParaApp(1);
+
+        assertThat(resultado.getTitulo()).isEqualTo("Información del club");
+        assertThat(resultado.getContenido())
+                .isEqualTo("Primer párrafo.\n\nSegundo párrafo con ñ.");
+    }
+
+    @Test
     void obtenerImagenNoticiaDevuelveNullCuandoNoExisteLaNoticia() {
         when(noticiaDao.obtenerNoticiaPorId(99)).thenReturn(null);
 

@@ -15,6 +15,7 @@ import javax.imageio.ImageIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 
 import com.mikedev.mutxamelcf.dao.NoticiaDao;
 import com.mikedev.mutxamelcf.model.Noticia;
@@ -278,10 +279,32 @@ public class NoticiaServiceImpl implements NoticiaService {
 
 		return new NoticiaAppDTO(
 				noticia.getId(),
-				noticia.getTitulo(),
-				noticia.getContenido(),
+				textoPlanoParaApp(noticia.getTitulo()),
+				textoPlanoParaApp(noticia.getContenido()),
 				noticia.getFecha(),
 				imagenUrl);
+	}
+
+	/*
+	 * El admin web guarda titulo/contenido ya preparados para pintarse
+	 * como HTML (HtmlUtils.htmlEscape + "\n" -> "<br>", ver
+	 * NoticiaAdminController.guardarNoticia), y la web los muestra con
+	 * th:utext, que decodifica las entidades y renderiza los <br>
+	 * como saltos de linea reales. La app no interpreta HTML, asi que
+	 * aqui deshacemos exactamente esa transformacion para devolverle
+	 * texto plano: sin esto, cualquier caracter acentuado llega como
+	 * su entidad HTML (p.ej. "informaci&oacute;n") y los saltos de
+	 * linea como el texto literal "<br><br>".
+	 */
+	private static String textoPlanoParaApp(String html) {
+
+		if (html == null) {
+			return null;
+		}
+
+		String sinEntidades = HtmlUtils.htmlUnescape(html);
+
+		return sinEntidades.replaceAll("(?i)<br\\s*/?>", "\n");
 	}
 
 	private static List<NoticiaAppDTO> toAppDTOList(
