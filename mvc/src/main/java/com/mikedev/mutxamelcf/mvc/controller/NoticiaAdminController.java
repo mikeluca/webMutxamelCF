@@ -23,6 +23,7 @@ import com.mikedev.mutxamelcf.model.EquipoDTO;
 import com.mikedev.mutxamelcf.model.NoticiaDTO;
 import com.mikedev.mutxamelcf.model.NoticiaForm;
 import com.mikedev.mutxamelcf.service.EquipoService;
+import com.mikedev.mutxamelcf.service.FcmPushService;
 import com.mikedev.mutxamelcf.service.NoticiaService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
 
@@ -32,17 +33,22 @@ public class NoticiaAdminController {
 
 	private static final Logger logger = LoggerFactory.getLogger(NoticiaAdminController.class);
 
+	private static final String TOPIC_NOTICIAS = "noticias";
+
 	private final NoticiaService noticiaService;
 
 	private final EquipoService equiposService;
 
 	private final NotificacionAppService notificacionAppService;
 
+	private final FcmPushService fcmPushService;
+
 	public NoticiaAdminController(NoticiaService noticiaService, EquipoService equiposService,
-			NotificacionAppService notificacionAppService) {
+			NotificacionAppService notificacionAppService, FcmPushService fcmPushService) {
 		this.noticiaService = noticiaService;
 		this.equiposService = equiposService;
 		this.notificacionAppService = notificacionAppService;
+		this.fcmPushService = fcmPushService;
 	}
 
 	// Método para listar las noticias
@@ -122,6 +128,19 @@ public class NoticiaAdminController {
 							"📰 Nueva noticia",
 							noticia.getTitulo(),
 							(long) noticia.getId());
+
+					/*
+					 * Además del aviso a usuarios con cuenta (arriba),
+					 * publicamos en el topic "noticias" de FCM para
+					 * quien lo siga sin tener cuenta en la app. El
+					 * título se guarda HTML-escapado (ver arriba); lo
+					 * desescapamos para que el push muestre texto
+					 * plano.
+					 */
+					fcmPushService.enviarATopic(
+							TOPIC_NOTICIAS,
+							HtmlUtils.htmlUnescape(noticia.getTitulo()),
+							"Nueva noticia publicada en la web del club");
 				}
 
 				logger.debug("Fin guardarNoticia: resultado=OK");
