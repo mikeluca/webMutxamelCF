@@ -27,8 +27,8 @@
 	<div th:replace="~{cabecera.html}"></div>
 
 	<main class="container-fluid my-5 lead">
-		<h1 class="page-title">Finales de la Copa San Pedro</h1>
-		<p class="text-center mb-5">
+		<h1 class="page-title" th:text="#{estadisticas.copa.titulo}">Finales de la Copa San Pedro</h1>
+		<p class="text-center mb-5" th:text="#{estadisticas.copa.intro}">
 			A lo largo de las décadas, el Mutxamel CF ha participado en la histórica Copa San Pedro,
 			dejando momentos de lucha y gloria. Aunque en muchas ediciones el pase a la final se resistió,
 			destacan las épicas victorias por penaltis en 1994 y 1999 y el reciente
@@ -76,15 +76,15 @@
 		</div>
 		</section>
 
-		<h2 class="section-title">Posiciones Ligueras</h2>
-		<p class="text-center mb-5">
+		<h2 class="section-title" th:text="#{estadisticas.posicionesLigueras.titulo}">Posiciones Ligueras</h2>
+		<p class="text-center mb-5" th:text="#{estadisticas.posiciones.parrafo1}">
 			El Mutxamel Club de Fútbol, fundado en 1969, ha sido un pilar del fútbol local en la provincia de Alicante,
 			participando a lo largo de su historia en diversas categorías regionales de la Comunidad Valenciana. Desde
 			sus primeros años en la Segunda Regional de Murcia, el club ha mostrado un recorrido marcado por ascensos y
 			descensos, consolidándose en varias etapas en la Primera Regional y la Preferente, y llegando a disputar la
 			Tercera División en la década de los 90.
 		</p>
-		<p class="text-center mb-5">
+		<p class="text-center mb-5" th:text="#{estadisticas.posiciones.parrafo2}">
 			A lo largo de más de cinco décadas, el Mutxamel CF ha experimentado altibajos en su rendimiento, alcanzando
 			posiciones destacadas como campeones de Primera Regional en varias temporadas y consiguiendo en 1992 el
 			primer puesto en Preferente, lo que refleja su capacidad de superación y resiliencia. En los últimos años,
@@ -92,7 +92,7 @@
 			incluyendo la segunda posición y el ascenso despues de una eliminatoria en la temporada 2025, mostrando su
 			ambición por consolidarse en categorías superiores.
 		</p>
-		<p class="text-center mb-5">
+		<p class="text-center mb-5" th:text="#{estadisticas.posiciones.parrafo3}">
 			Este historial de resultados no solo evidencia el compromiso del Mutxamel CF con el deporte local, sino
 			también su importancia como referente para jugadores y aficionados de la zona, consolidando una trayectoria
 			de más de 50 años de historia futbolística.
@@ -102,316 +102,316 @@
 			<!-- Tarjetas por cada año -->
 			<div class="timeline-card">
 				<h6>2026</h6>
-				<p>Lliga Comunitat</p>
-				<p><strong>En curso</strong></p>
+				<p th:text="#{categoria.ligaComunitat}">Lliga Comunitat</p>
+				<p><strong th:text="#{categoria.enCurso}">En curso</strong></p>
 			</div>
 			<div class="timeline-card ascenso">
 				<h6>2025</h6>
-				<p>Primera FFCV</p>
-				<p><strong>2º</strong></p>
+				<p th:text="#{categoria.primeraFfcv}">Primera FFCV</p>
+				<p><strong th:text="#{posicion.2}">2º</strong></p>
 			</div>
 			<div class="timeline-card">
 				<h6>2024</h6>
-				<p>Primera FFCV</p>
-				<p>10º</p>
+				<p th:text="#{categoria.primeraFfcv}">Primera FFCV</p>
+				<p th:text="#{posicion.10}">10º</p>
 			</div>
 			<div class="timeline-card ascenso">
 				<h6>2023</h6>
-				<p>Primera Regional</p>
-				<p><strong>3º</strong></p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p><strong th:text="#{posicion.3}">3º</strong></p>
 			</div>
 			<div class="timeline-card">
 				<h6>2022</h6>
-				<p>Primera Regional</p>
-				<p>11º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.11}">11º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>2021</h6>
-				<p>Primera Regional</p>
-				<p>10º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.10}">10º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>2020</h6>
-				<p>Primera Regional</p>
-				<p>12º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.12}">12º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>2019</h6>
-				<p>Primera Regional</p>
-				<p>7º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.7}">7º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>2018</h6>
-				<p>Primera Regional</p>
-				<p>8º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.8}">8º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>2017</h6>
-				<p>Primera Regional</p>
-				<p>12º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.12}">12º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>2016</h6>
-				<p>Primera Regional</p>
-				<p>5º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.5}">5º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>2015</h6>
-				<p>Primera Regional</p>
-				<p>7º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.7}">7º</p>
 			</div>
 			<div class="timeline-card descenso">
 				<h6>2014</h6>
-				<p>Regional Preferente</p>
-				<p>17º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.17}">17º</p>
 			</div>
 			<div class="timeline-card ascenso">
 				<h6>2013</h6>
-				<p>Primera Regional</p>
-				<p><strong>Campeón</strong></p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p><strong th:text="#{categoria.campeon}">Campeón</strong></p>
 			</div>
 			<div class="timeline-card">
 				<h6>2012</h6>
-				<p>Primera Regional</p>
-				<p>5º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.5}">5º</p>
 			</div>
 			<div class="timeline-card descenso">
 				<h6>2011</h6>
-				<p>Regional Preferente</p>
-				<p>18º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.18}">18º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>2010</h6>
-				<p>Regional Preferente</p>
-				<p>3º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.3}">3º</p>
 			</div>
 			<div class="timeline-card ascenso">
 				<h6>2009</h6>
-				<p>Primera regional</p>
-				<p><strong>Campeón</strong></p>
+				<p th:text="#{categoria.primeraRegional}">Primera regional</p>
+				<p><strong th:text="#{categoria.campeon}">Campeón</strong></p>
 			</div>
 			<div class="timeline-card">
 				<h6>2008</h6>
-				<p>Primera regional</p>
-				<p>5º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera regional</p>
+				<p th:text="#{posicion.5}">5º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>2007</h6>
-				<p>Primera regional</p>
-				<p>8º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera regional</p>
+				<p th:text="#{posicion.8}">8º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>2006</h6>
-				<p>Primera regional</p>
-				<p>9º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera regional</p>
+				<p th:text="#{posicion.9}">9º</p>
 			</div>
 			<div class="timeline-card descenso">
 				<h6>2005</h6>
-				<p>Regional Preferente</p>
-				<p>17º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.17}">17º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>2004</h6>
-				<p>Regional Preferente</p>
-				<p>10º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.10}">10º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>2003</h6>
-				<p>Regional Preferente</p>
-				<p>14º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.14}">14º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>2002</h6>
-				<p>Regional Preferente</p>
-				<p>10º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.10}">10º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>2001</h6>
-				<p>Regional Preferente</p>
-				<p>9º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.9}">9º</p>
 			</div>
 			<div class="timeline-card ascenso">
 				<h6>2000</h6>
-				<p>Primera regional</p>
-				<p><strong>Campeón</strong></p>
+				<p th:text="#{categoria.primeraRegional}">Primera regional</p>
+				<p><strong th:text="#{categoria.campeon}">Campeón</strong></p>
 			</div>
 			<div class="timeline-card">
 				<h6>1999</h6>
-				<p>Primera regional</p>
-				<p>4º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera regional</p>
+				<p th:text="#{posicion.4}">4º</p>
 			</div>
 			<div class="timeline-card descenso">
 				<h6>1998</h6>
-				<p>Regional Preferente</p>
-				<p>14º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.14}">14º</p>
 			</div>
 			<div class="timeline-card descenso">
 				<h6>1997</h6>
-				<p>Tercera División</p>
-				<p>21º</p>
+				<p th:text="#{categoria.terceraDivision}">Tercera División</p>
+				<p th:text="#{posicion.21}">21º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1996</h6>
-				<p>Tercera División</p>
-				<p>17º</p>
+				<p th:text="#{categoria.terceraDivision}">Tercera División</p>
+				<p th:text="#{posicion.17}">17º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1995</h6>
-				<p>Tercera División</p>
-				<p>16º</p>
+				<p th:text="#{categoria.terceraDivision}">Tercera División</p>
+				<p th:text="#{posicion.16}">16º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1994</h6>
-				<p>Tercera División</p>
-				<p>10º</p>
+				<p th:text="#{categoria.terceraDivision}">Tercera División</p>
+				<p th:text="#{posicion.10}">10º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1993</h6>
-				<p>Tercera División</p>
-				<p>13º</p>
+				<p th:text="#{categoria.terceraDivision}">Tercera División</p>
+				<p th:text="#{posicion.13}">13º</p>
 			</div>
 			<div class="timeline-card ascenso">
 				<h6>1992</h6>
-				<p>Regional Preferente</p>
-				<p><strong>Campeón</strong></p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p><strong th:text="#{categoria.campeon}">Campeón</strong></p>
 			</div>
 			<div class="timeline-card ascenso">
 				<h6>1991</h6>
-				<p>1ª Regional</p>
-				<p><strong>Campeón</strong></p>
+				<p th:text="#{categoria.primeraRegional}">1ª Regional</p>
+				<p><strong th:text="#{categoria.campeon}">Campeón</strong></p>
 			</div>
 			<div class="timeline-card descenso">
 				<h6>1990</h6>
-				<p>Regional Preferente</p>
-				<p>18º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.18}">18º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1989</h6>
-				<p>Regional Preferente</p>
-				<p>19º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.19}">19º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1988</h6>
-				<p>Regional Preferente</p>
-				<p>14º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.14}">14º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1987</h6>
-				<p>Regional Preferente</p>
-				<p>15º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.15}">15º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1986</h6>
-				<p>Regional Preferente</p>
-				<p>14º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.14}">14º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1985</h6>
-				<p>Regional Preferente</p>
-				<p>5º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.5}">5º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1984</h6>
-				<p>Regional Preferente</p>
-				<p>6º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.6}">6º</p>
 			</div>
 			<div class="timeline-card ascenso">
 				<h6>1983</h6>
-				<p>Primera Regional</p>
-				<p><strong>Campeón</strong></p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p><strong th:text="#{categoria.campeon}">Campeón</strong></p>
 			</div>
 			<div class="timeline-card">
 				<h6>1982</h6>
-				<p>Primera Regional</p>
-				<p>3º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.3}">3º</p>
 			</div>
 			<div class="timeline-card descenso">
 				<h6>1981</h6>
-				<p>Regional Preferente</p>
-				<p>17º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.17}">17º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1980</h6>
-				<p>Regional Preferente</p>
-				<p>11º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.11}">11º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1979</h6>
-				<p>Regional Preferente</p>
-				<p>9º</p>
+				<p th:text="#{categoria.regionalPreferente}">Regional Preferente</p>
+				<p th:text="#{posicion.9}">9º</p>
 			</div>
 			<div class="timeline-card ascenso">
 				<h6>1978</h6>
-				<p>Primera Regional</p>
-				<p><strong>Campeón</strong></p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p><strong th:text="#{categoria.campeon}">Campeón</strong></p>
 			</div>
 			<div class="timeline-card">
 				<h6>1977</h6>
-				<p>Primera Regional</p>
-				<p>6º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.6}">6º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1976</h6>
-				<p>Primera Regional</p>
-				<p>12º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.12}">12º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1975</h6>
-				<p>Primera Regional</p>
-				<p>5º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.5}">5º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1974</h6>
-				<p>Primera Regional</p>
-				<p>18º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.18}">18º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1973</h6>
-				<p>Primera Regional</p>
-				<p>11º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.11}">11º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1972</h6>
-				<p>Primera Regional</p>
-				<p>10º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.10}">10º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1971</h6>
-				<p>Primera Regional</p>
-				<p><strong>3º</strong></p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p><strong th:text="#{posicion.3}">3º</strong></p>
 			</div>
 			<div class="timeline-card">
 				<h6>1970</h6>
-				<p>Primera Regional</p>
-				<p>6º</p>
+				<p th:text="#{categoria.primeraRegional}">Primera Regional</p>
+				<p th:text="#{posicion.6}">6º</p>
 			</div>
 			<div class="timeline-card">
 				<h6>1969</h6>
-				<p><strong>FUNDACIÓN</strong></p>
+				<p><strong th:text="#{categoria.fundacion}">FUNDACIÓN</strong></p>
 			</div>
 		</div>
 
 		<section class="estadisticas my-5">
-			<h2 class="section-title">Histórico de Estadísticas por Categoría</h2>
+			<h2 class="section-title" th:text="#{estadisticas.historico.titulo}">Histórico de Estadísticas por Categoría</h2>
 
 			<!-- Tabla moderna -->
 			<table
 				class="table table-bordered shadow rounded-3 overflow-hidden w-100 text-center align-middle tabla-estadisticas">
 				<thead class="table-dark">
 					<tr>
-						<th>Categoría</th>
-						<th>Partidos Totales</th>
-						<th>Victorias</th>
-						<th>Derrotas</th>
-						<th>Empates</th>
-						<th>Goles a favor</th>
-						<th>Goles en contra</th>
-						<th>Puntos totales</th>
+						<th th:text="#{estadisticas.tabla.categoria}">Categoría</th>
+						<th th:text="#{estadisticas.tabla.partidosTotales}">Partidos Totales</th>
+						<th th:text="#{estadisticas.tabla.victorias}">Victorias</th>
+						<th th:text="#{estadisticas.tabla.derrotas}">Derrotas</th>
+						<th th:text="#{estadisticas.tabla.empates}">Empates</th>
+						<th th:text="#{estadisticas.tabla.golesFavor}">Goles a favor</th>
+						<th th:text="#{estadisticas.tabla.golesContra}">Goles en contra</th>
+						<th th:text="#{estadisticas.tabla.puntosTotales}">Puntos totales</th>
 					</tr>
 				</thead>
 				<tbody>
 					<tr>
-						<td><strong>Segunda Regional</strong></td>
+						<td><strong th:text="#{categoria.segundaRegional}">Segunda Regional</strong></td>
 						<td>54</td>
 						<td>32</td>
 						<td>15</td>
@@ -421,7 +421,7 @@
 						<td>71</td>
 					</tr>
 					<tr>
-						<td><strong>Primera Regional</strong></td>
+						<td><strong th:text="#{categoria.primeraRegional}">Primera Regional</strong></td>
 						<td>756</td>
 						<td>375</td>
 						<td>227</td>
@@ -431,7 +431,7 @@
 						<td>1017</td>
 					</tr>
 					<tr>
-						<td><strong>Preferente</strong></td>
+						<td><strong th:text="#{categoria.preferente}">Preferente</strong></td>
 						<td>676</td>
 						<td>221</td>
 						<td>283</td>
@@ -441,7 +441,7 @@
 						<td>702</td>
 					</tr>
 					<tr>
-						<td><strong>Primera FFCV</strong></td>
+						<td><strong th:text="#{categoria.primeraFfcv}">Primera FFCV</strong></td>
 						<td>60</td>
 						<td>26</td>
 						<td>18</td>
@@ -451,7 +451,7 @@
 						<td>94</td>
 					</tr>
 					<tr>
-						<td><strong>Tercera</strong></td>
+						<td><strong th:text="#{categoria.tercera}">Tercera</strong></td>
 						<td>192</td>
 						<td>49</td>
 						<td>88</td>
@@ -461,7 +461,7 @@
 						<td>166</td>
 					</tr>
 					<tr class="table-primary fw-bold">
-						<td>Total</td>
+						<td th:text="#{estadisticas.tabla.total}">Total</td>
 						<td>1738</td>
 						<td>703</td>
 						<td>631</td>
@@ -652,34 +652,46 @@
 	</style>
 	<!-- Chart.js -->
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-	<script>
+	<script th:inline="javascript">
 		// Gráfico de barras
+		const i18nEstadisticas = {
+			segundaRegional: /*[[#{categoria.segundaRegional}]]*/ 'Segunda Regional',
+			primeraRegional: /*[[#{categoria.primeraRegional}]]*/ 'Primera Regional',
+			preferente: /*[[#{categoria.preferente}]]*/ 'Preferente',
+			primeraFfcv: /*[[#{categoria.primeraFfcv}]]*/ 'Primera FFCV',
+			tercera: /*[[#{categoria.tercera}]]*/ 'Tercera',
+			victorias: /*[[#{estadisticas.tabla.victorias}]]*/ 'Victorias',
+			derrotas: /*[[#{estadisticas.tabla.derrotas}]]*/ 'Derrotas',
+			empates: /*[[#{estadisticas.tabla.empates}]]*/ 'Empates',
+			puntosTotales: /*[[#{estadisticas.tabla.puntosTotales}]]*/ 'Puntos Totales',
+			chartTitulo: /*[[#{estadisticas.chart.titulo}]]*/ 'Comparativa de Rendimiento por Categoría'
+		};
 		const ctx = document.getElementById('estadisticasChart').getContext('2d');
 		new Chart(ctx, {
 			type: 'bar', // Puedes cambiarlo a 'radar' o 'line' para otros estilos
 			data: {
-				labels: ['Segunda Regional', 'Primera Regional', 'Preferente', 'Primera FFCV', 'Tercera'],
+				labels: [i18nEstadisticas.segundaRegional, i18nEstadisticas.primeraRegional, i18nEstadisticas.preferente, i18nEstadisticas.primeraFfcv, i18nEstadisticas.tercera],
 				datasets: [
 					{
-						label: 'Victorias',
+						label: i18nEstadisticas.victorias,
 						data: [32, 375, 221, 26, 49],
 						backgroundColor: 'rgba(13, 110, 253, 0.7)',
 						borderRadius: 6
 					},
 					{
-						label: 'Derrotas',
+						label: i18nEstadisticas.derrotas,
 						data: [15, 227, 283, 18, 88],
 						backgroundColor: 'rgba(220, 53, 69, 0.7)',
 						borderRadius: 6
 					},
 					{
-						label: 'Empates',
+						label: i18nEstadisticas.empates,
 						data: [7, 154, 172, 16, 55],
 						backgroundColor: 'rgba(255, 193, 7, 0.7)',
 						borderRadius: 6
 					},
 					{
-						label: 'Puntos Totales',
+						label: i18nEstadisticas.puntosTotales,
 						data: [71, 1017, 702, 94, 166],
 						backgroundColor: 'rgba(40, 167, 69, 0.7)',
 						borderRadius: 6
@@ -697,7 +709,7 @@
 					},
 					title: {
 						display: true,
-						text: 'Comparativa de Rendimiento por Categoría',
+						text: i18nEstadisticas.chartTitulo,
 						font: {size: 18, weight: 'bold'}
 					}
 				},

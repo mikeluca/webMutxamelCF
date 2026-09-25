@@ -27,7 +27,7 @@
 	<div th:replace="~{cabecera.html}"></div>
 
 	<main class="container-fluid my-5">
-		<h1 class="page-title">Jugadores - <span th:text="${categoria}"></span></h1>
+		<h1 class="page-title"><span th:text="#{plantilla.jugadoresDe}">Jugadores -</span> <span th:text="${categoria}"></span></h1>
 		<div class="personas-grid">
 			<div class="card h-100" th:each="jugador : ${jugadores}">
 
@@ -47,7 +47,7 @@
 			</div>
 		</div>
 
-		<h2 class="section-title">Cuerpo Técnico</h2>
+		<h2 class="section-title" th:text="#{plantilla.cuerpoTecnico}">Cuerpo Técnico</h2>
 		<div class="personas-grid">
 			<div class="card h-100" th:each="staff : ${staff}">
 

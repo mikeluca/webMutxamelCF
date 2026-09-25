@@ -27,7 +27,7 @@
 	<div th:replace="~{cabecera.html}"></div>
 
 	<main class="container-fluid my-5 lead">
-		<h1 class="page-title">Todas las noticias</h1>
+		<h1 class="page-title" th:text="#{todasNoticias.titulo}">Todas las noticias</h1>
 		<div class="row g-4">
 			<div class="col-6 col-md-4 col-lg-3" th:each="noticia : ${noticias}">
 				<div class="card noticia-card">
@@ -44,14 +44,14 @@
 						<p class="text-center text-muted mb-2" th:text="${#dates.format(noticia.fecha,'dd/MM/yyyy')}"
 							style="font-size: 0.9rem;"></p>
 						<p class="card-text" th:utext="${#strings.abbreviate(noticia.contenido, 80)}"></p>
-						<a th:href="@{/ampliarNoticia/{id}(id=${noticia.id})}" class="btn btn-sm btn-primary">Leer
+						<a th:href="@{/ampliarNoticia/{id}(id=${noticia.id})}" class="btn btn-sm btn-primary" th:text="#{common.leerMas}">Leer
 							más</a>
 					</div>
 				</div>
 			</div>
 			<!-- Botón volver al inicio -->
 			<div class="text-center mt-5">
-				<a th:href="@{/index}" class="btn btn-secondary btn-lg">Volver al inicio</a>
+				<a th:href="@{/index}" class="btn btn-secondary btn-lg" th:text="#{todasNoticias.volverInicio}">Volver al inicio</a>
 			</div>
 		</div>
 	</main>

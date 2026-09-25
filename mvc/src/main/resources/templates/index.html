@@ -32,7 +32,7 @@
 	</div>
 
 	<main class="container-fluid my-5 lead">
-		<h1 class="page-title">Últimas Noticias</h1>
+		<h1 class="page-title" th:text="#{index.ultimasNoticias}">Últimas Noticias</h1>
 		<div class="noticias-grid">
 			<div class="card h-100" th:each="noticia : ${noticias}">
 
@@ -50,14 +50,14 @@
 						style="font-size: 0.9rem;"></p>
 					</p>
 					<p class="card-text" th:utext="${#strings.abbreviate(noticia.contenido, 100)}"></p>
-					<a th:href="@{/ampliarNoticia/{id}(id=${noticia.id})}" class="btn btn-primary">Leer más</a>
+					<a th:href="@{/ampliarNoticia/{id}(id=${noticia.id})}" class="btn btn-primary" th:text="#{common.leerMas}">Leer más</a>
 				</div>
 			</div>
 		</div>
 
 		<!-- Botón para ver todas las noticias -->
 		<div class="text-center mt-4">
-			<a href="/todasNoticias" class="btn btn-outline-primary btn-lg">+ Noticias</a>
+			<a href="/todasNoticias" class="btn btn-outline-primary btn-lg" th:text="#{index.masNoticias}">+ Noticias</a>
 		</div>
 
 		<!--		<h2 class="text-center m-5 fw-bold">Nuestros Patrocinadores</h2>-->

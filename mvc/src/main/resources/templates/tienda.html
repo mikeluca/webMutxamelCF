@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Tienda | Mutxamel CF</title>
+    <title th:text="#{tienda.head.titulo}">Tienda | Mutxamel CF</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link th:href="@{/css/estilos.css}" rel="stylesheet">
@@ -20,28 +20,27 @@
     <main>
         <section class="store-hero">
             <div class="store-hero-copy">
-                <p class="store-kicker">MUTXAMEL CF / COLECCION 2026</p>
-                <h1 class="page-title">VISTE<br><span>LOS COLORES</span></h1>
-                <p class="store-hero-text">La nueva colección del club ya está aquí. Elige tu prenda, selecciona tus
+                <p class="store-kicker" th:text="#{tienda.kicker}">MUTXAMEL CF / COLECCION 2026</p>
+                <h1 class="page-title"><span th:text="#{tienda.hero.titulo1}">VISTE</span><br><span th:text="#{tienda.hero.titulo2}">LOS COLORES</span></h1>
+                <p class="store-hero-text" th:text="#{tienda.hero.texto}">La nueva colección del club ya está aquí. Elige tu prenda, selecciona tus
                     tallas y haznos llegar tu pedido.</p>
-                <a class="store-scroll-link" href="#coleccion">Ver colección <i class="bi bi-arrow-down"></i></a>
+                <a class="store-scroll-link" href="#coleccion">[[#{tienda.hero.verColeccion}]] <i class="bi bi-arrow-down"></i></a>
             </div>
-            <div class="store-hero-mark"><span>MCF</span><small>DESDE 1927</small></div>
+            <div class="store-hero-mark"><span>MCF</span><small th:text="#{tienda.heroMark.desde}">DESDE 1927</small></div>
         </section>
 
         <section id="coleccion" class="store-content">
             <div class="store-section-heading">
                 <div>
-                    <p class="store-kicker">EDICION DEL CLUB</p>
-                    <h2>Elige tu equipación</h2>
+                    <p class="store-kicker" th:text="#{tienda.edicionClub}">EDICION DEL CLUB</p>
+                    <h2 th:text="#{tienda.eligeEquipacion}">Elige tu equipación</h2>
                 </div>
-                <p>Producción bajo pedido<br>Recogida en el club o entrega a domicilio</p>
+                <p><span th:text="#{tienda.produccion}">Producción bajo pedido</span><br><span th:text="#{tienda.recogida}">Recogida en el club o entrega a domicilio</span></p>
             </div>
             <div th:if="${param.pedido != null}" class="alert store-alert success"><i
-                    class="bi bi-check-circle-fill"></i> Pedido enviado. Nos pondremos en contacto contigo para
-                confirmar el pago y la recogida/envío.</div>
+                    class="bi bi-check-circle-fill"></i> [[#{tienda.alert.exito}]]</div>
             <div th:if="${param.error != null}" class="alert store-alert error"><i
-                    class="bi bi-exclamation-circle-fill"></i> Revisa los datos del pedido y vuelve a intentarlo.</div>
+                    class="bi bi-exclamation-circle-fill"></i> [[#{tienda.alert.error}]]</div>
 
             <form id="order-form" action="/tienda/crear-pedido" method="post">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
@@ -52,13 +51,14 @@
                                 alt="Primera equipación del club"></div>
                         <div class="product-info">
                             <div class="product-topline">
-                                <h3>Camiseta oficial</h3><strong>30 €</strong>
+                                <h3 th:text="#{tienda.producto1.nombre}">Camiseta oficial</h3><strong>30 €</strong>
                             </div>
-                            <p>La esencia del Mutxamel CF, un año más, vestida de azul. Nuestra primera equipación
+                            <p th:text="#{tienda.producto1.descripcion}">La esencia del Mutxamel CF, un año más, vestida de azul. Nuestra primera equipación
                                 combina la tradición y la identidad del club con un diseño moderno de Mercury.</br></br>
                                 <strong>💙 Viste nuestros colores. Siente el Mutxamel CF.</strong>
                             </p>
-                            <div class="quantity-control"><label for="shirt-quantity">Unidades</label><input
+                            <p><strong th:text="#{tienda.producto1.eslogan}">💙 Viste nuestros colores. Siente el Mutxamel CF.</strong></p>
+                            <div class="quantity-control"><label for="shirt-quantity" th:text="#{tienda.unidades}">Unidades</label><input
                                     id="shirt-quantity" class="quantity-input" type="number" min="0" max="20" value="0"
                                     data-quantity></div>
                             <div class="size-list" data-size-list></div>
@@ -70,14 +70,14 @@
                                 alt="Segunda equipación del club, colaboración AECC"></div>
                         <div class="product-info">
                             <div class="product-topline">
-                                <h3>Segunda equipacion</h3><strong>30 €</strong>
+                                <h3 th:text="#{tienda.producto2.nombre}">Segunda equipacion</h3><strong>30 €</strong>
                             </div>
-                            <p>Mucho más que una camiseta. Nuestra segunda equipación, de color rosa, nace de una
+                            <p th:text="#{tienda.producto2.descripcion}">Mucho más que una camiseta. Nuestra segunda equipación, de color rosa, nace de una
                                 colaboración muy especial con la Asociación Española Contra el Cáncer, uniendo deporte,
                                 compromiso y solidaridad.</p>
-                            <p class="aecc-note"><i class="bi bi-heart-fill me-1"></i>Colaboracion con la Asociacion
-                                Española Contra el Cancer</p>
-                            <div class="quantity-control"><label for="hoodie-quantity">Unidades</label><input
+                            <p class="aecc-note"><i class="bi bi-heart-fill me-1"></i><span th:text="#{tienda.producto2.aeccNota}">Colaboracion con la Asociacion
+                                Española Contra el Cancer</span></p>
+                            <div class="quantity-control"><label for="hoodie-quantity" th:text="#{tienda.unidades}">Unidades</label><input
                                     id="hoodie-quantity" class="quantity-input" type="number" min="0" max="20" value="0"
                                     data-quantity></div>
                             <div class="size-list" data-size-list></div>
@@ -87,17 +87,17 @@
 
                 <div class="size-guide">
                     <div>
-                        <p class="store-kicker">ANTES DE PEDIR</p>
-                        <h2>Guía de tallas</h2>
-                        <p>Mide una prenda que te quede bien y compara con estas medidas aproximadas.</p>
+                        <p class="store-kicker" th:text="#{tienda.antesDePedir}">ANTES DE PEDIR</p>
+                        <h2 th:text="#{tienda.guiaTallas}">Guía de tallas</h2>
+                        <p th:text="#{tienda.guiaTallas.texto}">Mide una prenda que te quede bien y compara con estas medidas aproximadas.</p>
                     </div>
                     <div class="size-table-scroll">
                     <table>
                         <thead>
                                 <tr>
-                                    <th>Talla</th>
-                                    <th>Pecho (cm)</th>
-                                    <th>Largo (cm)</th>
+                                    <th th:text="#{tienda.tabla.talla}">Talla</th>
+                                    <th th:text="#{tienda.tabla.pecho}">Pecho (cm)</th>
+                                    <th th:text="#{tienda.tabla.largo}">Largo (cm)</th>
                                 </tr>
                         </thead>
                         <tbody>
@@ -122,16 +122,14 @@
 
                 <div class="customer-panel">
                     <div>
-                        <p class="store-kicker">ULTIMO PASO</p>
-                        <h2>Tus datos</h2>
-                        <p>Te escribiremos para confirmar disponibilidad y forma de pago.</p>
+                        <p class="store-kicker" th:text="#{tienda.ultimoPaso}">ULTIMO PASO</p>
+                        <h2 th:text="#{tienda.tusDatos}">Tus datos</h2>
+                        <p th:text="#{tienda.tusDatos.texto}">Te escribiremos para confirmar disponibilidad y forma de pago.</p>
                     </div>
-                        <div class="customer-fields"><input name="nombre" type="text" placeholder="Nombre y apellidos"
-                            required><input name="telefono" type="tel" placeholder="Teléfono"><input
-                            name="email" type="email" placeholder="Email" required></div>
-                    <div class="customer-submit"><label><input id="privacy-check" type="checkbox" required> Acepto el
-                            tratamiento de mis datos según la <a href="/politicaPrivacidad" target="_blank">política de
-                                privacidad</a>.</label><button type="submit" class="store-submit">CREAR PEDIDO <i
+                        <div class="customer-fields"><input name="nombre" type="text" th:placeholder="#{tienda.placeholder.nombre}" placeholder="Nombre y apellidos"
+                            required><input name="telefono" type="tel" th:placeholder="#{tienda.placeholder.telefono}" placeholder="Teléfono"><input
+                            name="email" type="email" th:placeholder="#{tienda.placeholder.email}" placeholder="Email" required></div>
+                    <div class="customer-submit"><label><input id="privacy-check" type="checkbox" required> [[#{tienda.acepto}]] <a href="/politicaPrivacidad" target="_blank">[[#{tienda.politicaPrivacidad.link}]]</a>.</label><button type="submit" class="store-submit">[[#{tienda.crearPedido}]] <i
                                 class="bi bi-arrow-up-right"></i></button></div>
                 </div>
             </form>
@@ -139,14 +137,20 @@
     </main>
     <div th:replace="~{footer.html}"></div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
+    <script th:inline="javascript">
+        const i18nTienda = {
+            unidad: /*[[#{tienda.js.unidad}]]*/ 'Unidad',
+            talla: /*[[#{tienda.js.talla}]]*/ 'Talla',
+            introduceEmail: /*[[#{tienda.js.introduceEmail}]]*/ 'Introduce un email para poder contactarte.',
+            seleccionaPrenda: /*[[#{tienda.js.seleccionaPrenda}]]*/ 'Selecciona al menos una prenda y la talla de cada unidad.'
+        };
         const sizes = ['2', '4', '6', '8', '10', '12', '14', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'];
         document.querySelectorAll('.product-card').forEach(card => {
             const quantity = card.querySelector('[data-quantity]');
             const sizeList = card.querySelector('[data-size-list]');
             const renderSizes = () => {
                 const count = Math.min(20, Math.max(0, Number(quantity.value) || 0));
-                sizeList.innerHTML = Array.from({ length: count }, (_, index) => `<label>Unidad ${index + 1}<select data-unit-size required><option value="">Talla</option>${sizes.map(size => `<option>${size}</option>`).join('')}</select></label>`).join('');
+                sizeList.innerHTML = Array.from({ length: count }, (_, index) => `<label>${i18nTienda.unidad} ${index + 1}<select data-unit-size required><option value="">${i18nTienda.talla}</option>${sizes.map(size => `<option>${size}</option>`).join('')}</select></label>`).join('');
             };
             quantity.addEventListener('input', renderSizes);
         });
@@ -166,10 +170,10 @@
             });
             if (!email) {
                 event.preventDefault();
-                alert('Introduce un email para poder contactarte.');
+                alert(i18nTienda.introduceEmail);
             } else if (!selected || [...document.querySelectorAll('[data-unit-size]')].some(select => !select.value && Number(select.closest('.product-card').querySelector('[data-quantity]').value) > 0)) {
                 event.preventDefault();
-                alert('Selecciona al menos una prenda y la talla de cada unidad.');
+                alert(i18nTienda.seleccionaPrenda);
             }
         });
     </script>
