@@ -16,13 +16,25 @@ import static org.mockito.Mockito.when;
 class PublicNoticiaControllerTest {
 
     @Test
-    void obtenerNoticiasDelegaEnElServicio() {
+    void obtenerNoticiasSinParametrosDelegaEnElServicioConLimiteNulo() {
         NoticiaService service = mock(NoticiaService.class);
         PublicNoticiaController controller = new PublicNoticiaController(service);
 
-        when(service.obtenerNoticiasParaApp()).thenReturn(List.of(new NoticiaAppDTO()));
+        when(service.obtenerNoticiasParaAppPagina(null, null)).thenReturn(List.of(new NoticiaAppDTO()));
 
-        assertThat(controller.obtenerNoticias()).hasSize(1);
+        assertThat(controller.obtenerNoticias(null, null)).hasSize(1);
+    }
+
+    @Test
+    void obtenerNoticiasConAntesIdYLimiteLosPasaAlServicio() {
+        NoticiaService service = mock(NoticiaService.class);
+        PublicNoticiaController controller = new PublicNoticiaController(service);
+
+        when(service.obtenerNoticiasParaAppPagina(42, 10)).thenReturn(List.of());
+
+        controller.obtenerNoticias(42, 10);
+
+        org.mockito.Mockito.verify(service).obtenerNoticiasParaAppPagina(42, 10);
     }
 
     @Test

@@ -17,7 +17,13 @@ public interface NoticiaService {
 
 	void eliminarNoticia(int id);
 
-	List<NoticiaAppDTO> obtenerNoticiasParaApp();
+	/**
+	 * Página de noticias para la app, de más reciente a más antigua.
+	 * Sin antesId, las "limite" (por defecto 5) más recientes; con
+	 * antesId, las inmediatamente anteriores a esa noticia. limite se
+	 * acota siempre entre 1 y 20.
+	 */
+	List<NoticiaAppDTO> obtenerNoticiasParaAppPagina(Integer antesId, Integer limite);
 
 	NoticiaAppDTO obtenerNoticiaParaApp(int id);
 

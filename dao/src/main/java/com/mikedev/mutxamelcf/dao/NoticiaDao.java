@@ -10,6 +10,13 @@ public interface NoticiaDao {
 
 	List<Noticia> obtenerNoticiasParaMostrar();
 
+	/**
+	 * Página de noticias ordenada de más reciente a más antigua. Sin
+	 * antesDeId, las "limite" más recientes; con antesDeId, las
+	 * "limite" inmediatamente anteriores a esa noticia.
+	 */
+	List<Noticia> obtenerNoticiasPagina(Integer antesDeId, int limite);
+
 	List<Noticia> obtenerTodas();
 
 	Noticia obtenerNoticiaPorId(int id);

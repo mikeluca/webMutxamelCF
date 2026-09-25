@@ -126,7 +126,7 @@ class NoticiaServiceImplTest {
     }
 
     @Test
-    void obtenerNoticiasParaAppConstruyeUrlDeImagenSoloSiHayImagen() {
+    void obtenerNoticiasParaAppPaginaConstruyeUrlDeImagenSoloSiHayImagen() {
         Noticia conImagen = new Noticia();
         conImagen.setId(1);
         conImagen.setImagen(new byte[] { 1 });
@@ -135,12 +135,48 @@ class NoticiaServiceImplTest {
         sinImagen.setId(2);
         sinImagen.setImagen(null);
 
-        when(noticiaDao.obtenerNoticiasParaMostrar()).thenReturn(List.of(conImagen, sinImagen));
+        when(noticiaDao.obtenerNoticiasPagina(null, 5)).thenReturn(List.of(conImagen, sinImagen));
 
-        List<NoticiaAppDTO> resultado = service.obtenerNoticiasParaApp();
+        List<NoticiaAppDTO> resultado = service.obtenerNoticiasParaAppPagina(null, null);
 
         assertThat(resultado.get(0).getImagenUrl()).isEqualTo("/api/public/noticias/1/imagen");
         assertThat(resultado.get(1).getImagenUrl()).isNull();
+    }
+
+    @Test
+    void obtenerNoticiasParaAppPaginaSinLimiteUsaCinco() {
+        when(noticiaDao.obtenerNoticiasPagina(null, 5)).thenReturn(List.of());
+
+        service.obtenerNoticiasParaAppPagina(null, null);
+
+        verify(noticiaDao).obtenerNoticiasPagina(null, 5);
+    }
+
+    @Test
+    void obtenerNoticiasParaAppPaginaConAntesIdLoPasaAlDao() {
+        when(noticiaDao.obtenerNoticiasPagina(42, 5)).thenReturn(List.of());
+
+        service.obtenerNoticiasParaAppPagina(42, null);
+
+        verify(noticiaDao).obtenerNoticiasPagina(42, 5);
+    }
+
+    @Test
+    void obtenerNoticiasParaAppPaginaAcotaElLimiteMaximo() {
+        when(noticiaDao.obtenerNoticiasPagina(null, 20)).thenReturn(List.of());
+
+        service.obtenerNoticiasParaAppPagina(null, 1000);
+
+        verify(noticiaDao).obtenerNoticiasPagina(null, 20);
+    }
+
+    @Test
+    void obtenerNoticiasParaAppPaginaAcotaElLimiteMinimo() {
+        when(noticiaDao.obtenerNoticiasPagina(null, 1)).thenReturn(List.of());
+
+        service.obtenerNoticiasParaAppPagina(null, -5);
+
+        verify(noticiaDao).obtenerNoticiasPagina(null, 1);
     }
 
     @Test
