@@ -4,6 +4,7 @@ import com.mikedev.mutxamelcf.model.EquipoDTO;
 import com.mikedev.mutxamelcf.model.NoticiaDTO;
 import com.mikedev.mutxamelcf.model.NoticiaForm;
 import com.mikedev.mutxamelcf.service.EquipoService;
+import com.mikedev.mutxamelcf.service.FcmPushService;
 import com.mikedev.mutxamelcf.service.NoticiaService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
 
@@ -32,6 +33,7 @@ class NoticiaAdminControllerTest {
     private NoticiaService noticiaService;
     private EquipoService equiposService;
     private NotificacionAppService notificacionAppService;
+    private FcmPushService fcmPushService;
 
     private NoticiaAdminController controller;
 
@@ -40,8 +42,10 @@ class NoticiaAdminControllerTest {
         noticiaService = mock(NoticiaService.class);
         equiposService = mock(EquipoService.class);
         notificacionAppService = mock(NotificacionAppService.class);
+        fcmPushService = mock(FcmPushService.class);
 
-        controller = new NoticiaAdminController(noticiaService, equiposService, notificacionAppService);
+        controller = new NoticiaAdminController(noticiaService, equiposService, notificacionAppService,
+                fcmPushService);
     }
 
     @Test
@@ -148,10 +152,11 @@ class NoticiaAdminControllerTest {
         assertEquals(3, captor.getValue().getImagen().length);
         assertEquals(fechaOriginal, captor.getValue().getFecha());
         verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+        verify(fcmPushService, never()).enviarATopic(any(), any(), any());
     }
 
     @Test
-    void guardarNoticiaNuevaDifundeNotificacionATodos() {
+    void guardarNoticiaNuevaDifundeNotificacionATodosYPublicaEnElTopicDeNoticias() {
         NoticiaForm form = new NoticiaForm();
         form.setTitulo("Titulo nuevo");
         form.setContenido("Contenido");
@@ -163,6 +168,35 @@ class NoticiaAdminControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Noticia generada correctamente.", response.getBody().get("mensaje"));
         verify(notificacionAppService).difundirATodos(org.mockito.ArgumentMatchers.eq("NOTICIA"), any(), any(), any());
+
+        org.mockito.ArgumentCaptor<String> tituloCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(fcmPushService).enviarATopic(
+                org.mockito.ArgumentMatchers.eq("noticias"),
+                tituloCaptor.capture(),
+                any());
+
+        assertEquals("Titulo nuevo", tituloCaptor.getValue());
+    }
+
+    @Test
+    void guardarNoticiaNuevaDesescapaElTituloAntesDePublicarEnElTopic() {
+        NoticiaForm form = new NoticiaForm();
+        form.setTitulo("Ana & Juan");
+        form.setContenido("Contenido");
+        form.setImagen(new MockMultipartFile("imagen", new byte[0]));
+        when(noticiaService.guardarNoticia(any())).thenReturn(true);
+
+        controller.guardarNoticia(form);
+
+        org.mockito.ArgumentCaptor<String> tituloCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(fcmPushService).enviarATopic(
+                org.mockito.ArgumentMatchers.eq("noticias"),
+                tituloCaptor.capture(),
+                any());
+
+        // El titulo se guarda escapado ("Ana &amp; Juan"); el push debe llevarlo
+        // desescapado, como texto plano legible.
+        assertEquals("Ana & Juan", tituloCaptor.getValue());
     }
 
     @Test

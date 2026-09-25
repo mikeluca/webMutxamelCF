@@ -30,4 +30,26 @@ public interface FcmPushService {
             String mensaje,
             Long referenciaId,
             Map<String, String> datosExtra);
+
+    /**
+     * Publica una notificación en un topic de FCM (p.ej. "noticias",
+     * "resultados"), para quien se haya suscrito a él desde la app sin
+     * necesidad de tener cuenta. La suscripción/desuscripción al topic
+     * la gestiona la propia app directamente contra Firebase; aquí
+     * solo publicamos.
+     */
+    void enviarATopic(
+            String topic,
+            String titulo,
+            String mensaje,
+            Map<String, String> datosExtra);
+
+    /**
+     * Igual que {@link #enviarATopic(String, String, String, Map)} sin
+     * datos extra en el payload.
+     */
+    void enviarATopic(
+            String topic,
+            String titulo,
+            String mensaje);
 }

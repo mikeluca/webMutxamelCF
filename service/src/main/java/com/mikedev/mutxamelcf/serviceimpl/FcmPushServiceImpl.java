@@ -233,4 +233,77 @@ public class FcmPushServiceImpl implements FcmPushService {
                         // Continuamos con el siguiente dispositivo.
                 }
         }
+
+        @Override
+        public void enviarATopic(
+                        String topic,
+                        String titulo,
+                        String mensaje) {
+
+                enviarATopic(topic, titulo, mensaje, Map.of());
+        }
+
+        /**
+         * Publica una notificación en un topic de FCM (suscripción
+         * anónima, gestionada por la propia app), capturando cualquier
+         * error de FCM sin propagarlo, igual que el resto de envíos de
+         * esta clase.
+         */
+        @Override
+        public void enviarATopic(
+                        String topic,
+                        String titulo,
+                        String mensaje,
+                        Map<String, String> datosExtra) {
+
+                if (topic == null || topic.isBlank()) {
+                        return;
+                }
+
+                Message message = Message.builder()
+                                .setTopic(topic)
+                                .setNotification(
+                                                Notification.builder()
+                                                                .setTitle(titulo)
+                                                                .setBody(mensaje)
+                                                                .build())
+                                .putAllData(
+                                                datosExtra != null ? datosExtra : Map.of())
+                                .build();
+
+                try {
+
+                        String response = FirebaseMessaging
+                                        .getInstance()
+                                        .send(message);
+
+                        System.out.println(
+                                        "NOTIFICACIÓN FCM ENVIADA AL TOPIC "
+                                                        + topic
+                                                        + ": response="
+                                                        + response);
+
+                } catch (FirebaseMessagingException e) {
+
+                        System.err.println(
+                                        "ERROR FCM AL PUBLICAR EN EL TOPIC "
+                                                        + topic
+                                                        + ": "
+                                                        + e.getMessage());
+
+                        // No propagamos la excepción: un fallo de FCM no
+                        // debe romper la operación principal (publicar
+                        // una noticia, marcar un gol, etc.).
+
+                } catch (Exception e) {
+
+                        System.err.println(
+                                        "ERROR INESPERADO FCM AL PUBLICAR EN EL TOPIC "
+                                                        + topic
+                                                        + ": "
+                                                        + e.getMessage());
+
+                        // Tampoco propagamos el error.
+                }
+        }
 }
