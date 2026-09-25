@@ -9,35 +9,35 @@
 	<nav class="navbar navbar-expand-lg navbar-light">
 		<div class="container-fluid lead">
 			<!-- Botón de hamburguesa solo visible en pantallas pequeñas -->
-			<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-label="Abrir navegación">
+			<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" th:aria-label="#{nav.abrirNavegacion}" aria-label="Abrir navegación">
 				<span class="navbar-toggler-icon"></span>
 			</button>
 			<!-- Menú de navegación -->
 			<div class="collapse navbar-collapse" id="navbarNav">
 				<ul class="navbar-nav me-auto">
 					<li class="nav-item">
-						<a class="nav-link" href="/index">Inicio</a>
+						<a class="nav-link" href="/index" th:text="#{nav.inicio}">Inicio</a>
 					</li>
 					<!-- Submenú de Historia -->
 					<li class="nav-item dropdown">
 						<a class="nav-link dropdown-toggle" href="#" id="navbarHistoria" role="button"
-							data-bs-toggle="dropdown" aria-expanded="false">
+							data-bs-toggle="dropdown" aria-expanded="false" th:text="#{nav.club}">
 							Club
 						</a>
 						<ul class="dropdown-menu lead" aria-labelledby="navbarHistoria">
-							<li><a class="dropdown-item" href="/historia">História</a></li>
-							<li><a class="dropdown-item" href="/estadisticasPalmares">Estadísticas y Palmarés</a></li>
-							<li><a class="dropdown-item" href="/obraSocial">Obra Social</a></li>
+							<li><a class="dropdown-item" href="/historia" th:text="#{nav.club.historia}">Historia</a></li>
+							<li><a class="dropdown-item" href="/estadisticasPalmares" th:text="#{nav.club.estadisticasPalmares}">Estadísticas y Palmarés</a></li>
+							<li><a class="dropdown-item" href="/obraSocial" th:text="#{nav.club.obraSocial}">Obra Social</a></li>
 						</ul>
 					</li>
 					<li class="nav-item">
-						<a class="nav-link" href="/resultados">Partidos</a>
+						<a class="nav-link" href="/resultados" th:text="#{nav.partidos}">Partidos</a>
 					</li>
 					<li class="nav-item">
-						<a class="nav-link" href="/listaEquipos/F">Plantillas</a>
+						<a class="nav-link" href="/listaEquipos/F" th:text="#{nav.plantillas}">Plantillas</a>
 					</li>
 					<li class="nav-item">
-						<a class="nav-link" href="/categorias/Primer Equipo">Primer Equipo</a>
+						<a class="nav-link" href="/categorias/Primer Equipo" th:text="#{nav.primerEquipo}">Primer Equipo</a>
 					</li>
 <!--					<li class="nav-item dropdown">-->
 <!--						<a class="nav-link dropdown-toggle" href="#" id="navbarHistoria" role="button"-->
@@ -50,13 +50,26 @@
 <!--						</ul>-->
 <!--					</li>-->
 					<li class="nav-item">
-						<a class="nav-link" href="/contacto">Contacto</a>
+						<a class="nav-link" href="/contacto" th:text="#{nav.contacto}">Contacto</a>
+					</li>
+					<!-- Selector de idioma: recarga la pagina actual con ?lang=es o ?lang=ca -->
+					<li class="nav-item dropdown d-lg-none">
+						<a class="nav-link dropdown-toggle" href="#" id="navbarIdiomaMovil" role="button"
+							data-bs-toggle="dropdown" aria-expanded="false">
+							<i class="bi bi-translate me-1"></i><span th:text="${#locale.language == 'ca'} ? #{lang.valenciano} : #{lang.castellano}">Idioma</span>
+						</a>
+						<ul class="dropdown-menu lead" aria-labelledby="navbarIdiomaMovil">
+							<li><a class="dropdown-item" th:classappend="${#locale.language == 'es'} ? 'active'"
+								th:href="@{${currentUri != null ? currentUri : '/index'}(lang='es')}">Castellano</a></li>
+							<li><a class="dropdown-item" th:classappend="${#locale.language == 'ca'} ? 'active'"
+								th:href="@{${currentUri != null ? currentUri : '/index'}(lang='ca')}">Valencià</a></li>
+						</ul>
 					</li>
 				</ul>
 			</div>
 			<!-- Redes Sociales siempre pegadas a la derecha -->
 			<div class="social-icons d-flex ms-auto">
-				<a href="/tienda" class="nav-link tienda-nav-link tienda-social-link mx-2" aria-label="Tienda"><i class="bi bi-shop-window me-1"></i><span class="tienda-label">TIENDA</span></a>
+				<a href="/tienda" class="nav-link tienda-nav-link tienda-social-link mx-2" aria-label="Tienda"><i class="bi bi-shop-window me-1"></i><span class="tienda-label" th:text="#{nav.tienda}">TIENDA</span></a>
 				<a href="https://x.com/mutxamelcf" target="_blank" class="mx-2">
 					<img src="/images/twitter.png" alt="Twitter" width="40" height="40">
 				</a>
@@ -69,8 +82,21 @@
 				<a href="https://youtube.com/@mutxamelcf355" target="_blank" class="mx-2">
 					<img src="/images/youtube.png" alt="YouTube" width="40" height="40">
 				</a>
+				<!-- Selector de idioma en escritorio: dos enlaces directos -->
+				<div class="dropdown mx-2 d-none d-lg-block">
+					<a class="nav-link dropdown-toggle" href="#" id="navbarIdiomaDesktop" role="button"
+						data-bs-toggle="dropdown" aria-expanded="false" title="Cambiar idioma / Canviar idioma">
+						<i class="bi bi-translate"></i>
+					</a>
+					<ul class="dropdown-menu dropdown-menu-end lead" aria-labelledby="navbarIdiomaDesktop">
+						<li><a class="dropdown-item" th:classappend="${#locale.language == 'es'} ? 'active'"
+							th:href="@{${currentUri != null ? currentUri : '/index'}(lang='es')}">Castellano</a></li>
+						<li><a class="dropdown-item" th:classappend="${#locale.language == 'ca'} ? 'active'"
+							th:href="@{${currentUri != null ? currentUri : '/index'}(lang='ca')}">Valencià</a></li>
+					</ul>
+				</div>
 				<a href="javascript:void(0)" onclick="redirectToLogin()" class="mx-4">
-					<img src="/images/login.png" alt="Iniciar Sesión" width="40" height="40">
+					<img src="/images/login.png" th:alt="#{nav.iniciarSesion}" alt="Iniciar Sesión" width="40" height="40">
 				</a>
 			</div>
 		</div>

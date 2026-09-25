@@ -27,38 +27,14 @@
 	<div th:replace="~{cabecera.html}"></div>
 
 	<main class="container-fluid my-5 lead">
-		<h1 class="page-title">Futbol i futbolistes a Mutxamel</h1>
-		<p class="lead"></br>
-			A Mutxamel, com en moltes altres poblacions, el futbol va esdevenir una activitat social molt popular,
-			especialment entre els hòmens, que disposaven de més llibertat per practicar activitats lúdiques. Fins a les
-			últimes dècades del segle XX, els jocs al carrer i els esports eren pràcticament exclusius dels hòmens,
-			mentre les dones tenien un paper molt més restringit.</br>
-
-			Amb l'arribada del futbol a Espanya a principis del segle XX, aquesta modalitat esportiva va començar a
-			arrelar al poble. Ja als anys trenta, era habitual veure grups de jóvens jugant als carrers i bancals,
-			destacant llocs com el carrer de la Sèquia o l’avinguda de Carlos Soler, on es muntaven porteries amb
-			pedres. Es van formar diversos equips, sovint amb noms vinculats al barri o als llaços d’amistat entre els
-			jugadors.</br>
-
-			Els partits es jugaven contra equips de pobles veïns com Sant Joan o Sant Vicent, i les cròniques de premsa
-			de l’època recullen trobades contra equips com Carolinas FC o el Gimnàstic d’Alacant. Els vestidors eren
-			improvisats, com ara al Bar Conchita, i l’equipament i material sanitari es recollien amb molt
-			d’esforç.</br>
-
-			Amb el temps, el Mutxamel C.F. es va consolidar com a club, amb samarretes grana i pantalons blaus o blancs.
-			Destacaren jugadors com Rafael Pastor "El Parralo", que arribà a jugar en Primera Divisió. L’equip va
-			disputar campionats comarcals i tornejos com el "Chacón" o la Copa de "San Pedro".</br>
-
-			Davant el creixement urbanístic i la falta d’instal·lacions, es van habilitar diversos camps provisionals,
-			com al Calvari, gràcies al treball voluntari i el suport de propietaris locals. Finalment, el 1969,
-			s’inaugurà el Camp Municipal dels Oms, amb la presència de les autoritats i la reina de les festes.</br>
-
-			Aquest recorregut històric reflecteix com, a través de l’esforç col·lectiu, el futbol ha passat de ser un
-			joc espontani entre amics a formar part essencial de la vida esportiva i social de Mutxamel, creant vincles
-			i donant a conéixer el poble més enllà de les seues fronteres.</br></br></br>
-
-			<em style="font-size: 0.7em;">* Texto resumido de la siguiente publicación.</em>
-		</p>
+		<h1 class="page-title" th:text="#{historia.titulo}">Futbol i futbolistes a Mutxamel</h1>
+		<div th:utext="#{historia.contenido}">
+			<p class="lead"><br>
+				A Mutxamel, com en moltes altres poblacions, el futbol va esdevenir una activitat social molt popular,
+				especialment entre els hòmens...
+				<em style="font-size: 0.7em;">* Texto resumido de la siguiente publicación.</em>
+			</p>
+		</div>
 		<a href="/images/historiaMutxamel.jpg" target="_blank">
 			<img src="/images/historiaMutxamel.jpg" class="img-thumbnail" alt="Imagen 1">
 		</a>
