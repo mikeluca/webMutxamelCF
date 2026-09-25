@@ -129,15 +129,23 @@ public class NoticiaServiceImpl implements NoticiaService {
 		return listaNoticias;
 	}
 
+	private static final int LIMITE_NOTICIAS_POR_DEFECTO = 5;
+	private static final int LIMITE_NOTICIAS_MAXIMO = 20;
+
 	@Override
-	public List<NoticiaAppDTO> obtenerNoticiasParaApp() {
-		logger.debug("Inicio obtenerNoticiasParaApp");
+	public List<NoticiaAppDTO> obtenerNoticiasParaAppPagina(Integer antesId, Integer limite) {
+		logger.debug("Inicio obtenerNoticiasParaAppPagina: antesId={}, limite={}", antesId, limite);
+
+		int limiteEfectivo = limite == null
+				? LIMITE_NOTICIAS_POR_DEFECTO
+				: Math.max(1, Math.min(LIMITE_NOTICIAS_MAXIMO, limite));
 
 		List<NoticiaAppDTO> noticias = toAppDTOList(
-				noticiaDao.obtenerNoticiasParaMostrar());
+				noticiaDao.obtenerNoticiasPagina(antesId, limiteEfectivo));
 
 		logger.debug(
-				"Fin obtenerNoticiasParaApp: total={}",
+				"Fin obtenerNoticiasParaAppPagina: antesId={}, total={}",
+				antesId,
 				noticias.size());
 
 		return noticias;

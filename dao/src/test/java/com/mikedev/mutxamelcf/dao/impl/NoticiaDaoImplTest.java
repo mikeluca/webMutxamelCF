@@ -135,6 +135,58 @@ class NoticiaDaoImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void obtenerNoticiasPaginaSinAntesDeIdPasaSoloElLimite() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        NoticiaDaoImpl dao = new NoticiaDaoImpl(jdbcTemplate);
+
+        List<Noticia> esperado = List.of(new Noticia());
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(5))).thenReturn(esperado);
+
+        assertThat(dao.obtenerNoticiasPagina(null, 5)).isSameAs(esperado);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerNoticiasPaginaConAntesDeIdPasaElCursorYElLimite() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        NoticiaDaoImpl dao = new NoticiaDaoImpl(jdbcTemplate);
+
+        List<Noticia> esperado = List.of(new Noticia());
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(42), eq(5))).thenReturn(esperado);
+
+        assertThat(dao.obtenerNoticiasPagina(42, 5)).isSameAs(esperado);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerNoticiasPaginaSinAntesDeIdNoReferenciaElCursorEnElSql() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        NoticiaDaoImpl dao = new NoticiaDaoImpl(jdbcTemplate);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        when(jdbcTemplate.query(sqlCaptor.capture(), any(RowMapper.class), eq(5))).thenReturn(List.of());
+
+        dao.obtenerNoticiasPagina(null, 5);
+
+        assertThat(sqlCaptor.getValue()).doesNotContain("cursor");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerNoticiasPaginaConAntesDeIdReferenciaElCursorEnElSql() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        NoticiaDaoImpl dao = new NoticiaDaoImpl(jdbcTemplate);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        when(jdbcTemplate.query(sqlCaptor.capture(), any(RowMapper.class), eq(42), eq(5))).thenReturn(List.of());
+
+        dao.obtenerNoticiasPagina(42, 5);
+
+        assertThat(sqlCaptor.getValue()).contains("cursor");
+    }
+
+    @Test
     void eliminarNoticiaEjecutaElDelete() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         NoticiaDaoImpl dao = new NoticiaDaoImpl(jdbcTemplate);

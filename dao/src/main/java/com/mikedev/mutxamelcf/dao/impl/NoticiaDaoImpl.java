@@ -91,6 +91,39 @@ public class NoticiaDaoImpl implements NoticiaDao {
 	}
 
 	@Override
+	public List<Noticia> obtenerNoticiasPagina(Integer antesDeId, int limite) {
+		logger.debug("Inicio obtenerNoticiasPagina: antesDeId={}, limite={}", antesDeId, limite);
+
+		String sql = antesDeId != null
+				? """
+						SELECT n.*
+						FROM noticias n
+						CROSS JOIN (
+						    SELECT fecha AS cursor_fecha, id AS cursor_id
+						    FROM noticias
+						    WHERE id = ?
+						) cursor
+						WHERE n.fecha < cursor.cursor_fecha
+						   OR (n.fecha = cursor.cursor_fecha AND n.id < cursor.cursor_id)
+						ORDER BY n.fecha DESC, n.id DESC
+						FETCH FIRST ? ROWS ONLY
+						"""
+				: """
+						SELECT * FROM noticias
+						ORDER BY fecha DESC, id DESC
+						FETCH FIRST ? ROWS ONLY
+						""";
+
+		List<Noticia> noticias = antesDeId != null
+				? jdbcTemplate.query(sql, NOTICIA_ROW_MAPPER, antesDeId, limite)
+				: jdbcTemplate.query(sql, NOTICIA_ROW_MAPPER, limite);
+
+		logger.debug("Fin obtenerNoticiasPagina: antesDeId={}, total={}", antesDeId, noticias.size());
+
+		return noticias;
+	}
+
+	@Override
 	public void eliminarNoticia(int id) {
 		logger.debug("Inicio eliminarNoticia: id={}", id);
 		String sql = "DELETE FROM noticias WHERE id = ?";
