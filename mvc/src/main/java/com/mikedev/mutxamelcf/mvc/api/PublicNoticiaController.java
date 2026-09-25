@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mikedev.mutxamelcf.model.NoticiaAppDTO;
@@ -21,9 +22,21 @@ public class PublicNoticiaController {
         this.noticiaService = noticiaService;
     }
 
+    /**
+     * Página de noticias, más reciente primero.
+     *
+     * GET /api/public/noticias
+     * Sin parámetros: últimas 5.
+     * ?antesId={id}: las noticias inmediatamente anteriores a esa
+     * (para cargar historial anterior de 5 en 5).
+     * ?limite={n}: tamaño de página (por defecto 5, entre 1 y 20).
+     */
     @GetMapping
-    public List<NoticiaAppDTO> obtenerNoticias() {
-        return noticiaService.obtenerNoticiasParaApp();
+    public List<NoticiaAppDTO> obtenerNoticias(
+            @RequestParam(required = false) Integer antesId,
+            @RequestParam(required = false) Integer limite) {
+
+        return noticiaService.obtenerNoticiasParaAppPagina(antesId, limite);
     }
 
     @GetMapping("/{id}")
