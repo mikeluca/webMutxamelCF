@@ -28,7 +28,7 @@
 
 	<main class="container-fluid my-5 lead">
 		<div class="container-fluid">
-			<h1 class="page-title">Contacto</h1>
+			<h1 class="page-title" th:text="#{contacto.titulo}">Contacto</h1>
 
 			<div class="row">
 				<!-- Columna izquierda: formulario -->
@@ -37,26 +37,26 @@
 						<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 
 						<div class="form-group mt-2">
-							<label for="nombre">Nombre:</label>
+							<label for="nombre" th:text="#{contacto.nombre}">Nombre:</label>
 							<input type="text" class="form-control" id="nombre" name="nombre" required>
 						</div>
 
 						<div class="form-group mt-3">
-							<label for="email">Email:</label>
+							<label for="email" th:text="#{contacto.email}">Email:</label>
 							<input type="email" class="form-control" id="email" name="email" required>
 						</div>
 
 						<div class="form-group mt-3">
-							<label for="mensaje">Mensaje:</label>
+							<label for="mensaje" th:text="#{contacto.mensaje}">Mensaje:</label>
 							<textarea class="form-control" id="mensaje" name="mensaje" rows="5" required></textarea>
 						</div>
 
 						<!-- Texto LOPD -->
 						<div class="mb-3">
 							<p style="font-size: 0.5em; line-height: 1.2; margin: 10px;">
-								Al enviar este formulario, usted acepta que sus datos personales serán tratados
-								por <strong>Mutxamel CF</strong> con la finalidad de responder a su solicitud, de
-								acuerdo con nuestra <a href="/politicaPrivacidad" target="_blank">Política de
+								[[#{contacto.lopd.antes}]]
+								<strong>Mutxamel CF</strong> [[#{contacto.lopd.despues}]]
+								<a href="/politicaPrivacidad" target="_blank" th:text="#{contacto.lopd.enlace}">Política de
 									Privacidad</a>.
 							</p>
 						</div>
@@ -64,26 +64,26 @@
 						<!-- Checkbox obligatorio -->
 						<div class="form-check mb-3">
 							<input type="checkbox" class="form-check-input" id="aceptarLOPD">
-							<label class="form-check-label" for="aceptarLOPD">
+							<label class="form-check-label" for="aceptarLOPD" th:text="#{contacto.aceptoLopd}">
 								He sido informado, entiendo y autorizo el tratamiento de mis datos personales.
 							</label>
 						</div>
 
-						<button type="submit" class="btn btn-primary" id="btnEnviar" disabled>Enviar</button>
+						<button type="submit" class="btn btn-primary" id="btnEnviar" disabled th:text="#{common.enviar}">Enviar</button>
 
 					</form>
 				</div>
 
 				<!-- Mapa (derecha en grande, debajo en móvil) -->
 				<div class="col-12 col-md-6">
-					<h3 class="lead fw-bold text-center">Dónde estamos</h3>
+					<h3 class="lead fw-bold text-center" th:text="#{contacto.dondeEstamos}">Dónde estamos</h3>
 					<div>
-						<p><strong>Dirección:</strong></br>
+						<p><strong th:text="#{contacto.direccion}">Dirección:</strong></br>
 							Calle los Olmos S/N, Mutxamel, Alicante
 						</p>
-						<p><strong>Teléfono:</strong></br>
+						<p><strong th:text="#{contacto.telefono}">Teléfono:</strong></br>
 							+34 623 17 68 18</p>
-						<p><strong>Email:</strong></br>
+						<p><strong th:text="#{contacto.email}">Email:</strong></br>
 							<a href="mailto:mutxamelcf.gestion@gmail.com"
 								class="no-style">mutxamelcf.gestion@gmail.com</a>
 						</p>

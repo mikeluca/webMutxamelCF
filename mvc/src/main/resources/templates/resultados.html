@@ -48,7 +48,7 @@
 
 	<main class="container-fluid">
 		<div>
-			<h1 class="page-title">Calendario / Resultados Fútbol</h1>
+			<h1 class="page-title" th:text="#{resultados.titulo}">Calendario / Resultados Fútbol</h1>
 
 			<!-- Una seccion con su propia tabla por cada categoria, ya agrupadas y ordenadas por MainController -->
 			<div th:each="entrada : ${resultadosPorCategoria}" class="categoria-seccion">
@@ -57,13 +57,13 @@
 					<table>
 						<thead>
 							<tr>
-								<th>TIPO</th>
-								<th style="width: 22%;">EQUIPO</th>
-								<th>RESULTADO</th>
-								<th>RIVAL</th>
-								<th>DIA</th>
-								<th>HORA</th>
-								<th style="width: 22%;">CAMPO</th>
+								<th th:text="#{resultados.col.tipo}">TIPO</th>
+								<th style="width: 22%;" th:text="#{resultados.col.equipo}">EQUIPO</th>
+								<th th:text="#{resultados.col.resultado}">RESULTADO</th>
+								<th th:text="#{resultados.col.rival}">RIVAL</th>
+								<th th:text="#{resultados.col.dia}">DIA</th>
+								<th th:text="#{resultados.col.hora}">HORA</th>
+								<th style="width: 22%;" th:text="#{resultados.col.campo}">CAMPO</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -75,7 +75,7 @@
 								</td>
 								<td th:text="${resultado.equipo}" style="width: 22%;"></td>
 								<!-- Equipo sin proximo partido ni ultimo resultado: fila "placeholder" -->
-								<td th:if="${resultado.rival == null or #strings.isEmpty(resultado.rival)}" colspan="5" class="text-center text-muted">No tiene partido</td>
+								<td th:if="${resultado.rival == null or #strings.isEmpty(resultado.rival)}" colspan="5" class="text-center text-muted" th:text="#{resultados.sinPartido}">No tiene partido</td>
 								<th:block th:unless="${resultado.rival == null or #strings.isEmpty(resultado.rival)}">
 									<td th:text="${resultado.resultado}" style="width: 80px;"></td>
 									<td th:text="${resultado.rival}" style="width: auto;"></td>
