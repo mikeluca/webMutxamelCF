@@ -52,17 +52,19 @@
 					<li class="nav-item">
 						<a class="nav-link" href="/contacto" th:text="#{nav.contacto}">Contacto</a>
 					</li>
-					<!-- Selector de idioma: recarga la pagina actual con ?lang=es o ?lang=ca -->
+					<!-- Selector de idioma: recarga la pagina actual con ?lang=es, ?lang=ca o ?lang=en -->
 					<li class="nav-item dropdown d-lg-none">
 						<a class="nav-link dropdown-toggle" href="#" id="navbarIdiomaMovil" role="button"
 							data-bs-toggle="dropdown" aria-expanded="false">
-							<i class="bi bi-translate me-1"></i><span th:text="${#locale.language == 'ca'} ? #{lang.valenciano} : #{lang.castellano}">Idioma</span>
+							<i class="bi bi-translate me-1"></i><span th:text="#{lang.nombreActual}">Idioma</span>
 						</a>
 						<ul class="dropdown-menu lead" aria-labelledby="navbarIdiomaMovil">
 							<li><a class="dropdown-item" th:classappend="${#locale.language == 'es'} ? 'active'"
 								th:href="@{${currentUri != null ? currentUri : '/index'}(lang='es')}">Castellano</a></li>
 							<li><a class="dropdown-item" th:classappend="${#locale.language == 'ca'} ? 'active'"
 								th:href="@{${currentUri != null ? currentUri : '/index'}(lang='ca')}">Valencià</a></li>
+							<li><a class="dropdown-item" th:classappend="${#locale.language == 'en'} ? 'active'"
+								th:href="@{${currentUri != null ? currentUri : '/index'}(lang='en')}">English</a></li>
 						</ul>
 					</li>
 				</ul>
@@ -82,10 +84,10 @@
 				<a href="https://youtube.com/@mutxamelcf355" target="_blank" class="mx-2">
 					<img src="/images/youtube.png" alt="YouTube" width="40" height="40">
 				</a>
-				<!-- Selector de idioma en escritorio: dos enlaces directos -->
+				<!-- Selector de idioma en escritorio: tres enlaces directos -->
 				<div class="dropdown mx-2 d-none d-lg-block">
 					<a class="nav-link dropdown-toggle" href="#" id="navbarIdiomaDesktop" role="button"
-						data-bs-toggle="dropdown" aria-expanded="false" title="Cambiar idioma / Canviar idioma">
+						data-bs-toggle="dropdown" aria-expanded="false" title="Cambiar idioma / Canviar idioma / Change language">
 						<i class="bi bi-translate"></i>
 					</a>
 					<ul class="dropdown-menu dropdown-menu-end lead" aria-labelledby="navbarIdiomaDesktop">
@@ -93,6 +95,8 @@
 							th:href="@{${currentUri != null ? currentUri : '/index'}(lang='es')}">Castellano</a></li>
 						<li><a class="dropdown-item" th:classappend="${#locale.language == 'ca'} ? 'active'"
 							th:href="@{${currentUri != null ? currentUri : '/index'}(lang='ca')}">Valencià</a></li>
+						<li><a class="dropdown-item" th:classappend="${#locale.language == 'en'} ? 'active'"
+							th:href="@{${currentUri != null ? currentUri : '/index'}(lang='en')}">English</a></li>
 					</ul>
 				</div>
 				<a href="javascript:void(0)" onclick="redirectToLogin()" class="mx-4">
