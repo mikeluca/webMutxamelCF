@@ -56,15 +56,20 @@
 					<li class="nav-item dropdown d-lg-none">
 						<a class="nav-link dropdown-toggle" href="#" id="navbarIdiomaMovil" role="button"
 							data-bs-toggle="dropdown" aria-expanded="false">
-							<i class="bi bi-translate me-1"></i><span th:text="#{lang.nombreActual}">Idioma</span>
+							<img th:src="${#locale.language == 'ca'} ? '/images/bandera-cv.png' : (${#locale.language == 'en'} ? '/images/bandera-gb.png' : '/images/bandera-es.png')"
+								src="/images/bandera-es.png" th:alt="#{lang.nombreActual}" alt="Idioma" class="bandera-idioma me-1">
+							<span th:text="#{lang.nombreActual}">Idioma</span>
 						</a>
 						<ul class="dropdown-menu lead" aria-labelledby="navbarIdiomaMovil">
 							<li><a class="dropdown-item" th:classappend="${#locale.language == 'es'} ? 'active'"
-								th:href="@{${currentUri != null ? currentUri : '/index'}(lang='es')}">Castellano</a></li>
+								th:href="@{${currentUri != null ? currentUri : '/index'}(lang='es')}">
+								<img src="/images/bandera-es.png" alt="España" class="bandera-idioma me-2">Castellano</a></li>
 							<li><a class="dropdown-item" th:classappend="${#locale.language == 'ca'} ? 'active'"
-								th:href="@{${currentUri != null ? currentUri : '/index'}(lang='ca')}">Valencià</a></li>
+								th:href="@{${currentUri != null ? currentUri : '/index'}(lang='ca')}">
+								<img src="/images/bandera-cv.png" alt="Comunitat Valenciana" class="bandera-idioma me-2">Valencià</a></li>
 							<li><a class="dropdown-item" th:classappend="${#locale.language == 'en'} ? 'active'"
-								th:href="@{${currentUri != null ? currentUri : '/index'}(lang='en')}">English</a></li>
+								th:href="@{${currentUri != null ? currentUri : '/index'}(lang='en')}">
+								<img src="/images/bandera-gb.png" alt="United Kingdom" class="bandera-idioma me-2">English</a></li>
 						</ul>
 					</li>
 				</ul>
@@ -88,15 +93,19 @@
 				<div class="dropdown mx-2 d-none d-lg-block">
 					<a class="nav-link dropdown-toggle" href="#" id="navbarIdiomaDesktop" role="button"
 						data-bs-toggle="dropdown" aria-expanded="false" title="Cambiar idioma / Canviar idioma / Change language">
-						<i class="bi bi-translate"></i>
+						<img th:src="${#locale.language == 'ca'} ? '/images/bandera-cv.png' : (${#locale.language == 'en'} ? '/images/bandera-gb.png' : '/images/bandera-es.png')"
+							src="/images/bandera-es.png" th:alt="#{lang.nombreActual}" alt="Idioma" class="bandera-idioma">
 					</a>
 					<ul class="dropdown-menu dropdown-menu-end lead" aria-labelledby="navbarIdiomaDesktop">
 						<li><a class="dropdown-item" th:classappend="${#locale.language == 'es'} ? 'active'"
-							th:href="@{${currentUri != null ? currentUri : '/index'}(lang='es')}">Castellano</a></li>
+							th:href="@{${currentUri != null ? currentUri : '/index'}(lang='es')}">
+							<img src="/images/bandera-es.png" alt="España" class="bandera-idioma me-2">Castellano</a></li>
 						<li><a class="dropdown-item" th:classappend="${#locale.language == 'ca'} ? 'active'"
-							th:href="@{${currentUri != null ? currentUri : '/index'}(lang='ca')}">Valencià</a></li>
+							th:href="@{${currentUri != null ? currentUri : '/index'}(lang='ca')}">
+							<img src="/images/bandera-cv.png" alt="Comunitat Valenciana" class="bandera-idioma me-2">Valencià</a></li>
 						<li><a class="dropdown-item" th:classappend="${#locale.language == 'en'} ? 'active'"
-							th:href="@{${currentUri != null ? currentUri : '/index'}(lang='en')}">English</a></li>
+							th:href="@{${currentUri != null ? currentUri : '/index'}(lang='en')}">
+							<img src="/images/bandera-gb.png" alt="United Kingdom" class="bandera-idioma me-2">English</a></li>
 					</ul>
 				</div>
 				<a href="javascript:void(0)" onclick="redirectToLogin()" class="mx-4">
