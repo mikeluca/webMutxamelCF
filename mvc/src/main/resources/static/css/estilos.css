@@ -948,6 +948,25 @@ header {
 	/* Aumenta el tamaño de los íconos al pasar el mouse */
 }
 
+/* Banderas del selector de idioma: ancho fijo pequeño, alto automatico
+   para respetar la proporcion real de cada bandera (la Senyera y la
+   Union Jack no son cuadradas). Se sobreescribe con !important porque
+   la regla .navbar .social-icons img de mas arriba fuerza 32x32 a
+   cualquier <img> dentro de .social-icons. */
+.bandera-idioma,
+.navbar .social-icons img.bandera-idioma {
+	width: 20px !important;
+	height: auto !important;
+	font-size: inherit !important;
+	border-radius: 2px;
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, .15);
+	vertical-align: middle;
+}
+
+.dropdown-item .bandera-idioma {
+	width: 18px !important;
+}
+
 /* Contenedor de las noticias con CSS Grid */
 .noticias-grid {
 	display: grid;
