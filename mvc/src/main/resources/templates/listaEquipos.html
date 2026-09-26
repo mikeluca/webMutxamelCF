@@ -70,7 +70,7 @@
 	<main>
 
 		<div class="container-fluid teams-page">
-			<h1 class="page-title">Lista de Equipos</h1>
+			<h1 class="page-title" th:text="#{listaEquipos.titulo}">Lista de Equipos</h1>
 
 			<!-- Agrupación de equipos por categoría -->
 			<div th:each="entry : ${equiposPorCategoria}">

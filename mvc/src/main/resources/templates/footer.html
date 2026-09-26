@@ -1,8 +1,8 @@
 <div class="container mt-2">
-	<h1 class="fw-bold text-center">Nuestros Patrocinadores</h1>
+	<h1 class="fw-bold text-center" th:text="#{footer.patrocinadores.titulo}">Nuestros Patrocinadores</h1>
 	<p class="text-center text-muted small mb-3">
 	    <i class="bi bi-box-arrow-up-right"></i>
-	    Pulsa en las imagenes para conocer mas acerca de nuestros patrocinadores.
+	    <span th:text="#{footer.patrocinadores.subtitulo}">Pulsa en las imagenes para conocer mas acerca de nuestros patrocinadores.</span>
 	</p>
 	<div class="row justify-content-center">
 
@@ -81,7 +81,7 @@
 </div>
 
 <footer class="bg-dark text-white text-center py-3">
-	<p>Mutxamel CF © Todos los derechos reservados. <a th:href="@{/politicaPrivacidad}" class="no-style">Política de
+	<p><span th:text="#{footer.copyright}">Mutxamel CF © Todos los derechos reservados.</span> <a th:href="@{/politicaPrivacidad}" class="no-style" th:text="#{footer.politicaPrivacidad}">Política de
 			Privacidad.</a></p>
 
 	<script>
