@@ -1,27 +1,23 @@
 package com.mikedev.mutxamelcf.model;
 
-import java.time.LocalDate;
 import java.util.List;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 
 public class ConvocatoriaGuardarRequest {
 
-    @NotNull(message = "El equipo es obligatorio")
-    private Long equipoId;
-
-    @NotBlank(message = "El rival es obligatorio")
-    private String rival;
-
-    private String campo;
-
-    @NotNull(message = "La fecha del partido es obligatoria")
-    private LocalDate fechaPartido;
-
-    @NotBlank(message = "La hora del partido es obligatoria")
-    private String horaPartido;
+    /*
+     * La convocatoria ya no se crea con rival/campo/fecha/hora escritos a
+     * mano: se crea SIEMPRE a partir de un partido ya existente. El
+     * equipoId ya no se pide en la petición: se deriva del propio
+     * Partido (partido.getEquipoId()), que es la fuente única de verdad,
+     * evitando así que se pueda enviar un equipoId que no case con el
+     * partido elegido.
+     */
+    @NotNull(message = "El partido es obligatorio")
+    private Long partidoId;
 
     @NotBlank(message = "La hora de convocatoria es obligatoria")
     private String horaConvocatoria;
@@ -35,44 +31,12 @@ public class ConvocatoriaGuardarRequest {
     public ConvocatoriaGuardarRequest() {
     }
 
-    public Long getEquipoId() {
-        return equipoId;
+    public Long getPartidoId() {
+        return partidoId;
     }
 
-    public void setEquipoId(Long equipoId) {
-        this.equipoId = equipoId;
-    }
-
-    public String getRival() {
-        return rival;
-    }
-
-    public void setRival(String rival) {
-        this.rival = rival;
-    }
-
-    public String getCampo() {
-        return campo;
-    }
-
-    public void setCampo(String campo) {
-        this.campo = campo;
-    }
-
-    public LocalDate getFechaPartido() {
-        return fechaPartido;
-    }
-
-    public void setFechaPartido(LocalDate fechaPartido) {
-        this.fechaPartido = fechaPartido;
-    }
-
-    public String getHoraPartido() {
-        return horaPartido;
-    }
-
-    public void setHoraPartido(String horaPartido) {
-        this.horaPartido = horaPartido;
+    public void setPartidoId(Long partidoId) {
+        this.partidoId = partidoId;
     }
 
     public String getHoraConvocatoria() {

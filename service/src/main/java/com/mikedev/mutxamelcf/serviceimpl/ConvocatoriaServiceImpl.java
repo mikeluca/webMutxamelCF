@@ -3,12 +3,14 @@ package com.mikedev.mutxamelcf.serviceimpl;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
+import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.model.ConvocatoriaGuardarRequest;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugadorResponse;
 import com.mikedev.mutxamelcf.model.ConvocatoriaResponse;
 import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
+import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.ConvocatoriaService;
 
@@ -26,17 +28,20 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
         private final ConvocatoriaDao convocatoriaDao;
         private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
         private final EquipoGestionDao equipoGestionDao;
+        private final PartidoDao partidoDao;
         private final ComunicacionService comunicacionService;
 
         public ConvocatoriaServiceImpl(
                         ConvocatoriaDao convocatoriaDao,
                         ConvocatoriaJugadorDao convocatoriaJugadorDao,
                         EquipoGestionDao equipoGestionDao,
+                        PartidoDao partidoDao,
                         ComunicacionService comunicacionService) {
 
                 this.convocatoriaDao = convocatoriaDao;
                 this.convocatoriaJugadorDao = convocatoriaJugadorDao;
                 this.equipoGestionDao = equipoGestionDao;
+                this.partidoDao = partidoDao;
                 this.comunicacionService = comunicacionService;
         }
 
@@ -49,7 +54,14 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 validarUsuario(usuarioAppId);
                 validarRequest(request);
 
-                Long equipoId = request.getEquipoId();
+                Partido partido = partidoDao.obtenerPorId(request.getPartidoId());
+
+                if (partido == null) {
+                        throw new IllegalArgumentException(
+                                        "El partido no existe");
+                }
+
+                Long equipoId = partido.getEquipoId();
 
                 if (!equipoGestionDao.existeEquipo(equipoId)) {
                         throw new IllegalArgumentException(
@@ -71,12 +83,12 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         "El equipo no tiene jugadores");
                 }
 
-                if (convocatoriaDao.existePorEquipoYFecha(
-                                equipoId,
-                                request.getFechaPartido())) {
+                if (convocatoriaDao.existePorPartido(
+                                partido.getId(),
+                                null)) {
 
                         throw new IllegalArgumentException(
-                                        "Ya existe una convocatoria para este equipo en ese día");
+                                        "Ya existe una convocatoria para este partido");
                 }
 
                 validarJugadoresSeleccionados(
@@ -86,14 +98,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 Convocatoria convocatoria = new Convocatoria();
 
                 convocatoria.setEquipoId(equipoId);
-                convocatoria.setRival(
-                                limpiar(request.getRival()));
-                convocatoria.setCampo(
-                                limpiar(request.getCampo()));
-                convocatoria.setFechaPartido(
-                                request.getFechaPartido());
-                convocatoria.setHoraPartido(
-                                limpiar(request.getHoraPartido()));
+                convocatoria.setPartidoId(partido.getId());
                 convocatoria.setHoraConvocatoria(
                                 limpiar(request.getHoraConvocatoria()));
                 convocatoria.setLugarConvocatoria(
@@ -102,6 +107,15 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 usuarioAppId);
 
                 Convocatoria guardada = convocatoriaDao.guardar(convocatoria);
+
+                /*
+                 * El rival/campo/fecha/hora no se persisten en la
+                 * convocatoria: se copian aquí, en memoria, desde el
+                 * Partido ya cargado, únicamente para poder construir la
+                 * respuesta y las notificaciones sin tener que volver a
+                 * leer de base de datos.
+                 */
+                aplicarDatosPartido(guardada, partido);
 
                 for (Long jugadorId : request.getJugadoresIds()) {
 
@@ -122,6 +136,21 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 request.getJugadoresIds());
 
                 return construirResponse(guardada);
+        }
+
+        private void aplicarDatosPartido(
+                        Convocatoria convocatoria,
+                        Partido partido) {
+
+                convocatoria.setRival(partido.getRival());
+                convocatoria.setCampo(partido.getCampo());
+
+                convocatoria.setFechaPartido(
+                                partido.getDia() != null
+                                                ? new java.sql.Date(partido.getDia().getTime()).toLocalDate()
+                                                : null);
+
+                convocatoria.setHoraPartido(partido.getHora());
         }
 
         private void generarNotificaciones(
@@ -242,17 +271,10 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         "La convocatoria no existe");
                 }
 
-                if (convocatoriaDao.existePorEquipoYFecha(
-                                convocatoria.getEquipoId(),
-                                request.getFechaPartido())) {
-
-                        throw new IllegalArgumentException(
-                                        "Ya existe una convocatoria para este equipo en ese día");
-                }
-
                 /*
-                 * Comprobamos que el usuario puede gestionar
-                 * el equipo de la convocatoria.
+                 * Comprobamos que el usuario puede gestionar el equipo
+                 * ACTUAL de la convocatoria (antes de aplicar ningún
+                 * cambio del request).
                  */
                 if (!equipoGestionDao.puedeGestionarEquipo(
                                 usuarioAppId,
@@ -262,12 +284,29 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         "No tienes permiso para actualizar esta convocatoria");
                 }
 
+                Partido partido = partidoDao.obtenerPorId(request.getPartidoId());
+
+                if (partido == null) {
+                        throw new IllegalArgumentException(
+                                        "El partido no existe");
+                }
+
                 /*
-                 * No permitimos cambiar el equipo.
+                 * No permitimos cambiar el equipo de la convocatoria: el
+                 * partido elegido al re-apuntar la convocatoria tiene que
+                 * seguir siendo del mismo equipo.
                  */
-                if (!convocatoria.getEquipoId().equals(request.getEquipoId())) {
+                if (!convocatoria.getEquipoId().equals(partido.getEquipoId())) {
                         throw new IllegalArgumentException(
                                         "No se puede cambiar el equipo de la convocatoria");
+                }
+
+                if (convocatoriaDao.existePorPartido(
+                                partido.getId(),
+                                convocatoriaId)) {
+
+                        throw new IllegalArgumentException(
+                                        "Ya existe una convocatoria para este partido");
                 }
 
                 /*
@@ -277,19 +316,10 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                  */
 
                 /*
-                 * Actualizamos únicamente los datos del partido.
+                 * Actualizamos únicamente el partido vinculado y los
+                 * datos propios de la convocatoria.
                  */
-                convocatoria.setRival(
-                                limpiar(request.getRival()));
-
-                convocatoria.setCampo(
-                                limpiar(request.getCampo()));
-
-                convocatoria.setFechaPartido(
-                                request.getFechaPartido());
-
-                convocatoria.setHoraPartido(
-                                limpiar(request.getHoraPartido()));
+                convocatoria.setPartidoId(partido.getId());
 
                 convocatoria.setHoraConvocatoria(
                                 limpiar(request.getHoraConvocatoria()));
@@ -298,6 +328,8 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 limpiar(request.getLugarConvocatoria()));
 
                 convocatoriaDao.actualizar(convocatoria);
+
+                aplicarDatosPartido(convocatoria, partido);
 
                 /*
                  * Obtenemos los jugadores que ya están asociados
@@ -432,6 +464,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 response.setEquipo(
                                 equipoGestionDao.obtenerNombreEquipo(
                                                 convocatoria.getEquipoId()));
+                response.setPartidoId(convocatoria.getPartidoId());
                 response.setRival(convocatoria.getRival());
                 response.setCampo(convocatoria.getCampo());
                 response.setFechaPartido(
@@ -474,30 +507,11 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         "La petición no puede ser nula");
                 }
 
-                if (request.getEquipoId() == null
-                                || request.getEquipoId() <= 0) {
+                if (request.getPartidoId() == null
+                                || request.getPartidoId() <= 0) {
 
                         throw new IllegalArgumentException(
-                                        "El equipo es obligatorio");
-                }
-
-                if (request.getRival() == null
-                                || request.getRival().trim().isEmpty()) {
-
-                        throw new IllegalArgumentException(
-                                        "El rival es obligatorio");
-                }
-
-                if (request.getFechaPartido() == null) {
-                        throw new IllegalArgumentException(
-                                        "La fecha del partido es obligatoria");
-                }
-
-                if (request.getHoraPartido() == null
-                                || request.getHoraPartido().trim().isEmpty()) {
-
-                        throw new IllegalArgumentException(
-                                        "La hora del partido es obligatoria");
+                                        "El partido es obligatorio");
                 }
 
                 if (request.getHoraConvocatoria() == null
@@ -530,30 +544,11 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         "La petición no puede ser nula");
                 }
 
-                if (request.getEquipoId() == null
-                                || request.getEquipoId() <= 0) {
+                if (request.getPartidoId() == null
+                                || request.getPartidoId() <= 0) {
 
                         throw new IllegalArgumentException(
-                                        "El equipo es obligatorio");
-                }
-
-                if (request.getRival() == null
-                                || request.getRival().trim().isEmpty()) {
-
-                        throw new IllegalArgumentException(
-                                        "El rival es obligatorio");
-                }
-
-                if (request.getFechaPartido() == null) {
-                        throw new IllegalArgumentException(
-                                        "La fecha del partido es obligatoria");
-                }
-
-                if (request.getHoraPartido() == null
-                                || request.getHoraPartido().trim().isEmpty()) {
-
-                        throw new IllegalArgumentException(
-                                        "La hora del partido es obligatoria");
+                                        "El partido es obligatorio");
                 }
 
                 if (request.getHoraConvocatoria() == null

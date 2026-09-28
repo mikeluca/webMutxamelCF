@@ -7,10 +7,23 @@ public class Convocatoria {
 
     private Long id;
     private Long equipoId;
+    private Long partidoId;
 
+    /*
+     * Campos NO persistidos en la tabla CONVOCATORIAS: la convocatoria ya
+     * no guarda su propio rival/campo/fecha/hora, sino que siempre se
+     * apoya en el PARTIDO al que apunta PARTIDO_ID (single source of
+     * truth). Estos campos se rellenan en tiempo de lectura:
+     *   - ConvocatoriaDaoImpl los rellena haciendo JOIN con PARTIDOS en
+     *     obtenerPorId()/obtenerPorEquipo().
+     *   - ConvocatoriaServiceImpl los rellena "a mano" justo despues de
+     *     crear()/actualizar(), a partir del Partido ya cargado en
+     *     memoria, para poder construir la respuesta y las notificaciones
+     *     sin tener que volver a consultar la base de datos.
+     * guardar()/actualizar() en el DAO los ignoran por completo.
+     */
     private String rival;
     private String campo;
-
     private LocalDate fechaPartido;
     private String horaPartido;
 
@@ -21,30 +34,6 @@ public class Convocatoria {
     private LocalDateTime fechaCreacion;
 
     public Convocatoria() {
-    }
-
-    public Convocatoria(
-            Long id,
-            Long equipoId,
-            String rival,
-            String campo,
-            LocalDate fechaPartido,
-            String horaPartido,
-            String horaConvocatoria,
-            String lugarConvocatoria,
-            Long usuarioEntrenadorId,
-            LocalDateTime fechaCreacion) {
-
-        this.id = id;
-        this.equipoId = equipoId;
-        this.rival = rival;
-        this.campo = campo;
-        this.fechaPartido = fechaPartido;
-        this.horaPartido = horaPartido;
-        this.horaConvocatoria = horaConvocatoria;
-        this.lugarConvocatoria = lugarConvocatoria;
-        this.usuarioEntrenadorId = usuarioEntrenadorId;
-        this.fechaCreacion = fechaCreacion;
     }
 
     public Long getId() {
@@ -61,6 +50,14 @@ public class Convocatoria {
 
     public void setEquipoId(Long equipoId) {
         this.equipoId = equipoId;
+    }
+
+    public Long getPartidoId() {
+        return partidoId;
+    }
+
+    public void setPartidoId(Long partidoId) {
+        this.partidoId = partidoId;
     }
 
     public String getRival() {

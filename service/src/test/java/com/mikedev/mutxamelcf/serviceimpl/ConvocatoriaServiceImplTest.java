@@ -6,11 +6,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.time.LocalDate;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -24,9 +24,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
+import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.ConvocatoriaGuardarRequest;
 import com.mikedev.mutxamelcf.model.ConvocatoriaResponse;
+import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,31 +44,41 @@ class ConvocatoriaServiceImplTest {
     private EquipoGestionDao equipoGestionDao;
 
     @Mock
+    private PartidoDao partidoDao;
+
+    @Mock
     private ComunicacionService comunicacionService;
 
     private ConvocatoriaServiceImpl service;
 
     private static final Long USUARIO_ID = 1L;
     private static final Long EQUIPO_ID = 10L;
+    private static final Long PARTIDO_ID = 20L;
     private static final Long JUGADOR_ID = 100L;
 
     @BeforeEach
     void setUp() {
         service = new ConvocatoriaServiceImpl(
-                convocatoriaDao, convocatoriaJugadorDao, equipoGestionDao, comunicacionService);
+                convocatoriaDao, convocatoriaJugadorDao, equipoGestionDao, partidoDao, comunicacionService);
     }
 
     private ConvocatoriaGuardarRequest requestValido() {
         ConvocatoriaGuardarRequest request = new ConvocatoriaGuardarRequest();
-        request.setEquipoId(EQUIPO_ID);
-        request.setRival("Rival CF");
-        request.setCampo("Campo Municipal");
-        request.setFechaPartido(LocalDate.of(2026, 3, 1));
-        request.setHoraPartido("17:00");
+        request.setPartidoId(PARTIDO_ID);
         request.setHoraConvocatoria("16:00");
         request.setLugarConvocatoria("Vestuarios");
         request.setJugadoresIds(List.of(JUGADOR_ID));
         return request;
+    }
+
+    private Partido partidoValido() {
+        Partido partido = new Partido();
+        partido.setId(PARTIDO_ID);
+        partido.setEquipoId(EQUIPO_ID);
+        partido.setRival("Rival CF");
+        partido.setCampo("Campo Municipal");
+        partido.setHora("17:00");
+        return partido;
     }
 
     @Test
@@ -74,11 +86,21 @@ class ConvocatoriaServiceImplTest {
         assertThatThrownBy(() -> service.crear(null, requestValido()))
                 .isInstanceOf(SecurityException.class);
 
-        Mockito.verifyNoInteractions(convocatoriaDao, equipoGestionDao);
+        Mockito.verifyNoInteractions(convocatoriaDao, equipoGestionDao, partidoDao);
+    }
+
+    @Test
+    void crearConPartidoInexistenteLanzaExcepcion() {
+        when(partidoDao.obtenerPorId(PARTIDO_ID)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.crear(USUARIO_ID, requestValido()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("partido no existe");
     }
 
     @Test
     void crearConEquipoInexistenteLanzaExcepcion() {
+        when(partidoDao.obtenerPorId(PARTIDO_ID)).thenReturn(partidoValido());
         when(equipoGestionDao.existeEquipo(EQUIPO_ID)).thenReturn(false);
 
         assertThatThrownBy(() -> service.crear(USUARIO_ID, requestValido()))
@@ -88,6 +110,7 @@ class ConvocatoriaServiceImplTest {
 
     @Test
     void crearSinPermisoParaGestionarElEquipoLanzaExcepcion() {
+        when(partidoDao.obtenerPorId(PARTIDO_ID)).thenReturn(partidoValido());
         when(equipoGestionDao.existeEquipo(EQUIPO_ID)).thenReturn(true);
         when(equipoGestionDao.puedeGestionarEquipo(USUARIO_ID, EQUIPO_ID)).thenReturn(false);
 
@@ -98,6 +121,7 @@ class ConvocatoriaServiceImplTest {
 
     @Test
     void crearConEquipoSinJugadoresLanzaExcepcion() {
+        when(partidoDao.obtenerPorId(PARTIDO_ID)).thenReturn(partidoValido());
         when(equipoGestionDao.existeEquipo(EQUIPO_ID)).thenReturn(true);
         when(equipoGestionDao.puedeGestionarEquipo(USUARIO_ID, EQUIPO_ID)).thenReturn(true);
         when(equipoGestionDao.obtenerJugadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of());
@@ -108,11 +132,12 @@ class ConvocatoriaServiceImplTest {
     }
 
     @Test
-    void crearConConvocatoriaDuplicadaMismoDiaLanzaExcepcion() {
+    void crearConConvocatoriaDuplicadaParaElMismoPartidoLanzaExcepcion() {
+        when(partidoDao.obtenerPorId(PARTIDO_ID)).thenReturn(partidoValido());
         when(equipoGestionDao.existeEquipo(EQUIPO_ID)).thenReturn(true);
         when(equipoGestionDao.puedeGestionarEquipo(USUARIO_ID, EQUIPO_ID)).thenReturn(true);
         when(equipoGestionDao.obtenerJugadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of(JUGADOR_ID));
-        when(convocatoriaDao.existePorEquipoYFecha(eq(EQUIPO_ID), any())).thenReturn(true);
+        when(convocatoriaDao.existePorPartido(eq(PARTIDO_ID), isNull())).thenReturn(true);
 
         assertThatThrownBy(() -> service.crear(USUARIO_ID, requestValido()))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -123,10 +148,11 @@ class ConvocatoriaServiceImplTest {
 
     @Test
     void crearConJugadorQueNoPerteneceAlEquipoLanzaExcepcion() {
+        when(partidoDao.obtenerPorId(PARTIDO_ID)).thenReturn(partidoValido());
         when(equipoGestionDao.existeEquipo(EQUIPO_ID)).thenReturn(true);
         when(equipoGestionDao.puedeGestionarEquipo(USUARIO_ID, EQUIPO_ID)).thenReturn(true);
         when(equipoGestionDao.obtenerJugadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of(999L));
-        when(convocatoriaDao.existePorEquipoYFecha(eq(EQUIPO_ID), any())).thenReturn(false);
+        when(convocatoriaDao.existePorPartido(eq(PARTIDO_ID), isNull())).thenReturn(false);
 
         assertThatThrownBy(() -> service.crear(USUARIO_ID, requestValido()))
                 .isInstanceOf(SecurityException.class)
@@ -137,10 +163,11 @@ class ConvocatoriaServiceImplTest {
 
     @Test
     void crearConDatosValidosGuardaLaConvocatoriaYSusJugadores() {
+        when(partidoDao.obtenerPorId(PARTIDO_ID)).thenReturn(partidoValido());
         when(equipoGestionDao.existeEquipo(EQUIPO_ID)).thenReturn(true);
         when(equipoGestionDao.puedeGestionarEquipo(USUARIO_ID, EQUIPO_ID)).thenReturn(true);
         when(equipoGestionDao.obtenerJugadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of(JUGADOR_ID));
-        when(convocatoriaDao.existePorEquipoYFecha(eq(EQUIPO_ID), any())).thenReturn(false);
+        when(convocatoriaDao.existePorPartido(eq(PARTIDO_ID), isNull())).thenReturn(false);
         when(equipoGestionDao.obtenerNombreEquipo(EQUIPO_ID)).thenReturn("Equipo Alevin A");
         when(equipoGestionDao.obtenerNombreJugador(JUGADOR_ID)).thenReturn("Jugador Uno");
         when(equipoGestionDao.obtenerUsuariosPorJugador(JUGADOR_ID)).thenReturn(List.of());
@@ -158,8 +185,13 @@ class ConvocatoriaServiceImplTest {
 
         assertThat(respuesta.getId()).isEqualTo(50L);
         assertThat(respuesta.getEquipo()).isEqualTo("Equipo Alevin A");
+        assertThat(respuesta.getPartidoId()).isEqualTo(PARTIDO_ID);
+        assertThat(respuesta.getRival()).isEqualTo("Rival CF");
+        assertThat(respuesta.getCampo()).isEqualTo("Campo Municipal");
 
-        verify(convocatoriaDao).guardar(any(Convocatoria.class));
+        verify(convocatoriaDao).guardar(argThat(
+                convocatoria -> convocatoria.getEquipoId().equals(EQUIPO_ID)
+                        && convocatoria.getPartidoId().equals(PARTIDO_ID)));
         verify(convocatoriaJugadorDao).guardar(argThat(
                 convocatoriaJugador -> convocatoriaJugador.getConvocatoriaId().equals(50L)
                         && convocatoriaJugador.getJugadorId().equals(JUGADOR_ID)));

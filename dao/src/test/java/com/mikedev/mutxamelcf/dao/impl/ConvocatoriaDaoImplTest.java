@@ -36,10 +36,7 @@ class ConvocatoriaDaoImplTest {
 
         Convocatoria convocatoria = new Convocatoria();
         convocatoria.setEquipoId(1L);
-        convocatoria.setRival("Rival CF");
-        convocatoria.setCampo("Campo Municipal");
-        convocatoria.setFechaPartido(LocalDate.of(2026, 3, 1));
-        convocatoria.setHoraPartido("18:00");
+        convocatoria.setPartidoId(7L);
         convocatoria.setHoraConvocatoria("17:00");
         convocatoria.setLugarConvocatoria("Vestuarios");
         convocatoria.setUsuarioEntrenadorId(9L);
@@ -62,8 +59,8 @@ class ConvocatoriaDaoImplTest {
         pscCaptor.getValue().createPreparedStatement(connection);
 
         verify(ps).setLong(1, 1L);
-        verify(ps).setString(2, "Rival CF");
-        verify(ps).setLong(8, 9L);
+        verify(ps).setLong(2, 7L);
+        verify(ps).setLong(5, 9L);
     }
 
     @Test
@@ -72,7 +69,7 @@ class ConvocatoriaDaoImplTest {
         ConvocatoriaDaoImpl dao = new ConvocatoriaDaoImpl(jdbcTemplate);
 
         Convocatoria convocatoria = new Convocatoria();
-        convocatoria.setFechaPartido(LocalDate.of(2026, 3, 1));
+        convocatoria.setPartidoId(7L);
 
         when(jdbcTemplate.update(any(PreparedStatementCreator.class), any(KeyHolder.class))).thenReturn(1);
 
@@ -86,11 +83,13 @@ class ConvocatoriaDaoImplTest {
 
         Convocatoria convocatoria = new Convocatoria();
         convocatoria.setId(1L);
-        convocatoria.setRival("Rival CF");
+        convocatoria.setPartidoId(7L);
+        convocatoria.setHoraConvocatoria("17:00");
+        convocatoria.setLugarConvocatoria("Vestuarios");
 
         dao.actualizar(convocatoria);
 
-        verify(jdbcTemplate).update(anyString(), eq("Rival CF"), any(), any(), any(), any(), any(), eq(1L));
+        verify(jdbcTemplate).update(anyString(), eq(7L), eq("17:00"), eq("Vestuarios"), eq(1L));
     }
 
     @Test
@@ -118,6 +117,7 @@ class ConvocatoriaDaoImplTest {
         ResultSet rs = mock(ResultSet.class);
         when(rs.getLong("ID")).thenReturn(1L);
         when(rs.getLong("EQUIPO_ID")).thenReturn(2L);
+        when(rs.getLong("PARTIDO_ID")).thenReturn(7L);
         when(rs.getString("RIVAL")).thenReturn("Rival CF");
         when(rs.getString("CAMPO")).thenReturn("Campo Municipal");
         when(rs.getDate("FECHA_PARTIDO")).thenReturn(java.sql.Date.valueOf("2026-03-01"));
@@ -130,6 +130,7 @@ class ConvocatoriaDaoImplTest {
         Convocatoria mapeada = captor.getValue().mapRow(rs, 0);
 
         assertThat(mapeada.getId()).isEqualTo(1L);
+        assertThat(mapeada.getPartidoId()).isEqualTo(7L);
         assertThat(mapeada.getRival()).isEqualTo("Rival CF");
         assertThat(mapeada.getFechaPartido()).isEqualTo(LocalDate.of(2026, 3, 1));
         assertThat(mapeada.getFechaCreacion()).isNotNull();
@@ -156,13 +157,23 @@ class ConvocatoriaDaoImplTest {
     }
 
     @Test
-    void existePorEquipoYFechaDevuelveTrueCuandoHayFilas() {
+    void existePorPartidoDevuelveTrueCuandoHayFilasSinExcluirNinguna() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         ConvocatoriaDaoImpl dao = new ConvocatoriaDaoImpl(jdbcTemplate);
 
-        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(2L), any())).thenReturn(1);
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(7L))).thenReturn(1);
 
-        assertThat(dao.existePorEquipoYFecha(2L, LocalDate.of(2026, 3, 1))).isTrue();
+        assertThat(dao.existePorPartido(7L, null)).isTrue();
+    }
+
+    @Test
+    void existePorPartidoExcluyeLaConvocatoriaIndicada() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        ConvocatoriaDaoImpl dao = new ConvocatoriaDaoImpl(jdbcTemplate);
+
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(7L), eq(3L))).thenReturn(0);
+
+        assertThat(dao.existePorPartido(7L, 3L)).isFalse();
     }
 
     @Test

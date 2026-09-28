@@ -300,6 +300,37 @@ public class PartidoServiceImpl implements PartidoService {
 
 	@Override
 	@Transactional(readOnly = true)
+	public List<PartidoDTO> obtenerPartidosSinConvocatoria(Long usuarioAppId, Long equipoId, Long incluirPartidoId) {
+		logger.debug("Inicio obtenerPartidosSinConvocatoria: usuarioAppId={}, equipoId={}, incluirPartidoId={}",
+				usuarioAppId, equipoId, incluirPartidoId);
+
+		if (usuarioAppId == null) {
+			throw new SecurityException("Usuario no autenticado");
+		}
+
+		if (equipoId == null) {
+			throw new IllegalArgumentException("El equipo es obligatorio");
+		}
+
+		if (!equipoGestionDao.existeEquipo(equipoId)) {
+			throw new IllegalArgumentException("El equipo no existe");
+		}
+
+		if (!equipoGestionDao.puedeGestionarEquipo(usuarioAppId, equipoId)) {
+			throw new SecurityException("El usuario no puede gestionar este equipo");
+		}
+
+		List<Partido> partidos = partidoDao.obtenerPartidosSinConvocatoria(equipoId, incluirPartidoId);
+
+		List<PartidoDTO> resultado = toDTOList(partidos);
+
+		logger.debug("Fin obtenerPartidosSinConvocatoria: equipoId={}, total={}", equipoId, resultado.size());
+
+		return resultado;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public List<ResultadoDTO> obtenerResultados(String deporte) {
 		logger.debug("Inicio obtenerResultados: deporte={}", deporte);
 

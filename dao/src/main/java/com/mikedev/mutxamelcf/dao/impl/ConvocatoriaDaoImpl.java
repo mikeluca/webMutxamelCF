@@ -4,8 +4,6 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -29,6 +27,12 @@ public class ConvocatoriaDaoImpl
                 this.jdbcTemplate = jdbcTemplate;
         }
 
+        /*
+         * El rival/campo/fecha/hora del partido ya NO se guardan en
+         * CONVOCATORIAS: se leen siempre en vivo mediante JOIN con
+         * PARTIDOS (fuente única de verdad). Este mapper se usa
+         * únicamente en los SELECT que incluyen ese JOIN.
+         */
         private final RowMapper<Convocatoria> rowMapper = new RowMapper<Convocatoria>() {
 
                 @Override
@@ -43,6 +47,9 @@ public class ConvocatoriaDaoImpl
 
                         convocatoria.setEquipoId(
                                         rs.getLong("EQUIPO_ID"));
+
+                        convocatoria.setPartidoId(
+                                        rs.getLong("PARTIDO_ID"));
 
                         convocatoria.setRival(
                                         rs.getString("RIVAL"));
@@ -89,15 +96,12 @@ public class ConvocatoriaDaoImpl
                 String sql = """
                                 INSERT INTO CONVOCATORIAS (
                                     EQUIPO_ID,
-                                    RIVAL,
-                                    CAMPO,
-                                    FECHA_PARTIDO,
-                                    HORA_PARTIDO,
+                                    PARTIDO_ID,
                                     HORA_CONVOCATORIA,
                                     LUGAR_CONVOCATORIA,
                                     USUARIO_ENTRENADOR_ID
                                 )
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                VALUES (?, ?, ?, ?, ?)
                                 """;
 
                 KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -108,15 +112,10 @@ public class ConvocatoriaDaoImpl
                                         new String[] { "ID" });
 
                         ps.setLong(1, convocatoria.getEquipoId());
-                        ps.setString(2, convocatoria.getRival());
-                        ps.setString(3, convocatoria.getCampo());
-                        ps.setDate(
-                                        4,
-                                        java.sql.Date.valueOf(convocatoria.getFechaPartido()));
-                        ps.setObject(5, convocatoria.getHoraPartido());
-                        ps.setObject(6, convocatoria.getHoraConvocatoria());
-                        ps.setString(7, convocatoria.getLugarConvocatoria());
-                        ps.setLong(8, convocatoria.getUsuarioEntrenadorId());
+                        ps.setLong(2, convocatoria.getPartidoId());
+                        ps.setObject(3, convocatoria.getHoraConvocatoria());
+                        ps.setString(4, convocatoria.getLugarConvocatoria());
+                        ps.setLong(5, convocatoria.getUsuarioEntrenadorId());
 
                         return ps;
                 }, keyHolder);
@@ -138,10 +137,7 @@ public class ConvocatoriaDaoImpl
 
                 String sql = """
                                 UPDATE CONVOCATORIAS
-                                SET RIVAL = ?,
-                                    CAMPO = ?,
-                                    FECHA_PARTIDO = ?,
-                                    HORA_PARTIDO = ?,
+                                SET PARTIDO_ID = ?,
                                     HORA_CONVOCATORIA = ?,
                                     LUGAR_CONVOCATORIA = ?
                                 WHERE ID = ?
@@ -149,10 +145,7 @@ public class ConvocatoriaDaoImpl
 
                 jdbcTemplate.update(
                                 sql,
-                                convocatoria.getRival(),
-                                convocatoria.getCampo(),
-                                convocatoria.getFechaPartido(),
-                                convocatoria.getHoraPartido(),
+                                convocatoria.getPartidoId(),
                                 convocatoria.getHoraConvocatoria(),
                                 convocatoria.getLugarConvocatoria(),
                                 convocatoria.getId());
@@ -164,18 +157,20 @@ public class ConvocatoriaDaoImpl
 
                 String sql = """
                                 SELECT
-                                    ID,
-                                    EQUIPO_ID,
-                                    RIVAL,
-                                    CAMPO,
-                                    FECHA_PARTIDO,
-                                    HORA_PARTIDO,
-                                    HORA_CONVOCATORIA,
-                                    LUGAR_CONVOCATORIA,
-                                    USUARIO_ENTRENADOR_ID,
-                                    FECHA_CREACION
-                                FROM CONVOCATORIAS
-                                WHERE ID = ?
+                                    C.ID,
+                                    C.EQUIPO_ID,
+                                    C.PARTIDO_ID,
+                                    P.RIVAL AS RIVAL,
+                                    P.CAMPO AS CAMPO,
+                                    P.DIA AS FECHA_PARTIDO,
+                                    P.HORA AS HORA_PARTIDO,
+                                    C.HORA_CONVOCATORIA,
+                                    C.LUGAR_CONVOCATORIA,
+                                    C.USUARIO_ENTRENADOR_ID,
+                                    C.FECHA_CREACION
+                                FROM CONVOCATORIAS C
+                                JOIN PARTIDOS P ON P.ID = C.PARTIDO_ID
+                                WHERE C.ID = ?
                                 """;
 
                 List<Convocatoria> resultado = jdbcTemplate.query(
@@ -194,19 +189,21 @@ public class ConvocatoriaDaoImpl
 
                 String sql = """
                                 SELECT
-                                    ID,
-                                    EQUIPO_ID,
-                                    RIVAL,
-                                    CAMPO,
-                                    FECHA_PARTIDO,
-                                    HORA_PARTIDO,
-                                    HORA_CONVOCATORIA,
-                                    LUGAR_CONVOCATORIA,
-                                    USUARIO_ENTRENADOR_ID,
-                                    FECHA_CREACION
-                                FROM CONVOCATORIAS
-                                WHERE EQUIPO_ID = ?
-                                ORDER BY FECHA_PARTIDO DESC, ID DESC
+                                    C.ID,
+                                    C.EQUIPO_ID,
+                                    C.PARTIDO_ID,
+                                    P.RIVAL AS RIVAL,
+                                    P.CAMPO AS CAMPO,
+                                    P.DIA AS FECHA_PARTIDO,
+                                    P.HORA AS HORA_PARTIDO,
+                                    C.HORA_CONVOCATORIA,
+                                    C.LUGAR_CONVOCATORIA,
+                                    C.USUARIO_ENTRENADOR_ID,
+                                    C.FECHA_CREACION
+                                FROM CONVOCATORIAS C
+                                JOIN PARTIDOS P ON P.ID = C.PARTIDO_ID
+                                WHERE C.EQUIPO_ID = ?
+                                ORDER BY P.DIA DESC, C.ID DESC
                                 """;
 
                 return jdbcTemplate.query(
@@ -216,22 +213,33 @@ public class ConvocatoriaDaoImpl
         }
 
         @Override
-        public boolean existePorEquipoYFecha(
-                        Long equipoId,
-                        LocalDate fechaPartido) {
+        public boolean existePorPartido(
+                        Long partidoId,
+                        Long convocatoriaIdExcluir) {
 
-                String sql = """
-                                SELECT COUNT(*)
-                                FROM CONVOCATORIAS
-                                WHERE EQUIPO_ID = ?
-                                  AND FECHA_PARTIDO = ?
-                                """;
+                String sql = convocatoriaIdExcluir == null
+                                ? """
+                                                SELECT COUNT(*)
+                                                FROM CONVOCATORIAS
+                                                WHERE PARTIDO_ID = ?
+                                                """
+                                : """
+                                                SELECT COUNT(*)
+                                                FROM CONVOCATORIAS
+                                                WHERE PARTIDO_ID = ?
+                                                  AND ID <> ?
+                                                """;
 
-                Integer count = jdbcTemplate.queryForObject(
-                                sql,
-                                Integer.class,
-                                equipoId,
-                                java.sql.Date.valueOf(fechaPartido));
+                Integer count = convocatoriaIdExcluir == null
+                                ? jdbcTemplate.queryForObject(
+                                                sql,
+                                                Integer.class,
+                                                partidoId)
+                                : jdbcTemplate.queryForObject(
+                                                sql,
+                                                Integer.class,
+                                                partidoId,
+                                                convocatoriaIdExcluir);
 
                 return count != null && count > 0;
         }

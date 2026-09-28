@@ -186,6 +186,40 @@ public class PartidoDaoImpl implements PartidoDao {
 	}
 
 	@Override
+	public List<Partido> obtenerPartidosSinConvocatoria(Long equipoId, Long incluirPartidoId) {
+		logger.debug("Inicio obtenerPartidosSinConvocatoria: equipoId={}, incluirPartidoId={}", equipoId,
+				incluirPartidoId);
+
+		/*
+		 * LEFT JOIN con CONVOCATORIAS: un partido "sin convocatoria" es
+		 * aquel para el que no existe ninguna fila en CONVOCATORIAS con
+		 * PARTIDO_ID = P.ID. Se permite colar el partido indicado en
+		 * incluirPartidoId aunque ya tenga convocatoria, para que al
+		 * editar una convocatoria existente su partido ya vinculado siga
+		 * apareciendo en el selector. Se usa -1 como valor "neutro" (no
+		 * puede coincidir con ningún ID real) cuando no se quiere incluir
+		 * ninguno, para no tener que construir SQL dinámico.
+		 */
+		String sql = """
+				SELECT P.ID, P.EQUIPO_ID, P.RIVAL, P.DIA, P.HORA, P.CAMPO, P.RESULTADO, P.TIPO,
+				       P.USUARIO_ACTUALIZO_ID, P.FECHA_ACTUALIZACION
+				FROM PARTIDOS P
+				LEFT JOIN CONVOCATORIAS C ON C.PARTIDO_ID = P.ID
+				WHERE P.EQUIPO_ID = ?
+				  AND (C.ID IS NULL OR P.ID = ?)
+				ORDER BY P.DIA ASC, P.ID ASC
+				""";
+
+		long incluirId = incluirPartidoId != null ? incluirPartidoId : -1L;
+
+		List<Partido> partidos = jdbcTemplate.query(sql, PARTIDO_ROW_MAPPER, equipoId, incluirId);
+
+		logger.debug("Fin obtenerPartidosSinConvocatoria: equipoId={}, total={}", equipoId, partidos.size());
+
+		return partidos;
+	}
+
+	@Override
 	public Partido obtenerMasRelevantePorEquipoNombre(String equipoNombre, String categoria) {
 		logger.debug("Inicio obtenerMasRelevantePorEquipoNombre: equipoNombre={}, categoria={}", equipoNombre,
 				categoria);

@@ -8,6 +8,14 @@ public class ConvocatoriaResponse {
     private Long id;
     private Long equipoId;
     private String equipo;
+    private Long partidoId;
+
+    /*
+     * rival/campo/fechaPartido/horaPartido ya no se guardan en la
+     * convocatoria: se leen siempre en vivo del Partido vinculado
+     * (PARTIDO_ID) y se exponen aquí igualmente para no romper a los
+     * consumidores de la API que ya mostraban estos campos.
+     */
     private String rival;
     private String campo;
     private LocalDate fechaPartido;
@@ -42,6 +50,14 @@ public class ConvocatoriaResponse {
 
     public void setEquipo(String equipo) {
         this.equipo = equipo;
+    }
+
+    public Long getPartidoId() {
+        return partidoId;
+    }
+
+    public void setPartidoId(Long partidoId) {
+        this.partidoId = partidoId;
     }
 
     public String getRival() {

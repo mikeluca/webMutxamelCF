@@ -1,6 +1,5 @@
 package com.mikedev.mutxamelcf.dao;
 
-import java.time.LocalDate;
 import java.util.List;
 
 import com.mikedev.mutxamelcf.model.Convocatoria;
@@ -21,7 +20,18 @@ public interface ConvocatoriaDao {
 
         void actualizar(Convocatoria convocatoria);
 
-        boolean existePorEquipoYFecha(
-                        Long equipoId,
-                        LocalDate fechaPartido);
+        /**
+         * Indica si ya existe una convocatoria asociada al partido dado.
+         *
+         * @param partidoId               partido a comprobar.
+         * @param convocatoriaIdExcluir   id de convocatoria a excluir de la
+         *                                comprobación (usado al actualizar,
+         *                                para no comparar la convocatoria
+         *                                consigo misma); puede ser
+         *                                {@code null} si no se quiere
+         *                                excluir ninguna (caso de alta).
+         */
+        boolean existePorPartido(
+                        Long partidoId,
+                        Long convocatoriaIdExcluir);
 }

@@ -29,6 +29,19 @@ public interface PartidoService {
 
 	List<PartidoDTO> obtenerPorEquipo(Long equipoId);
 
+	/**
+	 * Partidos de un equipo que el entrenador puede usar para crear una
+	 * convocatoria (los que todavía no tienen convocatoria asociada),
+	 * comprobando permisos igual que el resto de operaciones "App".
+	 *
+	 * @param incluirPartidoId id de un partido a incluir en el listado
+	 *                         aunque ya tenga convocatoria (para que,
+	 *                         editando una convocatoria existente, su
+	 *                         partido vinculado siga siendo
+	 *                         seleccionable); puede ser {@code null}.
+	 */
+	List<PartidoDTO> obtenerPartidosSinConvocatoria(Long usuarioAppId, Long equipoId, Long incluirPartidoId);
+
 	// Compatibilidad con el contrato público ya existente
 	List<ResultadoDTO> obtenerResultados(String deporte);
 
