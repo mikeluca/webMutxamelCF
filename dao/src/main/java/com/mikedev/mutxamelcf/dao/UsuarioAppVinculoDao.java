@@ -78,4 +78,13 @@ public interface UsuarioAppVinculoDao {
      * Devuelve null si el familiar no existe o no tiene email.
      */
     String obtenerEmailFamiliar(Long familiarId);
+
+    /**
+     * Comprueba si la cuenta usuarioAppId está vinculada al jugador
+     * jugadorId, ya sea directamente (es el propio jugador) o como
+     * familiar suyo (FAMILIARES_JUGADOR). Se usa para autorizar a
+     * jugadores/familias a justificar en nombre de ese jugador una
+     * falta a entrenamiento.
+     */
+    boolean tieneVinculoConJugador(int usuarioAppId, Long jugadorId);
 }

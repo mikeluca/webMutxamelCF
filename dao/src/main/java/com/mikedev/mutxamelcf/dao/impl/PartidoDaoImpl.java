@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.LocalDate;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -26,7 +27,7 @@ public class PartidoDaoImpl implements PartidoDao {
 
 	private static final String CAMPOS_SELECT = """
 			P.ID, P.EQUIPO_ID, P.RIVAL, P.DIA, P.HORA, P.CAMPO, P.RESULTADO, P.TIPO,
-			P.USUARIO_ACTUALIZO_ID, P.FECHA_ACTUALIZACION
+			P.USUARIO_ACTUALIZO_ID, P.FECHA_ACTUALIZACION, P.CANCELADO
 			""";
 
 	private final JdbcTemplate jdbcTemplate;
@@ -132,7 +133,7 @@ public class PartidoDaoImpl implements PartidoDao {
 
 		String sql = """
 				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
-				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION
+				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO
 				FROM PARTIDOS
 				WHERE ID = ?
 				""";
@@ -152,7 +153,7 @@ public class PartidoDaoImpl implements PartidoDao {
 
 		String sql = """
 				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
-				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION
+				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO
 				FROM PARTIDOS
 				WHERE EQUIPO_ID = ?
 				ORDER BY DIA DESC, ID DESC
@@ -171,7 +172,7 @@ public class PartidoDaoImpl implements PartidoDao {
 
 		String sql = """
 				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
-				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION
+				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO
 				FROM PARTIDOS
 				WHERE EQUIPO_ID = ?
 				ORDER BY DIA DESC, ID DESC
@@ -200,19 +201,28 @@ public class PartidoDaoImpl implements PartidoDao {
 		 * puede coincidir con ningún ID real) cuando no se quiere incluir
 		 * ninguno, para no tener que construir SQL dinámico.
 		 */
+		/*
+		 * Un partido cancelado tampoco se ofrece como "sin convocatoria":
+		 * no tiene sentido convocar jugadores para un partido que ya no
+		 * se va a disputar. Se excluye salvo que sea el propio
+		 * incluirPartidoId (mismo criterio que con los que ya tienen
+		 * convocatoria), para no romper la edición de una convocatoria
+		 * ya existente si su partido se cancelase después.
+		 */
 		String sql = """
 				SELECT P.ID, P.EQUIPO_ID, P.RIVAL, P.DIA, P.HORA, P.CAMPO, P.RESULTADO, P.TIPO,
-				       P.USUARIO_ACTUALIZO_ID, P.FECHA_ACTUALIZACION
+				       P.USUARIO_ACTUALIZO_ID, P.FECHA_ACTUALIZACION, P.CANCELADO
 				FROM PARTIDOS P
 				LEFT JOIN CONVOCATORIAS C ON C.PARTIDO_ID = P.ID
 				WHERE P.EQUIPO_ID = ?
 				  AND (C.ID IS NULL OR P.ID = ?)
+				  AND (P.CANCELADO = 0 OR P.ID = ?)
 				ORDER BY P.DIA ASC, P.ID ASC
 				""";
 
 		long incluirId = incluirPartidoId != null ? incluirPartidoId : -1L;
 
-		List<Partido> partidos = jdbcTemplate.query(sql, PARTIDO_ROW_MAPPER, equipoId, incluirId);
+		List<Partido> partidos = jdbcTemplate.query(sql, PARTIDO_ROW_MAPPER, equipoId, incluirId, incluirId);
 
 		logger.debug("Fin obtenerPartidosSinConvocatoria: equipoId={}, total={}", equipoId, partidos.size());
 
@@ -307,6 +317,29 @@ public class PartidoDaoImpl implements PartidoDao {
 	}
 
 	@Override
+	public List<Partido> obtenerPorEquipoYRangoFechas(Long equipoId, LocalDate desde, LocalDate hasta) {
+		logger.debug("Inicio obtenerPorEquipoYRangoFechas: equipoId={}, desde={}, hasta={}", equipoId, desde, hasta);
+
+		String sql = "SELECT " + CAMPOS_SELECT + """
+				FROM PARTIDOS P
+				WHERE P.EQUIPO_ID = ?
+				  AND P.DIA BETWEEN ? AND ?
+				ORDER BY P.DIA ASC, P.ID ASC
+				""";
+
+		List<Partido> partidos = jdbcTemplate.query(
+				sql,
+				PARTIDO_ROW_MAPPER,
+				equipoId,
+				java.sql.Date.valueOf(desde),
+				java.sql.Date.valueOf(hasta));
+
+		logger.debug("Fin obtenerPorEquipoYRangoFechas: equipoId={}, total={}", equipoId, partidos.size());
+
+		return partidos;
+	}
+
+	@Override
 	public void eliminar(Long id) {
 		logger.debug("Inicio eliminar: id={}", id);
 
@@ -316,6 +349,18 @@ public class PartidoDaoImpl implements PartidoDao {
 
 		logger.info("Partido eliminado: id={}, filasAfectadas={}", id, filasAfectadas);
 		logger.debug("Fin eliminar: id={}", id);
+	}
+
+	@Override
+	public void cancelar(Long id) {
+		logger.debug("Inicio cancelar: id={}", id);
+
+		int filasAfectadas = jdbcTemplate.update(
+				"UPDATE PARTIDOS SET CANCELADO = 1 WHERE ID = ?",
+				id);
+
+		logger.info("Partido cancelado: id={}, filasAfectadas={}", id, filasAfectadas);
+		logger.debug("Fin cancelar: id={}", id);
 	}
 
 	private static Partido mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -335,6 +380,7 @@ public class PartidoDaoImpl implements PartidoDao {
 		partido.setUsuarioActualizoId(rs.wasNull() ? null : usuarioActualizoId);
 
 		partido.setFechaActualizacion(rs.getTimestamp("FECHA_ACTUALIZACION"));
+		partido.setCancelado(rs.getInt("CANCELADO") == 1);
 
 		return partido;
 	}

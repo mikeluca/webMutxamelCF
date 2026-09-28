@@ -215,6 +215,65 @@ public class AppPartidoController {
         }
 
         /**
+         * Cancelar un partido de un equipo que el entrenador pueda
+         * gestionar, sin borrarlo (se conserva su histórico y la
+         * convocatoria que pudiera tener asociada).
+         *
+         * POST /api/app/partidos/{id}/cancelar
+         */
+        @PostMapping("/{id}/cancelar")
+        public ResponseEntity<?> cancelar(
+                        @PathVariable Long id,
+                        Authentication authentication) {
+
+                if (authentication == null
+                                || !authentication.isAuthenticated()) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+                }
+
+                try {
+
+                        Long usuarioId = Long.parseLong(
+                                        authentication.getName());
+
+                        partidoService.cancelar(
+                                        usuarioId,
+                                        id);
+
+                        return ResponseEntity
+                                        .noContent()
+                                        .build();
+
+                } catch (NumberFormatException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+
+                } catch (SecurityException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.FORBIDDEN)
+                                        .body(e.getMessage());
+
+                } catch (IllegalArgumentException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.BAD_REQUEST)
+                                        .body(e.getMessage());
+
+                } catch (Exception e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body("Error al cancelar el partido");
+                }
+        }
+
+        /**
          * Eliminar un partido de un equipo que el entrenador pueda
          * gestionar.
          *

@@ -383,6 +383,39 @@ public class UsuarioAppVinculoDaoImpl implements UsuarioAppVinculoDao {
                 (ResultSet rs) -> rs.next() ? rs.getString("EMAIL") : null);
     }
 
+    @Override
+    public boolean tieneVinculoConJugador(int usuarioAppId, Long jugadorId) {
+
+        String sql = """
+                SELECT COUNT(*)
+                FROM DUAL
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM USUARIOS_APP_JUGADORES UAJ
+                    WHERE UAJ.USUARIO_APP_ID = ?
+                      AND UAJ.JUGADOR_ID = ?
+                )
+                OR EXISTS (
+                    SELECT 1
+                    FROM USUARIOS_APP_FAMILIARES UAF
+                    INNER JOIN FAMILIARES_JUGADOR FJ
+                        ON FJ.FAMILIAR_ID = UAF.FAMILIAR_ID
+                    WHERE UAF.USUARIO_APP_ID = ?
+                      AND FJ.JUGADOR_ID = ?
+                )
+                """;
+
+        Integer count = jdbcTemplate.queryForObject(
+                sql,
+                Integer.class,
+                usuarioAppId,
+                jugadorId,
+                usuarioAppId,
+                jugadorId);
+
+        return count != null && count > 0;
+    }
+
     private static String nombreCompleto(String nombre, String apellidos) {
 
         String base = nombre == null ? "" : nombre.trim();

@@ -19,6 +19,7 @@ public class PartidoDTO {
 	private String diaFormateado;
 	private String hora;
 	private String campo;
+	private boolean cancelado;
 
 	public PartidoDTO() {
 		super();
@@ -118,6 +119,14 @@ public class PartidoDTO {
 
 	public void setCampo(String campo) {
 		this.campo = campo;
+	}
+
+	public boolean isCancelado() {
+		return cancelado;
+	}
+
+	public void setCancelado(boolean cancelado) {
+		this.cancelado = cancelado;
 	}
 
 }

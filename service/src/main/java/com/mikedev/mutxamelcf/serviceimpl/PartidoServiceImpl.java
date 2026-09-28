@@ -239,6 +239,34 @@ public class PartidoServiceImpl implements PartidoService {
 
 	@Override
 	@Transactional
+	public void cancelar(Long usuarioAppId, Long partidoId) {
+		logger.debug("Inicio cancelar: usuarioAppId={}, partidoId={}", usuarioAppId, partidoId);
+
+		if (usuarioAppId == null) {
+			throw new SecurityException("Usuario no autenticado");
+		}
+
+		if (partidoId == null) {
+			throw new IllegalArgumentException("El ID del partido es obligatorio");
+		}
+
+		Partido partido = partidoDao.obtenerPorId(partidoId);
+
+		if (partido == null) {
+			throw new IllegalArgumentException("El partido no existe");
+		}
+
+		if (!equipoGestionDao.puedeGestionarEquipo(usuarioAppId, partido.getEquipoId())) {
+			throw new SecurityException("El usuario no puede gestionar este equipo");
+		}
+
+		partidoDao.cancelar(partidoId);
+
+		logger.debug("Fin cancelar: partidoId={}", partidoId);
+	}
+
+	@Override
+	@Transactional
 	public void eliminarComoAdmin(Long partidoId) {
 		logger.debug("Inicio eliminarComoAdmin: partidoId={}", partidoId);
 
@@ -325,6 +353,20 @@ public class PartidoServiceImpl implements PartidoService {
 		List<PartidoDTO> resultado = toDTOList(partidos);
 
 		logger.debug("Fin obtenerPartidosSinConvocatoria: equipoId={}, total={}", equipoId, resultado.size());
+
+		return resultado;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<PartidoDTO> obtenerPorEquipoYRangoFechas(Long equipoId, LocalDate desde, LocalDate hasta) {
+		logger.debug("Inicio obtenerPorEquipoYRangoFechas: equipoId={}, desde={}, hasta={}", equipoId, desde, hasta);
+
+		List<Partido> partidos = partidoDao.obtenerPorEquipoYRangoFechas(equipoId, desde, hasta);
+
+		List<PartidoDTO> resultado = toDTOList(partidos);
+
+		logger.debug("Fin obtenerPorEquipoYRangoFechas: equipoId={}, total={}", equipoId, resultado.size());
 
 		return resultado;
 	}
@@ -525,6 +567,7 @@ public class PartidoServiceImpl implements PartidoService {
 		aplicarFecha(partido.getDia(), dto::setDia, dto::setDiaFormateado);
 		dto.setHora(partido.getHora());
 		dto.setCampo(partido.getCampo());
+		dto.setCancelado(partido.isCancelado());
 
 		return dto;
 	}

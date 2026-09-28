@@ -1,5 +1,6 @@
 package com.mikedev.mutxamelcf.service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import com.mikedev.mutxamelcf.model.PartidoDTO;
@@ -22,6 +23,12 @@ public interface PartidoService {
 
 	void eliminarComoAdmin(Long partidoId);
 
+	/**
+	 * Cancela un partido (CANCELADO = 1) sin borrarlo, con el mismo
+	 * control de permisos que el resto de operaciones "App".
+	 */
+	void cancelar(Long usuarioAppId, Long partidoId);
+
 	// Lectura pública (sin auth)
 	List<PartidoDTO> obtenerUltimosPorEquipo(Long equipoId, int limite);
 
@@ -41,6 +48,14 @@ public interface PartidoService {
 	 *                         seleccionable); puede ser {@code null}.
 	 */
 	List<PartidoDTO> obtenerPartidosSinConvocatoria(Long usuarioAppId, Long equipoId, Long incluirPartidoId);
+
+	/**
+	 * Partidos de un equipo cuya fecha cae dentro del rango indicado,
+	 * usado por el endpoint combinado de calendario. Lectura pública
+	 * dentro de /api/app (solo exige estar autenticado, sin comprobar
+	 * puedeGestionarEquipo), igual que obtenerPorEquipo.
+	 */
+	List<PartidoDTO> obtenerPorEquipoYRangoFechas(Long equipoId, LocalDate desde, LocalDate hasta);
 
 	// Compatibilidad con el contrato público ya existente
 	List<ResultadoDTO> obtenerResultados(String deporte);

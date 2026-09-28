@@ -15,6 +15,7 @@ public class Partido {
     private String tipo;
     private Long usuarioActualizoId;
     private Timestamp fechaActualizacion;
+    private boolean cancelado;
 
     public Partido() {
         super();
@@ -123,6 +124,14 @@ public class Partido {
 
     public void setFechaActualizacion(Timestamp fechaActualizacion) {
         this.fechaActualizacion = fechaActualizacion;
+    }
+
+    public boolean isCancelado() {
+        return cancelado;
+    }
+
+    public void setCancelado(boolean cancelado) {
+        this.cancelado = cancelado;
     }
 
 }

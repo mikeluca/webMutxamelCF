@@ -1,5 +1,6 @@
 package com.mikedev.mutxamelcf.dao;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import com.mikedev.mutxamelcf.model.Partido;
@@ -34,6 +35,20 @@ public interface PartidoDao {
 
     Partido obtenerMasRelevantePorEquipo(Long equipoId);
 
+    /**
+     * Partidos de un equipo cuya fecha (DIA) cae dentro del rango
+     * indicado (ambos extremos incluidos), usado por el endpoint
+     * combinado de calendario. Incluye partidos cancelados: el
+     * consumidor decide cómo mostrarlos a partir del campo cancelado.
+     */
+    List<Partido> obtenerPorEquipoYRangoFechas(Long equipoId, LocalDate desde, LocalDate hasta);
+
     void eliminar(Long id);
+
+    /**
+     * Marca un partido como cancelado (CANCELADO = 1), sin borrarlo, para
+     * conservar su histórico y la convocatoria que pudiera tener asociada.
+     */
+    void cancelar(Long id);
 
 }

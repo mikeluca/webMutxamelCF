@@ -481,6 +481,73 @@ class PartidoServiceImplTest {
         verify(partidoDao, never()).eliminar(any());
     }
 
+    // ---------- cancelar ----------
+
+    @Test
+    void cancelarLanzaExcepcionSiElUsuarioNoEstaAutenticado() {
+        assertThatThrownBy(() -> service.cancelar(null, 5L)).isInstanceOf(SecurityException.class);
+    }
+
+    @Test
+    void cancelarLanzaExcepcionSiFaltaElId() {
+        assertThatThrownBy(() -> service.cancelar(1L, null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void cancelarLanzaExcepcionSiElPartidoNoExiste() {
+        when(partidoDao.obtenerPorId(5L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.cancelar(1L, 5L)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void cancelarLanzaExcepcionSiElUsuarioNoPuedeGestionarElEquipo() {
+        Partido existente = new Partido();
+        existente.setId(5L);
+        existente.setEquipoId(1L);
+
+        when(partidoDao.obtenerPorId(5L)).thenReturn(existente);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.cancelar(1L, 5L)).isInstanceOf(SecurityException.class);
+
+        verify(partidoDao, never()).cancelar(any());
+    }
+
+    @Test
+    void cancelarMarcaElPartidoComoCanceladoCuandoElUsuarioPuedeGestionarElEquipo() {
+        Partido existente = new Partido();
+        existente.setId(5L);
+        existente.setEquipoId(1L);
+
+        when(partidoDao.obtenerPorId(5L)).thenReturn(existente);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+
+        service.cancelar(1L, 5L);
+
+        verify(partidoDao).cancelar(5L);
+    }
+
+    // ---------- obtenerPorEquipoYRangoFechas ----------
+
+    @Test
+    void obtenerPorEquipoYRangoFechasDelegaEnElDaoYMapeaElCampoCancelado() {
+        Partido partido = new Partido();
+        partido.setId(1L);
+        partido.setEquipoId(1L);
+        partido.setCancelado(true);
+
+        LocalDate desde = LocalDate.of(2026, 10, 1);
+        LocalDate hasta = LocalDate.of(2026, 10, 31);
+
+        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(partido));
+
+        List<PartidoDTO> resultado = service.obtenerPorEquipoYRangoFechas(1L, desde, hasta);
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).isCancelado()).isTrue();
+    }
+
     @Test
     void eliminarComoAdminBorraElPartidoSinComprobarPermisos() {
         Partido existente = new Partido();
