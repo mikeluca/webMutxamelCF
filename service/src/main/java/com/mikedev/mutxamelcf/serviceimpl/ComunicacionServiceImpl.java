@@ -24,7 +24,6 @@ import com.mikedev.mutxamelcf.model.DestinatarioComunicacion;
 import com.mikedev.mutxamelcf.model.DestinatarioComunicacionResponse;
 import com.mikedev.mutxamelcf.model.MensajeConversacionResponse;
 import com.mikedev.mutxamelcf.model.NotificacionAppResponse;
-import com.mikedev.mutxamelcf.model.UsuarioApp;
 import com.mikedev.mutxamelcf.model.VinculoUsuarioApp;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
@@ -1511,23 +1510,14 @@ public class ComunicacionServiceImpl
                 }
 
                 if (usuarioAppService.tieneRol(usuarioId.intValue(), "ADMIN_APP")) {
-                        return new NombreRol(nombreDesdeEmail(usuarioId), "ADMIN_APP");
+                        return new NombreRol("Administrador", "ADMIN_APP");
                 }
 
                 if (usuarioAppService.tieneRol(usuarioId.intValue(), "COORDINADOR")) {
-                        return new NombreRol(nombreDesdeEmail(usuarioId), "COORDINADOR");
+                        return new NombreRol("Coordinador", "COORDINADOR");
                 }
 
-                return new NombreRol(nombreDesdeEmail(usuarioId), null);
-        }
-
-        private String nombreDesdeEmail(Long usuarioId) {
-
-                UsuarioApp usuario = usuarioAppService.obtenerPorId(usuarioId.intValue());
-
-                return usuario != null && usuario.getEmail() != null
-                                ? usuario.getEmail()
-                                : "Usuario";
+                return new NombreRol("Usuario", null);
         }
 
 }
