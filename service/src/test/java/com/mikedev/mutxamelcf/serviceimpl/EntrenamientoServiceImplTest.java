@@ -15,6 +15,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -291,5 +292,128 @@ class EntrenamientoServiceImplTest {
 
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).getEquipo()).isEqualTo("Senior A");
+    }
+
+    // ---------- crearAutomaticoParaSesion ----------
+
+    @Test
+    void crearAutomaticoParaSesionEsNoOpSiLaSesionYaTieneEntrenamiento() {
+        Entrenamiento existente = new Entrenamiento();
+        existente.setId(9L);
+        when(entrenamientoDao.obtenerPorSesionEntrenamientoId(30L)).thenReturn(existente);
+
+        service.crearAutomaticoParaSesion(30L, 1L, LocalDate.now(), 5L);
+
+        verify(entrenamientoDao, never()).guardar(any());
+        verify(asistenciaDao, never()).guardar(any());
+    }
+
+    @Test
+    void crearAutomaticoParaSesionNoCreaNadaSiNoHayUsuarioAutor() {
+        when(entrenamientoDao.obtenerPorSesionEntrenamientoId(30L)).thenReturn(null);
+
+        service.crearAutomaticoParaSesion(30L, 1L, LocalDate.now(), null);
+
+        verify(entrenamientoDao, never()).guardar(any());
+        verify(equipoGestionDao, never()).obtenerJugadoresPorEquipo(any());
+    }
+
+    @Test
+    void crearAutomaticoParaSesionCreaElEntrenamientoConTodoElPlantelAPresente() {
+        when(entrenamientoDao.obtenerPorSesionEntrenamientoId(30L)).thenReturn(null);
+        when(equipoGestionDao.obtenerJugadoresPorEquipo(1L)).thenReturn(List.of(10L, 20L));
+
+        Entrenamiento guardado = new Entrenamiento();
+        guardado.setId(5L);
+        when(entrenamientoDao.guardar(any(Entrenamiento.class))).thenAnswer(invocation -> {
+            Entrenamiento entrenamiento = invocation.getArgument(0);
+            entrenamiento.setId(5L);
+            return entrenamiento;
+        });
+
+        LocalDate fecha = LocalDate.now();
+
+        service.crearAutomaticoParaSesion(30L, 1L, fecha, 5L);
+
+        ArgumentCaptor<Entrenamiento> entrenamientoCaptor = ArgumentCaptor.forClass(Entrenamiento.class);
+        verify(entrenamientoDao).guardar(entrenamientoCaptor.capture());
+
+        Entrenamiento creado = entrenamientoCaptor.getValue();
+        assertThat(creado.getEquipoId()).isEqualTo(1L);
+        assertThat(creado.getFecha()).isEqualTo(fecha);
+        assertThat(creado.getUsuarioEntrenadorId()).isEqualTo(5L);
+        assertThat(creado.getSesionEntrenamientoId()).isEqualTo(30L);
+
+        ArgumentCaptor<EntrenamientoAsistencia> asistenciaCaptor = ArgumentCaptor.forClass(EntrenamientoAsistencia.class);
+        verify(asistenciaDao, times(2)).guardar(asistenciaCaptor.capture());
+
+        List<EntrenamientoAsistencia> asistencias = asistenciaCaptor.getAllValues();
+        assertThat(asistencias).extracting(EntrenamientoAsistencia::getJugadorId).containsExactlyInAnyOrder(10L, 20L);
+        assertThat(asistencias).allMatch(a -> "PRESENTE".equals(a.getEstado()));
+        assertThat(asistencias).allMatch(a -> a.getEntrenamientoId().equals(5L));
+    }
+
+    // ---------- eliminarPorSesionEntrenamientoId ----------
+
+    @Test
+    void eliminarPorSesionEntrenamientoIdEsNoOpSiNoHayEntrenamientoVinculado() {
+        when(entrenamientoDao.obtenerPorSesionEntrenamientoId(30L)).thenReturn(null);
+
+        service.eliminarPorSesionEntrenamientoId(30L);
+
+        verify(asistenciaDao, never()).eliminarPorEntrenamiento(any());
+        verify(entrenamientoDao, never()).eliminar(any());
+    }
+
+    @Test
+    void eliminarPorSesionEntrenamientoIdBorraLasAsistenciasYElEntrenamiento() {
+        Entrenamiento entrenamiento = new Entrenamiento();
+        entrenamiento.setId(5L);
+        when(entrenamientoDao.obtenerPorSesionEntrenamientoId(30L)).thenReturn(entrenamiento);
+
+        service.eliminarPorSesionEntrenamientoId(30L);
+
+        verify(asistenciaDao).eliminarPorEntrenamiento(5L);
+        verify(entrenamientoDao).eliminar(5L);
+    }
+
+    // ---------- sincronizarEstadoPorJustificacion ----------
+
+    @Test
+    void sincronizarEstadoPorJustificacionNoHaceNadaSiNoHayEntrenamientoVinculado() {
+        when(entrenamientoDao.obtenerPorSesionEntrenamientoId(30L)).thenReturn(null);
+
+        service.sincronizarEstadoPorJustificacion(30L, 10L, "FALTA_JUSTIFICADA");
+
+        verify(asistenciaDao, never()).actualizarEstado(any(), any(), any());
+    }
+
+    @Test
+    void sincronizarEstadoPorJustificacionNoHaceNadaSiElJugadorNoEstaEnElEntrenamiento() {
+        Entrenamiento entrenamiento = new Entrenamiento();
+        entrenamiento.setId(5L);
+        when(entrenamientoDao.obtenerPorSesionEntrenamientoId(30L)).thenReturn(entrenamiento);
+        when(asistenciaDao.obtenerPorEntrenamientoYJugador(5L, 10L)).thenReturn(null);
+
+        service.sincronizarEstadoPorJustificacion(30L, 10L, "FALTA_JUSTIFICADA");
+
+        verify(asistenciaDao, never()).actualizarEstado(any(), any(), any());
+    }
+
+    @Test
+    void sincronizarEstadoPorJustificacionActualizaElEstadoDelJugador() {
+        Entrenamiento entrenamiento = new Entrenamiento();
+        entrenamiento.setId(5L);
+        when(entrenamientoDao.obtenerPorSesionEntrenamientoId(30L)).thenReturn(entrenamiento);
+
+        EntrenamientoAsistencia asistencia = new EntrenamientoAsistencia();
+        asistencia.setId(1L);
+        asistencia.setEntrenamientoId(5L);
+        asistencia.setJugadorId(10L);
+        when(asistenciaDao.obtenerPorEntrenamientoYJugador(5L, 10L)).thenReturn(asistencia);
+
+        service.sincronizarEstadoPorJustificacion(30L, 10L, "FALTA_JUSTIFICADA");
+
+        verify(asistenciaDao).actualizarEstado(5L, 10L, "FALTA_JUSTIFICADA");
     }
 }

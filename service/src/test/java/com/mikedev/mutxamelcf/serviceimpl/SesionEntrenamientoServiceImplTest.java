@@ -31,7 +31,9 @@ import com.mikedev.mutxamelcf.model.JustificacionFaltaEntrenamiento;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaRequest;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaResponse;
 import com.mikedev.mutxamelcf.model.SesionEntrenamiento;
+import com.mikedev.mutxamelcf.model.SesionEntrenamientoCrearRequest;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
+import com.mikedev.mutxamelcf.service.EntrenamientoService;
 
 @ExtendWith(MockitoExtension.class)
 class SesionEntrenamientoServiceImplTest {
@@ -54,6 +56,9 @@ class SesionEntrenamientoServiceImplTest {
     @Mock
     private ComunicacionService comunicacionService;
 
+    @Mock
+    private EntrenamientoService entrenamientoService;
+
     private SesionEntrenamientoServiceImpl service;
 
     private static final Long USUARIO_ID = 1L;
@@ -65,7 +70,8 @@ class SesionEntrenamientoServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new SesionEntrenamientoServiceImpl(sesionEntrenamientoDao, horarioEntrenamientoDao,
-                justificacionFaltaEntrenamientoDao, equipoGestionDao, usuarioAppVinculoDao, comunicacionService);
+                justificacionFaltaEntrenamientoDao, equipoGestionDao, usuarioAppVinculoDao, comunicacionService,
+                entrenamientoService);
     }
 
     private static HorarioEntrenamiento horario(int diaSemana, boolean activo) {
@@ -168,6 +174,78 @@ class SesionEntrenamientoServiceImplTest {
         verify(sesionEntrenamientoDao, never()).crear(any());
     }
 
+    @Test
+    void generarSesionesCreaElEntrenamientoAutomaticoConElUsuarioQueActualizoElHorario() {
+        HorarioEntrenamiento horario = horario(2, true);
+        horario.setUsuarioActualizoId(777L);
+
+        when(horarioEntrenamientoDao.obtenerPorId(HORARIO_ID)).thenReturn(horario);
+        when(sesionEntrenamientoDao.obtenerUltimaFechaGenerada(HORARIO_ID)).thenReturn(null);
+        when(sesionEntrenamientoDao.existePorHorarioYFecha(eq(HORARIO_ID), any(LocalDate.class))).thenReturn(false);
+
+        LocalDate hasta = LocalDate.now().plusWeeks(1);
+
+        service.generarSesiones(HORARIO_ID, hasta);
+
+        verify(entrenamientoService, times((int) contarMartes(LocalDate.now(), hasta))).crearAutomaticoParaSesion(
+                any(), eq(EQUIPO_ID), any(LocalDate.class), eq(777L));
+        verify(equipoGestionDao, never()).obtenerCoordinadores();
+    }
+
+    @Test
+    void generarSesionesUsaElPrimerCoordinadorSiElHorarioNoTieneUsuarioActualizo() {
+        HorarioEntrenamiento horario = horario(2, true);
+        horario.setUsuarioActualizoId(null);
+
+        when(horarioEntrenamientoDao.obtenerPorId(HORARIO_ID)).thenReturn(horario);
+        when(sesionEntrenamientoDao.obtenerUltimaFechaGenerada(HORARIO_ID)).thenReturn(null);
+        when(sesionEntrenamientoDao.existePorHorarioYFecha(eq(HORARIO_ID), any(LocalDate.class))).thenReturn(false);
+        when(equipoGestionDao.obtenerCoordinadores()).thenReturn(List.of(555L));
+
+        LocalDate hasta = LocalDate.now().plusWeeks(1);
+
+        service.generarSesiones(HORARIO_ID, hasta);
+
+        verify(entrenamientoService, times((int) contarMartes(LocalDate.now(), hasta))).crearAutomaticoParaSesion(
+                any(), eq(EQUIPO_ID), any(LocalDate.class), eq(555L));
+    }
+
+    @Test
+    void generarSesionesNoLlamaAlEntrenamientoAutomaticoSiLaSesionYaExiste() {
+        when(horarioEntrenamientoDao.obtenerPorId(HORARIO_ID)).thenReturn(horario(2, true));
+        when(sesionEntrenamientoDao.obtenerUltimaFechaGenerada(HORARIO_ID)).thenReturn(null);
+        when(sesionEntrenamientoDao.existePorHorarioYFecha(eq(HORARIO_ID), any(LocalDate.class))).thenReturn(true);
+
+        service.generarSesiones(HORARIO_ID, LocalDate.now().plusWeeks(2));
+
+        verify(entrenamientoService, never()).crearAutomaticoParaSesion(any(), any(), any(), any());
+    }
+
+    // ---------- crear (sesión suelta) ----------
+
+    @Test
+    void crearUnaSesionSueltaCreaAutomaticamenteElEntrenamientoConElUsuarioCreador() {
+        when(equipoGestionDao.existeEquipo(EQUIPO_ID)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(USUARIO_ID, EQUIPO_ID)).thenReturn(true);
+        when(equipoGestionDao.obtenerNombreEquipo(EQUIPO_ID)).thenReturn("Alevin A");
+
+        when(sesionEntrenamientoDao.crear(any(SesionEntrenamiento.class))).thenAnswer(invocation -> {
+            SesionEntrenamiento sesion = invocation.getArgument(0);
+            sesion.setId(SESION_ID);
+            return sesion;
+        });
+
+        SesionEntrenamientoCrearRequest request = new SesionEntrenamientoCrearRequest();
+        request.setEquipoId(EQUIPO_ID);
+        request.setFecha(LocalDate.now().plusDays(3));
+        request.setHora("19:00");
+        request.setLugar("Campo Municipal");
+
+        service.crear(USUARIO_ID, request);
+
+        verify(entrenamientoService).crearAutomaticoParaSesion(SESION_ID, EQUIPO_ID, request.getFecha(), USUARIO_ID);
+    }
+
     // ---------- cancelar ----------
 
     @Test
@@ -206,6 +284,36 @@ class SesionEntrenamientoServiceImplTest {
         verify(sesionEntrenamientoDao).cancelar(SESION_ID, "Lluvia");
         verify(comunicacionService).crearPrivada(any(), eq(List.of(100L)), eq(USUARIO_ID));
         verify(comunicacionService).crearPrivada(any(), eq(List.of(200L)), eq(USUARIO_ID));
+        verify(entrenamientoService).eliminarPorSesionEntrenamientoId(SESION_ID);
+    }
+
+    // ---------- cancelarFuturasPorHorario ----------
+
+    @Test
+    void cancelarFuturasPorHorarioEliminaLosEntrenamientosVinculadosACadaSesionCancelada() {
+        SesionEntrenamiento sesion1 = sesion(LocalDate.now().plusDays(1), SesionEntrenamiento.ESTADO_PROGRAMADA);
+        sesion1.setId(31L);
+        SesionEntrenamiento sesion2 = sesion(LocalDate.now().plusDays(8), SesionEntrenamiento.ESTADO_PROGRAMADA);
+        sesion2.setId(32L);
+
+        when(sesionEntrenamientoDao.obtenerFuturasProgramadasPorHorario(eq(HORARIO_ID), any(LocalDate.class)))
+                .thenReturn(List.of(sesion1, sesion2));
+
+        service.cancelarFuturasPorHorario(HORARIO_ID);
+
+        verify(sesionEntrenamientoDao).cancelarFuturasProgramadasPorHorario(eq(HORARIO_ID), any(LocalDate.class));
+        verify(entrenamientoService).eliminarPorSesionEntrenamientoId(31L);
+        verify(entrenamientoService).eliminarPorSesionEntrenamientoId(32L);
+    }
+
+    @Test
+    void cancelarFuturasPorHorarioNoLlamaAEliminarSiNoHaySesionesAfectadas() {
+        when(sesionEntrenamientoDao.obtenerFuturasProgramadasPorHorario(eq(HORARIO_ID), any(LocalDate.class)))
+                .thenReturn(List.of());
+
+        service.cancelarFuturasPorHorario(HORARIO_ID);
+
+        verify(entrenamientoService, never()).eliminarPorSesionEntrenamientoId(any());
     }
 
     // ---------- justificar ----------
@@ -280,6 +388,7 @@ class SesionEntrenamientoServiceImplTest {
         assertThat(respuesta.getMotivo()).isEqualTo("Lesión");
 
         verify(justificacionFaltaEntrenamientoDao, never()).actualizar(any());
+        verify(entrenamientoService).sincronizarEstadoPorJustificacion(SESION_ID, JUGADOR_ID, "FALTA_JUSTIFICADA");
     }
 
     @Test
@@ -309,6 +418,7 @@ class SesionEntrenamientoServiceImplTest {
 
         verify(justificacionFaltaEntrenamientoDao).actualizar(existente);
         verify(justificacionFaltaEntrenamientoDao, never()).crear(any());
+        verify(entrenamientoService).sincronizarEstadoPorJustificacion(SESION_ID, JUGADOR_ID, "FALTA_JUSTIFICADA");
     }
 
     // ---------- obtenerJustificaciones ----------

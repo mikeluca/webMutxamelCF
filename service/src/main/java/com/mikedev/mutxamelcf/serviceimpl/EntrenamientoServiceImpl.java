@@ -7,6 +7,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,10 @@ import com.mikedev.mutxamelcf.service.EntrenamientoService;
 @Service
 public class EntrenamientoServiceImpl
                 implements EntrenamientoService {
+
+        private static final Logger logger = LoggerFactory.getLogger(EntrenamientoServiceImpl.class);
+
+        private static final String ESTADO_PRESENTE = "PRESENTE";
 
         private static final Set<String> ESTADOS_VALIDOS = Set.of(
                         "PRESENTE",
@@ -566,6 +572,105 @@ public class EntrenamientoServiceImpl
                 return entrenamientos.stream()
                                 .map(this::construirResponse)
                                 .toList();
+        }
+
+        @Override
+        @Transactional
+        public void crearAutomaticoParaSesion(
+                        Long sesionEntrenamientoId,
+                        Long equipoId,
+                        LocalDate fecha,
+                        Long usuarioAutorId) {
+
+                /*
+                 * Idempotente: puede llamarse tanto desde la generación "al
+                 * vuelo" (alta/edición de un horario) como desde el job
+                 * mensual (GeneracionSesionesEntrenamientoScheduler), que
+                 * puede volver a procesar la misma sesión.
+                 */
+                if (entrenamientoDao.obtenerPorSesionEntrenamientoId(sesionEntrenamientoId) != null) {
+                        return;
+                }
+
+                if (usuarioAutorId == null) {
+                        logger.warn(
+                                        "No se ha podido crear el ENTRENAMIENTO automático de la sesión {}: "
+                                                        + "no se ha encontrado ningún usuario autor disponible",
+                                        sesionEntrenamientoId);
+                        return;
+                }
+
+                List<Long> jugadoresEquipo = equipoGestionDao.obtenerJugadoresPorEquipo(equipoId);
+
+                Entrenamiento entrenamiento = new Entrenamiento();
+
+                entrenamiento.setEquipoId(equipoId);
+                entrenamiento.setFecha(fecha);
+                entrenamiento.setUsuarioEntrenadorId(usuarioAutorId);
+                entrenamiento.setSesionEntrenamientoId(sesionEntrenamientoId);
+
+                entrenamiento = entrenamientoDao.guardar(entrenamiento);
+
+                for (Long jugadorId : jugadoresEquipo) {
+
+                        EntrenamientoAsistencia asistencia = new EntrenamientoAsistencia();
+
+                        asistencia.setEntrenamientoId(entrenamiento.getId());
+                        asistencia.setJugadorId(jugadorId);
+                        asistencia.setEstado(ESTADO_PRESENTE);
+
+                        asistenciaDao.guardar(asistencia);
+                }
+        }
+
+        @Override
+        @Transactional
+        public void eliminarPorSesionEntrenamientoId(
+                        Long sesionEntrenamientoId) {
+
+                Entrenamiento entrenamiento = entrenamientoDao.obtenerPorSesionEntrenamientoId(
+                                sesionEntrenamientoId);
+
+                if (entrenamiento == null) {
+                        return;
+                }
+
+                asistenciaDao.eliminarPorEntrenamiento(entrenamiento.getId());
+
+                entrenamientoDao.eliminar(entrenamiento.getId());
+        }
+
+        @Override
+        @Transactional
+        public void sincronizarEstadoPorJustificacion(
+                        Long sesionEntrenamientoId,
+                        Long jugadorId,
+                        String estado) {
+
+                Entrenamiento entrenamiento = entrenamientoDao.obtenerPorSesionEntrenamientoId(
+                                sesionEntrenamientoId);
+
+                if (entrenamiento == null) {
+                        logger.warn(
+                                        "No se sincroniza la justificación de falta del jugador {} en la sesión {}: "
+                                                        + "esa sesión no tiene ningún ENTRENAMIENTO vinculado",
+                                        jugadorId, sesionEntrenamientoId);
+                        return;
+                }
+
+                EntrenamientoAsistencia asistencia = asistenciaDao.obtenerPorEntrenamientoYJugador(
+                                entrenamiento.getId(),
+                                jugadorId);
+
+                if (asistencia == null) {
+                        logger.warn(
+                                        "No se sincroniza la justificación de falta del jugador {} en la sesión {}: "
+                                                        + "el jugador no está entre las asistencias del ENTRENAMIENTO {}",
+                                        jugadorId, sesionEntrenamientoId, entrenamiento.getId());
+                        return;
+                }
+
+                asistenciaDao.actualizarEstado(entrenamiento.getId(), jugadorId, estado);
         }
 
 }

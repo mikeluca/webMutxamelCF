@@ -38,6 +38,7 @@ class EntrenamientoDaoImplTest {
         entrenamiento.setEquipoId(1L);
         entrenamiento.setFecha(LocalDate.of(2026, 3, 1));
         entrenamiento.setUsuarioEntrenadorId(9L);
+        entrenamiento.setSesionEntrenamientoId(77L);
 
         ArgumentCaptor<PreparedStatementCreator> pscCaptor = ArgumentCaptor.forClass(PreparedStatementCreator.class);
         ArgumentCaptor<KeyHolder> keyHolderCaptor = ArgumentCaptor.forClass(KeyHolder.class);
@@ -58,6 +59,35 @@ class EntrenamientoDaoImplTest {
 
         verify(ps).setLong(1, 1L);
         verify(ps).setLong(3, 9L);
+        verify(ps).setLong(4, 77L);
+    }
+
+    @Test
+    void guardarDejaNullElSesionEntrenamientoIdSiNoSeIndica() throws Exception {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        EntrenamientoDaoImpl dao = new EntrenamientoDaoImpl(jdbcTemplate);
+
+        Entrenamiento entrenamiento = new Entrenamiento();
+        entrenamiento.setEquipoId(1L);
+        entrenamiento.setFecha(LocalDate.of(2026, 3, 1));
+        entrenamiento.setUsuarioEntrenadorId(9L);
+
+        ArgumentCaptor<PreparedStatementCreator> pscCaptor = ArgumentCaptor.forClass(PreparedStatementCreator.class);
+        ArgumentCaptor<KeyHolder> keyHolderCaptor = ArgumentCaptor.forClass(KeyHolder.class);
+
+        when(jdbcTemplate.update(pscCaptor.capture(), keyHolderCaptor.capture())).thenAnswer(invocation -> {
+            keyHolderCaptor.getValue().getKeyList().add(Map.of("ID", 12L));
+            return 1;
+        });
+
+        dao.guardar(entrenamiento);
+
+        Connection connection = mock(Connection.class);
+        PreparedStatement ps = mock(PreparedStatement.class);
+        when(connection.prepareStatement(anyString(), any(String[].class))).thenReturn(ps);
+        pscCaptor.getValue().createPreparedStatement(connection);
+
+        verify(ps).setNull(eq(4), org.mockito.ArgumentMatchers.anyInt());
     }
 
     @Test
@@ -114,20 +144,48 @@ class EntrenamientoDaoImplTest {
         when(rs.getLong("EQUIPO_ID")).thenReturn(2L);
         when(rs.getDate("FECHA")).thenReturn(java.sql.Date.valueOf("2026-03-01"));
         when(rs.getLong("USUARIO_ENTRENADOR_ID")).thenReturn(9L);
+        when(rs.getLong("SESION_ENTRENAMIENTO_ID")).thenReturn(77L);
         when(rs.getTimestamp("FECHA_CREACION")).thenReturn(Timestamp.valueOf("2026-01-01 10:00:00"));
 
         Entrenamiento mapeado = captor.getValue().mapRow(rs, 0);
 
         assertThat(mapeado.getId()).isEqualTo(1L);
         assertThat(mapeado.getFecha()).isEqualTo(LocalDate.of(2026, 3, 1));
+        assertThat(mapeado.getSesionEntrenamientoId()).isEqualTo(77L);
         assertThat(mapeado.getFechaCreacion()).isNotNull();
 
         when(rs.getDate("FECHA")).thenReturn(null);
         when(rs.getTimestamp("FECHA_CREACION")).thenReturn(null);
+        when(rs.getLong("SESION_ENTRENAMIENTO_ID")).thenReturn(0L);
+        when(rs.wasNull()).thenReturn(true);
 
         Entrenamiento mapeadoSinFechas = captor.getValue().mapRow(rs, 0);
         assertThat(mapeadoSinFechas.getFecha()).isNull();
         assertThat(mapeadoSinFechas.getFechaCreacion()).isNull();
+        assertThat(mapeadoSinFechas.getSesionEntrenamientoId()).isNull();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerPorSesionEntrenamientoIdDevuelveNullSiNoHayResultados() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        EntrenamientoDaoImpl dao = new EntrenamientoDaoImpl(jdbcTemplate);
+
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(30L))).thenReturn(Collections.emptyList());
+
+        assertThat(dao.obtenerPorSesionEntrenamientoId(30L)).isNull();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerPorSesionEntrenamientoIdDevuelveElResultado() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        EntrenamientoDaoImpl dao = new EntrenamientoDaoImpl(jdbcTemplate);
+
+        Entrenamiento esperado = new Entrenamiento();
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(30L))).thenReturn(List.of(esperado));
+
+        assertThat(dao.obtenerPorSesionEntrenamientoId(30L)).isSameAs(esperado);
     }
 
     @Test

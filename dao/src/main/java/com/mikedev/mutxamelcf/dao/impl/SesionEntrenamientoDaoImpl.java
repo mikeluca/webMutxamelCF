@@ -175,6 +175,20 @@ public class SesionEntrenamientoDaoImpl implements SesionEntrenamientoDao {
                 SesionEntrenamiento.ESTADO_PROGRAMADA);
     }
 
+    @Override
+    public List<SesionEntrenamiento> obtenerFuturasProgramadasPorHorario(Long horarioId, LocalDate desde) {
+
+        String sql = """
+                SELECT ID, EQUIPO_ID, HORARIO_ID, FECHA, HORA, LUGAR, ESTADO, MOTIVO_CANCELACION, FECHA_CREACION
+                FROM SESIONES_ENTRENAMIENTO
+                WHERE HORARIO_ID = ?
+                  AND FECHA >= ?
+                  AND ESTADO = ?
+                """;
+
+        return jdbcTemplate.query(sql, ROW_MAPPER, horarioId, Date.valueOf(desde), SesionEntrenamiento.ESTADO_PROGRAMADA);
+    }
+
     private static SesionEntrenamiento mapRow(ResultSet rs, int rowNum) throws SQLException {
 
         SesionEntrenamiento sesion = new SesionEntrenamiento();

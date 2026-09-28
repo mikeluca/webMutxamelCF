@@ -140,4 +140,14 @@ class EntrenamientoAsistenciaDaoImplTest {
 
         assertThat(dao.existePorJugador(2L)).isTrue();
     }
+
+    @Test
+    void actualizarEstadoEjecutaElUpdateDeUnaSolaFila() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        EntrenamientoAsistenciaDaoImpl dao = new EntrenamientoAsistenciaDaoImpl(jdbcTemplate);
+
+        dao.actualizarEstado(1L, 2L, "FALTA_JUSTIFICADA");
+
+        verify(jdbcTemplate).update(anyString(), eq("FALTA_JUSTIFICADA"), eq(1L), eq(2L));
+    }
 }

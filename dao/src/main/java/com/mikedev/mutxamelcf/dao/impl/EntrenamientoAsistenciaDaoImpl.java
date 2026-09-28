@@ -166,4 +166,22 @@ public class EntrenamientoAsistenciaDaoImpl
 
         return count != null && count > 0;
     }
+
+    @Override
+    public void actualizarEstado(
+            Long entrenamientoId,
+            Long jugadorId,
+            String estado) {
+
+        jdbcTemplate.update(
+                """
+                        UPDATE ENTRENAMIENTO_ASISTENCIA
+                        SET ESTADO = ?
+                        WHERE ENTRENAMIENTO_ID = ?
+                          AND JUGADOR_ID = ?
+                        """,
+                estado,
+                entrenamientoId,
+                jugadorId);
+    }
 }

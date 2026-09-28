@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Date;
+import java.sql.Types;
 import java.util.List;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -50,6 +51,11 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
                         entrenamiento.setUsuarioEntrenadorId(
                                         rs.getLong("USUARIO_ENTRENADOR_ID"));
 
+                        long sesionEntrenamientoId = rs.getLong("SESION_ENTRENAMIENTO_ID");
+
+                        entrenamiento.setSesionEntrenamientoId(
+                                        rs.wasNull() ? null : sesionEntrenamientoId);
+
                         if (rs.getTimestamp("FECHA_CREACION") != null) {
                                 entrenamiento.setFechaCreacion(
                                                 rs.getTimestamp("FECHA_CREACION")
@@ -67,9 +73,10 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
                                 INSERT INTO ENTRENAMIENTOS (
                                     EQUIPO_ID,
                                     FECHA,
-                                    USUARIO_ENTRENADOR_ID
+                                    USUARIO_ENTRENADOR_ID,
+                                    SESION_ENTRENAMIENTO_ID
                                 )
-                                VALUES (?, ?, ?)
+                                VALUES (?, ?, ?, ?)
                                 """;
 
                 KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -84,6 +91,12 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
                                         2,
                                         java.sql.Date.valueOf(entrenamiento.getFecha()));
                         ps.setLong(3, entrenamiento.getUsuarioEntrenadorId());
+
+                        if (entrenamiento.getSesionEntrenamientoId() != null) {
+                                ps.setLong(4, entrenamiento.getSesionEntrenamientoId());
+                        } else {
+                                ps.setNull(4, Types.NUMERIC);
+                        }
 
                         return ps;
                 }, keyHolder);
@@ -125,6 +138,7 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
                                     EQUIPO_ID,
                                     FECHA,
                                     USUARIO_ENTRENADOR_ID,
+                                    SESION_ENTRENAMIENTO_ID,
                                     FECHA_CREACION
                                 FROM ENTRENAMIENTOS
                                 WHERE ID = ?
@@ -150,6 +164,7 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
                                     EQUIPO_ID,
                                     FECHA,
                                     USUARIO_ENTRENADOR_ID,
+                                    SESION_ENTRENAMIENTO_ID,
                                     FECHA_CREACION
                                 FROM ENTRENAMIENTOS
                                 WHERE EQUIPO_ID = ?
@@ -160,6 +175,32 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
                                 sql,
                                 rowMapper,
                                 equipoId);
+        }
+
+        @Override
+        public Entrenamiento obtenerPorSesionEntrenamientoId(
+                        Long sesionEntrenamientoId) {
+
+                String sql = """
+                                SELECT
+                                    ID,
+                                    EQUIPO_ID,
+                                    FECHA,
+                                    USUARIO_ENTRENADOR_ID,
+                                    SESION_ENTRENAMIENTO_ID,
+                                    FECHA_CREACION
+                                FROM ENTRENAMIENTOS
+                                WHERE SESION_ENTRENAMIENTO_ID = ?
+                                """;
+
+                List<Entrenamiento> resultado = jdbcTemplate.query(
+                                sql,
+                                rowMapper,
+                                sesionEntrenamientoId);
+
+                return resultado.isEmpty()
+                                ? null
+                                : resultado.get(0);
         }
 
         @Override

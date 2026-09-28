@@ -9,6 +9,7 @@ public class Entrenamiento {
     private Long equipoId;
     private LocalDate fecha;
     private Long usuarioEntrenadorId;
+    private Long sesionEntrenamientoId;
     private LocalDateTime fechaCreacion;
 
     public Entrenamiento() {
@@ -65,5 +66,19 @@ public class Entrenamiento {
 
     public void setFechaCreacion(LocalDateTime fechaCreacion) {
         this.fechaCreacion = fechaCreacion;
+    }
+
+    /**
+     * Sesión del calendario (SESIONES_ENTRENAMIENTO) que generó
+     * automáticamente este entrenamiento, o {@code null} si fue creado a
+     * mano por un entrenador (incluye todo el histórico anterior a la
+     * integración entre calendario y asistencia).
+     */
+    public Long getSesionEntrenamientoId() {
+        return sesionEntrenamientoId;
+    }
+
+    public void setSesionEntrenamientoId(Long sesionEntrenamientoId) {
+        this.sesionEntrenamientoId = sesionEntrenamientoId;
     }
 }

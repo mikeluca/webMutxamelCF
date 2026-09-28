@@ -34,4 +34,12 @@ public interface SesionEntrenamientoDao {
      */
     void cancelarFuturasProgramadasPorHorario(Long horarioId, LocalDate desde);
 
+    /**
+     * Las mismas sesiones que afectará {@link #cancelarFuturasProgramadasPorHorario},
+     * consultadas ANTES de cancelarlas: se usa para saber qué ENTRENAMIENTOS
+     * vinculados hay que eliminar al cancelar en bloque las sesiones
+     * futuras de un horario (desactivación o cambio de día).
+     */
+    List<SesionEntrenamiento> obtenerFuturasProgramadasPorHorario(Long horarioId, LocalDate desde);
+
 }

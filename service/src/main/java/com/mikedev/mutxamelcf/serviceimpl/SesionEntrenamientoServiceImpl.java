@@ -25,10 +25,13 @@ import com.mikedev.mutxamelcf.model.SesionEntrenamientoActualizarRequest;
 import com.mikedev.mutxamelcf.model.SesionEntrenamientoCrearRequest;
 import com.mikedev.mutxamelcf.model.SesionEntrenamientoResponse;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
+import com.mikedev.mutxamelcf.service.EntrenamientoService;
 import com.mikedev.mutxamelcf.service.SesionEntrenamientoService;
 
 @Service
 public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoService {
+
+    private static final String ESTADO_FALTA_JUSTIFICADA = "FALTA_JUSTIFICADA";
 
     private final SesionEntrenamientoDao sesionEntrenamientoDao;
     private final HorarioEntrenamientoDao horarioEntrenamientoDao;
@@ -36,6 +39,7 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
     private final EquipoGestionDao equipoGestionDao;
     private final UsuarioAppVinculoDao usuarioAppVinculoDao;
     private final ComunicacionService comunicacionService;
+    private final EntrenamientoService entrenamientoService;
 
     public SesionEntrenamientoServiceImpl(
             SesionEntrenamientoDao sesionEntrenamientoDao,
@@ -43,7 +47,8 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
             JustificacionFaltaEntrenamientoDao justificacionFaltaEntrenamientoDao,
             EquipoGestionDao equipoGestionDao,
             UsuarioAppVinculoDao usuarioAppVinculoDao,
-            ComunicacionService comunicacionService) {
+            ComunicacionService comunicacionService,
+            EntrenamientoService entrenamientoService) {
 
         this.sesionEntrenamientoDao = sesionEntrenamientoDao;
         this.horarioEntrenamientoDao = horarioEntrenamientoDao;
@@ -51,6 +56,7 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
         this.equipoGestionDao = equipoGestionDao;
         this.usuarioAppVinculoDao = usuarioAppVinculoDao;
         this.comunicacionService = comunicacionService;
+        this.entrenamientoService = entrenamientoService;
     }
 
     @Override
@@ -97,6 +103,12 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
                 sesion.setEstado(SesionEntrenamiento.ESTADO_PROGRAMADA);
 
                 sesionEntrenamientoDao.crear(sesion);
+
+                entrenamientoService.crearAutomaticoParaSesion(
+                        sesion.getId(),
+                        sesion.getEquipoId(),
+                        sesion.getFecha(),
+                        resolverUsuarioAutorHorario(horario));
             }
 
             fecha = fecha.plusWeeks(1);
@@ -108,6 +120,25 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
         int diferencia = (diaSemana.getValue() - desde.getDayOfWeek().getValue() + 7) % 7;
 
         return desde.plusDays(diferencia);
+    }
+
+    /**
+     * El ENTRENAMIENTO automático necesita un autor (USUARIO_ENTRENADOR_ID
+     * es obligatorio). Como la generación de sesiones puede dispararse sin
+     * ningún usuario en contexto (job mensual programado), usamos, en este
+     * orden, el mismo criterio que RecordatorioResultadoPartidoScheduler
+     * para su problema análogo: quien tocó por última vez este horario y,
+     * si no hay ninguno, el primer coordinador disponible.
+     */
+    private Long resolverUsuarioAutorHorario(HorarioEntrenamiento horario) {
+
+        if (horario.getUsuarioActualizoId() != null) {
+            return horario.getUsuarioActualizoId();
+        }
+
+        List<Long> coordinadores = equipoGestionDao.obtenerCoordinadores();
+
+        return coordinadores.isEmpty() ? null : coordinadores.get(0);
     }
 
     @Override
@@ -125,7 +156,22 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
     @Transactional
     public void cancelarFuturasPorHorario(Long horarioId) {
 
-        sesionEntrenamientoDao.cancelarFuturasProgramadasPorHorario(horarioId, LocalDate.now());
+        LocalDate hoy = LocalDate.now();
+
+        /*
+         * Necesitamos saber QUÉ sesiones se van a cancelar para poder
+         * borrar sus ENTRENAMIENTOS vinculados; hay que consultarlo antes
+         * del UPDATE masivo, porque después ya no cumplirán el filtro
+         * ESTADO = PROGRAMADA.
+         */
+        List<SesionEntrenamiento> sesionesACancelar = sesionEntrenamientoDao
+                .obtenerFuturasProgramadasPorHorario(horarioId, hoy);
+
+        sesionEntrenamientoDao.cancelarFuturasProgramadasPorHorario(horarioId, hoy);
+
+        for (SesionEntrenamiento sesion : sesionesACancelar) {
+            entrenamientoService.eliminarPorSesionEntrenamientoId(sesion.getId());
+        }
     }
 
     @Override
@@ -164,6 +210,12 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
         sesion.setEstado(SesionEntrenamiento.ESTADO_PROGRAMADA);
 
         sesion = sesionEntrenamientoDao.crear(sesion);
+
+        entrenamientoService.crearAutomaticoParaSesion(
+                sesion.getId(),
+                sesion.getEquipoId(),
+                sesion.getFecha(),
+                usuarioAppId);
 
         return construirResponse(sesion);
     }
@@ -228,6 +280,8 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
         sesionEntrenamientoDao.cancelar(sesionId, motivoLimpio);
 
         sesion.setMotivoCancelacion(motivoLimpio);
+
+        entrenamientoService.eliminarPorSesionEntrenamientoId(sesionId);
 
         generarNotificacionesCancelacion(sesion, usuarioAppId);
     }
@@ -386,6 +440,8 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
 
         String motivo = limpiar(request.getMotivo());
 
+        JustificacionFaltaResponse respuesta;
+
         if (existente != null) {
 
             existente.setMotivo(motivo);
@@ -393,19 +449,32 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
 
             justificacionFaltaEntrenamientoDao.actualizar(existente);
 
-            return construirResponseJustificacion(existente);
+            respuesta = construirResponseJustificacion(existente);
+
+        } else {
+
+            JustificacionFaltaEntrenamiento justificacion = new JustificacionFaltaEntrenamiento();
+
+            justificacion.setSesionId(sesionId);
+            justificacion.setJugadorId(request.getJugadorId());
+            justificacion.setUsuarioAppId(usuarioAppId);
+            justificacion.setMotivo(motivo);
+
+            justificacion = justificacionFaltaEntrenamientoDao.crear(justificacion);
+
+            respuesta = construirResponseJustificacion(justificacion);
         }
 
-        JustificacionFaltaEntrenamiento justificacion = new JustificacionFaltaEntrenamiento();
+        /*
+         * Sincronización best-effort del registro de asistencia (ver
+         * EntrenamientoService.sincronizarEstadoPorJustificacion): la
+         * justificación en sí ya ha quedado guardada por encima, así que
+         * esto nunca debe hacer fallar la petición.
+         */
+        entrenamientoService.sincronizarEstadoPorJustificacion(
+                sesionId, request.getJugadorId(), ESTADO_FALTA_JUSTIFICADA);
 
-        justificacion.setSesionId(sesionId);
-        justificacion.setJugadorId(request.getJugadorId());
-        justificacion.setUsuarioAppId(usuarioAppId);
-        justificacion.setMotivo(motivo);
-
-        justificacion = justificacionFaltaEntrenamientoDao.crear(justificacion);
-
-        return construirResponseJustificacion(justificacion);
+        return respuesta;
     }
 
     @Override
