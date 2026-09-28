@@ -201,12 +201,18 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
 
     @Override
     @Transactional
-    public void cancelar(Long usuarioAppId, Long sesionId) {
+    public void cancelar(Long usuarioAppId, Long sesionId, String motivo) {
 
         validarUsuario(usuarioAppId);
 
         if (sesionId == null) {
             throw new IllegalArgumentException("El ID de la sesión no es válido");
+        }
+
+        String motivoLimpio = limpiar(motivo);
+
+        if (motivoLimpio == null) {
+            throw new IllegalArgumentException("El motivo de la cancelación es obligatorio");
         }
 
         SesionEntrenamiento sesion = sesionEntrenamientoDao.obtenerPorId(sesionId);
@@ -219,7 +225,9 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
             throw new SecurityException("No tienes permiso para gestionar este equipo");
         }
 
-        sesionEntrenamientoDao.cancelar(sesionId);
+        sesionEntrenamientoDao.cancelar(sesionId, motivoLimpio);
+
+        sesion.setMotivoCancelacion(motivoLimpio);
 
         generarNotificacionesCancelacion(sesion, usuarioAppId);
     }
@@ -236,7 +244,9 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
                 + equipo
                 + " del día "
                 + fecha
-                + " ha sido cancelado.";
+                + " ha sido cancelado. Motivo: "
+                + sesion.getMotivoCancelacion()
+                + ".";
 
         List<Long> jugadoresEquipo = equipoGestionDao.obtenerJugadoresPorEquipo(sesion.getEquipoId());
 
@@ -441,6 +451,7 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
         response.setHora(sesion.getHora());
         response.setLugar(sesion.getLugar());
         response.setEstado(sesion.getEstado());
+        response.setMotivoCancelacion(sesion.getMotivoCancelacion());
 
         return response;
     }

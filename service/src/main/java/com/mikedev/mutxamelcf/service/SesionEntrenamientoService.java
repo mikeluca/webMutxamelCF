@@ -45,7 +45,11 @@ public interface SesionEntrenamientoService {
     SesionEntrenamientoResponse actualizar(Long usuarioAppId, Long sesionId,
             SesionEntrenamientoActualizarRequest request);
 
-    void cancelar(Long usuarioAppId, Long sesionId);
+    /**
+     * Cancela una sesión. El motivo es obligatorio: se guarda y se
+     * incluye en la notificación a jugadores/familias.
+     */
+    void cancelar(Long usuarioAppId, Long sesionId, String motivo);
 
     SesionEntrenamientoResponse obtenerPorId(Long sesionId);
 

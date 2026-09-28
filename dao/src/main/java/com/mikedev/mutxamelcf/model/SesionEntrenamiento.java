@@ -15,6 +15,7 @@ public class SesionEntrenamiento {
     private String hora;
     private String lugar;
     private String estado;
+    private String motivoCancelacion;
     private LocalDateTime fechaCreacion;
 
     public SesionEntrenamiento() {
@@ -75,6 +76,14 @@ public class SesionEntrenamiento {
 
     public void setEstado(String estado) {
         this.estado = estado;
+    }
+
+    public String getMotivoCancelacion() {
+        return motivoCancelacion;
+    }
+
+    public void setMotivoCancelacion(String motivoCancelacion) {
+        this.motivoCancelacion = motivoCancelacion;
     }
 
     public LocalDateTime getFechaCreacion() {

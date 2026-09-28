@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.mikedev.mutxamelcf.model.JustificacionFaltaRequest;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaResponse;
+import com.mikedev.mutxamelcf.model.SesionCancelarRequest;
 import com.mikedev.mutxamelcf.model.SesionEntrenamientoActualizarRequest;
 import com.mikedev.mutxamelcf.model.SesionEntrenamientoCrearRequest;
 import com.mikedev.mutxamelcf.model.SesionEntrenamientoResponse;
@@ -188,11 +189,12 @@ public class AppSesionEntrenamientoController {
      * POST /api/app/sesiones-entrenamiento/{id}/cancelar
      *
      * Cancela esa sesión (ESTADO = CANCELADA) y notifica a los
-     * jugadores del equipo y a sus familiares.
+     * jugadores del equipo y a sus familiares. El motivo es obligatorio.
      */
     @PostMapping("/{id}/cancelar")
     public ResponseEntity<?> cancelar(
             @PathVariable Long id,
+            @Valid @RequestBody SesionCancelarRequest request,
             Authentication authentication) {
 
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -203,7 +205,7 @@ public class AppSesionEntrenamientoController {
 
             Long usuarioId = Long.parseLong(authentication.getName());
 
-            sesionEntrenamientoService.cancelar(usuarioId, id);
+            sesionEntrenamientoService.cancelar(usuarioId, id, request.getMotivo());
 
             return ResponseEntity.noContent().build();
 

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -175,10 +176,19 @@ class SesionEntrenamientoServiceImplTest {
                 SesionEntrenamiento.ESTADO_PROGRAMADA));
         when(equipoGestionDao.puedeGestionarEquipo(USUARIO_ID, EQUIPO_ID)).thenReturn(false);
 
-        assertThatThrownBy(() -> service.cancelar(USUARIO_ID, SESION_ID))
+        assertThatThrownBy(() -> service.cancelar(USUARIO_ID, SESION_ID, "Lluvia"))
                 .isInstanceOf(SecurityException.class);
 
-        verify(sesionEntrenamientoDao, never()).cancelar(anyLong());
+        verify(sesionEntrenamientoDao, never()).cancelar(anyLong(), anyString());
+    }
+
+    @Test
+    void cancelarLanzaExcepcionSiElMotivoEstaVacio() {
+        assertThatThrownBy(() -> service.cancelar(USUARIO_ID, SESION_ID, "   "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("motivo");
+
+        verify(sesionEntrenamientoDao, never()).cancelar(anyLong(), anyString());
     }
 
     @Test
@@ -191,9 +201,9 @@ class SesionEntrenamientoServiceImplTest {
         when(equipoGestionDao.obtenerUsuariosPorJugador(JUGADOR_ID)).thenReturn(List.of(100L));
         when(equipoGestionDao.obtenerUsuariosFamiliaresPorJugador(JUGADOR_ID)).thenReturn(List.of(200L));
 
-        service.cancelar(USUARIO_ID, SESION_ID);
+        service.cancelar(USUARIO_ID, SESION_ID, "Lluvia");
 
-        verify(sesionEntrenamientoDao).cancelar(SESION_ID);
+        verify(sesionEntrenamientoDao).cancelar(SESION_ID, "Lluvia");
         verify(comunicacionService).crearPrivada(any(), eq(List.of(100L)), eq(USUARIO_ID));
         verify(comunicacionService).crearPrivada(any(), eq(List.of(200L)), eq(USUARIO_ID));
     }

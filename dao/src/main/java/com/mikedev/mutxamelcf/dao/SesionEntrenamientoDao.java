@@ -11,7 +11,7 @@ public interface SesionEntrenamientoDao {
 
     void actualizar(SesionEntrenamiento sesion);
 
-    void cancelar(Long id);
+    void cancelar(Long id, String motivo);
 
     SesionEntrenamiento obtenerPorId(Long id);
 

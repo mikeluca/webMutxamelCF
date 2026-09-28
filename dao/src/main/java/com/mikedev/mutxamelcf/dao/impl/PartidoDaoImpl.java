@@ -208,6 +208,11 @@ public class PartidoDaoImpl implements PartidoDao {
 		 * incluirPartidoId (mismo criterio que con los que ya tienen
 		 * convocatoria), para no romper la edición de una convocatoria
 		 * ya existente si su partido se cancelase después.
+		 *
+		 * Tampoco se ofrece un partido cuya fecha ya haya pasado: no
+		 * tiene sentido convocar para un partido que ya se ha jugado (o
+		 * debería haberse jugado). Mismo criterio de excepción con
+		 * incluirPartidoId que los dos casos anteriores.
 		 */
 		String sql = """
 				SELECT P.ID, P.EQUIPO_ID, P.RIVAL, P.DIA, P.HORA, P.CAMPO, P.RESULTADO, P.TIPO,
@@ -217,12 +222,14 @@ public class PartidoDaoImpl implements PartidoDao {
 				WHERE P.EQUIPO_ID = ?
 				  AND (C.ID IS NULL OR P.ID = ?)
 				  AND (P.CANCELADO = 0 OR P.ID = ?)
+				  AND (P.DIA >= TRUNC(SYSDATE) OR P.ID = ?)
 				ORDER BY P.DIA ASC, P.ID ASC
 				""";
 
 		long incluirId = incluirPartidoId != null ? incluirPartidoId : -1L;
 
-		List<Partido> partidos = jdbcTemplate.query(sql, PARTIDO_ROW_MAPPER, equipoId, incluirId, incluirId);
+		List<Partido> partidos = jdbcTemplate.query(
+				sql, PARTIDO_ROW_MAPPER, equipoId, incluirId, incluirId, incluirId);
 
 		logger.debug("Fin obtenerPartidosSinConvocatoria: equipoId={}, total={}", equipoId, partidos.size());
 

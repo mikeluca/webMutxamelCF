@@ -22,6 +22,9 @@ public class SesionEntrenamientoResponse {
     private boolean justificado;
     private String motivoJustificacion;
 
+    /** Solo relleno cuando estado = "CANCELADA". */
+    private String motivoCancelacion;
+
     public SesionEntrenamientoResponse() {
     }
 
@@ -103,5 +106,13 @@ public class SesionEntrenamientoResponse {
 
     public void setMotivoJustificacion(String motivoJustificacion) {
         this.motivoJustificacion = motivoJustificacion;
+    }
+
+    public String getMotivoCancelacion() {
+        return motivoCancelacion;
+    }
+
+    public void setMotivoCancelacion(String motivoCancelacion) {
+        this.motivoCancelacion = motivoCancelacion;
     }
 }

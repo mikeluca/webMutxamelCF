@@ -90,11 +90,12 @@ public class SesionEntrenamientoDaoImpl implements SesionEntrenamientoDao {
     }
 
     @Override
-    public void cancelar(Long id) {
+    public void cancelar(Long id, String motivo) {
 
         jdbcTemplate.update(
-                "UPDATE SESIONES_ENTRENAMIENTO SET ESTADO = ? WHERE ID = ?",
+                "UPDATE SESIONES_ENTRENAMIENTO SET ESTADO = ?, MOTIVO_CANCELACION = ? WHERE ID = ?",
                 SesionEntrenamiento.ESTADO_CANCELADA,
+                motivo,
                 id);
     }
 
@@ -102,7 +103,7 @@ public class SesionEntrenamientoDaoImpl implements SesionEntrenamientoDao {
     public SesionEntrenamiento obtenerPorId(Long id) {
 
         String sql = """
-                SELECT ID, EQUIPO_ID, HORARIO_ID, FECHA, HORA, LUGAR, ESTADO, FECHA_CREACION
+                SELECT ID, EQUIPO_ID, HORARIO_ID, FECHA, HORA, LUGAR, ESTADO, MOTIVO_CANCELACION, FECHA_CREACION
                 FROM SESIONES_ENTRENAMIENTO
                 WHERE ID = ?
                 """;
@@ -116,7 +117,7 @@ public class SesionEntrenamientoDaoImpl implements SesionEntrenamientoDao {
     public List<SesionEntrenamiento> obtenerPorEquipoYRango(Long equipoId, LocalDate desde, LocalDate hasta) {
 
         String sql = """
-                SELECT ID, EQUIPO_ID, HORARIO_ID, FECHA, HORA, LUGAR, ESTADO, FECHA_CREACION
+                SELECT ID, EQUIPO_ID, HORARIO_ID, FECHA, HORA, LUGAR, ESTADO, MOTIVO_CANCELACION, FECHA_CREACION
                 FROM SESIONES_ENTRENAMIENTO
                 WHERE EQUIPO_ID = ?
                   AND FECHA BETWEEN ? AND ?
@@ -190,6 +191,7 @@ public class SesionEntrenamientoDaoImpl implements SesionEntrenamientoDao {
         sesion.setHora(rs.getString("HORA"));
         sesion.setLugar(rs.getString("LUGAR"));
         sesion.setEstado(rs.getString("ESTADO"));
+        sesion.setMotivoCancelacion(rs.getString("MOTIVO_CANCELACION"));
 
         Timestamp fechaCreacion = rs.getTimestamp("FECHA_CREACION");
         sesion.setFechaCreacion(fechaCreacion != null ? fechaCreacion.toLocalDateTime() : null);
