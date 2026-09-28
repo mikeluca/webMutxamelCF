@@ -184,6 +184,38 @@ public class ConvocatoriaDaoImpl
         }
 
         @Override
+        public Convocatoria obtenerPorPartidoId(
+                        Long partidoId) {
+
+                String sql = """
+                                SELECT
+                                    C.ID,
+                                    C.EQUIPO_ID,
+                                    C.PARTIDO_ID,
+                                    P.RIVAL AS RIVAL,
+                                    P.CAMPO AS CAMPO,
+                                    P.DIA AS FECHA_PARTIDO,
+                                    P.HORA AS HORA_PARTIDO,
+                                    C.HORA_CONVOCATORIA,
+                                    C.LUGAR_CONVOCATORIA,
+                                    C.USUARIO_ENTRENADOR_ID,
+                                    C.FECHA_CREACION
+                                FROM CONVOCATORIAS C
+                                JOIN PARTIDOS P ON P.ID = C.PARTIDO_ID
+                                WHERE C.PARTIDO_ID = ?
+                                """;
+
+                List<Convocatoria> resultado = jdbcTemplate.query(
+                                sql,
+                                rowMapper,
+                                partidoId);
+
+                return resultado.isEmpty()
+                                ? null
+                                : resultado.get(0);
+        }
+
+        @Override
         public List<Convocatoria> obtenerPorEquipo(
                         Long equipoId) {
 

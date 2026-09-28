@@ -16,6 +16,14 @@ public interface EquipoGestionDao {
 
     List<Long> obtenerCoordinadores();
 
+    /**
+     * Usuarios app con rol ENTRENADOR asignados como cuerpo técnico del
+     * equipo indicado (mismo criterio de emparejamiento
+     * CUERPO_TECNICO.EQUIPO = EQUIPO.NOMBRE, normalizado con
+     * UPPER/TRIM, que {@link #puedeGestionarEquipo(Long, Long)}).
+     */
+    List<Long> obtenerEntrenadoresPorEquipo(Long equipoId);
+
     List<Long> obtenerUsuariosPorJugador(Long jugadorId);
 
     List<Long> obtenerUsuariosFamiliaresPorJugador(Long jugadorId);

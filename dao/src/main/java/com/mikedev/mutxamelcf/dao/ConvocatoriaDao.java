@@ -12,6 +12,15 @@ public interface ConvocatoriaDao {
         Convocatoria obtenerPorId(
                         Long id);
 
+        /**
+         * Convocatoria asociada a un partido concreto, o {@code null} si
+         * ese partido todavía no tiene ninguna (la convocatoria es
+         * opcional). Al haber UNIQUE(PARTIDO_ID) en CONVOCATORIAS, nunca
+         * puede haber más de una.
+         */
+        Convocatoria obtenerPorPartidoId(
+                        Long partidoId);
+
         List<Convocatoria> obtenerPorEquipo(
                         Long equipoId);
 

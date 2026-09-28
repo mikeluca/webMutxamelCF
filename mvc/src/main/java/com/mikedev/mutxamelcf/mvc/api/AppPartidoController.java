@@ -16,7 +16,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mikedev.mutxamelcf.model.PartidoDTO;
+import com.mikedev.mutxamelcf.model.PartidoEstadisticasGuardarRequest;
+import com.mikedev.mutxamelcf.model.PartidoEstadisticasResponse;
 import com.mikedev.mutxamelcf.model.PartidoGuardarRequest;
+import com.mikedev.mutxamelcf.service.PartidoEstadisticaService;
 import com.mikedev.mutxamelcf.service.PartidoService;
 
 import jakarta.validation.Valid;
@@ -26,11 +29,14 @@ import jakarta.validation.Valid;
 public class AppPartidoController {
 
         private final PartidoService partidoService;
+        private final PartidoEstadisticaService partidoEstadisticaService;
 
         public AppPartidoController(
-                        PartidoService partidoService) {
+                        PartidoService partidoService,
+                        PartidoEstadisticaService partidoEstadisticaService) {
 
                 this.partidoService = partidoService;
+                this.partidoEstadisticaService = partidoEstadisticaService;
         }
 
         /**
@@ -328,6 +334,125 @@ public class AppPartidoController {
                         return ResponseEntity
                                         .status(HttpStatus.INTERNAL_SERVER_ERROR)
                                         .body("Error al eliminar el partido");
+                }
+        }
+
+        /**
+         * Introducir (o reemplazar por completo, si ya existían) el
+         * resultado numérico y las estadísticas por jugador de un
+         * partido ya jugado.
+         *
+         * PUT /api/app/partidos/{id}/estadisticas
+         */
+        @PutMapping("/{id}/estadisticas")
+        public ResponseEntity<?> guardarEstadisticas(
+                        @PathVariable Long id,
+                        @Valid @RequestBody PartidoEstadisticasGuardarRequest request,
+                        Authentication authentication) {
+
+                if (authentication == null
+                                || !authentication.isAuthenticated()) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+                }
+
+                try {
+
+                        Long usuarioId = Long.parseLong(
+                                        authentication.getName());
+
+                        PartidoEstadisticasResponse resultado = partidoEstadisticaService.guardar(
+                                        usuarioId,
+                                        id,
+                                        request);
+
+                        return ResponseEntity.ok(
+                                        resultado);
+
+                } catch (NumberFormatException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+
+                } catch (SecurityException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.FORBIDDEN)
+                                        .body(e.getMessage());
+
+                } catch (IllegalArgumentException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.BAD_REQUEST)
+                                        .body(e.getMessage());
+
+                } catch (Exception e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body("Error al guardar las estadísticas del partido");
+                }
+        }
+
+        /**
+         * Estadísticas actualmente guardadas de un partido (resultado
+         * numérico y estadísticas por jugador). Si todavía no se ha
+         * introducido el resultado, se devuelve con golesFavor/
+         * golesContra a null y la lista de jugadores vacía.
+         *
+         * GET /api/app/partidos/{id}/estadisticas
+         */
+        @GetMapping("/{id}/estadisticas")
+        public ResponseEntity<?> obtenerEstadisticas(
+                        @PathVariable Long id,
+                        Authentication authentication) {
+
+                if (authentication == null
+                                || !authentication.isAuthenticated()) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+                }
+
+                try {
+
+                        Long usuarioId = Long.parseLong(
+                                        authentication.getName());
+
+                        PartidoEstadisticasResponse resultado = partidoEstadisticaService.obtener(
+                                        usuarioId,
+                                        id);
+
+                        return ResponseEntity.ok(
+                                        resultado);
+
+                } catch (NumberFormatException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+
+                } catch (SecurityException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.FORBIDDEN)
+                                        .body(e.getMessage());
+
+                } catch (IllegalArgumentException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.BAD_REQUEST)
+                                        .body(e.getMessage());
+
+                } catch (Exception e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body("Error al obtener las estadísticas del partido");
                 }
         }
 

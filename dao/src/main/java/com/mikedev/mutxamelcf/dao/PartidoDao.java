@@ -1,6 +1,7 @@
 package com.mikedev.mutxamelcf.dao;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import com.mikedev.mutxamelcf.model.Partido;
@@ -50,5 +51,21 @@ public interface PartidoDao {
      * conservar su histórico y la convocatoria que pudiera tener asociada.
      */
     void cancelar(Long id);
+
+    /**
+     * Partidos no cancelados cuya fecha+hora ya haya pasado al menos hasta
+     * {@code limite}, a los que todavía no se les ha introducido el
+     * resultado (GOLES_FAVOR IS NULL) y para los que todavía no se ha
+     * enviado el recordatorio automático (AVISO_RESULTADO_ENVIADO = 0).
+     * Usado por RecordatorioResultadoPartidoScheduler.
+     */
+    List<Partido> obtenerPendientesDeAvisoResultado(LocalDateTime limite);
+
+    /**
+     * Marca que ya se ha enviado el recordatorio de resultado pendiente
+     * para este partido (AVISO_RESULTADO_ENVIADO = 1), para que no se
+     * vuelva a enviar.
+     */
+    void marcarAvisoResultadoEnviado(Long id);
 
 }

@@ -124,11 +124,13 @@ class PartidoDaoImplTest {
         partido.setUsuarioActualizoId(9L);
         Timestamp ahora = Timestamp.valueOf("2026-03-02 10:00:00");
         partido.setFechaActualizacion(ahora);
+        partido.setGolesFavor(2);
+        partido.setGolesContra(1);
 
         dao.actualizar(partido);
 
         verify(jdbcTemplate).update(anyString(), eq("Rival CF"), eq((Object) null), eq("18:00"),
-                eq("Campo Municipal"), eq("2-1"), eq("LIGA"), eq(9L), eq(ahora), eq(1L));
+                eq("Campo Municipal"), eq("2-1"), eq("LIGA"), eq(9L), eq(ahora), eq(2), eq(1), eq(1L));
     }
 
     @Test

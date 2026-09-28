@@ -138,6 +138,34 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
     }
 
     @Override
+    public List<Long> obtenerEntrenadoresPorEquipo(Long equipoId) {
+
+        String sql = """
+                SELECT DISTINCT U.ID
+                FROM USUARIOS_APP U
+                INNER JOIN USUARIOS_APP_CUERPO_TECNICO UACT
+                    ON UACT.USUARIO_APP_ID = U.ID
+                INNER JOIN CUERPO_TECNICO CT
+                    ON CT.ID = UACT.CUERPO_TECNICO_ID
+                INNER JOIN EQUIPO E
+                    ON UPPER(TRIM(CT.EQUIPO)) = UPPER(TRIM(E.NOMBRE))
+                INNER JOIN USUARIOS_APP_ROLES UAR
+                    ON UAR.USUARIO_APP_ID = U.ID
+                INNER JOIN ROLES_APP R
+                    ON R.ID = UAR.ROL_ID
+                WHERE E.ID = ?
+                  AND R.CODIGO = 'ENTRENADOR'
+                  AND U.ACTIVO = 1
+                ORDER BY U.ID
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> rs.getLong("ID"),
+                equipoId);
+    }
+
+    @Override
     public List<Long> obtenerUsuariosPorJugador(Long jugadorId) {
 
         String sql = """

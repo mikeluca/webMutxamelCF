@@ -16,6 +16,15 @@ public class Partido {
     private Long usuarioActualizoId;
     private Timestamp fechaActualizacion;
     private boolean cancelado;
+    private Integer golesFavor;
+    private Integer golesContra;
+
+    /*
+     * Bookkeeping interno del recordatorio automático de resultado
+     * pendiente (RecordatorioResultadoPartidoScheduler): NO se expone en
+     * PartidoDTO ni en ninguna respuesta de la API.
+     */
+    private boolean avisoResultadoEnviado;
 
     public Partido() {
         super();
@@ -132,6 +141,30 @@ public class Partido {
 
     public void setCancelado(boolean cancelado) {
         this.cancelado = cancelado;
+    }
+
+    public Integer getGolesFavor() {
+        return golesFavor;
+    }
+
+    public void setGolesFavor(Integer golesFavor) {
+        this.golesFavor = golesFavor;
+    }
+
+    public Integer getGolesContra() {
+        return golesContra;
+    }
+
+    public void setGolesContra(Integer golesContra) {
+        this.golesContra = golesContra;
+    }
+
+    public boolean isAvisoResultadoEnviado() {
+        return avisoResultadoEnviado;
+    }
+
+    public void setAvisoResultadoEnviado(boolean avisoResultadoEnviado) {
+        this.avisoResultadoEnviado = avisoResultadoEnviado;
     }
 
 }

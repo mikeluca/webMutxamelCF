@@ -3,8 +3,10 @@ package com.mikedev.mutxamelcf.dao.impl;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -27,7 +29,8 @@ public class PartidoDaoImpl implements PartidoDao {
 
 	private static final String CAMPOS_SELECT = """
 			P.ID, P.EQUIPO_ID, P.RIVAL, P.DIA, P.HORA, P.CAMPO, P.RESULTADO, P.TIPO,
-			P.USUARIO_ACTUALIZO_ID, P.FECHA_ACTUALIZACION, P.CANCELADO
+			P.USUARIO_ACTUALIZO_ID, P.FECHA_ACTUALIZACION, P.CANCELADO,
+			P.GOLES_FAVOR, P.GOLES_CONTRA, P.AVISO_RESULTADO_ENVIADO
 			""";
 
 	private final JdbcTemplate jdbcTemplate;
@@ -105,7 +108,9 @@ public class PartidoDaoImpl implements PartidoDao {
 				    RESULTADO = ?,
 				    TIPO = ?,
 				    USUARIO_ACTUALIZO_ID = ?,
-				    FECHA_ACTUALIZACION = ?
+				    FECHA_ACTUALIZACION = ?,
+				    GOLES_FAVOR = ?,
+				    GOLES_CONTRA = ?
 				WHERE ID = ?
 				""";
 
@@ -121,6 +126,8 @@ public class PartidoDaoImpl implements PartidoDao {
 				partido.getTipo(),
 				partido.getUsuarioActualizoId(),
 				partido.getFechaActualizacion(),
+				partido.getGolesFavor(),
+				partido.getGolesContra(),
 				partido.getId());
 
 		logger.info("Partido actualizado: id={}, filasAfectadas={}", partido.getId(), filasAfectadas);
@@ -133,7 +140,8 @@ public class PartidoDaoImpl implements PartidoDao {
 
 		String sql = """
 				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
-				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO
+				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO,
+				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO
 				FROM PARTIDOS
 				WHERE ID = ?
 				""";
@@ -153,7 +161,8 @@ public class PartidoDaoImpl implements PartidoDao {
 
 		String sql = """
 				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
-				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO
+				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO,
+				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO
 				FROM PARTIDOS
 				WHERE EQUIPO_ID = ?
 				ORDER BY DIA DESC, ID DESC
@@ -172,7 +181,8 @@ public class PartidoDaoImpl implements PartidoDao {
 
 		String sql = """
 				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
-				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO
+				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO,
+				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO
 				FROM PARTIDOS
 				WHERE EQUIPO_ID = ?
 				ORDER BY DIA DESC, ID DESC
@@ -216,7 +226,8 @@ public class PartidoDaoImpl implements PartidoDao {
 		 */
 		String sql = """
 				SELECT P.ID, P.EQUIPO_ID, P.RIVAL, P.DIA, P.HORA, P.CAMPO, P.RESULTADO, P.TIPO,
-				       P.USUARIO_ACTUALIZO_ID, P.FECHA_ACTUALIZACION, P.CANCELADO
+				       P.USUARIO_ACTUALIZO_ID, P.FECHA_ACTUALIZACION, P.CANCELADO,
+				       P.GOLES_FAVOR, P.GOLES_CONTRA, P.AVISO_RESULTADO_ENVIADO
 				FROM PARTIDOS P
 				LEFT JOIN CONVOCATORIAS C ON C.PARTIDO_ID = P.ID
 				WHERE P.EQUIPO_ID = ?
@@ -389,7 +400,66 @@ public class PartidoDaoImpl implements PartidoDao {
 		partido.setFechaActualizacion(rs.getTimestamp("FECHA_ACTUALIZACION"));
 		partido.setCancelado(rs.getInt("CANCELADO") == 1);
 
+		int golesFavor = rs.getInt("GOLES_FAVOR");
+		partido.setGolesFavor(rs.wasNull() ? null : golesFavor);
+
+		int golesContra = rs.getInt("GOLES_CONTRA");
+		partido.setGolesContra(rs.wasNull() ? null : golesContra);
+
+		partido.setAvisoResultadoEnviado(rs.getInt("AVISO_RESULTADO_ENVIADO") == 1);
+
 		return partido;
+	}
+
+	@Override
+	public List<Partido> obtenerPendientesDeAvisoResultado(LocalDateTime limite) {
+		logger.debug("Inicio obtenerPendientesDeAvisoResultado: limite={}", limite);
+
+		/*
+		 * DIA es una columna DATE (sin hora) y HORA es un VARCHAR2 libre
+		 * ("HH:mm"), así que la fecha+hora real del partido se reconstruye
+		 * combinando ambas columnas en SQL. Si un partido no tiene HORA
+		 * informada (campo opcional), se usa únicamente DIA (medianoche)
+		 * como aproximación, para no dejar esos partidos sin recordatorio
+		 * nunca.
+		 */
+		String sql = "SELECT " + CAMPOS_SELECT + """
+				FROM PARTIDOS P
+				WHERE P.CANCELADO = 0
+				  AND P.GOLES_FAVOR IS NULL
+				  AND P.AVISO_RESULTADO_ENVIADO = 0
+				  AND P.DIA IS NOT NULL
+				  AND (
+				        CASE
+				            WHEN P.HORA IS NOT NULL THEN
+				                TO_DATE(TO_CHAR(P.DIA, 'YYYY-MM-DD') || ' ' || P.HORA, 'YYYY-MM-DD HH24:MI')
+				            ELSE
+				                P.DIA
+				        END
+				      ) <= ?
+				ORDER BY P.DIA ASC, P.ID ASC
+				""";
+
+		List<Partido> partidos = jdbcTemplate.query(
+				sql,
+				PARTIDO_ROW_MAPPER,
+				Timestamp.valueOf(limite));
+
+		logger.debug("Fin obtenerPendientesDeAvisoResultado: total={}", partidos.size());
+
+		return partidos;
+	}
+
+	@Override
+	public void marcarAvisoResultadoEnviado(Long id) {
+		logger.debug("Inicio marcarAvisoResultadoEnviado: id={}", id);
+
+		int filasAfectadas = jdbcTemplate.update(
+				"UPDATE PARTIDOS SET AVISO_RESULTADO_ENVIADO = 1 WHERE ID = ?",
+				id);
+
+		logger.info("Aviso de resultado marcado como enviado: id={}, filasAfectadas={}", id, filasAfectadas);
+		logger.debug("Fin marcarAvisoResultadoEnviado: id={}", id);
 	}
 
 }

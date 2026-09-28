@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.mvc.controller;
 import com.mikedev.mutxamelcf.model.PartidoDTO;
 import com.mikedev.mutxamelcf.model.PartidoGuardarRequest;
 import com.mikedev.mutxamelcf.mvc.api.AppPartidoController;
+import com.mikedev.mutxamelcf.service.PartidoEstadisticaService;
 import com.mikedev.mutxamelcf.service.PartidoService;
 
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,7 @@ class AppPartidoControllerTest {
     @Test
     void crearDevuelve401SinAutenticacion() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         ResponseEntity<?> response = controller.crear(new PartidoGuardarRequest(), null);
 
@@ -38,7 +39,7 @@ class AppPartidoControllerTest {
     @Test
     void crearDevuelve401SiElNombreDeUsuarioNoEsNumerico() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         ResponseEntity<?> response = controller.crear(new PartidoGuardarRequest(), autenticado("no-numero"));
 
@@ -48,7 +49,7 @@ class AppPartidoControllerTest {
     @Test
     void crearDevuelve201ConElPartidoCreado() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         PartidoGuardarRequest request = new PartidoGuardarRequest();
         when(service.crear(1L, request)).thenReturn(new PartidoDTO());
@@ -61,7 +62,7 @@ class AppPartidoControllerTest {
     @Test
     void crearDevuelve403SiElServicioDeniegaPorPermiso() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         PartidoGuardarRequest request = new PartidoGuardarRequest();
         when(service.crear(1L, request)).thenThrow(new SecurityException("sin permiso"));
@@ -73,7 +74,7 @@ class AppPartidoControllerTest {
     @Test
     void crearDevuelve400SiElServicioLanzaIllegalArgument() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         PartidoGuardarRequest request = new PartidoGuardarRequest();
         when(service.crear(1L, request)).thenThrow(new IllegalArgumentException("no valido"));
@@ -85,7 +86,7 @@ class AppPartidoControllerTest {
     @Test
     void crearDevuelve500SiElServicioLanzaExcepcionInesperada() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         PartidoGuardarRequest request = new PartidoGuardarRequest();
         when(service.crear(1L, request)).thenThrow(new RuntimeException("fallo"));
@@ -99,7 +100,7 @@ class AppPartidoControllerTest {
     @Test
     void actualizarDevuelve401SinAutenticacion() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         ResponseEntity<?> response = controller.actualizar(5L, new PartidoGuardarRequest(), null);
 
@@ -109,7 +110,7 @@ class AppPartidoControllerTest {
     @Test
     void actualizarDevuelve401SiElNombreDeUsuarioNoEsNumerico() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         ResponseEntity<?> response = controller.actualizar(5L, new PartidoGuardarRequest(),
                 autenticado("no-numero"));
@@ -120,7 +121,7 @@ class AppPartidoControllerTest {
     @Test
     void actualizarDevuelve200ConElPartidoActualizado() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         PartidoGuardarRequest request = new PartidoGuardarRequest();
         when(service.actualizar(1L, 5L, request)).thenReturn(new PartidoDTO());
@@ -133,7 +134,7 @@ class AppPartidoControllerTest {
     @Test
     void actualizarDevuelve403SiElServicioDeniegaPorPermiso() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         PartidoGuardarRequest request = new PartidoGuardarRequest();
         when(service.actualizar(1L, 5L, request)).thenThrow(new SecurityException("sin permiso"));
@@ -145,7 +146,7 @@ class AppPartidoControllerTest {
     @Test
     void actualizarDevuelve400SiElServicioLanzaIllegalArgument() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         PartidoGuardarRequest request = new PartidoGuardarRequest();
         when(service.actualizar(1L, 5L, request)).thenThrow(new IllegalArgumentException("no valido"));
@@ -157,7 +158,7 @@ class AppPartidoControllerTest {
     @Test
     void actualizarDevuelve500SiElServicioLanzaExcepcionInesperada() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         PartidoGuardarRequest request = new PartidoGuardarRequest();
         when(service.actualizar(1L, 5L, request)).thenThrow(new RuntimeException("fallo"));
@@ -171,7 +172,7 @@ class AppPartidoControllerTest {
     @Test
     void eliminarDevuelve401SinAutenticacion() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         ResponseEntity<?> response = controller.eliminar(5L, null);
 
@@ -181,7 +182,7 @@ class AppPartidoControllerTest {
     @Test
     void eliminarDevuelve401SiElNombreDeUsuarioNoEsNumerico() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         ResponseEntity<?> response = controller.eliminar(5L, autenticado("no-numero"));
 
@@ -191,7 +192,7 @@ class AppPartidoControllerTest {
     @Test
     void eliminarDevuelve204SinContenidoCuandoTieneExito() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         ResponseEntity<?> response = controller.eliminar(5L, autenticado("1"));
 
@@ -202,7 +203,7 @@ class AppPartidoControllerTest {
     @Test
     void eliminarDevuelve403SiElServicioDeniegaPorPermiso() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         org.mockito.Mockito.doThrow(new SecurityException("sin permiso")).when(service).eliminar(1L, 5L);
 
@@ -213,7 +214,7 @@ class AppPartidoControllerTest {
     @Test
     void eliminarDevuelve400SiElServicioLanzaIllegalArgument() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         org.mockito.Mockito.doThrow(new IllegalArgumentException("no existe")).when(service).eliminar(1L, 5L);
 
@@ -224,7 +225,7 @@ class AppPartidoControllerTest {
     @Test
     void eliminarDevuelve500SiElServicioLanzaExcepcionInesperada() {
         PartidoService service = mock(PartidoService.class);
-        AppPartidoController controller = new AppPartidoController(service);
+        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));
 
         org.mockito.Mockito.doThrow(new RuntimeException("fallo")).when(service).eliminar(1L, 5L);
 
