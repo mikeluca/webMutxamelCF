@@ -52,6 +52,15 @@ public interface SesionEntrenamientoService {
     List<SesionEntrenamientoResponse> obtenerPorEquipoYRango(Long equipoId, LocalDate desde, LocalDate hasta);
 
     /**
+     * Igual que {@link #obtenerPorEquipoYRango}, pero además marca en
+     * cada sesión si el jugador indicado ya ha justificado su falta
+     * (vista jugador/familiar). El usuarioAppId debe estar vinculado a
+     * ese jugador (como jugador o como familiar).
+     */
+    List<SesionEntrenamientoResponse> obtenerPorEquipoYRangoParaJugador(
+            Long usuarioAppId, Long equipoId, LocalDate desde, LocalDate hasta, Long jugadorId);
+
+    /**
      * Alta/actualización (upsert) de una justificación de falta
      * informativa. El usuarioAppId debe estar vinculado al jugador
      * (como jugador o como familiar), y la sesión debe ser futura y no

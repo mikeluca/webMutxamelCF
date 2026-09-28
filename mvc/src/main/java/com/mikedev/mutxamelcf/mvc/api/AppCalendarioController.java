@@ -41,13 +41,18 @@ public class AppCalendarioController {
     }
 
     /**
-     * GET /api/app/calendario?equipoId=1&desde=2026-10-01&hasta=2026-10-31
+     * GET /api/app/calendario?equipoId=1&desde=2026-10-01&hasta=2026-10-31[&jugadorId=5]
+     *
+     * Si se indica jugadorId (vista jugador/familiar), cada sesión de
+     * entrenamiento devuelta indica si ESE jugador ya ha justificado su
+     * falta. El llamante debe estar vinculado a ese jugador.
      */
     @GetMapping
     public ResponseEntity<?> obtenerCalendario(
             @RequestParam Long equipoId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @RequestParam(required = false) Long jugadorId,
             Authentication authentication) {
 
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -56,12 +61,24 @@ public class AppCalendarioController {
 
         try {
 
-            List<SesionEntrenamientoResponse> sesiones = sesionEntrenamientoService.obtenerPorEquipoYRango(
-                    equipoId, desde, hasta);
+            Long usuarioId = Long.parseLong(authentication.getName());
+
+            List<SesionEntrenamientoResponse> sesiones = jugadorId != null
+                    ? sesionEntrenamientoService.obtenerPorEquipoYRangoParaJugador(
+                            usuarioId, equipoId, desde, hasta, jugadorId)
+                    : sesionEntrenamientoService.obtenerPorEquipoYRango(equipoId, desde, hasta);
 
             List<PartidoDTO> partidos = partidoService.obtenerPorEquipoYRangoFechas(equipoId, desde, hasta);
 
             return ResponseEntity.ok(new CalendarioResponse(sesiones, partidos));
+
+        } catch (NumberFormatException e) {
+
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
+
+        } catch (SecurityException e) {
+
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
 
         } catch (IllegalArgumentException e) {
 

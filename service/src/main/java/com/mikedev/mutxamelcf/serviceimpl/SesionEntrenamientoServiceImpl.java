@@ -302,6 +302,40 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
     }
 
     @Override
+    public List<SesionEntrenamientoResponse> obtenerPorEquipoYRangoParaJugador(
+            Long usuarioAppId, Long equipoId, LocalDate desde, LocalDate hasta, Long jugadorId) {
+
+        validarUsuario(usuarioAppId);
+
+        if (jugadorId == null) {
+            throw new IllegalArgumentException("El jugador es obligatorio");
+        }
+
+        if (!equipoGestionDao.perteneceJugadorAEquipo(jugadorId, equipoId)) {
+            throw new IllegalArgumentException("El jugador no pertenece a este equipo");
+        }
+
+        if (!usuarioAppVinculoDao.tieneVinculoConJugador(usuarioAppId.intValue(), jugadorId)) {
+            throw new SecurityException("No tienes permiso para consultar este jugador");
+        }
+
+        List<SesionEntrenamientoResponse> respuesta = obtenerPorEquipoYRango(equipoId, desde, hasta);
+
+        for (SesionEntrenamientoResponse sesion : respuesta) {
+
+            JustificacionFaltaEntrenamiento justificacion = justificacionFaltaEntrenamientoDao
+                    .obtenerPorSesionYJugador(sesion.getId(), jugadorId);
+
+            if (justificacion != null) {
+                sesion.setJustificado(true);
+                sesion.setMotivoJustificacion(justificacion.getMotivo());
+            }
+        }
+
+        return respuesta;
+    }
+
+    @Override
     @Transactional
     public JustificacionFaltaResponse justificar(Long usuarioAppId, Long sesionId, JustificacionFaltaRequest request) {
 

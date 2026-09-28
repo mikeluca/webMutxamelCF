@@ -13,6 +13,15 @@ public class SesionEntrenamientoResponse {
     private String lugar;
     private String estado;
 
+    /*
+     * Solo se rellenan cuando la consulta se hizo indicando un
+     * jugadorId concreto (vista jugador/familiar): indican si ESE
+     * jugador ya ha justificado su falta a esta sesión. En el resto de
+     * casos (vista de gestión del entrenador) quedan a null/false.
+     */
+    private boolean justificado;
+    private String motivoJustificacion;
+
     public SesionEntrenamientoResponse() {
     }
 
@@ -78,5 +87,21 @@ public class SesionEntrenamientoResponse {
 
     public void setEstado(String estado) {
         this.estado = estado;
+    }
+
+    public boolean isJustificado() {
+        return justificado;
+    }
+
+    public void setJustificado(boolean justificado) {
+        this.justificado = justificado;
+    }
+
+    public String getMotivoJustificacion() {
+        return motivoJustificacion;
+    }
+
+    public void setMotivoJustificacion(String motivoJustificacion) {
+        this.motivoJustificacion = motivoJustificacion;
     }
 }
