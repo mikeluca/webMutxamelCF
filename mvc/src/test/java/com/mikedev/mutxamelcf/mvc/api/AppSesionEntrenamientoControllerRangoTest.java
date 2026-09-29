@@ -41,7 +41,7 @@ class AppSesionEntrenamientoControllerRangoTest {
     }
 
     @Test
-    void obtenerPorEquipoYRangoDevuelve400SiElRangoSuperaLos93Dias() {
+    void obtenerPorEquipoYRangoDevuelve400SiElRangoSuperaElMaximo() {
         AppSesionEntrenamientoController controller =
                 new AppSesionEntrenamientoController(mock(SesionEntrenamientoService.class));
 

@@ -32,7 +32,7 @@ class RangoFechasHelperTest {
     }
 
     @Test
-    void rechazaUnRangoDeMasDe93Dias() {
+    void rechazaUnRangoDeMasDe400Dias() {
         // DB-04: sin este limite, desde=1900-01-01&hasta=2100-01-01 forzaba
         // a la BD a recorrer todo el historico.
         assertThatThrownBy(() -> RangoFechasHelper.validar(
@@ -41,9 +41,21 @@ class RangoFechasHelperTest {
     }
 
     @Test
-    void aceptaExactamente93Dias() {
+    void aceptaExactamente400Dias() {
         assertThatCode(() -> RangoFechasHelper.validar(
-                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 1).plusDays(93)))
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 1).plusDays(400)))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void aceptaElRangoRealQuePideLaAppDeCalendario() {
+        // N-02: calendario_page.dart pide desde el inicio de temporada
+        // (1 de septiembre) hasta hoy + 2 meses. Con una temporada de 10
+        // meses (septiembre a junio), ese rango debe seguir aceptandose.
+        LocalDate inicioTemporada = LocalDate.of(2026, 9, 1);
+        LocalDate hastaHoyMasDosMeses = LocalDate.of(2027, 6, 30).plusMonths(2);
+
+        assertThatCode(() -> RangoFechasHelper.validar(inicioTemporada, hastaHoyMasDosMeses))
                 .doesNotThrowAnyException();
     }
 }

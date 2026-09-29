@@ -39,7 +39,7 @@ class AppCalendarioControllerTest {
     }
 
     @Test
-    void obtenerCalendarioDevuelve400SiElRangoSuperaLos93Dias() {
+    void obtenerCalendarioDevuelve400SiElRangoSuperaElMaximo() {
         // DB-04: sin este limite se podia pedir un rango arbitrariamente
         // grande (p. ej. todo el historico) en una sola llamada.
         SesionEntrenamientoService sesionService = mock(SesionEntrenamientoService.class);

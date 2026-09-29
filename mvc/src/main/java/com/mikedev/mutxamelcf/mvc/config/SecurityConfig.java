@@ -42,13 +42,23 @@ public class SecurityConfig {
                 http
 
                                 /*
-                                 * SEC-04 / SEC-09: Content-Security-Policy. Con esto, aunque
-                                 * un <img src=x onerror=...> consiga colarse en el HTML (ver
-                                 * el escapado en jugadores.html/familiares.html), el
-                                 * navegador no ejecuta scripts fuera de los orígenes
-                                 * listados. Los orígenes son los CDN y servicios que ya usan
-                                 * las plantillas actuales (Bootstrap/jQuery/Chart.js por
-                                 * jsdelivr, Google Fonts, Google Analytics/Tag Manager).
+                                 * SEC-04 / SEC-09: Content-Security-Policy. Limita de qué
+                                 * orígenes puede cargarse script/estilo/fuente/imagen, a los
+                                 * CDN y servicios que ya usan las plantillas actuales
+                                 * (Bootstrap/jQuery/Chart.js por jsdelivr, Google Fonts,
+                                 * Google Analytics/Tag Manager).
+                                 *
+                                 * N-05: 'unsafe-inline' en script-src sigue permitiendo que
+                                 * se ejecute un atributo onerror=/onclick= o un <script>
+                                 * inline igual que sin CSP -- así que esta política NO frena
+                                 * el payload de SEC-04 (<img src=x onerror=...>); la defensa
+                                 * real contra eso es el escapado en jugadores.html /
+                                 * familiares.html. Quitar 'unsafe-inline' exige mover antes
+                                 * los onclick=/onchange= inline del panel a
+                                 * addEventListener (pendiente, ver auditoría). frame-src
+                                 * permite el <iframe> de Google Maps de contacto.html, y
+                                 * connect-src incluye los subdominios reales a los que envía
+                                 * Google Analytics 4 (no solo google-analytics.com).
                                  */
                                 .headers(headers -> headers
                                                 .contentSecurityPolicy(csp -> csp.policyDirectives(
@@ -59,8 +69,10 @@ public class SecurityConfig {
                                                                                 + "https://fonts.googleapis.com; "
                                                                                 + "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; "
                                                                                 + "img-src 'self' data: https:; "
-                                                                                + "connect-src 'self' https://www.google-analytics.com; "
-                                                                                + "frame-ancestors 'self'")))
+                                                                                + "frame-src https://www.google.com; "
+                                                                                + "connect-src 'self' https://*.google-analytics.com "
+                                                                                + "https://*.analytics.google.com; "
+                                                                                + "frame-ancestors 'self'; base-uri 'self'; form-action 'self'")))
 
                                 /*
                                  * CSRF:
@@ -101,6 +113,21 @@ public class SecurityConfig {
                                                 .requestMatchers(
                                                                 "/api/app/auth/login",
                                                                 "/api/app/auth/activar")
+                                                .permitAll()
+
+                                                /*
+                                                 * N-01: sin esto, un token ya inválido (caducado,
+                                                 * cuenta desactivada o JWT_SECRET rotado) hace que
+                                                 * este DELETE devuelva 401, y la app entra en un
+                                                 * bucle de logout -> DELETE -> 401 -> logout... El
+                                                 * controlador exige igualmente un usuario
+                                                 * autenticado para desactivar ningún token; esto
+                                                 * solo permite que una petición SIN sesión válida
+                                                 * llegue a él y reciba 204 en vez de 401.
+                                                 */
+                                                .requestMatchers(
+                                                                org.springframework.http.HttpMethod.DELETE,
+                                                                "/api/app/dispositivos")
                                                 .permitAll()
 
                                                 /*

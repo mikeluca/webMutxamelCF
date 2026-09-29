@@ -19,6 +19,7 @@ import java.util.Date;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -148,6 +149,20 @@ class SeguridadIntegrationTest {
         mockMvc.perform(get("/api/app/auth/me")
                         .header("Authorization", "Bearer " + tokenCaducado))
                 .andExpect(status().isUnauthorized());
+    }
+
+    /*
+     * N-01: sin token valido, este DELETE debe responder 204 en vez de
+     * 401, para que un cliente con el token ya caducado/invalido pueda
+     * terminar su logout sin que ApiClient reciba un 401 que dispare de
+     * nuevo cerrarSesion() (bucle infinito, ver 2a auditoria).
+     */
+    @Test
+    void deleteDispositivosSinTokenValidoDevuelve204() throws Exception {
+
+        mockMvc.perform(delete("/api/app/dispositivos")
+                        .param("tokenFcm", "cualquier-token"))
+                .andExpect(status().isNoContent());
     }
 
     @Test
