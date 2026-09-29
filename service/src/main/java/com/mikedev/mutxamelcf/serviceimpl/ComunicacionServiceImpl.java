@@ -13,6 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +29,6 @@ import com.mikedev.mutxamelcf.model.VinculoUsuarioApp;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
-import com.mikedev.mutxamelcf.service.FcmPushService;
 
 @Service
 public class ComunicacionServiceImpl
@@ -40,22 +40,22 @@ public class ComunicacionServiceImpl
 
         private final NotificacionAppService notificacionAppService;
 
-        private final FcmPushService fcmPushService;
-
         private final UsuarioAppVinculoDao usuarioAppVinculoDao;
+
+        private final ApplicationEventPublisher eventPublisher;
 
         public ComunicacionServiceImpl(
                         ComunicacionDao comunicacionDao,
                         UsuarioAppService usuarioAppService,
                         NotificacionAppService notificacionAppService,
-                        FcmPushService fcmPushService,
-                        UsuarioAppVinculoDao usuarioAppVinculoDao) {
+                        UsuarioAppVinculoDao usuarioAppVinculoDao,
+                        ApplicationEventPublisher eventPublisher) {
 
                 this.comunicacionDao = comunicacionDao;
                 this.usuarioAppService = usuarioAppService;
                 this.notificacionAppService = notificacionAppService;
-                this.fcmPushService = fcmPushService;
                 this.usuarioAppVinculoDao = usuarioAppVinculoDao;
+                this.eventPublisher = eventPublisher;
         }
 
         @Override
@@ -916,9 +916,12 @@ public class ComunicacionServiceImpl
                 }
 
                 /*
-                 * Creamos una única notificación por usuario
-                 * y enviamos el push.
+                 * Creamos una única notificación por usuario (escritura en
+                 * BD, dentro de esta misma transacción) y recopilamos a
+                 * quién hay que avisar por push.
                  */
+                Set<Long> usuariosParaPush = new HashSet<>();
+
                 for (Long usuarioId : usuariosDestinatarios) {
 
                         /*
@@ -943,27 +946,25 @@ public class ComunicacionServiceImpl
                                         contenido,
                                         comunicacionId);
 
-                        if (autorIdParaChatPrivado != null) {
+                        usuariosParaPush.add(usuarioId);
+                }
 
-                                fcmPushService.enviarNotificacionAUsuario(
-                                                usuarioId,
-                                                "COMUNICACION",
-                                                titulo,
-                                                contenido,
-                                                comunicacionId,
-                                                Map.of(
-                                                                "esPrivada", "true",
-                                                                "autorId", autorIdParaChatPrivado.toString()));
-
-                        } else {
-
-                                fcmPushService.enviarNotificacionAUsuario(
-                                                usuarioId,
-                                                "COMUNICACION",
-                                                titulo,
-                                                contenido,
-                                                comunicacionId);
-                        }
+                /*
+                 * BE-02: el envío real del push (una llamada de red por
+                 * dispositivo) se difiere hasta que esta transacción
+                 * confirme -- ver ComunicacionPushListener -- para no
+                 * retener la conexión de BD durante el envío ni avisar de
+                 * una comunicación que acabe deshaciéndose por un fallo
+                 * posterior.
+                 */
+                if (!usuariosParaPush.isEmpty()) {
+                        eventPublisher.publishEvent(
+                                        new ComunicacionPushEvent(
+                                                        comunicacionId,
+                                                        titulo,
+                                                        contenido,
+                                                        usuariosParaPush,
+                                                        autorIdParaChatPrivado));
                 }
         }
 
@@ -1164,8 +1165,13 @@ public class ComunicacionServiceImpl
                 }
 
                 /*
-                 * 3. Crear NOTIFICACION_APP y enviar FCM.
+                 * 3. Crear NOTIFICACION_APP (BD) y recopilar a quien
+                 * avisar por push; el envío real se difiere hasta que
+                 * confirme la transacción (BE-02, ver
+                 * ComunicacionPushListener).
                  */
+                Set<Long> usuariosParaPush = new HashSet<>();
+
                 for (Long destinatarioId : destinatarios) {
 
                         /*
@@ -1190,12 +1196,17 @@ public class ComunicacionServiceImpl
                                         comunicacion.getContenido(),
                                         comunicacionId);
 
-                        fcmPushService.enviarNotificacionAUsuario(
-                                        destinatarioId,
-                                        "COMUNICACION",
-                                        comunicacion.getTitulo(),
-                                        comunicacion.getContenido(),
-                                        comunicacionId);
+                        usuariosParaPush.add(destinatarioId);
+                }
+
+                if (!usuariosParaPush.isEmpty()) {
+                        eventPublisher.publishEvent(
+                                        new ComunicacionPushEvent(
+                                                        comunicacionId,
+                                                        comunicacion.getTitulo(),
+                                                        comunicacion.getContenido(),
+                                                        usuariosParaPush,
+                                                        null));
                 }
 
                 comunicacion.setId(comunicacionId);

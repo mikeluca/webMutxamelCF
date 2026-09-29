@@ -1,5 +1,6 @@
 package com.mikedev.mutxamelcf.serviceimpl;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -90,8 +91,16 @@ public class FcmPushServiceImpl implements FcmPushService {
         /**
          * Envía una notificación a todos los dispositivos activos
          * de un usuario.
+         *
+         * BE-02: @Async porque el envío hace una llamada de red a FCM por
+         * cada dispositivo; ejecutarlo en el hilo de la petición retenía
+         * la conexión de BD (Hikari) durante ese tiempo cuando se llamaba
+         * dentro de una transacción, y en el partido en directo alargaba
+         * la respuesta lo bastante como para que la app diera timeout y
+         * el retransmisor reintentase la acción.
          */
         @Override
+        @Async
         public void enviarNotificacionAUsuario(
                         Long usuarioId,
                         String tipo,
@@ -109,6 +118,7 @@ public class FcmPushServiceImpl implements FcmPushService {
         }
 
         @Override
+        @Async
         public void enviarNotificacionAUsuario(
                         Long usuarioId,
                         String tipo,
@@ -235,6 +245,7 @@ public class FcmPushServiceImpl implements FcmPushService {
         }
 
         @Override
+        @Async
         public void enviarATopic(
                         String topic,
                         String titulo,
@@ -247,9 +258,10 @@ public class FcmPushServiceImpl implements FcmPushService {
          * Publica una notificación en un topic de FCM (suscripción
          * anónima, gestionada por la propia app), capturando cualquier
          * error de FCM sin propagarlo, igual que el resto de envíos de
-         * esta clase.
+         * esta clase. @Async por el mismo motivo que enviarNotificacionAUsuario.
          */
         @Override
+        @Async
         public void enviarATopic(
                         String topic,
                         String titulo,

@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -78,5 +79,34 @@ class GlobalExceptionHandlerTest {
                 .manejarErrorNoControlado(new RuntimeException("fallo inesperado"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @Test
+    void manejarAccesoDenegadoDevuelve403() {
+        // BE-04: antes de anadir este handler, una SecurityException de un
+        // service (autorizacion propia de la app, no de Spring Security)
+        // caia en manejarErrorNoControlado y devolvia 500 en vez de 403.
+        ResponseEntity<Map<String, String>> response = handler
+                .manejarAccesoDenegado(new SecurityException("No tienes permiso para gestionar este equipo"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(response.getBody()).containsEntry("error", "No tienes permiso para gestionar este equipo");
+    }
+
+    @Test
+    void manejarAccesoDenegadoConMensajeNuloDevuelveUnMensajeGenerico() {
+        ResponseEntity<Map<String, String>> response = handler
+                .manejarAccesoDenegado(new SecurityException());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(response.getBody()).containsEntry("error", "Acceso denegado.");
+    }
+
+    @Test
+    void manejarNoEncontradoDevuelve404() {
+        ResponseEntity<Map<String, String>> response = handler
+                .manejarNoEncontrado(new NoSuchElementException("no existe"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 }

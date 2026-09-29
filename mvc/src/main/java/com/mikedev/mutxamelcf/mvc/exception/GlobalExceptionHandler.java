@@ -3,6 +3,8 @@ package com.mikedev.mutxamelcf.mvc.exception;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import java.util.NoSuchElementException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -12,10 +14,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-@RestControllerAdvice
+/*
+ * BE-06: limitado con "annotations = RestController.class" para que solo
+ * se aplique a los @RestController de la API (app y /api/public/**). Sin
+ * esto, un error no controlado en un @Controller de Thymeleaf (panel de
+ * admin, web pública) también pasaba por aquí y el navegador recibía un
+ * cuerpo JSON en vez de una página de error.
+ */
+@RestControllerAdvice(annotations = RestController.class)
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -26,6 +36,30 @@ public class GlobalExceptionHandler {
         logger.warn("Peticion invalida: {}", exception.getMessage());
         logger.debug("Fin manejarPeticionInvalida: estado={}", HttpStatus.BAD_REQUEST.value());
         return ResponseEntity.badRequest().body(Map.of("error", "Los datos enviados no son validos."));
+    }
+
+    /*
+     * BE-04: sin este handler, una SecurityException lanzada por un
+     * service (comprobaciones de permiso propias de la app, no de Spring
+     * Security) caía en manejarErrorNoControlado() y se devolvía 500 en
+     * vez de 403, y además se registraba como error en los logs.
+     */
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<Map<String, String>> manejarAccesoDenegado(SecurityException exception) {
+        logger.debug("Inicio manejarAccesoDenegado");
+        logger.warn("Acceso denegado: {}", exception.getMessage());
+        logger.debug("Fin manejarAccesoDenegado: estado={}", HttpStatus.FORBIDDEN.value());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", exception.getMessage() != null ? exception.getMessage() : "Acceso denegado."));
+    }
+
+    @ExceptionHandler(NoSuchElementException.class)
+    public ResponseEntity<Map<String, String>> manejarNoEncontrado(NoSuchElementException exception) {
+        logger.debug("Inicio manejarNoEncontrado");
+        logger.warn("Recurso no encontrado: {}", exception.getMessage());
+        logger.debug("Fin manejarNoEncontrado: estado={}", HttpStatus.NOT_FOUND.value());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", "El recurso solicitado no existe."));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

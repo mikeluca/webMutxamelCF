@@ -665,22 +665,7 @@ public class PagosController {
             @RequestParam(required = false) String referencia, @RequestParam(required = false) String observaciones,
             RedirectAttributes redirect) {
         logger.debug("Inicio registrarPago: id={}, cuotaJugadorId={}, importe={}", id, cuotaJugadorId, importe);
-        CuotaJugadorDTO cuota = cuotaJugadorService.obtenerPorId(cuotaJugadorId);
-        BigDecimal pagosActuales = pagoService.obtenerTotalPagado(cuotaJugadorId);
-        PagoDTO pagoActual = id == null ? null : pagoService.obtenerPorId(id);
-        if (pagoActual != null) {
-            pagosActuales = pagosActuales.subtract(zeroIfNull(pagoActual.getImporte()));
-        }
-        BigDecimal pendiente = cuota == null ? BigDecimal.ZERO
-                : zeroIfNull(cuota.getImporte()).subtract(pagosActuales);
-        if (cuota == null || importe == null || importe.signum() <= 0 || importe.compareTo(pendiente) > 0) {
-            logger.warn("Importe de pago invalido: cuotaJugadorId={}, importe={}, pendiente={}", cuotaJugadorId,
-                    importe,
-                    pendiente);
-            redirect.addFlashAttribute("error", "El importe supera el saldo pendiente o la cuota no existe.");
-            logger.debug("Fin registrarPago: resultado=INVALIDO");
-            return "redirect:/admin/pagos";
-        }
+
         PagoDTO pago = new PagoDTO();
         pago.setId(id);
         pago.setCuotaJugadorId(cuotaJugadorId);
@@ -689,8 +674,21 @@ public class PagosController {
         pago.setMetodoPago(metodoPago);
         pago.setReferencia(referencia);
         pago.setObservaciones(observaciones);
-        pagoService.guardarPago(pago);
-        cuotaJugadorService.actualizarEstado(cuotaJugadorId);
+
+        // BE-01: la validacion del importe pendiente, la insercion y la
+        // actualizacion del estado de la cuota son ahora atomicas dentro
+        // de PagoService.registrarPago (bloquea la cuota con
+        // SELECT ... FOR UPDATE), asi que dos envios simultaneos no
+        // pueden dejar la cuota pagada por encima de su importe.
+        try {
+            pagoService.registrarPago(pago);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            logger.warn("Registro de pago rechazado: cuotaJugadorId={}, motivo={}", cuotaJugadorId, e.getMessage());
+            redirect.addFlashAttribute("error", e.getMessage());
+            logger.debug("Fin registrarPago: resultado=INVALIDO");
+            return "redirect:/admin/pagos";
+        }
+
         redirect.addFlashAttribute("mensaje", "Pago registrado correctamente.");
         logger.debug("Fin registrarPago: cuotaJugadorId={}", cuotaJugadorId);
         return "redirect:/admin/pagos";
@@ -701,30 +699,23 @@ public class PagosController {
     public ResponseEntity<Map<String, Object>> registrarPagoAjax(@RequestParam Long cuotaJugadorId,
             @RequestParam BigDecimal importe, @RequestParam String fechaPago, @RequestParam String metodoPago) {
         logger.debug("Inicio registrarPagoAjax: cuotaJugadorId={}, importe={}", cuotaJugadorId, importe);
-        CuotaJugadorDTO cuota = cuotaJugadorService.obtenerPorId(cuotaJugadorId);
-        BigDecimal pagadoActual = pagoService.obtenerTotalPagado(cuotaJugadorId);
-        BigDecimal pendiente = cuota == null ? BigDecimal.ZERO
-                : zeroIfNull(cuota.getImporte()).subtract(pagadoActual);
-        if (cuota == null || importe == null || importe.signum() <= 0 || importe.compareTo(pendiente) > 0) {
-            logger.warn("Importe de pago AJAX invalido: cuotaJugadorId={}, importe={}, pendiente={}", cuotaJugadorId,
-                    importe, pendiente);
-            logger.debug("Fin registrarPagoAjax: resultado=INVALIDO");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", "El importe supera el saldo pendiente o la cuota no existe."));
-        }
+
         PagoDTO pago = new PagoDTO();
         pago.setCuotaJugadorId(cuotaJugadorId);
         pago.setImporte(importe);
         pago.setFechaPago(parseDate(fechaPago));
         pago.setMetodoPago(metodoPago);
-        pagoService.guardarPago(pago);
+
         try {
-            cuotaJugadorService.actualizarEstado(cuotaJugadorId);
-        } catch (org.springframework.dao.DataIntegrityViolationException exception) {
-            logger.warn("No se pudo sincronizar el estado de la cuota tras registrar el pago: cuotaJugadorId={}",
-                    cuotaJugadorId, exception);
+            pagoService.registrarPago(pago);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            logger.warn("Registro de pago AJAX rechazado: cuotaJugadorId={}, motivo={}", cuotaJugadorId,
+                    e.getMessage());
+            logger.debug("Fin registrarPagoAjax: resultado=INVALIDO");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
         }
 
+        CuotaJugadorDTO cuota = cuotaJugadorService.obtenerPorId(cuotaJugadorId);
         BigDecimal pagado = pagoService.obtenerTotalPagado(cuotaJugadorId);
         Map<String, Object> respuesta = new LinkedHashMap<>();
         respuesta.put("cuotaJugadorId", cuotaJugadorId);
@@ -741,25 +732,24 @@ public class PagosController {
             @RequestParam Long cuotaJugadorId, @RequestParam BigDecimal importe,
             @RequestParam String fechaPago, @RequestParam String metodoPago) {
         logger.debug("Inicio editarPagoAjax: id={}, cuotaJugadorId={}, importe={}", id, cuotaJugadorId, importe);
-        PagoDTO pago = pagoService.obtenerPorId(id);
-        CuotaJugadorDTO cuota = cuotaJugadorService.obtenerPorId(cuotaJugadorId);
-        BigDecimal totalSinPago = pagoService.obtenerTotalPagado(cuotaJugadorId)
-                .subtract(pago == null ? BigDecimal.ZERO : zeroIfNull(pago.getImporte()));
-        BigDecimal pendiente = cuota == null ? BigDecimal.ZERO
-                : zeroIfNull(cuota.getImporte()).subtract(totalSinPago);
-        if (pago == null || cuota == null || importe == null || importe.signum() <= 0
-                || !cuotaJugadorId.equals(pago.getCuotaJugadorId()) || importe.compareTo(pendiente) > 0) {
-            logger.warn("Edicion de pago AJAX invalida: id={}, cuotaJugadorId={}", id, cuotaJugadorId);
-            logger.debug("Fin editarPagoAjax: resultado=INVALIDO");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", "El importe supera el saldo pendiente o el pago no existe."));
-        }
+
+        PagoDTO pago = new PagoDTO();
+        pago.setId(id);
         pago.setCuotaJugadorId(cuotaJugadorId);
         pago.setImporte(importe);
         pago.setFechaPago(parseDate(fechaPago));
         pago.setMetodoPago(metodoPago);
-        pagoService.guardarPago(pago);
-        cuotaJugadorService.actualizarEstado(cuotaJugadorId);
+
+        try {
+            pagoService.registrarPago(pago);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            logger.warn("Edicion de pago AJAX rechazada: id={}, cuotaJugadorId={}, motivo={}", id, cuotaJugadorId,
+                    e.getMessage());
+            logger.debug("Fin editarPagoAjax: resultado=INVALIDO");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        }
+
+        CuotaJugadorDTO cuota = cuotaJugadorService.obtenerPorId(cuotaJugadorId);
         BigDecimal pagadoActualizado = pagoService.obtenerTotalPagado(cuotaJugadorId);
         Map<String, Object> respuesta = new LinkedHashMap<>();
         respuesta.put("pago", pago);

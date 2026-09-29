@@ -107,6 +107,53 @@ class PartidoEnVivoServiceImplTest {
     }
 
     @Test
+    void enviarGolFavorRepetidoEnfriaLaMismaAccionYNoSumaElGolDosVeces() {
+        // BE-02: si la app reintenta enviarGolFavor tras un timeout, el
+        // segundo intento con el mismo autor (misma acción) no debe
+        // volver a sumar el gol.
+        when(usuarioAppService.tieneRol(5, "RETRANSMISION")).thenReturn(true);
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partidoRival());
+        when(partidoLiveDao.obtenerEstado()).thenReturn(
+                new PartidoLiveEstado(1, 0, List.of("Juan Perez")));
+
+        service.enviarGolFavor(5L, "Juan Perez");
+        service.enviarGolFavor(5L, "Juan Perez");
+
+        verify(partidoLiveDao, org.mockito.Mockito.times(1)).sumarGolFavor("Juan Perez");
+        verify(notificacionAppService, org.mockito.Mockito.times(1))
+                .difundirATodos(anyString(), anyString(), anyString(), isNull());
+    }
+
+    @Test
+    void enviarGolFavorDeOtroAutorSiSeContabilizaAunqueLleguePocoDespues() {
+        when(usuarioAppService.tieneRol(5, "RETRANSMISION")).thenReturn(true);
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partidoRival());
+        when(partidoLiveDao.obtenerEstado()).thenReturn(
+                new PartidoLiveEstado(1, 0, List.of("Juan Perez")),
+                new PartidoLiveEstado(2, 0, List.of("Juan Perez", "Ana Garcia")));
+
+        service.enviarGolFavor(5L, "Juan Perez");
+        service.enviarGolFavor(5L, "Ana Garcia");
+
+        verify(partidoLiveDao).sumarGolFavor("Juan Perez");
+        verify(partidoLiveDao).sumarGolFavor("Ana Garcia");
+    }
+
+    @Test
+    void enviarInicioPartidoReiniciaLaDeduplicacionDeGolFavor() {
+        when(usuarioAppService.tieneRol(5, "RETRANSMISION")).thenReturn(true);
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partidoRival());
+        when(partidoLiveDao.obtenerEstado()).thenReturn(
+                new PartidoLiveEstado(1, 0, List.of("Juan Perez")));
+
+        service.enviarGolFavor(5L, "Juan Perez");
+        service.enviarInicioPartido(5L);
+        service.enviarGolFavor(5L, "Juan Perez");
+
+        verify(partidoLiveDao, org.mockito.Mockito.times(2)).sumarGolFavor("Juan Perez");
+    }
+
+    @Test
     void enviarGolContraSumaElGolYMuestraElMarcador() {
 
         when(usuarioAppService.tieneRol(5, "RETRANSMISION")).thenReturn(true);

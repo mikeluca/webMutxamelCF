@@ -107,6 +107,20 @@ public class CuotaJugadorDaoImpl implements CuotaJugadorDao {
     }
 
     @Override
+    public CuotaJugador bloquearPorId(Long id) {
+        logger.debug("Inicio bloquearPorId: id={}", id);
+        try {
+            CuotaJugador cuota = jdbcTemplate.queryForObject(
+                    "SELECT * FROM CUOTAS_JUGADOR WHERE ID = ? FOR UPDATE", CUOTA_ROW_MAPPER, id);
+            logger.debug("Fin bloquearPorId: id={}, encontrado=true", id);
+            return cuota;
+        } catch (EmptyResultDataAccessException e) {
+            logger.warn("No se encontro cuota con id={} al bloquearla", id);
+            return null;
+        }
+    }
+
+    @Override
     public List<CuotaJugador> obtenerPorJugador(Long jugadorId) {
         logger.debug("Inicio obtenerPorJugador: jugadorId={}", jugadorId);
         List<CuotaJugador> cuotas = jdbcTemplate.query(

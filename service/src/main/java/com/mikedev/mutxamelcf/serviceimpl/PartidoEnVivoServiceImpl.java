@@ -1,5 +1,9 @@
 package com.mikedev.mutxamelcf.serviceimpl;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Locale;
+
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.PartidoDao;
@@ -38,6 +42,22 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     private static final String EQUIPO_PRIMER_EQUIPO = "Primer Equipo";
     private static final String CATEGORIA_PRIMER_EQUIPO = "Primer Equipo";
 
+    /*
+     * BE-02: si enviarGolFavor() tarda en responder (el push a todos los
+     * usuarios podía superar el timeout de la app antes de que las
+     * notificaciones fuesen @Async), el retransmisor podía reintentar la
+     * misma acción y sumar el mismo gol dos veces. Como no hay un
+     * identificador de acción generado por la app, se descarta como
+     * reintento cualquier gol del mismo autor que llegue dentro de esta
+     * ventana desde el anterior -- una coincidencia real (el mismo
+     * jugador marcando dos veces en menos de esto) es prácticamente
+     * imposible en fútbol.
+     */
+    private static final Duration VENTANA_DEDUPLICACION_GOL = Duration.ofSeconds(15);
+
+    private volatile String ultimoAutorGolFavor;
+    private volatile Instant ultimoGolFavorEn;
+
     private final PartidoLiveDao partidoLiveDao;
     private final PartidoDao partidoDao;
     private final NotificacionAppService notificacionAppService;
@@ -75,6 +95,9 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
         partidoLiveDao.reiniciar();
 
+        ultimoAutorGolFavor = null;
+        ultimoGolFavorEn = null;
+
         String mensaje = "Mutxamel CF - " + nombreRival();
 
         difundir("⚽ ¡Comienza el partido!", mensaje);
@@ -85,11 +108,30 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
         validarRolRetransmision(usuarioId);
 
+        if (esReintentoDuplicadoDeGolFavor(autor)) {
+            return;
+        }
+
         partidoLiveDao.sumarGolFavor(autor);
 
         String mensaje = autor + "\n\n" + textoMarcador();
 
         difundir("⚽ ¡GOOOL del Mutxamel CF!", mensaje);
+    }
+
+    private boolean esReintentoDuplicadoDeGolFavor(String autor) {
+
+        String autorNormalizado = autor == null ? "" : autor.trim().toLowerCase(Locale.ROOT);
+        Instant ahora = Instant.now();
+
+        boolean esDuplicado = autorNormalizado.equals(ultimoAutorGolFavor)
+                && ultimoGolFavorEn != null
+                && ahora.isBefore(ultimoGolFavorEn.plus(VENTANA_DEDUPLICACION_GOL));
+
+        ultimoAutorGolFavor = autorNormalizado;
+        ultimoGolFavorEn = ahora;
+
+        return esDuplicado;
     }
 
     @Override

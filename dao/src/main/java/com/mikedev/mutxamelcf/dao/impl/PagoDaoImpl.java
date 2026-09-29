@@ -1,6 +1,7 @@
 package com.mikedev.mutxamelcf.dao.impl;
 
 import java.math.BigDecimal;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -12,6 +13,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import com.mikedev.mutxamelcf.dao.PagoDao;
@@ -41,13 +44,6 @@ public class PagoDaoImpl implements PagoDao {
         }
 
         boolean insertado = insertar(pago);
-        if (insertado) {
-            Pago pagoInsertado = obtenerUltimoPorCuota(pago.getCuotaJugadorId());
-            if (pagoInsertado != null) {
-                pago.setId(pagoInsertado.getId());
-                logger.info("Pago insertado: idGenerado={}, cuotaJugadorId={}", pago.getId(), pago.getCuotaJugadorId());
-            }
-        }
         logger.debug("Fin guardarPago: esActualizacion=false, resultado={}", insertado);
         return insertado;
     }
@@ -62,15 +58,35 @@ public class PagoDaoImpl implements PagoDao {
                 VALUES (?, ?, ?, ?, ?, ?)
                 """;
 
-        boolean insertado = jdbcTemplate.update(
-                sql,
-                pago.getCuotaJugadorId(),
-                pago.getImporte(),
-                pago.getFechaPago(),
-                pago.getMetodoPago(),
-                pago.getReferencia(),
-                pago.getObservaciones()
-        ) == 1;
+        // BE-01: se usa KeyHolder para obtener el id generado por esta
+        // misma insercion. Antes se recuperaba con "el ultimo pago de la
+        // cuota" (ORDER BY ID DESC), que con inserciones concurrentes
+        // podia devolver el id del pago de OTRA peticion.
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+
+        boolean insertado = jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, new String[] { "ID" });
+            ps.setObject(1, pago.getCuotaJugadorId());
+            ps.setBigDecimal(2, pago.getImporte());
+            if (pago.getFechaPago() != null) {
+                ps.setTimestamp(3, new java.sql.Timestamp(pago.getFechaPago().getTime()));
+            } else {
+                ps.setNull(3, java.sql.Types.DATE);
+            }
+            ps.setString(4, pago.getMetodoPago());
+            ps.setString(5, pago.getReferencia());
+            ps.setString(6, pago.getObservaciones());
+            return ps;
+        }, keyHolder) == 1;
+
+        if (insertado) {
+            Number key = keyHolder.getKey();
+            if (key != null) {
+                pago.setId(key.longValue());
+            }
+            logger.info("Pago insertado: idGenerado={}, cuotaJugadorId={}", pago.getId(), pago.getCuotaJugadorId());
+        }
+
         logger.debug("Fin insertar: insertado={}", insertado);
         return insertado;
     }
@@ -179,16 +195,6 @@ public class PagoDaoImpl implements PagoDao {
         int filasAfectadas = jdbcTemplate.update("DELETE FROM PAGOS WHERE ID = ?", id);
         logger.info("Pago eliminado: id={}, filasAfectadas={}", id, filasAfectadas);
         logger.debug("Fin eliminar: id={}", id);
-    }
-
-    private Pago obtenerUltimoPorCuota(Long cuotaJugadorId) {
-        logger.debug("Inicio obtenerUltimoPorCuota: cuotaJugadorId={}", cuotaJugadorId);
-        List<Pago> pagos = jdbcTemplate.query(
-                "SELECT * FROM PAGOS WHERE CUOTA_JUGADOR_ID = ? ORDER BY ID DESC FETCH FIRST 1 ROW ONLY",
-                PAGO_ROW_MAPPER, cuotaJugadorId);
-        Pago ultimo = pagos.isEmpty() ? null : pagos.get(0);
-        logger.debug("Fin obtenerUltimoPorCuota: cuotaJugadorId={}, encontrado={}", cuotaJugadorId, ultimo != null);
-        return ultimo;
     }
 
     private static Pago mapRow(ResultSet rs, int rowNum) throws SQLException {

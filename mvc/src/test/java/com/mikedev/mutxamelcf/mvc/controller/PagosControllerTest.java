@@ -16,7 +16,6 @@ import com.mikedev.mutxamelcf.service.TemporadaService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.ui.ExtendedModelMap;
@@ -387,8 +386,8 @@ class PagosControllerTest {
 
     @Test
     void registrarPagoRechazaImporteMayorQueElPendiente() {
-        when(cuotaJugadorService.obtenerPorId(1L)).thenReturn(cuota(1L, 5L, 9L, null, new BigDecimal("20")));
-        when(pagoService.obtenerTotalPagado(1L)).thenReturn(BigDecimal.ZERO);
+        when(pagoService.registrarPago(any()))
+                .thenThrow(new IllegalArgumentException("El importe supera el saldo pendiente o la cuota no existe."));
         RedirectAttributes redirect = redirectAttributes();
 
         String vista = controller.registrarPago(null, 1L, new BigDecimal("50"), "2026-01-01", "Efectivo", null, null,
@@ -397,29 +396,32 @@ class PagosControllerTest {
         assertEquals("redirect:/admin/pagos", vista);
         assertEquals("El importe supera el saldo pendiente o la cuota no existe.",
                 redirect.getFlashAttributes().get("error"));
-        verify(pagoService, never()).guardarPago(any());
     }
 
     @Test
     void registrarPagoGuardaYActualizaElEstadoDeLaCuota() {
-        when(cuotaJugadorService.obtenerPorId(1L)).thenReturn(cuota(1L, 5L, 9L, null, new BigDecimal("20")));
-        when(pagoService.obtenerTotalPagado(1L)).thenReturn(BigDecimal.ZERO);
+        // BE-01: la validacion, insercion y actualizacion del estado son
+        // ahora responsabilidad atomica de PagoService.registrarPago.
+        when(pagoService.registrarPago(any())).thenAnswer(invocation -> invocation.getArgument(0));
         RedirectAttributes redirect = redirectAttributes();
 
         String vista = controller.registrarPago(null, 1L, new BigDecimal("20"), "2026-01-01", "Efectivo", null, null,
                 redirect);
 
         assertEquals("redirect:/admin/pagos", vista);
-        verify(pagoService).guardarPago(any());
-        verify(cuotaJugadorService).actualizarEstado(1L);
+        assertEquals("Pago registrado correctamente.", redirect.getFlashAttributes().get("mensaje"));
+        org.mockito.ArgumentCaptor<PagoDTO> captor = org.mockito.ArgumentCaptor.forClass(PagoDTO.class);
+        verify(pagoService).registrarPago(captor.capture());
+        assertEquals(1L, captor.getValue().getCuotaJugadorId());
+        assertEquals(new BigDecimal("20"), captor.getValue().getImporte());
     }
 
     // ---- registrarPagoAjax ----
 
     @Test
     void registrarPagoAjaxDevuelveBadRequestSiElImporteEsInvalido() {
-        when(cuotaJugadorService.obtenerPorId(1L)).thenReturn(cuota(1L, 5L, 9L, null, new BigDecimal("20")));
-        when(pagoService.obtenerTotalPagado(1L)).thenReturn(BigDecimal.ZERO);
+        when(pagoService.registrarPago(any()))
+                .thenThrow(new IllegalArgumentException("El importe supera el saldo pendiente o la cuota no existe."));
 
         ResponseEntity<Map<String, Object>> response = controller.registrarPagoAjax(1L, new BigDecimal("50"),
                 "2026-01-01", "Efectivo");
@@ -428,23 +430,10 @@ class PagosControllerTest {
     }
 
     @Test
-    void registrarPagoAjaxIgnoraFalloDeSincronizacionDeEstado() {
-        when(cuotaJugadorService.obtenerPorId(1L)).thenReturn(cuota(1L, 5L, 9L, null, new BigDecimal("20")));
-        when(pagoService.obtenerTotalPagado(1L)).thenReturn(BigDecimal.ZERO, new BigDecimal("20"));
-        org.mockito.Mockito.doThrow(new DataIntegrityViolationException("fallo"))
-                .when(cuotaJugadorService).actualizarEstado(1L);
-
-        ResponseEntity<Map<String, Object>> response = controller.registrarPagoAjax(1L, new BigDecimal("20"),
-                "2026-01-01", "Efectivo");
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(pagoService).guardarPago(any());
-    }
-
-    @Test
     void registrarPagoAjaxDevuelveOkCuandoTieneExito() {
+        when(pagoService.registrarPago(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(cuotaJugadorService.obtenerPorId(1L)).thenReturn(cuota(1L, 5L, 9L, null, new BigDecimal("20")));
-        when(pagoService.obtenerTotalPagado(1L)).thenReturn(BigDecimal.ZERO, new BigDecimal("20"));
+        when(pagoService.obtenerTotalPagado(1L)).thenReturn(new BigDecimal("20"));
 
         ResponseEntity<Map<String, Object>> response = controller.registrarPagoAjax(1L, new BigDecimal("20"),
                 "2026-01-01", "Efectivo");
@@ -457,9 +446,8 @@ class PagosControllerTest {
 
     @Test
     void editarPagoAjaxDevuelveBadRequestSiElPagoNoExiste() {
-        when(pagoService.obtenerPorId(1L)).thenReturn(null);
-        when(cuotaJugadorService.obtenerPorId(9L)).thenReturn(cuota(9L, 5L, 9L, null, new BigDecimal("20")));
-        when(pagoService.obtenerTotalPagado(9L)).thenReturn(BigDecimal.ZERO);
+        when(pagoService.registrarPago(any()))
+                .thenThrow(new IllegalArgumentException("El importe supera el saldo pendiente o el pago no existe."));
 
         ResponseEntity<Map<String, Object>> response = controller.editarPagoAjax(1L, 9L, new BigDecimal("10"),
                 "2026-01-01", "Efectivo");
@@ -469,20 +457,18 @@ class PagosControllerTest {
 
     @Test
     void editarPagoAjaxActualizaElPagoCuandoEsValido() {
-        PagoDTO pago = new PagoDTO();
-        pago.setId(1L);
-        pago.setCuotaJugadorId(9L);
-        pago.setImporte(new BigDecimal("10"));
-        when(pagoService.obtenerPorId(1L)).thenReturn(pago);
+        when(pagoService.registrarPago(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(cuotaJugadorService.obtenerPorId(9L)).thenReturn(cuota(9L, 5L, 9L, null, new BigDecimal("20")));
-        when(pagoService.obtenerTotalPagado(9L)).thenReturn(new BigDecimal("10"), new BigDecimal("15"));
+        when(pagoService.obtenerTotalPagado(9L)).thenReturn(new BigDecimal("15"));
 
         ResponseEntity<Map<String, Object>> response = controller.editarPagoAjax(1L, 9L, new BigDecimal("15"),
                 "2026-01-01", "Efectivo");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(pagoService).guardarPago(pago);
-        verify(cuotaJugadorService).actualizarEstado(9L);
+        org.mockito.ArgumentCaptor<PagoDTO> captor = org.mockito.ArgumentCaptor.forClass(PagoDTO.class);
+        verify(pagoService).registrarPago(captor.capture());
+        assertEquals(1L, captor.getValue().getId());
+        assertEquals(9L, captor.getValue().getCuotaJugadorId());
     }
 
     // ---- borrarPagoAjax ----
@@ -748,14 +734,11 @@ class PagosControllerTest {
     }
 
     @Test
-    void registrarPagoConEdicionDeUnPagoExistenteDescuentaSuImporteActual() {
-        PagoDTO pagoActual = new PagoDTO();
-        pagoActual.setId(1L);
-        pagoActual.setCuotaJugadorId(9L);
-        pagoActual.setImporte(new BigDecimal("10"));
-        when(pagoService.obtenerPorId(1L)).thenReturn(pagoActual);
-        when(cuotaJugadorService.obtenerPorId(9L)).thenReturn(cuota(9L, 5L, 10L, null, new BigDecimal("20")));
-        when(pagoService.obtenerTotalPagado(9L)).thenReturn(new BigDecimal("10"));
+    void registrarPagoConEdicionDeUnPagoExistenteDelegaEnElServicioConElIdDelPago() {
+        // El calculo de "pendiente sin este pago" (BE-01) vive ahora en
+        // PagoService.registrarPago; el controlador solo compone el DTO
+        // y delega.
+        when(pagoService.registrarPago(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         RedirectAttributes redirect = redirectAttributes();
         String vista = controller.registrarPago(1L, 9L, new BigDecimal("20"), "2026-01-01", "Efectivo", null, null,
@@ -763,8 +746,9 @@ class PagosControllerTest {
 
         assertEquals("redirect:/admin/pagos", vista);
         org.mockito.ArgumentCaptor<PagoDTO> captor = org.mockito.ArgumentCaptor.forClass(PagoDTO.class);
-        verify(pagoService).guardarPago(captor.capture());
+        verify(pagoService).registrarPago(captor.capture());
         assertEquals(1L, captor.getValue().getId());
+        assertEquals(9L, captor.getValue().getCuotaJugadorId());
         assertEquals(new BigDecimal("20"), captor.getValue().getImporte());
     }
 

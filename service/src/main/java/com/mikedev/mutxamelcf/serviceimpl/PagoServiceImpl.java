@@ -7,8 +7,11 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.mikedev.mutxamelcf.dao.CuotaJugadorDao;
 import com.mikedev.mutxamelcf.dao.PagoDao;
+import com.mikedev.mutxamelcf.model.CuotaJugador;
 import com.mikedev.mutxamelcf.model.Pago;
 import com.mikedev.mutxamelcf.model.PagoDTO;
 import com.mikedev.mutxamelcf.service.PagoService;
@@ -18,10 +21,70 @@ public class PagoServiceImpl implements PagoService {
 
     private static final Logger logger = LoggerFactory.getLogger(PagoServiceImpl.class);
 
-    private final PagoDao pagoDao;
+    private static final String ERROR_CUOTA_INEXISTENTE = "El importe supera el saldo pendiente o la cuota no existe.";
 
-    public PagoServiceImpl(PagoDao pagoDao) {
+    private final PagoDao pagoDao;
+    private final CuotaJugadorDao cuotaJugadorDao;
+
+    public PagoServiceImpl(PagoDao pagoDao, CuotaJugadorDao cuotaJugadorDao) {
         this.pagoDao = pagoDao;
+        this.cuotaJugadorDao = cuotaJugadorDao;
+    }
+
+    @Override
+    @Transactional
+    public PagoDTO registrarPago(PagoDTO datos) {
+        logger.debug("Inicio registrarPago: id={}, cuotaJugadorId={}",
+                datos == null ? null : datos.getId(),
+                datos == null ? null : datos.getCuotaJugadorId());
+
+        if (datos == null || datos.getCuotaJugadorId() == null) {
+            throw new IllegalArgumentException(ERROR_CUOTA_INEXISTENTE);
+        }
+
+        // SELECT ... FOR UPDATE: serializa cualquier otro registrarPago()
+        // concurrente sobre la misma cuota hasta que esta transaccion
+        // termine, para que el calculo de "pendiente" de abajo sea fiable.
+        CuotaJugador cuota = cuotaJugadorDao.bloquearPorId(datos.getCuotaJugadorId());
+        if (cuota == null) {
+            logger.warn("registrarPago rechazado: la cuota no existe, cuotaJugadorId={}", datos.getCuotaJugadorId());
+            throw new IllegalArgumentException(ERROR_CUOTA_INEXISTENTE);
+        }
+
+        Pago pagoExistente = datos.getId() == null ? null : pagoDao.obtenerPorId(datos.getId());
+        if (datos.getId() != null
+                && (pagoExistente == null || !cuota.getId().equals(pagoExistente.getCuotaJugadorId()))) {
+            logger.warn("registrarPago rechazado: el pago no existe o no pertenece a la cuota, id={}, cuotaJugadorId={}",
+                    datos.getId(), datos.getCuotaJugadorId());
+            throw new IllegalArgumentException("El importe supera el saldo pendiente o el pago no existe.");
+        }
+
+        BigDecimal pagadoActual = pagoDao.obtenerTotalPagado(cuota.getId());
+        if (pagoExistente != null) {
+            pagadoActual = pagadoActual.subtract(zeroIfNull(pagoExistente.getImporte()));
+        }
+        BigDecimal pendiente = zeroIfNull(cuota.getImporte()).subtract(pagadoActual);
+
+        BigDecimal importe = datos.getImporte();
+        if (importe == null || importe.signum() <= 0 || importe.compareTo(pendiente) > 0) {
+            logger.warn("registrarPago rechazado por importe invalido: cuotaJugadorId={}, importe={}, pendiente={}",
+                    cuota.getId(), importe, pendiente);
+            throw new IllegalArgumentException(ERROR_CUOTA_INEXISTENTE);
+        }
+
+        boolean guardado = guardarPago(datos);
+        if (!guardado) {
+            throw new IllegalStateException("No se ha podido guardar el pago.");
+        }
+
+        cuotaJugadorDao.actualizarEstado(cuota.getId());
+
+        logger.debug("Fin registrarPago: id={}, cuotaJugadorId={}", datos.getId(), cuota.getId());
+        return datos;
+    }
+
+    private static BigDecimal zeroIfNull(BigDecimal valor) {
+        return valor == null ? BigDecimal.ZERO : valor;
     }
 
     @Override

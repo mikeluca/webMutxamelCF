@@ -4,31 +4,34 @@ import java.util.List;
 import java.util.Locale;
 
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.xml.MappingJackson2XmlHttpMessageConverter;
 import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.i18n.CookieLocaleResolver;
 import org.springframework.web.servlet.i18n.LocaleChangeInterceptor;
 
 /*
- * Se extiende WebMvcConfigurationSupport (en vez de usar @EnableWebMvc +
- * WebMvcConfigurer) porque necesitamos SUSTITUIR el bean "localeResolver"
- * que el propio framework registra por defecto (AcceptHeaderLocaleResolver).
- * Con @EnableWebMvc ese bean lo define directamente DelegatingWebMvcConfiguration
- * (sin @ConditionalOnMissingBean), así que declarar nuestro propio @Bean
- * localeResolver() en una clase aparte choca con el suyo (BeanDefinitionOverrideException).
- * Extender WebMvcConfigurationSupport y sobrescribir su método localeResolver()
- * es la forma soportada por Spring de reemplazarlo, y equivale exactamente a lo
- * que hacía @EnableWebMvc (que internamente también extiende esta misma clase).
+ * BE-05: antes se extendía WebMvcConfigurationSupport para poder
+ * sustituir el bean "localeResolver" por defecto. El problema es que la
+ * sola presencia de un WebMvcConfigurationSupport en el contexto apaga
+ * TODA la autoconfiguración MVC de Spring Boot (WebMvcAutoConfiguration
+ * está @ConditionalOnMissingBean(WebMvcConfigurationSupport.class)):
+ * el ObjectMapper de JacksonConfig dejaba de ser el que usan los
+ * conversores JSON, /webjars/** no se servía y cualquier propiedad
+ * spring.mvc.* se ignoraba.
+ *
+ * Implementando WebMvcConfigurer (una interfaz, sin @EnableWebMvc) y
+ * declarando el bean con el nombre exacto "localeResolver", el propio
+ * localeResolver() de Boot no se crea (está
+ * @ConditionalOnMissingBean(name = "localeResolver")) y el resto de la
+ * autoconfiguración de Boot se mantiene activa.
  */
 @Configuration
-@ComponentScan(basePackages = "com.mikedev.mutxamelcf")
-public class AppMvcConfig extends WebMvcConfigurationSupport {
+public class AppMvcConfig implements WebMvcConfigurer {
 
 	/*
 	 * Idioma por defecto: castellano. El "valenciano" se identifica con el
@@ -36,8 +39,7 @@ public class AppMvcConfig extends WebMvcConfigurationSupport {
 	 * uno propio), pero esto es un detalle puramente técnico: en la interfaz
 	 * la opción se muestra siempre como "Valencià", nunca como "Català".
 	 */
-	@Bean
-	@Override
+	@Bean(name = "localeResolver")
 	public LocaleResolver localeResolver() {
 		CookieLocaleResolver resolver = new CookieLocaleResolver("idioma");
 		resolver.setDefaultLocaleFunction(request -> new Locale("es"));
@@ -54,28 +56,26 @@ public class AppMvcConfig extends WebMvcConfigurationSupport {
 	}
 
 	@Override
-	protected void addInterceptors(InterceptorRegistry registry) {
+	public void addInterceptors(InterceptorRegistry registry) {
 		registry.addInterceptor(localeChangeInterceptor());
 	}
 
 	@Override
-	protected void addResourceHandlers(ResourceHandlerRegistry registry) {
+	public void addResourceHandlers(ResourceHandlerRegistry registry) {
 		registry.addResourceHandler("/css/**").addResourceLocations("classpath:/static/css/");
 		registry.addResourceHandler("/images/**").addResourceLocations("classpath:/static/images/");
 	}
 
 	/*
 	 * El SDK de Firebase Admin (notificaciones push) arrastra
-	 * jackson-dataformat-xml como dependencia transitiva. Al asumir el control
-	 * completo de la configuración de MVC (antes vía @EnableWebMvc, ahora
-	 * extendiendo WebMvcConfigurationSupport), Spring registra ese conversor
-	 * XML antes que el JSON, así que con el Accept comodín que manda cualquier
-	 * fetch() sin cabecera explícita, los @ResponseBody de la API se
-	 * serializaban como XML en vez de JSON. La app nunca necesita producir
-	 * XML, así que se elimina ese conversor.
+	 * jackson-dataformat-xml como dependencia transitiva, y Boot la
+	 * registra como conversor disponible. La app nunca necesita producir
+	 * XML, y con el Accept comodín que manda cualquier fetch() sin
+	 * cabecera explícita, ese conversor podría anteponerse al JSON, así
+	 * que se elimina explícitamente.
 	 */
 	@Override
-	protected void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+	public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
 		converters.removeIf(converter -> converter instanceof MappingJackson2XmlHttpMessageConverter);
 	}
 

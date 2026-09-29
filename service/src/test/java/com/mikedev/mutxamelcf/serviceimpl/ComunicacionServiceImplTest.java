@@ -10,13 +10,14 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.mikedev.mutxamelcf.dao.ComunicacionDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
 import com.mikedev.mutxamelcf.model.Comunicacion;
-import com.mikedev.mutxamelcf.service.FcmPushService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
@@ -33,10 +34,10 @@ class ComunicacionServiceImplTest {
     private NotificacionAppService notificacionAppService;
 
     @Mock
-    private FcmPushService fcmPushService;
+    private UsuarioAppVinculoDao usuarioAppVinculoDao;
 
     @Mock
-    private UsuarioAppVinculoDao usuarioAppVinculoDao;
+    private ApplicationEventPublisher eventPublisher;
 
     private ComunicacionServiceImpl service;
 
@@ -45,8 +46,8 @@ class ComunicacionServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new ComunicacionServiceImpl(
-                comunicacionDao, usuarioAppService, notificacionAppService, fcmPushService,
-                usuarioAppVinculoDao);
+                comunicacionDao, usuarioAppService, notificacionAppService,
+                usuarioAppVinculoDao, eventPublisher);
     }
 
     private Comunicacion comunicacionValida() {
@@ -176,12 +177,14 @@ class ComunicacionServiceImplTest {
         org.mockito.Mockito.verify(notificacionAppService).puedeRecibir(99L, "MENSAJE");
         org.mockito.Mockito.verify(notificacionAppService, org.mockito.Mockito.never())
                 .puedeRecibir(99L, "COMUNICACION");
-        org.mockito.Mockito.verify(fcmPushService).enviarNotificacionAUsuario(
-                org.mockito.ArgumentMatchers.eq(99L),
-                org.mockito.ArgumentMatchers.eq("COMUNICACION"),
-                org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.anyLong());
+
+        // BE-02: el envio del push ya no es una llamada directa a
+        // FcmPushService, sino un evento que se procesa (via
+        // ComunicacionPushListener) solo despues de que la transaccion
+        // confirme.
+        ArgumentCaptor<ComunicacionPushEvent> eventoCaptor = ArgumentCaptor.forClass(ComunicacionPushEvent.class);
+        org.mockito.Mockito.verify(eventPublisher).publishEvent(eventoCaptor.capture());
+        assertThat(eventoCaptor.getValue().getUsuarioIds()).containsExactly(99L);
     }
 
     @Test
@@ -198,10 +201,7 @@ class ComunicacionServiceImplTest {
         org.mockito.Mockito.verify(notificacionAppService, org.mockito.Mockito.never())
                 .crear(anyLong(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                         org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
-        org.mockito.Mockito.verify(fcmPushService, org.mockito.Mockito.never())
-                .enviarNotificacionAUsuario(anyLong(), org.mockito.ArgumentMatchers.any(),
-                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
-                        org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.verify(eventPublisher, org.mockito.Mockito.never()).publishEvent(org.mockito.ArgumentMatchers.any());
     }
 
     @Test

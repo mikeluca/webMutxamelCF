@@ -6,11 +6,16 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.PreparedStatementCreator;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.KeyHolder;
 
 import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -23,8 +28,40 @@ import static org.mockito.Mockito.when;
 class PagoDaoImplTest {
 
     @Test
-    @SuppressWarnings("unchecked")
-    void guardarPagoInsertaYRecuperaElIdGenerado() {
+    void guardarPagoInsertaYRecuperaElIdGenerado() throws Exception {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        PagoDaoImpl dao = new PagoDaoImpl(jdbcTemplate);
+
+        Pago pago = new Pago();
+        pago.setCuotaJugadorId(10L);
+        pago.setImporte(new BigDecimal("20.00"));
+        pago.setFechaPago(new java.util.Date());
+
+        ArgumentCaptor<PreparedStatementCreator> pscCaptor = ArgumentCaptor.forClass(PreparedStatementCreator.class);
+        ArgumentCaptor<KeyHolder> keyHolderCaptor = ArgumentCaptor.forClass(KeyHolder.class);
+
+        when(jdbcTemplate.update(pscCaptor.capture(), keyHolderCaptor.capture())).thenAnswer(invocation -> {
+            keyHolderCaptor.getValue().getKeyList().add(Map.of("ID", 55L));
+            return 1;
+        });
+
+        boolean resultado = dao.guardarPago(pago);
+
+        assertThat(resultado).isTrue();
+        assertThat(pago.getId()).isEqualTo(55L);
+
+        Connection connection = mock(Connection.class);
+        PreparedStatement ps = mock(PreparedStatement.class);
+        when(connection.prepareStatement(anyString(), any(String[].class))).thenReturn(ps);
+        pscCaptor.getValue().createPreparedStatement(connection);
+
+        verify(ps).setObject(1, 10L);
+        verify(ps).setBigDecimal(2, new BigDecimal("20.00"));
+        verify(ps).setString(4, null);
+    }
+
+    @Test
+    void guardarPagoInsertaConFechaNulaSinLanzarExcepcion() throws Exception {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         PagoDaoImpl dao = new PagoDaoImpl(jdbcTemplate);
 
@@ -32,16 +69,18 @@ class PagoDaoImplTest {
         pago.setCuotaJugadorId(10L);
         pago.setImporte(new BigDecimal("20.00"));
 
-        when(jdbcTemplate.update(anyString(), any(), any(), any(), any(), any(), any())).thenReturn(1);
+        ArgumentCaptor<PreparedStatementCreator> pscCaptor = ArgumentCaptor.forClass(PreparedStatementCreator.class);
 
-        Pago ultimoInsertado = new Pago();
-        ultimoInsertado.setId(55L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(10L))).thenReturn(List.of(ultimoInsertado));
+        when(jdbcTemplate.update(pscCaptor.capture(), any(KeyHolder.class))).thenReturn(1);
 
-        boolean resultado = dao.guardarPago(pago);
+        dao.guardarPago(pago);
 
-        assertThat(resultado).isTrue();
-        assertThat(pago.getId()).isEqualTo(55L);
+        Connection connection = mock(Connection.class);
+        PreparedStatement ps = mock(PreparedStatement.class);
+        when(connection.prepareStatement(anyString(), any(String[].class))).thenReturn(ps);
+        pscCaptor.getValue().createPreparedStatement(connection);
+
+        verify(ps).setNull(3, java.sql.Types.DATE);
     }
 
     @Test
