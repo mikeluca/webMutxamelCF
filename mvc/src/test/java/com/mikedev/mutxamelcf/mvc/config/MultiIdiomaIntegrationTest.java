@@ -91,6 +91,19 @@ class MultiIdiomaIntegrationTest {
     }
 
     @Test
+    void cambiarACastellanoDejaLaCookieDeIdiomaEnEsYElContenidoEnCastellano() throws Exception {
+
+        // messages_es.properties: antes de crear ese fichero, "es" solo
+        // funcionaba por el fallback implicito de ResourceBundleMessageSource
+        // al bundle sin sufijo (messages.properties); este test cubre
+        // explicitamente el camino "?lang=es" que faltaba.
+        mockMvc.perform(get("/contacto").param("lang", "es"))
+                .andExpect(status().isOk())
+                .andExpect(cookie().value("idioma", "es"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Contacto")));
+    }
+
+    @Test
     void cambiarAValencianoDejaLaCookieDeIdiomaEnCa() throws Exception {
 
         mockMvc.perform(get("/contacto").param("lang", "ca"))

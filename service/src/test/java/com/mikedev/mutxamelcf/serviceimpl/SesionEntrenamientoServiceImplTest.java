@@ -290,7 +290,7 @@ class SesionEntrenamientoServiceImplTest {
     // ---------- cancelarFuturasPorHorario ----------
 
     @Test
-    void cancelarFuturasPorHorarioEliminaLosEntrenamientosVinculadosACadaSesionCancelada() {
+    void cancelarFuturasPorHorarioEliminaLasSesionesYLosEntrenamientosVinculados() {
         SesionEntrenamiento sesion1 = sesion(LocalDate.now().plusDays(1), SesionEntrenamiento.ESTADO_PROGRAMADA);
         sesion1.setId(31L);
         SesionEntrenamiento sesion2 = sesion(LocalDate.now().plusDays(8), SesionEntrenamiento.ESTADO_PROGRAMADA);
@@ -301,7 +301,7 @@ class SesionEntrenamientoServiceImplTest {
 
         service.cancelarFuturasPorHorario(HORARIO_ID);
 
-        verify(sesionEntrenamientoDao).cancelarFuturasProgramadasPorHorario(eq(HORARIO_ID), any(LocalDate.class));
+        verify(sesionEntrenamientoDao).eliminarFuturasProgramadasPorHorario(eq(HORARIO_ID), any(LocalDate.class));
         verify(entrenamientoService).eliminarPorSesionEntrenamientoId(31L);
         verify(entrenamientoService).eliminarPorSesionEntrenamientoId(32L);
     }

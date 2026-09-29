@@ -157,11 +157,10 @@ public class SesionEntrenamientoDaoImpl implements SesionEntrenamientoDao {
     }
 
     @Override
-    public void cancelarFuturasProgramadasPorHorario(Long horarioId, LocalDate desde) {
+    public void eliminarFuturasProgramadasPorHorario(Long horarioId, LocalDate desde) {
 
         String sql = """
-                UPDATE SESIONES_ENTRENAMIENTO
-                SET ESTADO = ?
+                DELETE FROM SESIONES_ENTRENAMIENTO
                 WHERE HORARIO_ID = ?
                   AND FECHA >= ?
                   AND ESTADO = ?
@@ -169,7 +168,6 @@ public class SesionEntrenamientoDaoImpl implements SesionEntrenamientoDao {
 
         jdbcTemplate.update(
                 sql,
-                SesionEntrenamiento.ESTADO_CANCELADA,
                 horarioId,
                 Date.valueOf(desde),
                 SesionEntrenamiento.ESTADO_PROGRAMADA);

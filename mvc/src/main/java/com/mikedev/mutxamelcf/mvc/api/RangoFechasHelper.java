@@ -13,15 +13,22 @@ import java.time.temporal.ChronoUnit;
  *
  * N-02: el límite estaba en 93 días (un trimestre), pero
  * calendario_page.dart pide desde el inicio de la temporada activa hasta
- * hoy + 2 meses; con una temporada de 10 meses (o sin temporada activa,
- * que amplía aún más el rango) esa petición supera 93 días y el
- * calendario de familias/coordinadores se queda vacío. Se sube a 400 días
- * (una temporada completa de sobra) para cubrir ese caso real y seguir
+ * hoy + 2 meses; con una temporada de 10 meses esa petición ya superaba
+ * los 93 días.
+ *
+ * Bug post-N-02: subir el límite a 400 no bastaba para el caso SIN
+ * temporada activa configurada, donde el cliente cae a un respaldo de
+ * "hoy - 1 año" como 'desde' (ver calendario_page.dart): 1 año + 2 meses
+ * son hasta ~428 días, por encima de 400, así que esa petición seguía
+ * devolviendo 400 Bad Request -- y como el cliente ignora ese error en
+ * silencio por equipo, el calendario de familiares y del entrenador en
+ * "Área Club" se veía completamente vacío sin ningún aviso. Se sube a
+ * 450 para cubrir con margen ese respaldo de 1 año + 2 meses y seguir
  * bloqueando el rango 1900-2100 que motivó el límite.
  */
 final class RangoFechasHelper {
 
-    private static final long DIAS_MAXIMOS_RANGO = 400;
+    private static final long DIAS_MAXIMOS_RANGO = 450;
 
     private RangoFechasHelper() {
     }

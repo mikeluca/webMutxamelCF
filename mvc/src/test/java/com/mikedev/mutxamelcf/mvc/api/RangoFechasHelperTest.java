@@ -32,7 +32,7 @@ class RangoFechasHelperTest {
     }
 
     @Test
-    void rechazaUnRangoDeMasDe400Dias() {
+    void rechazaUnRangoExcesivo() {
         // DB-04: sin este limite, desde=1900-01-01&hasta=2100-01-01 forzaba
         // a la BD a recorrer todo el historico.
         assertThatThrownBy(() -> RangoFechasHelper.validar(
@@ -41,10 +41,17 @@ class RangoFechasHelperTest {
     }
 
     @Test
-    void aceptaExactamente400Dias() {
+    void aceptaExactamente450Dias() {
         assertThatCode(() -> RangoFechasHelper.validar(
-                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 1).plusDays(400)))
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 1).plusDays(450)))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void rechaza451Dias() {
+        assertThatThrownBy(() -> RangoFechasHelper.validar(
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 1).plusDays(451)))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -56,6 +63,19 @@ class RangoFechasHelperTest {
         LocalDate hastaHoyMasDosMeses = LocalDate.of(2027, 6, 30).plusMonths(2);
 
         assertThatCode(() -> RangoFechasHelper.validar(inicioTemporada, hastaHoyMasDosMeses))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void aceptaElRespaldoDeUnAnioMasDosMesesSinTemporadaActiva() {
+        // Bug post-N-02: sin temporada activa configurada, el cliente cae
+        // a "hoy - 1 año" como 'desde' (ver calendario_page.dart), lo que
+        // con 'hasta' = hoy + 2 meses puede llegar a ~428 días.
+        LocalDate hoy = LocalDate.of(2026, 9, 29);
+        LocalDate desde = hoy.minusYears(1);
+        LocalDate hasta = hoy.plusMonths(2);
+
+        assertThatCode(() -> RangoFechasHelper.validar(desde, hasta))
                 .doesNotThrowAnyException();
     }
 }

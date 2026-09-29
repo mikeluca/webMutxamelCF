@@ -205,6 +205,33 @@ class ComunicacionServiceImplTest {
     }
 
     @Test
+    void crearGrupalNoNotificaAlPropioAutorAunquePerteneceAlEquipoDestinatario() {
+        // El entrenador/coordinador que envía la comunicación puede estar
+        // vinculado al mismo equipo (p.ej. como cuerpo técnico) y por tanto
+        // aparecer en obtenerUsuariosDelEquipo; no debe generarse ninguna
+        // notificación/push para él mismo por algo que ha enviado él.
+        when(usuarioAppService.tieneRol(1, "ADMIN_APP")).thenReturn(false);
+        when(usuarioAppService.tieneRol(1, "COORDINADOR")).thenReturn(true);
+        when(comunicacionDao.existeEquipo(10L)).thenReturn(true);
+        when(comunicacionDao.guardar(org.mockito.ArgumentMatchers.any())).thenReturn(500L);
+        when(comunicacionDao.obtenerUsuariosDelEquipo(10L)).thenReturn(List.of(USUARIO_ID, 99L));
+        when(notificacionAppService.puedeRecibir(99L, "MENSAJE")).thenReturn(true);
+
+        service.crear(comunicacionValida(), List.of(10L), List.of(), List.of(), USUARIO_ID);
+
+        org.mockito.Mockito.verify(notificacionAppService, org.mockito.Mockito.never())
+                .puedeRecibir(org.mockito.ArgumentMatchers.eq(USUARIO_ID), org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.verify(notificacionAppService, org.mockito.Mockito.never())
+                .crear(org.mockito.ArgumentMatchers.eq(USUARIO_ID), org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any());
+
+        ArgumentCaptor<ComunicacionPushEvent> eventoCaptor = ArgumentCaptor.forClass(ComunicacionPushEvent.class);
+        org.mockito.Mockito.verify(eventPublisher).publishEvent(eventoCaptor.capture());
+        assertThat(eventoCaptor.getValue().getUsuarioIds()).containsExactly(99L);
+    }
+
+    @Test
     void listarParaUsuarioNoIncluyeConversacionesPrivadas() {
         when(usuarioAppService.tieneRol(1, "ADMIN_APP")).thenReturn(true);
 

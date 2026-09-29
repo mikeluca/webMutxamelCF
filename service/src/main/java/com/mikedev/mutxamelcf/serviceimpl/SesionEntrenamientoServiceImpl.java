@@ -159,19 +159,19 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
         LocalDate hoy = LocalDate.now();
 
         /*
-         * Necesitamos saber QUÉ sesiones se van a cancelar para poder
-         * borrar sus ENTRENAMIENTOS vinculados; hay que consultarlo antes
-         * del UPDATE masivo, porque después ya no cumplirán el filtro
-         * ESTADO = PROGRAMADA.
+         * Necesitamos saber QUÉ sesiones se van a eliminar para poder
+         * borrar antes sus ENTRENAMIENTOS vinculados: FK_ENTRENAMIENTOS_SESION
+         * impide eliminar la sesión mientras exista un ENTRENAMIENTO que
+         * la referencie.
          */
-        List<SesionEntrenamiento> sesionesACancelar = sesionEntrenamientoDao
+        List<SesionEntrenamiento> sesionesAEliminar = sesionEntrenamientoDao
                 .obtenerFuturasProgramadasPorHorario(horarioId, hoy);
 
-        sesionEntrenamientoDao.cancelarFuturasProgramadasPorHorario(horarioId, hoy);
-
-        for (SesionEntrenamiento sesion : sesionesACancelar) {
+        for (SesionEntrenamiento sesion : sesionesAEliminar) {
             entrenamientoService.eliminarPorSesionEntrenamientoId(sesion.getId());
         }
+
+        sesionEntrenamientoDao.eliminarFuturasProgramadasPorHorario(horarioId, hoy);
     }
 
     @Override

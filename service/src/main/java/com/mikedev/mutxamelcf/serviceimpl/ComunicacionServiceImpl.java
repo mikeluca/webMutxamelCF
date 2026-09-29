@@ -235,7 +235,8 @@ public class ComunicacionServiceImpl
                                 equipos,
                                 categoriasNormalizadas,
                                 destinatarios,
-                                esPrivada ? usuarioId : null);
+                                esPrivada ? usuarioId : null,
+                                usuarioId);
 
                 return comunicacion;
         }
@@ -884,7 +885,8 @@ public class ComunicacionServiceImpl
                         List<Long> equipoIds,
                         List<String> categorias,
                         List<Long> destinatariosDirectos,
-                        Long autorIdParaChatPrivado) {
+                        Long autorIdParaChatPrivado,
+                        Long usuarioAutorId) {
 
                 Set<Long> usuariosDestinatarios = new HashSet<>();
 
@@ -914,6 +916,14 @@ public class ComunicacionServiceImpl
                         usuariosDestinatarios.addAll(
                                         destinatariosDirectos);
                 }
+
+                /*
+                 * Quien envía la comunicación (p.ej. un entrenador que
+                 * también está vinculado a su propio equipo) no debe
+                 * recibir una notificación de algo que ha enviado él
+                 * mismo.
+                 */
+                usuariosDestinatarios.remove(usuarioAutorId);
 
                 /*
                  * Creamos una única notificación por usuario (escritura en

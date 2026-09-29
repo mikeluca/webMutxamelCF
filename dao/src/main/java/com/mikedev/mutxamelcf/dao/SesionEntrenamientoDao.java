@@ -28,17 +28,22 @@ public interface SesionEntrenamientoDao {
     LocalDate obtenerUltimaFechaGenerada(Long horarioId);
 
     /**
-     * Cancela (ESTADO='CANCELADA') todas las sesiones futuras
-     * (FECHA >= desde) que todavía están PROGRAMADA para ese horario.
-     * No toca sesiones pasadas, para conservar el histórico.
+     * Elimina todas las sesiones futuras (FECHA >= desde) que todavía
+     * están PROGRAMADA para ese horario: al desactivarse o cambiar de
+     * día el horario semanal, esas sesiones nunca han sido "canceladas"
+     * (no ha ocurrido nada que cancelar), simplemente dejan de existir.
+     * "CANCELADA" queda reservado para la cancelación puntual de una
+     * sesión concreta (con motivo), no para este caso. No toca sesiones
+     * pasadas ni ya canceladas individualmente, para conservar el
+     * histórico.
      */
-    void cancelarFuturasProgramadasPorHorario(Long horarioId, LocalDate desde);
+    void eliminarFuturasProgramadasPorHorario(Long horarioId, LocalDate desde);
 
     /**
-     * Las mismas sesiones que afectará {@link #cancelarFuturasProgramadasPorHorario},
-     * consultadas ANTES de cancelarlas: se usa para saber qué ENTRENAMIENTOS
-     * vinculados hay que eliminar al cancelar en bloque las sesiones
-     * futuras de un horario (desactivación o cambio de día).
+     * Las mismas sesiones que afectará {@link #eliminarFuturasProgramadasPorHorario},
+     * consultadas ANTES de eliminarlas: se usa para saber qué ENTRENAMIENTOS
+     * vinculados hay que eliminar primero (por la FK) al eliminar en bloque
+     * las sesiones futuras de un horario (desactivación o cambio de día).
      */
     List<SesionEntrenamiento> obtenerFuturasProgramadasPorHorario(Long horarioId, LocalDate desde);
 
