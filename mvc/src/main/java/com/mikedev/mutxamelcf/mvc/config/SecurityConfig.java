@@ -102,9 +102,18 @@ public class SecurityConfig {
                                                                 "/admin/usuarios-app/**")
                                                 .hasRole("SUPER")
 
+                                                /*
+                                                 * SEC-03: nunca solo authenticated() aqui.
+                                                 * Los unicos roles web que existen hoy son
+                                                 * SUPER y ENTRENADOR (no hay ningun otro
+                                                 * hasRole/sec:authorize en toda la app), asi
+                                                 * que cualquier futuro controlador que cuelgue
+                                                 * de /admin/** sin marcar su propio hasRole()
+                                                 * queda protegido igualmente por defecto.
+                                                 */
                                                 .requestMatchers(
                                                                 "/admin/**")
-                                                .authenticated()
+                                                .hasAnyRole("SUPER", "ENTRENADOR")
 
                                                 /*
                                                  * RESTO DE PETICIONES

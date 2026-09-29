@@ -233,22 +233,27 @@ class UsuarioAppDaoImplTest {
     }
 
     @Test
-    void incrementarIntentosActivacionEjecutaElUpdate() {
+    void consumirIntentoActivacionEjecutaElUpdateAtomicoYDevuelveFilasAfectadas() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         UsuarioAppDaoImpl dao = new UsuarioAppDaoImpl(jdbcTemplate);
 
-        dao.incrementarIntentosActivacion(1);
+        when(jdbcTemplate.update(anyString(), eq(1), eq(5))).thenReturn(1);
 
-        verify(jdbcTemplate).update(anyString(), eq(1));
+        int filas = dao.consumirIntentoActivacion(1, 5);
+
+        assertThat(filas).isEqualTo(1);
+        verify(jdbcTemplate).update(anyString(), eq(1), eq(5));
     }
 
     @Test
-    void invalidarTokenActivacionEjecutaElUpdate() {
+    void consumirIntentoActivacionDevuelveCeroSiLaCondicionNoSeCumple() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         UsuarioAppDaoImpl dao = new UsuarioAppDaoImpl(jdbcTemplate);
 
-        dao.invalidarTokenActivacion(1);
+        when(jdbcTemplate.update(anyString(), eq(1), eq(5))).thenReturn(0);
 
-        verify(jdbcTemplate).update(anyString(), eq(1));
+        int filas = dao.consumirIntentoActivacion(1, 5);
+
+        assertThat(filas).isZero();
     }
 }

@@ -34,14 +34,16 @@ public interface UsuarioAppDao {
     void actualizarTokenActivacion(int id, String tokenHash, Timestamp expiracion);
 
     /**
-     * Incrementa en 1 el contador de intentos fallidos de activación.
+     * Consume atómicamente un intento de activación: incrementa
+     * INTENTOS_ACTIVACION en 1 SOLO SI la cuenta sigue siendo
+     * candidata a activarse (inactiva, con token pendiente, por
+     * debajo del máximo de intentos y sin haber caducado). Devuelve
+     * el número de filas afectadas (0 o 1).
+     *
+     * Al comprobar la condición y escribir en la misma sentencia SQL,
+     * dos peticiones concurrentes para la misma cuenta no pueden leer
+     * el mismo contador "antiguo" y colarse ambas por debajo del
+     * límite (SEC-02).
      */
-    void incrementarIntentosActivacion(int id);
-
-    /**
-     * Invalida el código/token de activación pendiente (por ejemplo,
-     * al agotar el número máximo de intentos), sin desactivar ni
-     * tocar el resto de la cuenta. Requiere generar uno nuevo.
-     */
-    void invalidarTokenActivacion(int id);
+    int consumirIntentoActivacion(int id, int maxIntentos);
 }

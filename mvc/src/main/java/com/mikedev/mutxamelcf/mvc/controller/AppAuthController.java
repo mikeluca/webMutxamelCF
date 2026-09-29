@@ -90,7 +90,19 @@ public class AppAuthController {
      */
     @PostMapping("/activar")
     public ResponseEntity<?> activar(
-            @Valid @RequestBody ActivarCuentaAppRequest request) {
+            @Valid @RequestBody ActivarCuentaAppRequest request,
+            HttpServletRequest httpRequest) {
+
+        String clave = rateLimiter.clave(
+                httpRequest.getRemoteAddr(),
+                request.getEmail());
+
+        if (rateLimiter.estaBloqueado(clave)) {
+
+            return ResponseEntity
+                    .status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body("Demasiados intentos fallidos. Inténtalo de nuevo en unos minutos.");
+        }
 
         try {
 
@@ -98,6 +110,8 @@ public class AppAuthController {
                     request.getEmail(),
                     request.getCodigo(),
                     request.getPassword());
+
+            rateLimiter.registrarExito(clave);
 
             LoginAppResponse loginResponse = usuarioAppService.login(
                     usuario.getEmail(),
@@ -112,6 +126,8 @@ public class AppAuthController {
                     .body(e.getMessage());
 
         } catch (IllegalArgumentException e) {
+
+            rateLimiter.registrarFallo(clave);
 
             return ResponseEntity
                     .badRequest()

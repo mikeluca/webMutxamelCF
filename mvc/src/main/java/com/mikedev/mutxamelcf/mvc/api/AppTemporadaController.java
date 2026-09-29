@@ -13,10 +13,10 @@ import com.mikedev.mutxamelcf.service.TemporadaService;
 /**
  * Exposición de temporadas a la app móvil. La gestión (alta/edición)
  * de temporadas sigue siendo exclusiva de la web de administración
- * (TemporadaController, bajo /admin, con sesión web); este controlador
- * solo permite CONSULTAR la temporada activa, para que el calendario
- * de la app pueda acotar "partidos pasados" a la temporada en curso
- * en vez de a una ventana de fechas fija.
+ * (PagosController, bajo /admin/pagos/**, protegido por ROLE_SUPER);
+ * este controlador solo permite CONSULTAR la temporada activa, para
+ * que el calendario de la app pueda acotar "partidos pasados" a la
+ * temporada en curso en vez de a una ventana de fechas fija.
  */
 @RestController
 @RequestMapping("/api/app/temporadas")

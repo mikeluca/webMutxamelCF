@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -157,5 +158,55 @@ class SeguridadIntegrationTest {
         mockMvc.perform(get("/")
                         .header("Authorization", "Bearer token-completamente-invalido"))
                 .andExpect(status().isOk());
+    }
+
+    /*
+     * SEC-03: un usuario web ENTRENADOR (no SUPER) no puede acceder a
+     * nada bajo /admin/pagos/**, ni siquiera de lectura. Antes de la
+     * correccion, CuotaJugadorController/ConceptoPagoController/
+     * TemporadaController colgaban de /admin/** sin exigir SUPER, asi
+     * que un ENTRENADOR podia borrar cuotas y pagos de otros equipos;
+     * esos tres controladores se han eliminado (su funcionalidad ya
+     * vive en PagosController, protegido por ROLE_SUPER) y /admin/**
+     * ya no acepta un authenticated() generico.
+     */
+    @Test
+    void entrenadorWebRecibe403EnPagos() throws Exception {
+
+        mockMvc.perform(get("/admin/pagos")
+                        .with(user("entrenador").roles("ENTRENADOR")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void entrenadorWebRecibe403AlIntentarBorrarUnaCuota() throws Exception {
+
+        mockMvc.perform(post("/admin/pagos/cuotas/borrar")
+                        .param("id", "1")
+                        .with(user("entrenador").roles("ENTRENADOR"))
+                        .with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    /*
+     * No se comprueba aqui el camino positivo ("SUPER puede entrar a
+     * /admin/pagos") porque el esquema H2 de este perfil de test solo
+     * crea la tabla USUARIOS (ver TST-01 de la auditoria): cualquier
+     * peticion de un usuario autorizado que llegue a tocar
+     * PagosController fallaria por falta de tablas, no por
+     * autorizacion. Los tests negativos de abajo ya demuestran que la
+     * regla hasAnyRole("SUPER","ENTRENADOR") + hasRole("SUPER") se
+     * aplica antes de llegar al controlador.
+     */
+
+    @Test
+    void usuarioSinRolAdmiteRedirigeAAdmin() throws Exception {
+
+        // Un usuario autenticado pero sin ROLE_SUPER ni ROLE_ENTRENADOR
+        // (por ejemplo, un rol futuro no contemplado) no debe poder
+        // entrar en ninguna pantalla de /admin/**.
+        mockMvc.perform(get("/admin/admin")
+                        .with(user("desconocido").roles("SIN_ROL_RECONOCIDO")))
+                .andExpect(status().isForbidden());
     }
 }

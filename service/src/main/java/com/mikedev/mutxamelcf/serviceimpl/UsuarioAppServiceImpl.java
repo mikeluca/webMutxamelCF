@@ -23,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -39,6 +41,15 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
     private static final long HORAS_VALIDEZ_TOKEN = 4;
 
     private static final int MAX_INTENTOS_ACTIVACION = 5;
+
+    /*
+     * SEC-02: un único mensaje para cualquier motivo por el que la
+     * activación no puede continuar (email sin invitación, código
+     * incorrecto, código caducado, intentos agotados...). Antes había
+     * mensajes distintos para cada caso, lo que permitía enumerar qué
+     * emails tenían una invitación pendiente.
+     */
+    private static final String MENSAJE_ACTIVACION_INVALIDA = "El código no es válido o ha caducado.";
 
     private static final Set<String> TIPOS_VINCULO_CON_PERSONA = Set.of(
             "JUGADOR", "FAMILIAR", "ENTRENADOR");
@@ -174,7 +185,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
     }
 
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = { IllegalArgumentException.class, IllegalStateException.class })
     public UsuarioApp activarCuenta(
             String email,
             String codigo,
@@ -201,7 +212,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
                 || usuario.getTokenActivacion() == null) {
 
             throw new IllegalArgumentException(
-                    "El código introducido no es válido o ha caducado.");
+                    MENSAJE_ACTIVACION_INVALIDA);
         }
 
         if (usuario.isActivo()) {
@@ -209,45 +220,35 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
                     "La cuenta ya está activa");
         }
 
-        Timestamp expiracion = usuario.getFechaExpiracionToken();
+        /*
+         * SEC-02: consumo atómico y condicionado del intento (incluye
+         * el chequeo de caducidad, del máximo de intentos y de que
+         * siga pendiente de activar). @Transactional(noRollbackFor=...)
+         * de arriba asegura que este UPDATE se conserva aunque el
+         * método termine lanzando una excepción más abajo; y al
+         * comprobar la condición dentro de la propia sentencia SQL, dos
+         * peticiones concurrentes con el mismo código no pueden leer
+         * ambas el contador "antiguo" y colarse las dos por debajo del
+         * límite.
+         */
+        int filas = usuarioAppDao.consumirIntentoActivacion(
+                usuario.getId(),
+                MAX_INTENTOS_ACTIVACION);
 
-        if (expiracion != null
-                && expiracion.before(Timestamp.from(Instant.now()))) {
-
+        if (filas == 0) {
             throw new IllegalArgumentException(
-                    "El código ha caducado. "
-                            + "Pide que te reenvíen la invitación.");
-        }
-
-        if (usuario.getIntentosActivacion() >= MAX_INTENTOS_ACTIVACION) {
-
-            throw new IllegalStateException(
-                    "Has agotado los intentos para este código. "
-                            + "Pide que te reenvíen la invitación.");
+                    MENSAJE_ACTIVACION_INVALIDA);
         }
 
         String codigoHash = TokenUtils.hashToken(codigo.trim());
 
-        if (!codigoHash.equals(usuario.getTokenActivacion())) {
+        boolean coincide = MessageDigest.isEqual(
+                codigoHash.getBytes(StandardCharsets.UTF_8),
+                usuario.getTokenActivacion().getBytes(StandardCharsets.UTF_8));
 
-            usuarioAppDao.incrementarIntentosActivacion(usuario.getId());
-
-            int intentosRestantes = MAX_INTENTOS_ACTIVACION
-                    - usuario.getIntentosActivacion() - 1;
-
-            if (intentosRestantes <= 0) {
-
-                usuarioAppDao.invalidarTokenActivacion(usuario.getId());
-
-                throw new IllegalStateException(
-                        "Código incorrecto. Has agotado los intentos: "
-                                + "pide que te reenvíen la invitación.");
-            }
-
+        if (!coincide) {
             throw new IllegalArgumentException(
-                    "Código incorrecto. Te quedan "
-                            + intentosRestantes
-                            + " intento(s).");
+                    MENSAJE_ACTIVACION_INVALIDA);
         }
 
         String passwordHash = passwordEncoder.encode(password);

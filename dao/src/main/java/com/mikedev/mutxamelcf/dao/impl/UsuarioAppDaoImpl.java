@@ -268,28 +268,19 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
     }
 
     @Override
-    public void incrementarIntentosActivacion(int id) {
+    public int consumirIntentoActivacion(int id, int maxIntentos) {
 
         String sql = """
                 UPDATE USUARIOS_APP
                 SET INTENTOS_ACTIVACION = INTENTOS_ACTIVACION + 1
                 WHERE ID = ?
+                  AND ACTIVO = 0
+                  AND TOKEN_ACTIVACION IS NOT NULL
+                  AND INTENTOS_ACTIVACION < ?
+                  AND (TOKEN_ACTIVACION_EXPIRA IS NULL OR TOKEN_ACTIVACION_EXPIRA > SYSTIMESTAMP)
                 """;
 
-        jdbcTemplate.update(sql, id);
-    }
-
-    @Override
-    public void invalidarTokenActivacion(int id) {
-
-        String sql = """
-                UPDATE USUARIOS_APP
-                SET TOKEN_ACTIVACION = NULL,
-                    TOKEN_ACTIVACION_EXPIRA = NULL
-                WHERE ID = ?
-                """;
-
-        jdbcTemplate.update(sql, id);
+        return jdbcTemplate.update(sql, id, maxIntentos);
     }
 
     private UsuarioApp mapearUsuario(

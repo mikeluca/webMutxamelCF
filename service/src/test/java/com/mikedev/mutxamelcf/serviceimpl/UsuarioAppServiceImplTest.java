@@ -145,6 +145,7 @@ class UsuarioAppServiceImplTest {
         UsuarioApp usuario = usuarioPendienteActivacion("123456");
 
         when(usuarioAppDao.obtenerPorEmail("jugador@mutxamelcf.es")).thenReturn(usuario);
+        when(usuarioAppDao.consumirIntentoActivacion(7, 5)).thenReturn(1);
         when(passwordEncoder.encode("password123")).thenReturn("hash-nuevo");
 
         UsuarioApp resultado = service.activarCuenta(
@@ -191,69 +192,44 @@ class UsuarioAppServiceImplTest {
                 .hasMessageContaining("no es válido");
     }
 
+    /*
+     * SEC-02: la comprobación de caducidad/intentos-agotados/cuenta-yano-pendiente ahora vive en el UPDATE atómico y condicionado
+     * (UsuarioAppDao.consumirIntentoActivacion), no en Java. Desde el
+     * punto de vista de este test (que mockea el DAO), cualquiera de
+     * esos motivos se manifiesta igual: el DAO devuelve 0 filas
+     * afectadas. El mensaje es el mismo para no permitir enumerar
+     * cuentas por el motivo exacto del rechazo.
+     */
     @Test
-    void activarCuentaConCodigoCaducadoLanzaExcepcion() {
+    void activarCuentaCuandoElDaoRechazaElIntentoLanzaExcepcionGenerica() {
         UsuarioApp usuario = usuarioPendienteActivacion("123456");
-        usuario.setFechaExpiracionToken(
-                Timestamp.from(Instant.now().minus(1, ChronoUnit.HOURS)));
 
         when(usuarioAppDao.obtenerPorEmail("jugador@mutxamelcf.es")).thenReturn(usuario);
+        when(usuarioAppDao.consumirIntentoActivacion(7, 5)).thenReturn(0);
 
         assertThatThrownBy(() -> service.activarCuenta(
                         "jugador@mutxamelcf.es", "123456", "password123"))
                 .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no es válido")
                 .hasMessageContaining("caducado");
 
         verify(usuarioAppDao, never()).actualizarPassword(anyInt(), any());
     }
 
     @Test
-    void activarCuentaConCodigoIncorrectoIncrementaIntentosYAvisaCuantosQuedan() {
+    void activarCuentaConCodigoIncorrectoConsumeElIntentoYLanzaElMismoMensajeGenerico() {
         UsuarioApp usuario = usuarioPendienteActivacion("123456");
-        usuario.setIntentosActivacion(1);
 
         when(usuarioAppDao.obtenerPorEmail("jugador@mutxamelcf.es")).thenReturn(usuario);
+        when(usuarioAppDao.consumirIntentoActivacion(7, 5)).thenReturn(1);
 
         assertThatThrownBy(() -> service.activarCuenta(
                         "jugador@mutxamelcf.es", "000000", "password123"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Código incorrecto")
-                .hasMessageContaining("3");
+                .hasMessageContaining("no es válido")
+                .hasMessageContaining("caducado");
 
-        verify(usuarioAppDao).incrementarIntentosActivacion(7);
-        verify(usuarioAppDao, never()).invalidarTokenActivacion(anyInt());
-        verify(usuarioAppDao, never()).actualizarPassword(anyInt(), any());
-    }
-
-    @Test
-    void activarCuentaConUltimoIntentoFallidoInvalidaElCodigo() {
-        UsuarioApp usuario = usuarioPendienteActivacion("123456");
-        usuario.setIntentosActivacion(4);
-
-        when(usuarioAppDao.obtenerPorEmail("jugador@mutxamelcf.es")).thenReturn(usuario);
-
-        assertThatThrownBy(() -> service.activarCuenta(
-                        "jugador@mutxamelcf.es", "000000", "password123"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("agotado");
-
-        verify(usuarioAppDao).incrementarIntentosActivacion(7);
-        verify(usuarioAppDao).invalidarTokenActivacion(7);
-    }
-
-    @Test
-    void activarCuentaConIntentosYaAgotadosLanzaExcepcionSinComprobarElCodigo() {
-        UsuarioApp usuario = usuarioPendienteActivacion("123456");
-        usuario.setIntentosActivacion(5);
-
-        when(usuarioAppDao.obtenerPorEmail("jugador@mutxamelcf.es")).thenReturn(usuario);
-
-        assertThatThrownBy(() -> service.activarCuenta(
-                        "jugador@mutxamelcf.es", "123456", "password123"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("agotado");
-
-        verify(usuarioAppDao, never()).incrementarIntentosActivacion(anyInt());
+        verify(usuarioAppDao).consumirIntentoActivacion(7, 5);
         verify(usuarioAppDao, never()).actualizarPassword(anyInt(), any());
     }
 

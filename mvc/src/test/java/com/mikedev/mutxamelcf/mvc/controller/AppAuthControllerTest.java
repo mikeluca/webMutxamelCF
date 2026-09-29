@@ -100,7 +100,26 @@ class AppAuthControllerTest {
     }
 
     @Test
+    void activarDevuelveTooManyRequestsSiEstaBloqueado() {
+        when(rateLimiter.estaBloqueado("clave")).thenReturn(true);
+
+        ActivarCuentaAppRequest request = new ActivarCuentaAppRequest();
+        request.setEmail("ana@example.com");
+        request.setCodigo("123456");
+        request.setPassword("secreto123");
+
+        ResponseEntity<?> response = controller.activar(request, httpRequest());
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode());
+        verify(usuarioAppService, never()).activarCuenta(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void activarDevuelveOkConLoginResponseCuandoLaActivacionEsValida() {
+        when(rateLimiter.estaBloqueado("clave")).thenReturn(false);
         UsuarioApp usuario = new UsuarioApp();
         usuario.setId(1);
         usuario.setEmail("ana@example.com");
@@ -113,14 +132,17 @@ class AppAuthControllerTest {
         request.setCodigo("123456");
         request.setPassword("secreto123");
 
-        ResponseEntity<?> response = controller.activar(request);
+        ResponseEntity<?> response = controller.activar(request, httpRequest());
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(loginResponse, response.getBody());
+        verify(rateLimiter).registrarExito("clave");
+        verify(rateLimiter, never()).registrarFallo("clave");
     }
 
     @Test
     void activarDevuelveConflictSiLaCuentaYaEstaActivada() {
+        when(rateLimiter.estaBloqueado("clave")).thenReturn(false);
         when(usuarioAppService.activarCuenta("ana@example.com", "123456", "secreto123"))
                 .thenThrow(new IllegalStateException("Cuenta ya activada"));
 
@@ -129,13 +151,15 @@ class AppAuthControllerTest {
         request.setCodigo("123456");
         request.setPassword("secreto123");
 
-        ResponseEntity<?> response = controller.activar(request);
+        ResponseEntity<?> response = controller.activar(request, httpRequest());
 
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        verify(rateLimiter, never()).registrarFallo("clave");
     }
 
     @Test
-    void activarDevuelveBadRequestSiElCodigoEsInvalido() {
+    void activarDevuelveBadRequestYRegistraFalloSiElCodigoEsInvalido() {
+        when(rateLimiter.estaBloqueado("clave")).thenReturn(false);
         when(usuarioAppService.activarCuenta("ana@example.com", "000000", "secreto123"))
                 .thenThrow(new IllegalArgumentException("Codigo invalido"));
 
@@ -144,9 +168,10 @@ class AppAuthControllerTest {
         request.setCodigo("000000");
         request.setPassword("secreto123");
 
-        ResponseEntity<?> response = controller.activar(request);
+        ResponseEntity<?> response = controller.activar(request, httpRequest());
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        verify(rateLimiter).registrarFallo("clave");
     }
 
     @Test
