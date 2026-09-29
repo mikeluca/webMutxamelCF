@@ -735,10 +735,19 @@ class PartidoServiceImplTest {
     }
 
     @Test
-    void obtenerResultadoPrimerEquipoDevuelveNullSiNoHayPartido() {
+    void obtenerResultadoPrimerEquipoDevuelveRivalVacioSiNoHayPartido() {
+        // La app pinta la tarjeta "SIN PARTIDO PRIMER EQUIPO" (misma forma
+        // que una jornada de descanso) en vez de un mensaje de texto, así
+        // que aquí no se puede devolver null: siempre hay un ResultadoDTO.
         when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(null);
 
-        assertThat(service.obtenerResultadoPrimerEquipo()).isNull();
+        ResultadoDTO resultado = service.obtenerResultadoPrimerEquipo();
+
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.getEquipo()).isEqualTo("Primer Equipo");
+        assertThat(resultado.getCategoria()).isEqualTo("Primer Equipo");
+        assertThat(resultado.getRival()).isNull();
+        assertThat(resultado.getResultado()).isNull();
     }
 
     @Test

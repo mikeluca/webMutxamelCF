@@ -26,16 +26,6 @@ class PublicResultadoControllerTest {
     }
 
     @Test
-    void obtenerResultadoPrimerEquipoDevuelve404SiNoHayResultado() {
-        PartidoService service = mock(PartidoService.class);
-        PublicResultadoController controller = new PublicResultadoController(service);
-
-        when(service.obtenerResultadoPrimerEquipo()).thenReturn(null);
-
-        assertThat(controller.obtenerResultadoPrimerEquipo().getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-    }
-
-    @Test
     void obtenerResultadoPrimerEquipoDevuelveElResultado() {
         PartidoService service = mock(PartidoService.class);
         PublicResultadoController controller = new PublicResultadoController(service);

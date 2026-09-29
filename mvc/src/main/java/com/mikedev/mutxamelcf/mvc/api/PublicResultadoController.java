@@ -30,12 +30,9 @@ public class PublicResultadoController {
     @GetMapping("/primer-equipo")
     public ResponseEntity<ResultadoDTO> obtenerResultadoPrimerEquipo() {
 
-        ResultadoDTO resultado = partidoService.obtenerResultadoPrimerEquipo();
-
-        if (resultado == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(resultado);
+        // Siempre hay resultado: si no hay próximo partido ni último
+        // jugado, el servicio devuelve un ResultadoDTO con rival vacío
+        // (misma forma que una jornada de descanso).
+        return ResponseEntity.ok(partidoService.obtenerResultadoPrimerEquipo());
     }
 }

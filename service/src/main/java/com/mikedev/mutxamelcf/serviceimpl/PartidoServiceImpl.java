@@ -443,15 +443,20 @@ public class PartidoServiceImpl implements PartidoService {
 				EQUIPO_PRIMER_EQUIPO,
 				CATEGORIA_PRIMER_EQUIPO);
 
-		if (partido == null) {
-			logger.debug("Fin obtenerResultadoPrimerEquipo: encontrado=false");
-			return null;
-		}
-
 		ResultadoDTO resultado = new ResultadoDTO();
 		resultado.setCategoria(CATEGORIA_PRIMER_EQUIPO);
-		resultado.setEquipoId(partido.getEquipoId());
 		resultado.setEquipo(EQUIPO_PRIMER_EQUIPO);
+
+		if (partido == null) {
+			// Sin próximo partido ni último jugado: se devuelve igualmente
+			// un ResultadoDTO (rival vacío), como con una jornada de
+			// descanso, para que la app pinte la tarjeta "SIN PARTIDO
+			// PRIMER EQUIPO" en vez de un simple mensaje de texto.
+			logger.debug("Fin obtenerResultadoPrimerEquipo: encontrado=false");
+			return resultado;
+		}
+
+		resultado.setEquipoId(partido.getEquipoId());
 		resultado.setRival(partido.getRival());
 		resultado.setResultado(partido.getResultado());
 		resultado.setTipo(partido.getTipo());
