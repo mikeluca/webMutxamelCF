@@ -1,5 +1,7 @@
 package com.mikedev.mutxamelcf.serviceimpl;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +19,12 @@ import java.util.Map;
 
 @Service
 public class FcmPushServiceImpl implements FcmPushService {
+
+        // INF-07 (2.ª auditoría): estos envíos corren en hilos @Async desde
+        // BE-02; con System.out/err en vez de un logger, un fallo de push
+        // en esos hilos no queda asociado al resto de logs de la petición
+        // (formato, nivel, timestamp) y es mucho más difícil de rastrear.
+        private static final Logger logger = LoggerFactory.getLogger(FcmPushServiceImpl.class);
 
         private final DispositivoAppDao dispositivoAppDao;
 
@@ -55,23 +63,17 @@ public class FcmPushServiceImpl implements FcmPushService {
                                         .getInstance()
                                         .send(message);
 
-                        System.out.println(
-                                        "NOTIFICACIÓN FCM ENVIADA CORRECTAMENTE: "
-                                                        + response);
+                        logger.info("Notificación FCM enviada correctamente: response={}", response);
 
                 } catch (FirebaseMessagingException e) {
 
-                        System.err.println(
-                                        "ERROR FCM: " + e.getMessage());
+                        logger.error("Error FCM: {}", e.getMessage());
 
                         // Si el token ya no existe o ha sido invalidado,
                         // lo desactivamos para no volver a intentar enviarlo.
                         if (e.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED) {
 
-                                System.err.println(
-                                                "TOKEN FCM NO VÁLIDO. "
-                                                                + "Debe desactivarse: "
-                                                                + tokenFcm);
+                                logger.warn("Token FCM no válido, debe desactivarse: tokenFcm={}", tokenFcm);
                         }
 
                         // No propagamos la excepción.
@@ -80,9 +82,7 @@ public class FcmPushServiceImpl implements FcmPushService {
 
                 } catch (Exception e) {
 
-                        System.err.println(
-                                        "ERROR AL ENVIAR NOTIFICACIÓN FCM: "
-                                                        + e.getMessage());
+                        logger.error("Error al enviar notificación FCM: {}", e.getMessage());
 
                         // Tampoco propagamos el error.
                 }
@@ -134,9 +134,7 @@ public class FcmPushServiceImpl implements FcmPushService {
                 List<DispositivoApp> dispositivos = dispositivoAppDao.obtenerActivosPorUsuario(usuarioId);
 
                 if (dispositivos == null || dispositivos.isEmpty()) {
-                        System.out.println(
-                                        "USUARIO " + usuarioId
-                                                        + " SIN DISPOSITIVOS FCM ACTIVOS");
+                        logger.debug("Usuario {} sin dispositivos FCM activos", usuarioId);
 
                         return;
                 }
@@ -191,21 +189,13 @@ public class FcmPushServiceImpl implements FcmPushService {
                                         .getInstance()
                                         .send(message);
 
-                        System.out.println(
-                                        "NOTIFICACIÓN FCM ENVIADA: "
-                                                        + "usuario=" + dispositivo.getUsuarioAppId()
-                                                        + ", dispositivo=" + dispositivo.getId()
-                                                        + ", response=" + response);
+                        logger.info("Notificación FCM enviada: usuario={}, dispositivo={}, response={}",
+                                        dispositivo.getUsuarioAppId(), dispositivo.getId(), response);
 
                 } catch (FirebaseMessagingException e) {
 
-                        System.err.println(
-                                        "ERROR FCM PARA USUARIO "
-                                                        + dispositivo.getUsuarioAppId()
-                                                        + ", dispositivo="
-                                                        + dispositivo.getId()
-                                                        + ": "
-                                                        + e.getMessage());
+                        logger.error("Error FCM para usuario={}, dispositivo={}: {}",
+                                        dispositivo.getUsuarioAppId(), dispositivo.getId(), e.getMessage());
 
                         /*
                          * Firebase informa de que el token ya no es válido.
@@ -213,10 +203,7 @@ public class FcmPushServiceImpl implements FcmPushService {
                          */
                         if (e.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED) {
 
-                                System.err.println(
-                                                "TOKEN FCM NO VÁLIDO. "
-                                                                + "Desactivando dispositivo "
-                                                                + dispositivo.getId());
+                                logger.warn("Token FCM no válido, desactivando dispositivo {}", dispositivo.getId());
 
                                 dispositivoAppDao.desactivar(
                                                 dispositivo.getUsuarioAppId(),
@@ -234,11 +221,8 @@ public class FcmPushServiceImpl implements FcmPushService {
 
                 } catch (Exception e) {
 
-                        System.err.println(
-                                        "ERROR INESPERADO FCM PARA USUARIO "
-                                                        + dispositivo.getUsuarioAppId()
-                                                        + ": "
-                                                        + e.getMessage());
+                        logger.error("Error inesperado FCM para usuario={}: {}",
+                                        dispositivo.getUsuarioAppId(), e.getMessage());
 
                         // Continuamos con el siguiente dispositivo.
                 }
@@ -289,19 +273,11 @@ public class FcmPushServiceImpl implements FcmPushService {
                                         .getInstance()
                                         .send(message);
 
-                        System.out.println(
-                                        "NOTIFICACIÓN FCM ENVIADA AL TOPIC "
-                                                        + topic
-                                                        + ": response="
-                                                        + response);
+                        logger.info("Notificación FCM enviada al topic {}: response={}", topic, response);
 
                 } catch (FirebaseMessagingException e) {
 
-                        System.err.println(
-                                        "ERROR FCM AL PUBLICAR EN EL TOPIC "
-                                                        + topic
-                                                        + ": "
-                                                        + e.getMessage());
+                        logger.error("Error FCM al publicar en el topic {}: {}", topic, e.getMessage());
 
                         // No propagamos la excepción: un fallo de FCM no
                         // debe romper la operación principal (publicar
@@ -309,11 +285,7 @@ public class FcmPushServiceImpl implements FcmPushService {
 
                 } catch (Exception e) {
 
-                        System.err.println(
-                                        "ERROR INESPERADO FCM AL PUBLICAR EN EL TOPIC "
-                                                        + topic
-                                                        + ": "
-                                                        + e.getMessage());
+                        logger.error("Error inesperado FCM al publicar en el topic {}: {}", topic, e.getMessage());
 
                         // Tampoco propagamos el error.
                 }
