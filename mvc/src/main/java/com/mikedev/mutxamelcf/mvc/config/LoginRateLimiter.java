@@ -59,6 +59,7 @@ public class LoginRateLimiter {
 
     private final ConcurrentMap<String, Intentos> intentosPorClave = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Intentos> intentosPorCuenta = new ConcurrentHashMap<>();
+    private final PurgaThrottle purgaThrottle = new PurgaThrottle(Duration.ofSeconds(30));
 
     /**
      * @param contexto uno de {@link #CONTEXTO_WEB}, {@link #CONTEXTO_APP_LOGIN}
@@ -145,6 +146,11 @@ public class LoginRateLimiter {
     }
 
     private void purgarObsoletos() {
+        // N-08: recorrer los dos mapas enteros en cada petición es O(n);
+        // basta con hacerlo periódicamente.
+        if (!purgaThrottle.tocaPurgar()) {
+            return;
+        }
         Instant limite = Instant.now().minus(ANTIGUEDAD_MAXIMA_ENTRADA);
         intentosPorClave.values().removeIf(intentos -> intentos.ultimaActividad.isBefore(limite));
         intentosPorCuenta.values().removeIf(intentos -> intentos.ultimaActividad.isBefore(limite));

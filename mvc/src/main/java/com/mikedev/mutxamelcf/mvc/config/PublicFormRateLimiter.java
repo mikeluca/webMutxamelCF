@@ -28,6 +28,7 @@ public class PublicFormRateLimiter {
     private static final Duration ANTIGUEDAD_MAXIMA_ENTRADA = Duration.ofHours(2);
 
     private final ConcurrentMap<String, Ventana> enviosPorIp = new ConcurrentHashMap<>();
+    private final PurgaThrottle purgaThrottle = new PurgaThrottle(Duration.ofSeconds(30));
 
     /**
      * @return true si la petición puede continuar; false si se ha
@@ -51,6 +52,11 @@ public class PublicFormRateLimiter {
     }
 
     private void purgarObsoletos() {
+        // N-08: recorrer el mapa entero en cada petición es O(n); basta
+        // con hacerlo periódicamente.
+        if (!purgaThrottle.tocaPurgar()) {
+            return;
+        }
         Instant limite = Instant.now().minus(ANTIGUEDAD_MAXIMA_ENTRADA);
         enviosPorIp.values().removeIf(ventana -> ventana.inicio.isBefore(limite));
     }
