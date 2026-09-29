@@ -89,7 +89,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     }
 
     @Override
-    public void enviarInicioPartido(Long usuarioId) {
+    public synchronized void enviarInicioPartido(Long usuarioId) {
 
         validarRolRetransmision(usuarioId);
 
@@ -104,7 +104,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     }
 
     @Override
-    public void enviarGolFavor(Long usuarioId, String autor) {
+    public synchronized void enviarGolFavor(Long usuarioId, String autor) {
 
         validarRolRetransmision(usuarioId);
 
@@ -114,24 +114,41 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
         partidoLiveDao.sumarGolFavor(autor);
 
+        // N-09: se marca como "visto" solo tras sumar el gol con éxito.
+        // Si sumarGolFavor() lanzara una excepción (fallo de BD), un
+        // reintento legítimo con el mismo autor dentro de la ventana ya
+        // no se descartaría como duplicado.
+        marcarGolFavorComoVisto(autor);
+
         String mensaje = autor + "\n\n" + textoMarcador();
 
         difundir("⚽ ¡GOOOL del Mutxamel CF!", mensaje);
     }
 
+    /*
+     * N-09: enviarGolFavor() es synchronized (un único retransmisor a la
+     * vez, sin contención real) precisamente para que comprobar y marcar
+     * el "visto" sea una operación atómica; sin eso, dos reintentos
+     * simultáneos podían leer ambos "no es duplicado" antes de que
+     * ninguno marcara el estado.
+     */
     private boolean esReintentoDuplicadoDeGolFavor(String autor) {
 
-        String autorNormalizado = autor == null ? "" : autor.trim().toLowerCase(Locale.ROOT);
+        String autorNormalizado = normalizarAutor(autor);
         Instant ahora = Instant.now();
 
-        boolean esDuplicado = autorNormalizado.equals(ultimoAutorGolFavor)
+        return autorNormalizado.equals(ultimoAutorGolFavor)
                 && ultimoGolFavorEn != null
                 && ahora.isBefore(ultimoGolFavorEn.plus(VENTANA_DEDUPLICACION_GOL));
+    }
 
-        ultimoAutorGolFavor = autorNormalizado;
-        ultimoGolFavorEn = ahora;
+    private void marcarGolFavorComoVisto(String autor) {
+        ultimoAutorGolFavor = normalizarAutor(autor);
+        ultimoGolFavorEn = Instant.now();
+    }
 
-        return esDuplicado;
+    private static String normalizarAutor(String autor) {
+        return autor == null ? "" : autor.trim().toLowerCase(Locale.ROOT);
     }
 
     @Override

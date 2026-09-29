@@ -125,6 +125,30 @@ class PartidoEnVivoServiceImplTest {
     }
 
     @Test
+    void enviarGolFavorSiElPrimerIntentoFallaElReintentoSiSuma() {
+        // N-09: antes se marcaba como "visto" ANTES de sumar; si
+        // sumarGolFavor() fallaba (p.ej. error de BD), un reintento
+        // legitimo del mismo autor dentro de la ventana se descartaba
+        // como duplicado y el gol se perdia.
+        when(usuarioAppService.tieneRol(5, "RETRANSMISION")).thenReturn(true);
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partidoRival());
+        when(partidoLiveDao.obtenerEstado()).thenReturn(
+                new PartidoLiveEstado(1, 0, List.of("Juan Perez")));
+
+        org.mockito.Mockito.doThrow(new RuntimeException("fallo de BD"))
+                .doNothing()
+                .when(partidoLiveDao).sumarGolFavor("Juan Perez");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> service.enviarGolFavor(5L, "Juan Perez"))
+                .isInstanceOf(RuntimeException.class);
+
+        service.enviarGolFavor(5L, "Juan Perez");
+
+        verify(partidoLiveDao, org.mockito.Mockito.times(2)).sumarGolFavor("Juan Perez");
+    }
+
+    @Test
     void enviarGolFavorDeOtroAutorSiSeContabilizaAunqueLleguePocoDespues() {
         when(usuarioAppService.tieneRol(5, "RETRANSMISION")).thenReturn(true);
         when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partidoRival());

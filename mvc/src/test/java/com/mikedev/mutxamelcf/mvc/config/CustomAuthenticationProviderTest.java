@@ -28,7 +28,7 @@ class CustomAuthenticationProviderTest {
         userService = mock(UsuarioService.class);
         rateLimiter = mock(LoginRateLimiter.class);
         provider = new CustomAuthenticationProvider(userService, rateLimiter);
-        when(rateLimiter.clave(null, "admin")).thenReturn("clave");
+        when(rateLimiter.clave(LoginRateLimiter.CONTEXTO_WEB, null, "admin")).thenReturn("clave");
     }
 
     private static UsernamePasswordAuthenticationToken peticion(String usuario, String password) {
@@ -88,7 +88,7 @@ class CustomAuthenticationProviderTest {
         WebAuthenticationDetails detalles = mock(WebAuthenticationDetails.class);
         when(detalles.getRemoteAddress()).thenReturn("10.0.0.5");
         peticion.setDetails(detalles);
-        when(rateLimiter.clave("10.0.0.5", "admin")).thenReturn("clave-ip");
+        when(rateLimiter.clave(LoginRateLimiter.CONTEXTO_WEB, "10.0.0.5", "admin")).thenReturn("clave-ip");
         when(rateLimiter.estaBloqueado("clave-ip")).thenReturn(false);
         when(userService.validarUsuario("admin", "1234")).thenReturn(null);
 

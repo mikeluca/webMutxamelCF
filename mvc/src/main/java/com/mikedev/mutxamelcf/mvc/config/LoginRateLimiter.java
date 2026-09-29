@@ -8,15 +8,26 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Bloqueo temporal de intentos de login, por IP + identificador de usuario,
- * y de forma global por cuenta (sin IP).
+ * Bloqueo temporal de intentos de login, por contexto + IP + identificador
+ * de usuario, y de forma global por contexto + cuenta (sin IP).
  *
  * SEC-06: con solo la clave IP+cuenta, un atacante que rota de IP nunca
  * agota el límite de 5 intentos para la misma cuenta (cada IP nueva
- * empieza de cero). Se añade una segunda clave, solo por cuenta, con un
- * umbral más alto y bloqueo progresivo (cada bloqueo consecutivo dobla la
- * duración del anterior, hasta un máximo), que sí acumula fallos entre
- * IPs distintas.
+ * empieza de cero). Se añade una segunda clave, solo por cuenta, que sí
+ * acumula fallos entre IPs distintas.
+ *
+ * N-04 (2.ª auditoría): la primera versión de esta clase bloqueaba la
+ * cuenta global hasta 2 horas, duplicando la duración en cada bloqueo
+ * consecutivo. Como esa clave no depende de la IP ni de conocer la
+ * contraseña, cualquiera que supiera el usuario web SUPER o el email de
+ * un entrenador podía dejarlo bloqueado horas enviando contraseñas falsas
+ * desde cualquier sitio: un bloqueo duro por cuenta es en sí mismo un
+ * vector de denegación de servicio. Se sustituye por un retardo
+ * creciente pero corto (segundos, no hasta 2h) -- sigue frenando la
+ * fuerza bruta sin poder usarse para bloquear indefinidamente a un
+ * usuario legítimo. El contexto (web/app-login/app-activar) también
+ * separa los contadores: agotar los intentos del login web no debe
+ * bloquear la activación de la app para el mismo email.
  *
  * Nota: si en producción hay un proxy inverso delante y todas las
  * peticiones comparten IP (server.forward-headers-strategy sin configurar
@@ -32,12 +43,16 @@ import java.util.concurrent.ConcurrentMap;
 @Component
 public class LoginRateLimiter {
 
+    public static final String CONTEXTO_WEB = "web";
+    public static final String CONTEXTO_APP_LOGIN = "app-login";
+    public static final String CONTEXTO_APP_ACTIVAR = "app-activar";
+
     private static final int MAX_INTENTOS = 5;
     private static final Duration DURACION_BLOQUEO = Duration.ofMinutes(15);
 
     private static final int MAX_INTENTOS_GLOBAL_CUENTA = 15;
-    private static final Duration DURACION_BLOQUEO_GLOBAL_INICIAL = Duration.ofMinutes(15);
-    private static final Duration DURACION_BLOQUEO_GLOBAL_MAXIMA = Duration.ofHours(2);
+    private static final Duration DURACION_BLOQUEO_GLOBAL_INICIAL = Duration.ofSeconds(5);
+    private static final Duration DURACION_BLOQUEO_GLOBAL_MAXIMA = Duration.ofSeconds(60);
 
     /** Entradas sin actividad más antigua que esto se consideran basura. */
     private static final Duration ANTIGUEDAD_MAXIMA_ENTRADA = Duration.ofHours(6);
@@ -45,10 +60,18 @@ public class LoginRateLimiter {
     private final ConcurrentMap<String, Intentos> intentosPorClave = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Intentos> intentosPorCuenta = new ConcurrentHashMap<>();
 
-    public String clave(String ip, String identificador) {
+    /**
+     * @param contexto uno de {@link #CONTEXTO_WEB}, {@link #CONTEXTO_APP_LOGIN}
+     *                 o {@link #CONTEXTO_APP_ACTIVAR}: separa los contadores
+     *                 entre el login web, el login de la app y la
+     *                 activación, para que agotar los intentos de uno no
+     *                 bloquee los demás para el mismo identificador.
+     */
+    public String clave(String contexto, String ip, String identificador) {
+        String contextoNormalizado = contexto == null ? "desconocido" : contexto;
         String ipNormalizada = ip == null ? "desconocida" : ip;
         String idNormalizado = normalizarIdentificador(identificador);
-        return ipNormalizada + "|" + idNormalizado;
+        return contextoNormalizado + "|" + ipNormalizada + "|" + idNormalizado;
     }
 
     public boolean estaBloqueado(String clave) {
@@ -98,13 +121,23 @@ public class LoginRateLimiter {
                 && Instant.now().isBefore(intentos.bloqueadoHasta);
     }
 
-    /** La clave tiene forma "ip|identificador"; la cuenta es la parte tras el separador. */
+    /**
+     * La clave tiene forma "contexto|ip|identificador"; la cuenta global
+     * es "contexto|identificador" (se quita solo el tramo de la IP), para
+     * que el límite global tampoco mezcle web/app-login/app-activar entre
+     * sí.
+     */
     private static String cuentaDeClave(String clave) {
         if (clave == null) {
             return "";
         }
-        int separador = clave.indexOf('|');
-        return separador >= 0 ? clave.substring(separador + 1) : clave;
+        String[] partes = clave.split("\\|", 3);
+        if (partes.length < 3) {
+            // Formato inesperado (p.ej. clave construida a mano en tests):
+            // se usa tal cual, sin agrupar por cuenta.
+            return clave;
+        }
+        return partes[0] + "|" + partes[2];
     }
 
     private static String normalizarIdentificador(String identificador) {

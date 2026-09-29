@@ -35,7 +35,10 @@ class AppAuthControllerTest {
         usuarioAppService = mock(UsuarioAppService.class);
         rateLimiter = mock(LoginRateLimiter.class);
         controller = new AppAuthController(usuarioAppService, rateLimiter);
-        when(rateLimiter.clave("127.0.0.1", "ana@example.com")).thenReturn("clave");
+        when(rateLimiter.clave(LoginRateLimiter.CONTEXTO_APP_LOGIN, "127.0.0.1", "ana@example.com"))
+                .thenReturn("clave");
+        when(rateLimiter.clave(LoginRateLimiter.CONTEXTO_APP_ACTIVAR, "127.0.0.1", "ana@example.com"))
+                .thenReturn("clave");
     }
 
     private static LoginAppRequest loginRequest() {

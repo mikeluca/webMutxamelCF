@@ -44,6 +44,7 @@ public class AppAuthController {
             HttpServletRequest httpRequest) {
 
         String clave = rateLimiter.clave(
+                LoginRateLimiter.CONTEXTO_APP_LOGIN,
                 httpRequest.getRemoteAddr(),
                 request.getEmail());
 
@@ -91,6 +92,7 @@ public class AppAuthController {
             HttpServletRequest httpRequest) {
 
         String clave = rateLimiter.clave(
+                LoginRateLimiter.CONTEXTO_APP_ACTIVAR,
                 httpRequest.getRemoteAddr(),
                 request.getEmail());
 

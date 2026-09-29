@@ -38,7 +38,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 		logger.debug("Inicio authenticate: username={}", username);
 
 		String ip = obtenerIp(authentication);
-		String clave = rateLimiter.clave(ip, username);
+		String clave = rateLimiter.clave(LoginRateLimiter.CONTEXTO_WEB, ip, username);
 
 		if (rateLimiter.estaBloqueado(clave)) {
 			logger.warn("Login bloqueado por demasiados intentos fallidos: username={}, ip={}", username, ip);
