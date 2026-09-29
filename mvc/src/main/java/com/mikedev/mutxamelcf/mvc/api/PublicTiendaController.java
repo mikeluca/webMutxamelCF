@@ -57,8 +57,10 @@ public class PublicTiendaController {
             @RequestBody(required = false) TiendaPedidoRequest request,
             HttpServletRequest httpRequest) {
 
-        logger.debug("Inicio crearPedido (API): nombre={}",
-                request == null ? null : request.getNombre());
+        // Privacidad: no se registra nombre ni email (endpoint público,
+        // sin usuario identificado al que asociar el log).
+        logger.debug("Inicio crearPedido (API): items={}",
+                request == null || request.getItems() == null ? 0 : request.getItems().size());
 
         if (!formRateLimiter.permitir(httpRequest.getRemoteAddr())) {
             logger.warn("Pedido de tienda (API) rechazado por limite de envios: ip={}", httpRequest.getRemoteAddr());
@@ -90,7 +92,7 @@ public class PublicTiendaController {
         String email = request.getEmail();
 
         if (!PedidoTiendaHelper.esPedidoValido(nombre, email, prendas, cantidadesTexto, tallasTexto)) {
-            logger.warn("Pedido invalido recibido desde la app: nombre={}, email={}", nombre, email);
+            logger.warn("Pedido invalido recibido desde la app");
             logger.debug("Fin crearPedido (API): resultado=INVALIDO");
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
@@ -101,7 +103,7 @@ public class PublicTiendaController {
         Optional<List<Integer>> cantidadesValidadas = PedidoTiendaHelper.parsearCantidadesValidas(cantidadesTexto);
 
         if (cantidadesValidadas.isEmpty()) {
-            logger.warn("Cantidades fuera de rango en el pedido desde la app: nombre={}", nombre);
+            logger.warn("Cantidades fuera de rango en el pedido desde la app");
             logger.debug("Fin crearPedido (API): resultado=CANTIDAD_INVALIDA");
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
@@ -112,14 +114,14 @@ public class PublicTiendaController {
                 nombre, telefono, email, prendas, cantidadesValidadas.get(), tallasTexto);
 
         if (!comunicacionesService.enviarPedidoTienda(nombre, email, textoPedido)) {
-            logger.warn("No se pudo enviar el pedido por email desde la app: nombre={}", nombre);
+            logger.warn("No se pudo enviar el pedido por email desde la app");
             logger.debug("Fin crearPedido (API): resultado=ERROR_ENVIO");
             return ResponseEntity
                     .status(HttpStatus.BAD_GATEWAY)
                     .body(Map.of("mensaje", "No se pudo enviar el pedido, inténtalo de nuevo más tarde"));
         }
 
-        logger.info("Pedido enviado por email correctamente desde la app: nombre={}", nombre);
+        logger.info("Pedido enviado por email correctamente desde la app");
         logger.debug("Fin crearPedido (API): resultado=OK");
 
         return ResponseEntity

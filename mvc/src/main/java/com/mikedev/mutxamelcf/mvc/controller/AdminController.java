@@ -123,10 +123,4 @@ public class AdminController {
 				.collect(Collectors.toList());
 	}
 
-	@GetMapping("/logout")
-	public String logout() {
-		logger.debug("Inicio logout");
-		logger.debug("Fin logout");
-		return "index";
-	}
 }

@@ -118,8 +118,4 @@ class AdminControllerTest {
         assertEquals(1, resumen.get(0).get("entrenadores"));
     }
 
-    @Test
-    void logoutDevuelveLaVistaIndex() {
-        assertEquals("index", controller.logout());
-    }
 }

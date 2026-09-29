@@ -143,7 +143,7 @@ public class FamiliarController {
     @ResponseBody
     public ResponseEntity<Map<String, Object>> guardarFamiliar(@Valid @ModelAttribute FamiliarDTO familiar,
             BindingResult bindingResult) {
-        logger.debug("Inicio guardarFamiliar: id={}, nombre={}", familiar.getId(), familiar.getNombre());
+        logger.debug("Inicio guardarFamiliar: id={}", familiar.getId());
         Map<String, Object> response = new HashMap<>();
 
         if (bindingResult.hasErrors()) {
@@ -183,7 +183,7 @@ public class FamiliarController {
                 return ResponseEntity.ok(response);
             } else {
                 response.put("error", "No se ha podido guardar el familiar.");
-                logger.warn("guardarFamiliar fallido: nombre={}", familiar.getNombre());
+                logger.warn("guardarFamiliar fallido: id={}", familiar.getId());
                 logger.debug("Fin guardarFamiliar: resultado=FALLIDO");
                 return ResponseEntity.badRequest().body(response);
             }

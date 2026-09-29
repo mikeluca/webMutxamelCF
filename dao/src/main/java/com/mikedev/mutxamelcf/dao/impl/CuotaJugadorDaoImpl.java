@@ -208,6 +208,10 @@ public class CuotaJugadorDaoImpl implements CuotaJugadorDao {
         logger.debug("Fin eliminar: id={}", id);
     }
 
+    // DB-04: Oracle limita las clausulas IN a 1000 elementos (ORA-01795);
+    // se trocea igual que en PagoDaoImpl.obtenerPorCuotas.
+    private static final int TAMANO_LOTE_IN = 900;
+
     @Override
     public void eliminarEnLote(List<Long> ids) {
         logger.debug("Inicio eliminarEnLote: ids={}", ids);
@@ -220,9 +224,16 @@ public class CuotaJugadorDaoImpl implements CuotaJugadorDao {
             logger.debug("Fin eliminarEnLote: ids validos vacios");
             return;
         }
-        String placeholders = String.join(",", java.util.Collections.nCopies(idsValidos.size(), "?"));
-        jdbcTemplate.update("DELETE FROM PAGOS WHERE CUOTA_JUGADOR_ID IN (" + placeholders + ")", idsValidos.toArray());
-        int filasAfectadas = jdbcTemplate.update("DELETE FROM CUOTAS_JUGADOR WHERE ID IN (" + placeholders + ")", idsValidos.toArray());
+
+        int filasAfectadas = 0;
+        for (int inicio = 0; inicio < idsValidos.size(); inicio += TAMANO_LOTE_IN) {
+            List<Long> lote = idsValidos.subList(inicio, Math.min(inicio + TAMANO_LOTE_IN, idsValidos.size()));
+            String placeholders = String.join(",", java.util.Collections.nCopies(lote.size(), "?"));
+            jdbcTemplate.update("DELETE FROM PAGOS WHERE CUOTA_JUGADOR_ID IN (" + placeholders + ")", lote.toArray());
+            filasAfectadas += jdbcTemplate.update(
+                    "DELETE FROM CUOTAS_JUGADOR WHERE ID IN (" + placeholders + ")", lote.toArray());
+        }
+
         logger.info("Cuotas eliminadas en lote: total={}, filasAfectadas={}", idsValidos.size(), filasAfectadas);
         logger.debug("Fin eliminarEnLote: ids={}, filasAfectadas={}", idsValidos.size(), filasAfectadas);
     }

@@ -149,7 +149,9 @@ public class MainController {
 			@RequestParam(name = "cantidad", required = false) List<String> cantidades,
 			@RequestParam(name = "talla", required = false) List<String> tallas,
 			HttpServletRequest httpRequest) {
-		logger.debug("Inicio crearPedido: nombre={}, email={}", nombre, email);
+		// Privacidad: no se registra nombre ni email (formulario público,
+		// sin usuario identificado al que asociar el log).
+		logger.debug("Inicio crearPedido: prendas={}", prendas == null ? 0 : prendas.size());
 
 		if (!formRateLimiter.permitir(httpRequest.getRemoteAddr())) {
 			logger.warn("Pedido de tienda rechazado por limite de envios: ip={}", httpRequest.getRemoteAddr());
@@ -158,7 +160,7 @@ public class MainController {
 		}
 
 		if (!PedidoTiendaHelper.esPedidoValido(nombre, email, prendas, cantidades, tallas)) {
-			logger.warn("Pedido invalido recibido: nombre={}, email={}", nombre, email);
+			logger.warn("Pedido invalido recibido");
 			logger.debug("Fin crearPedido: resultado=INVALIDO");
 			return "redirect:/tienda?error=true";
 		}
@@ -166,7 +168,7 @@ public class MainController {
 		Optional<List<Integer>> cantidadesValidadas = PedidoTiendaHelper.parsearCantidadesValidas(cantidades);
 
 		if (cantidadesValidadas.isEmpty()) {
-			logger.warn("Cantidades fuera de rango en el pedido: nombre={}", nombre);
+			logger.warn("Cantidades fuera de rango en el pedido");
 			logger.debug("Fin crearPedido: resultado=CANTIDAD_INVALIDA");
 			return "redirect:/tienda?error=true";
 		}
@@ -175,12 +177,12 @@ public class MainController {
 				cantidadesValidadas.get(), tallas);
 
 		if (!comunicacionesService.enviarPedidoTienda(nombre, email, textoPedido)) {
-			logger.warn("No se pudo enviar el pedido por email: nombre={}", nombre);
+			logger.warn("No se pudo enviar el pedido por email");
 			logger.debug("Fin crearPedido: resultado=ERROR_ENVIO");
 			return "redirect:/tienda?error=true";
 		}
 
-		logger.info("Pedido enviado por email correctamente: nombre={}", nombre);
+		logger.info("Pedido enviado por email correctamente");
 		logger.debug("Fin crearPedido: resultado=OK");
 		return "redirect:/tienda?pedido=ok";
 	}
@@ -262,7 +264,9 @@ public class MainController {
 	@PostMapping("/enviar-email")
 	public String enviarEmail(@RequestParam String nombre, @RequestParam String email, @RequestParam String mensaje,
 			HttpServletRequest httpRequest) {
-		logger.debug("Inicio enviarEmail: nombre={}, email={}", nombre, email);
+		// Privacidad: no se registra nombre ni email (formulario público,
+		// sin usuario identificado al que asociar el log).
+		logger.debug("Inicio enviarEmail");
 
 		if (!formRateLimiter.permitir(httpRequest.getRemoteAddr())) {
 			logger.warn("Mensaje de contacto rechazado por limite de envios: ip={}", httpRequest.getRemoteAddr());
@@ -271,18 +275,17 @@ public class MainController {
 		}
 
 		if (mensaje != null && mensaje.length() > LONGITUD_MAXIMA_MENSAJE_CONTACTO) {
-			logger.warn("Mensaje de contacto rechazado por longitud: nombre={}, longitud={}", nombre,
-					mensaje.length());
+			logger.warn("Mensaje de contacto rechazado por longitud: longitud={}", mensaje.length());
 			logger.debug("Fin enviarEmail: resultado=MENSAJE_DEMASIADO_LARGO");
 			return "redirect:/index";
 		}
 
 		if (comunicacionesService.enviarMensajeContacto(nombre, email, mensaje)) {
-			logger.info("Correo de contacto enviado correctamente: nombre={}", nombre);
+			logger.info("Correo de contacto enviado correctamente");
 		} else {
-			logger.warn("No se pudo enviar el correo de contacto: nombre={}", nombre);
+			logger.warn("No se pudo enviar el correo de contacto");
 		}
-		logger.debug("Fin enviarEmail: nombre={}", nombre);
+		logger.debug("Fin enviarEmail");
 		return "redirect:/index"; // Redirigir a la página de inicio después de enviar
 	}
 

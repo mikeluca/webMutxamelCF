@@ -742,10 +742,8 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
         rolAppDao.eliminarTodosLosRoles(usuarioAppId);
         usuarioAppDao.eliminar(usuarioAppId);
 
-        logger.info(
-                "Invitación de app eliminada: usuarioAppId={}, email={}",
-                usuarioAppId,
-                usuario.getEmail());
+        // Privacidad: se registra el id, no el email.
+        logger.info("Invitación de app eliminada: usuarioAppId={}", usuarioAppId);
     }
 
     private String emailFamiliarObligatorio(Long familiarId) {

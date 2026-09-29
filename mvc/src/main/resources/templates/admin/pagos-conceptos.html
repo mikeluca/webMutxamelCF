@@ -3,7 +3,7 @@
 <head>
     <title>Cuotas de temporada | Mutxamel CF</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <link th:href="@{/css/estilos.css}" rel="stylesheet">
     <link rel="icon" href="/images/favicon.ico" type="image/x-icon">
 </head>
@@ -17,6 +17,6 @@
     <section class="payment-panel"><h2 th:text="${temporadaSeleccionada != null ? 'Conceptos de ' + temporadaSeleccionada.nombre : 'Selecciona una temporada'}">Conceptos</h2><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Concepto</th><th>Descripción</th><th>Importe</th><th>Estado</th><th>Acciones</th></tr></thead><tbody><tr th:each="concepto : ${conceptos}"><td colspan="5"><form method="post" th:action="@{/admin/pagos/conceptos/guardar}" class="row g-2 align-items-center"><input type="hidden" name="id" th:value="${concepto.id}"><input type="hidden" name="temporadaId" th:value="${concepto.temporadaId}"><div class="col-12 col-md-3"><input name="nombre" class="form-control form-control-sm" th:value="${concepto.nombre}" required></div><div class="col-12 col-md-3"><input name="descripcion" class="form-control form-control-sm" th:value="${concepto.descripcion}"></div><div class="col-6 col-md-2"><input name="importe" type="number" step="0.01" min="0" class="form-control form-control-sm" th:value="${concepto.importe}" required></div><div class="col-6 col-md-1"><div class="form-check"><input name="activo" value="1" type="checkbox" class="form-check-input" th:checked="${concepto.activo == 1}"><label class="form-check-label">Activo</label></div></div><div class="col-12 col-md-3 d-flex gap-2"><button class="btn btn-sm btn-primary" type="submit">Guardar</button></form><form method="post" th:action="@{/admin/pagos/conceptos/borrar}"><input type="hidden" name="id" th:value="${concepto.id}"><input type="hidden" name="temporadaId" th:value="${concepto.temporadaId}"><button class="btn btn-sm btn-outline-danger" type="submit">Borrar</button></form></div></td></tr></tbody></table><p class="dashboard-empty" th:if="${conceptos.isEmpty()}">No hay conceptos para esta temporada.</p></div></section>
 </main>
 <div th:replace="~{admin/footerAdmin.html}"></div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
 </body>
 </html>

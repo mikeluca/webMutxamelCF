@@ -210,4 +210,26 @@ class CuotaJugadorDaoImplTest {
         inOrder.verify(jdbcTemplate).update(eq("DELETE FROM PAGOS WHERE CUOTA_JUGADOR_ID IN (?,?)"), any(Object[].class));
         inOrder.verify(jdbcTemplate).update(eq("DELETE FROM CUOTAS_JUGADOR WHERE ID IN (?,?)"), any(Object[].class));
     }
+
+    @Test
+    void eliminarEnLoteTroceaEnLotesDeNoveciento() {
+        // DB-04: Oracle limita las clausulas IN a 1000 elementos (ORA-01795).
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        CuotaJugadorDaoImpl dao = new CuotaJugadorDaoImpl(jdbcTemplate);
+
+        when(jdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(1);
+
+        List<Long> ids = new java.util.ArrayList<>();
+        for (long i = 1; i <= 950; i++) {
+            ids.add(i);
+        }
+
+        dao.eliminarEnLote(ids);
+
+        // Dos lotes (900 + 50): dos DELETE de PAGOS y dos de CUOTAS_JUGADOR.
+        verify(jdbcTemplate, org.mockito.Mockito.times(2))
+                .update(org.mockito.ArgumentMatchers.contains("DELETE FROM PAGOS"), any(Object[].class));
+        verify(jdbcTemplate, org.mockito.Mockito.times(2))
+                .update(org.mockito.ArgumentMatchers.contains("DELETE FROM CUOTAS_JUGADOR"), any(Object[].class));
+    }
 }

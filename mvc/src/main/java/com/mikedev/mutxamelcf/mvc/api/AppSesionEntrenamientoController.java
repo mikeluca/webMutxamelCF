@@ -60,6 +60,8 @@ public class AppSesionEntrenamientoController {
 
         try {
 
+            RangoFechasHelper.validar(desde, hasta);
+
             List<SesionEntrenamientoResponse> sesiones = sesionEntrenamientoService.obtenerPorEquipoYRango(
                     equipoId, desde, hasta);
 

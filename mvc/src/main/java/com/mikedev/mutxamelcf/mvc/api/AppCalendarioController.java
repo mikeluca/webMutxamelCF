@@ -61,6 +61,8 @@ public class AppCalendarioController {
 
         try {
 
+            RangoFechasHelper.validar(desde, hasta);
+
             Long usuarioId = Long.parseLong(authentication.getName());
 
             List<SesionEntrenamientoResponse> sesiones = jugadorId != null
