@@ -40,6 +40,25 @@ class EquipoDaoImplTest {
     }
 
     @Test
+    void guardarNoInsertaNiActualizaSiOtroEquipoYaUsaElMismoNombre() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        EquipoDaoImpl dao = new EquipoDaoImpl(jdbcTemplate);
+
+        Equipo equipo = new Equipo();
+        equipo.setCategoria("SENIOR");
+        equipo.setGrupo("A");
+        equipo.setNombre("Senior A");
+
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("SENIOR"), eq("A"))).thenReturn(0);
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("Senior A"))).thenReturn(1);
+
+        boolean resultado = dao.guardar(equipo);
+
+        assertThat(resultado).isFalse();
+        verify(jdbcTemplate, never()).update(anyString(), (Object[]) any());
+    }
+
+    @Test
     void guardarInsertaCuandoNoTieneIdYNoExisteDuplicado() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         EquipoDaoImpl dao = new EquipoDaoImpl(jdbcTemplate);

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import com.mikedev.mutxamelcf.mvc.communication.ComunicacionesService;
 import com.mikedev.mutxamelcf.mvc.communication.PedidoTiendaHelper;
+import com.mikedev.mutxamelcf.mvc.config.PublicFormRateLimiter;
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoDTO;
 import com.mikedev.mutxamelcf.model.EquipoDTO;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
@@ -29,10 +30,15 @@ import com.mikedev.mutxamelcf.service.JugadorService;
 import com.mikedev.mutxamelcf.service.NoticiaService;
 import com.mikedev.mutxamelcf.service.PartidoService;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 @Controller
 public class MainController {
 
 	private static final Logger logger = LoggerFactory.getLogger(MainController.class);
+
+	/** SEC-08: longitud máxima del mensaje del formulario de contacto. */
+	private static final int LONGITUD_MAXIMA_MENSAJE_CONTACTO = 5000;
 
 	private final ComunicacionesService comunicacionesService;
 
@@ -46,15 +52,18 @@ public class MainController {
 
 	private final EquipoService equipoService;
 
+	private final PublicFormRateLimiter formRateLimiter;
+
 	public MainController(ComunicacionesService comunicacionesService, JugadorService jugadoresService,
 			CuerpoTecnicoService cuerpoTecnicoService, NoticiaService noticiaService,
-			PartidoService partidoService, EquipoService equipoService) {
+			PartidoService partidoService, EquipoService equipoService, PublicFormRateLimiter formRateLimiter) {
 		this.comunicacionesService = comunicacionesService;
 		this.jugadoresService = jugadoresService;
 		this.cuerpoTecnicoService = cuerpoTecnicoService;
 		this.noticiaService = noticiaService;
 		this.partidoService = partidoService;
 		this.equipoService = equipoService;
+		this.formRateLimiter = formRateLimiter;
 	}
 
 	// Logos de patrocinadores
@@ -138,8 +147,15 @@ public class MainController {
 			@RequestParam(required = false, defaultValue = "") String telefono,
 			@RequestParam String email, @RequestParam(name = "prenda", required = false) List<String> prendas,
 			@RequestParam(name = "cantidad", required = false) List<String> cantidades,
-			@RequestParam(name = "talla", required = false) List<String> tallas) {
+			@RequestParam(name = "talla", required = false) List<String> tallas,
+			HttpServletRequest httpRequest) {
 		logger.debug("Inicio crearPedido: nombre={}, email={}", nombre, email);
+
+		if (!formRateLimiter.permitir(httpRequest.getRemoteAddr())) {
+			logger.warn("Pedido de tienda rechazado por limite de envios: ip={}", httpRequest.getRemoteAddr());
+			logger.debug("Fin crearPedido: resultado=LIMITE_SUPERADO");
+			return "redirect:/tienda?error=true";
+		}
 
 		if (!PedidoTiendaHelper.esPedidoValido(nombre, email, prendas, cantidades, tallas)) {
 			logger.warn("Pedido invalido recibido: nombre={}, email={}", nombre, email);
@@ -244,8 +260,23 @@ public class MainController {
 	}
 
 	@PostMapping("/enviar-email")
-	public String enviarEmail(@RequestParam String nombre, @RequestParam String email, @RequestParam String mensaje) {
+	public String enviarEmail(@RequestParam String nombre, @RequestParam String email, @RequestParam String mensaje,
+			HttpServletRequest httpRequest) {
 		logger.debug("Inicio enviarEmail: nombre={}, email={}", nombre, email);
+
+		if (!formRateLimiter.permitir(httpRequest.getRemoteAddr())) {
+			logger.warn("Mensaje de contacto rechazado por limite de envios: ip={}", httpRequest.getRemoteAddr());
+			logger.debug("Fin enviarEmail: resultado=LIMITE_SUPERADO");
+			return "redirect:/index";
+		}
+
+		if (mensaje != null && mensaje.length() > LONGITUD_MAXIMA_MENSAJE_CONTACTO) {
+			logger.warn("Mensaje de contacto rechazado por longitud: nombre={}, longitud={}", nombre,
+					mensaje.length());
+			logger.debug("Fin enviarEmail: resultado=MENSAJE_DEMASIADO_LARGO");
+			return "redirect:/index";
+		}
+
 		if (comunicacionesService.enviarMensajeContacto(nombre, email, mensaje)) {
 			logger.info("Correo de contacto enviado correctamente: nombre={}", nombre);
 		} else {

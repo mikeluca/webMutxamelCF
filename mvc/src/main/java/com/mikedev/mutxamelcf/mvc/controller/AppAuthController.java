@@ -64,14 +64,11 @@ public class AppAuthController {
 
             return ResponseEntity.ok(response);
 
-        } catch (IllegalStateException e) {
-
-            return ResponseEntity
-                    .status(HttpStatus.FORBIDDEN)
-                    .body(e.getMessage());
-
         } catch (IllegalArgumentException e) {
 
+            // SEC-06: mismo 401 para email inexistente, cuenta inactiva
+            // o contraseña incorrecta (ver UsuarioAppServiceImpl.login),
+            // y siempre cuenta como intento fallido para el rate limiter.
             rateLimiter.registrarFallo(clave);
 
             return ResponseEntity

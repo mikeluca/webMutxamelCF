@@ -42,6 +42,27 @@ public class SecurityConfig {
                 http
 
                                 /*
+                                 * SEC-04 / SEC-09: Content-Security-Policy. Con esto, aunque
+                                 * un <img src=x onerror=...> consiga colarse en el HTML (ver
+                                 * el escapado en jugadores.html/familiares.html), el
+                                 * navegador no ejecuta scripts fuera de los orígenes
+                                 * listados. Los orígenes son los CDN y servicios que ya usan
+                                 * las plantillas actuales (Bootstrap/jQuery/Chart.js por
+                                 * jsdelivr, Google Fonts, Google Analytics/Tag Manager).
+                                 */
+                                .headers(headers -> headers
+                                                .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                                                "default-src 'self'; "
+                                                                                + "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net "
+                                                                                + "https://code.jquery.com https://www.googletagmanager.com; "
+                                                                                + "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net "
+                                                                                + "https://fonts.googleapis.com; "
+                                                                                + "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; "
+                                                                                + "img-src 'self' data: https:; "
+                                                                                + "connect-src 'self' https://www.google-analytics.com; "
+                                                                                + "frame-ancestors 'self'")))
+
+                                /*
                                  * CSRF:
                                  *
                                  * La web continúa protegida mediante CSRF.

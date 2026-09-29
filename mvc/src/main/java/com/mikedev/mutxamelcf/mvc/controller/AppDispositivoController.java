@@ -40,4 +40,29 @@ public class AppDispositivoController {
 
         return ResponseEntity.ok().build();
     }
+
+    /**
+     * SEC-07: desregistra el token FCM del dispositivo al cerrar sesión,
+     * para que un móvil compartido (varios hijos, tablet del club) deje
+     * de recibir las notificaciones del usuario que acaba de salir.
+     */
+    @DeleteMapping
+    public ResponseEntity<Void> desregistrar(
+            @RequestParam String tokenFcm,
+            Authentication authentication) {
+
+        if (authentication == null ||
+                !authentication.isAuthenticated()) {
+
+            return ResponseEntity.status(401).build();
+        }
+
+        Long usuarioId = Long.valueOf(authentication.getName());
+
+        dispositivoAppService.desactivar(
+                usuarioId,
+                tokenFcm);
+
+        return ResponseEntity.ok().build();
+    }
 }

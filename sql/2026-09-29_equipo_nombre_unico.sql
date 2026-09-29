@@ -1,0 +1,24 @@
+-- ============================================================================
+-- SEC-05 (auditoría de seguridad): EquipoGestionDaoImpl.puedeGestionarEquipo()
+-- y JugadorDaoImpl.obtenerJugadoresPorEquipo() emparejan por EQUIPO.NOMBRE
+-- (texto), no por EQUIPO_ID. Si dos equipos comparten nombre, un entrenador
+-- de uno gestiona también el otro. EquipoServiceImpl/EquipoDaoImpl ya impiden
+-- crear o renombrar un equipo con un nombre duplicado (comparando
+-- UPPER(TRIM(NOMBRE))); este índice cierra la misma vía a nivel de base de
+-- datos por si se inserta con otra herramienta.
+--
+-- IMPORTANTE: este script NO se ejecuta automáticamente (el proyecto no
+-- usa Flyway/Liquibase). Antes de aplicarlo, comprobar que no hay ya
+-- nombres duplicados:
+--
+--   SELECT UPPER(TRIM(NOMBRE)), COUNT(*)
+--   FROM EQUIPO
+--   GROUP BY UPPER(TRIM(NOMBRE))
+--   HAVING COUNT(*) > 1;
+--
+-- Si esa consulta devuelve filas, hay que renombrar o fusionar esos equipos
+-- (y revisar JUGADORES/CUERPO_TECNICO que apuntaban a ese nombre) antes de
+-- poder crear el índice.
+-- ============================================================================
+
+CREATE UNIQUE INDEX UQ_EQUIPO_NOMBRE ON EQUIPO (UPPER(TRIM(NOMBRE)));

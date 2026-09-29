@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
+import com.mikedev.mutxamelcf.model.JugadorEquipoAppDTO;
 import com.mikedev.mutxamelcf.service.JugadorService;
 import com.mikedev.mutxamelcf.model.FamiliarContactoDTO;
 import com.mikedev.mutxamelcf.service.FamiliarService;
@@ -82,14 +83,17 @@ public class AppEquipoGestionController {
 
                         List<Long> jugadoresIds = equipoGestionDao.obtenerJugadoresPorEquipo(equipoId);
 
-                        List<JugadorDTO> jugadores = new ArrayList<>();
+                        // SEC-10: se expone JugadorEquipoAppDTO (proyección mínima), no
+                        // JugadorDTO completo -- la app de gestión no necesita DNI, fecha
+                        // de nacimiento, nacionalidad, población ni la foto en byte[].
+                        List<JugadorEquipoAppDTO> jugadores = new ArrayList<>();
 
                         for (Long jugadorId : jugadoresIds) {
 
                                 JugadorDTO jugador = jugadorService.obtenerJugadorPorId(jugadorId);
 
                                 if (jugador != null) {
-                                        jugadores.add(jugador);
+                                        jugadores.add(JugadorEquipoAppDTO.desde(jugador));
                                 }
                         }
 

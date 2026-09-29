@@ -36,6 +36,10 @@ public class EquipoDaoImpl implements EquipoDao {
 			logger.warn("Equipo ya existente, no se guarda: categoria={}, grupo={}", equipo.getCategoria(), equipo.getGrupo());
 			return false;
 		}
+		if (existeNombre(equipo.getNombre(), equipo.getId())) {
+			logger.warn("Nombre de equipo ya usado por otro equipo, no se guarda: nombre={}", equipo.getNombre());
+			return false;
+		}
 
 		boolean resultado = equipo.getId() != null ? actualizarEquipo(equipo) : insertarEquipo(equipo);
 		logger.debug("Fin guardar: resultado={}", resultado);
@@ -69,6 +73,18 @@ public class EquipoDaoImpl implements EquipoDao {
 				: jdbcTemplate.queryForObject(sql, Integer.class, categoria, grupo);
 		boolean existe = count != null && count > 0;
 		logger.debug("Fin existeEquipo: existe={}", existe);
+		return existe;
+	}
+
+	private boolean existeNombre(String nombre, Long idExcluido) {
+		logger.debug("Inicio existeNombre: nombre={}, idExcluido={}", nombre, idExcluido);
+		String sql = "SELECT COUNT(*) FROM equipo WHERE UPPER(TRIM(nombre)) = UPPER(TRIM(?))"
+				+ (idExcluido != null ? " AND id != ?" : "");
+		Integer count = idExcluido != null
+				? jdbcTemplate.queryForObject(sql, Integer.class, nombre, idExcluido)
+				: jdbcTemplate.queryForObject(sql, Integer.class, nombre);
+		boolean existe = count != null && count > 0;
+		logger.debug("Fin existeNombre: existe={}", existe);
 		return existe;
 	}
 

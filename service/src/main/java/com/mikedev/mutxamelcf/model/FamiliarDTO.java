@@ -1,12 +1,31 @@
 package com.mikedev.mutxamelcf.model;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
 public class FamiliarDTO {
 
+    private static final String PATRON_NOMBRE = "^[\\p{L} .'-]+$";
+
     private Long id;
+
+    @Pattern(regexp = PATRON_NOMBRE, message = "El nombre solo puede contener letras y espacios")
+    @Size(max = 100, message = "El nombre es demasiado largo")
     private String nombre;
+
+    @Pattern(regexp = PATRON_NOMBRE, message = "Los apellidos solo pueden contener letras y espacios")
+    @Size(max = 100, message = "Los apellidos son demasiado largos")
     private String apellidos;
+
+    @Pattern(regexp = "^[0-9 +()-]*$", message = "El teléfono contiene caracteres no válidos")
+    @Size(max = 20, message = "El teléfono es demasiado largo")
     private String telefono;
+
+    @Email(message = "El email no es válido")
+    @Size(max = 150, message = "El email es demasiado largo")
     private String email;
+
     private Integer recibeInfoClub;
     private Integer whatsappActivo;
 

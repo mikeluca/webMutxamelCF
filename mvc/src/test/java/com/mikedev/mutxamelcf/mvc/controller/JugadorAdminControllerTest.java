@@ -15,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.ui.ExtendedModelMap;
 import org.springframework.ui.Model;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.BindingResult;
 
 import java.util.List;
 import java.util.Map;
@@ -40,6 +42,10 @@ class JugadorAdminControllerTest {
         familiarService = mock(FamiliarService.class);
         equiposService = mock(EquipoService.class);
         controller = new JugadorAdminController(jugadoresService, familiarService, equiposService);
+    }
+
+    private static BindingResult sinErrores(Object form) {
+        return new BeanPropertyBindingResult(form, "jugadorForm");
     }
 
     private static EquipoDTO equipo() {
@@ -74,10 +80,27 @@ class JugadorAdminControllerTest {
         form.setFoto(new MockMultipartFile("foto", new byte[0]));
         when(equiposService.obtenerEquipoPorId(99L)).thenReturn(null);
 
-        ResponseEntity<Map<String, String>> response = controller.guardarJugador(form);
+        ResponseEntity<Map<String, String>> response = controller.guardarJugador(form, sinErrores(form));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("El equipo seleccionado no existe.", response.getBody().get("error"));
+        verify(jugadoresService, never()).guardarJugador(any());
+    }
+
+    @Test
+    void guardarJugadorRechazaSiHayErroresDeValidacion() {
+        // SEC-04: un nombre con HTML/script no debe llegar a guardarse.
+        JugadorForm form = new JugadorForm();
+        form.setNombre("<img src=x onerror=alert(1)>");
+        form.setEquipo(1L);
+        form.setFoto(new MockMultipartFile("foto", new byte[0]));
+
+        BindingResult bindingResult = new BeanPropertyBindingResult(form, "jugadorForm");
+        bindingResult.rejectValue("nombre", "Pattern", "El nombre solo puede contener letras y espacios");
+
+        ResponseEntity<Map<String, String>> response = controller.guardarJugador(form, bindingResult);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         verify(jugadoresService, never()).guardarJugador(any());
     }
 
@@ -91,7 +114,7 @@ class JugadorAdminControllerTest {
         when(equiposService.obtenerEquipoPorId(1L)).thenReturn(equipo());
         when(jugadoresService.guardarJugador(any())).thenReturn(true);
 
-        controller.guardarJugador(form);
+        controller.guardarJugador(form, sinErrores(form));
 
         org.mockito.ArgumentCaptor<JugadorDTO> captor = org.mockito.ArgumentCaptor.forClass(JugadorDTO.class);
         verify(jugadoresService).guardarJugador(captor.capture());
@@ -107,7 +130,7 @@ class JugadorAdminControllerTest {
         form.setFoto(new MockMultipartFile("foto", "foto.jpg", "image/jpeg", fotoDemasiadoGrande));
         when(equiposService.obtenerEquipoPorId(1L)).thenReturn(equipo());
 
-        ResponseEntity<Map<String, String>> response = controller.guardarJugador(form);
+        ResponseEntity<Map<String, String>> response = controller.guardarJugador(form, sinErrores(form));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         verify(jugadoresService, never()).guardarJugador(any());
@@ -127,7 +150,7 @@ class JugadorAdminControllerTest {
         when(jugadoresService.obtenerJugadorPorId(5L)).thenReturn(existente);
         when(jugadoresService.guardarJugador(any())).thenReturn(true);
 
-        controller.guardarJugador(form);
+        controller.guardarJugador(form, sinErrores(form));
 
         org.mockito.ArgumentCaptor<JugadorDTO> captor = org.mockito.ArgumentCaptor.forClass(JugadorDTO.class);
         verify(jugadoresService).guardarJugador(captor.capture());
@@ -143,7 +166,7 @@ class JugadorAdminControllerTest {
         when(equiposService.obtenerEquipoPorId(1L)).thenReturn(equipo());
         when(jugadoresService.guardarJugador(any())).thenReturn(false);
 
-        ResponseEntity<Map<String, String>> response = controller.guardarJugador(form);
+        ResponseEntity<Map<String, String>> response = controller.guardarJugador(form, sinErrores(form));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("Error dando de alta al jugador.", response.getBody().get("error"));
@@ -158,7 +181,7 @@ class JugadorAdminControllerTest {
         when(equiposService.obtenerEquipoPorId(1L)).thenReturn(equipo());
         when(jugadoresService.guardarJugador(any())).thenReturn(true);
 
-        ResponseEntity<Map<String, String>> response = controller.guardarJugador(form);
+        ResponseEntity<Map<String, String>> response = controller.guardarJugador(form, sinErrores(form));
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
     }
@@ -171,7 +194,7 @@ class JugadorAdminControllerTest {
         form.setFoto(new MockMultipartFile("foto", new byte[0]));
         when(equiposService.obtenerEquipoPorId(1L)).thenThrow(new RuntimeException("fallo"));
 
-        ResponseEntity<Map<String, String>> response = controller.guardarJugador(form);
+        ResponseEntity<Map<String, String>> response = controller.guardarJugador(form, sinErrores(form));
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
     }

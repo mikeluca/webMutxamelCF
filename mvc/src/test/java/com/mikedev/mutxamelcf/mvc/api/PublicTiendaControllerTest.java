@@ -3,10 +3,12 @@ package com.mikedev.mutxamelcf.mvc.api;
 import com.mikedev.mutxamelcf.model.TiendaPedidoItem;
 import com.mikedev.mutxamelcf.model.TiendaPedidoRequest;
 import com.mikedev.mutxamelcf.mvc.communication.ComunicacionesService;
+import com.mikedev.mutxamelcf.mvc.config.PublicFormRateLimiter;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.util.List;
 import java.util.Map;
@@ -26,12 +28,37 @@ class PublicTiendaControllerTest {
                 List.of(new TiendaPedidoItem("Camiseta oficial", 2, List.of("M", "L"))));
     }
 
+    private static PublicTiendaController controllerCon(ComunicacionesService comunicacionesService) {
+        return new PublicTiendaController(comunicacionesService, new PublicFormRateLimiter());
+    }
+
+    private static MockHttpServletRequest httpRequest() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+        return request;
+    }
+
+    @Test
+    void crearPedidoDevuelve429SiSeSuperaElLimiteDeEnviosDeLaIp() {
+        ComunicacionesService comunicacionesService = mock(ComunicacionesService.class);
+        when(comunicacionesService.enviarPedidoTienda(any(), any(), any())).thenReturn(true);
+        PublicFormRateLimiter rateLimiter = new PublicFormRateLimiter();
+        PublicTiendaController controller = new PublicTiendaController(comunicacionesService, rateLimiter);
+
+        for (int i = 0; i < 5; i++) {
+            controller.crearPedido(requestValido(), httpRequest());
+        }
+        ResponseEntity<Map<String, String>> response = controller.crearPedido(requestValido(), httpRequest());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+    }
+
     @Test
     void crearPedidoDevuelve400SiElRequestEsNulo() {
         ComunicacionesService comunicacionesService = mock(ComunicacionesService.class);
-        PublicTiendaController controller = new PublicTiendaController(comunicacionesService);
+        PublicTiendaController controller = controllerCon(comunicacionesService);
 
-        ResponseEntity<Map<String, String>> response = controller.crearPedido(null);
+        ResponseEntity<Map<String, String>> response = controller.crearPedido(null, httpRequest());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         verify(comunicacionesService, never()).enviarPedidoTienda(any(), any(), any());
@@ -40,11 +67,11 @@ class PublicTiendaControllerTest {
     @Test
     void crearPedidoDevuelve400SiNoHayItems() {
         ComunicacionesService comunicacionesService = mock(ComunicacionesService.class);
-        PublicTiendaController controller = new PublicTiendaController(comunicacionesService);
+        PublicTiendaController controller = controllerCon(comunicacionesService);
 
         TiendaPedidoRequest request = new TiendaPedidoRequest("Ana", null, "ana@example.com", List.of());
 
-        ResponseEntity<Map<String, String>> response = controller.crearPedido(request);
+        ResponseEntity<Map<String, String>> response = controller.crearPedido(request, httpRequest());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -52,12 +79,12 @@ class PublicTiendaControllerTest {
     @Test
     void crearPedidoDevuelve400SiLaPrendaNoEsValida() {
         ComunicacionesService comunicacionesService = mock(ComunicacionesService.class);
-        PublicTiendaController controller = new PublicTiendaController(comunicacionesService);
+        PublicTiendaController controller = controllerCon(comunicacionesService);
 
         TiendaPedidoRequest request = new TiendaPedidoRequest("Ana", null, "ana@example.com",
                 List.of(new TiendaPedidoItem("Prenda inventada", 1, List.of("M"))));
 
-        ResponseEntity<Map<String, String>> response = controller.crearPedido(request);
+        ResponseEntity<Map<String, String>> response = controller.crearPedido(request, httpRequest());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         verify(comunicacionesService, never()).enviarPedidoTienda(any(), any(), any());
@@ -66,12 +93,12 @@ class PublicTiendaControllerTest {
     @Test
     void crearPedidoDevuelve400SiLaTallaNoEsValida() {
         ComunicacionesService comunicacionesService = mock(ComunicacionesService.class);
-        PublicTiendaController controller = new PublicTiendaController(comunicacionesService);
+        PublicTiendaController controller = controllerCon(comunicacionesService);
 
         TiendaPedidoRequest request = new TiendaPedidoRequest("Ana", null, "ana@example.com",
                 List.of(new TiendaPedidoItem("Camiseta oficial", 1, List.of("Talla-invalida"))));
 
-        ResponseEntity<Map<String, String>> response = controller.crearPedido(request);
+        ResponseEntity<Map<String, String>> response = controller.crearPedido(request, httpRequest());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -79,12 +106,12 @@ class PublicTiendaControllerTest {
     @Test
     void crearPedidoDevuelve400SiFaltanElNombreOElEmail() {
         ComunicacionesService comunicacionesService = mock(ComunicacionesService.class);
-        PublicTiendaController controller = new PublicTiendaController(comunicacionesService);
+        PublicTiendaController controller = controllerCon(comunicacionesService);
 
         TiendaPedidoRequest request = new TiendaPedidoRequest("", null, "",
                 List.of(new TiendaPedidoItem("Camiseta oficial", 1, List.of("M"))));
 
-        ResponseEntity<Map<String, String>> response = controller.crearPedido(request);
+        ResponseEntity<Map<String, String>> response = controller.crearPedido(request, httpRequest());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -92,12 +119,12 @@ class PublicTiendaControllerTest {
     @Test
     void crearPedidoDevuelve400SiLaCantidadEstaFueraDeRango() {
         ComunicacionesService comunicacionesService = mock(ComunicacionesService.class);
-        PublicTiendaController controller = new PublicTiendaController(comunicacionesService);
+        PublicTiendaController controller = controllerCon(comunicacionesService);
 
         TiendaPedidoRequest request = new TiendaPedidoRequest("Ana", null, "ana@example.com",
                 List.of(new TiendaPedidoItem("Camiseta oficial", 25, List.of("M"))));
 
-        ResponseEntity<Map<String, String>> response = controller.crearPedido(request);
+        ResponseEntity<Map<String, String>> response = controller.crearPedido(request, httpRequest());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         verify(comunicacionesService, never()).enviarPedidoTienda(any(), any(), any());
@@ -106,12 +133,12 @@ class PublicTiendaControllerTest {
     @Test
     void crearPedidoDevuelve400SiLaCantidadEsNula() {
         ComunicacionesService comunicacionesService = mock(ComunicacionesService.class);
-        PublicTiendaController controller = new PublicTiendaController(comunicacionesService);
+        PublicTiendaController controller = controllerCon(comunicacionesService);
 
         TiendaPedidoRequest request = new TiendaPedidoRequest("Ana", null, "ana@example.com",
                 List.of(new TiendaPedidoItem("Camiseta oficial", null, List.of("M"))));
 
-        ResponseEntity<Map<String, String>> response = controller.crearPedido(request);
+        ResponseEntity<Map<String, String>> response = controller.crearPedido(request, httpRequest());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -120,9 +147,9 @@ class PublicTiendaControllerTest {
     void crearPedidoDevuelve502SiFallaElEnvioDelEmail() {
         ComunicacionesService comunicacionesService = mock(ComunicacionesService.class);
         when(comunicacionesService.enviarPedidoTienda(any(), any(), any())).thenReturn(false);
-        PublicTiendaController controller = new PublicTiendaController(comunicacionesService);
+        PublicTiendaController controller = controllerCon(comunicacionesService);
 
-        ResponseEntity<Map<String, String>> response = controller.crearPedido(requestValido());
+        ResponseEntity<Map<String, String>> response = controller.crearPedido(requestValido(), httpRequest());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
     }
@@ -131,9 +158,9 @@ class PublicTiendaControllerTest {
     void crearPedidoDevuelve201YEnviaElEmailConDatosCorrectos() {
         ComunicacionesService comunicacionesService = mock(ComunicacionesService.class);
         when(comunicacionesService.enviarPedidoTienda(any(), any(), any())).thenReturn(true);
-        PublicTiendaController controller = new PublicTiendaController(comunicacionesService);
+        PublicTiendaController controller = controllerCon(comunicacionesService);
 
-        ResponseEntity<Map<String, String>> response = controller.crearPedido(requestValido());
+        ResponseEntity<Map<String, String>> response = controller.crearPedido(requestValido(), httpRequest());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).containsEntry("mensaje", "Pedido enviado correctamente");
@@ -151,14 +178,14 @@ class PublicTiendaControllerTest {
     void crearPedidoUneLasTallasDeCadaItemConComas() {
         ComunicacionesService comunicacionesService = mock(ComunicacionesService.class);
         when(comunicacionesService.enviarPedidoTienda(any(), any(), any())).thenReturn(true);
-        PublicTiendaController controller = new PublicTiendaController(comunicacionesService);
+        PublicTiendaController controller = controllerCon(comunicacionesService);
 
         TiendaPedidoRequest request = new TiendaPedidoRequest("Ana", null, "ana@example.com",
                 List.of(
                         new TiendaPedidoItem("Camiseta oficial", 2, List.of("M", "L")),
                         new TiendaPedidoItem("Segunda equipacion - colaboracion AECC", 1, List.of("S"))));
 
-        controller.crearPedido(request);
+        controller.crearPedido(request, httpRequest());
 
         org.mockito.ArgumentCaptor<String> textoCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(comunicacionesService).enviarPedidoTienda(anyString(), anyString(), textoCaptor.capture());
@@ -172,12 +199,12 @@ class PublicTiendaControllerTest {
     void crearPedidoAceptaTelefonoNuloYLoTrataComoVacio() {
         ComunicacionesService comunicacionesService = mock(ComunicacionesService.class);
         when(comunicacionesService.enviarPedidoTienda(any(), any(), any())).thenReturn(true);
-        PublicTiendaController controller = new PublicTiendaController(comunicacionesService);
+        PublicTiendaController controller = controllerCon(comunicacionesService);
 
         TiendaPedidoRequest request = new TiendaPedidoRequest("Ana", null, "ana@example.com",
                 List.of(new TiendaPedidoItem("Camiseta oficial", 1, List.of("M"))));
 
-        ResponseEntity<Map<String, String>> response = controller.crearPedido(request);
+        ResponseEntity<Map<String, String>> response = controller.crearPedido(request, httpRequest());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }

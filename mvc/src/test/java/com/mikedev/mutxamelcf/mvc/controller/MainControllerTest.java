@@ -6,6 +6,7 @@ import com.mikedev.mutxamelcf.model.JugadorDTO;
 import com.mikedev.mutxamelcf.model.NoticiaDTO;
 import com.mikedev.mutxamelcf.model.ResultadoDTO;
 import com.mikedev.mutxamelcf.mvc.communication.ComunicacionesService;
+import com.mikedev.mutxamelcf.mvc.config.PublicFormRateLimiter;
 import com.mikedev.mutxamelcf.service.CuerpoTecnicoService;
 import com.mikedev.mutxamelcf.service.EquipoService;
 import com.mikedev.mutxamelcf.service.JugadorService;
@@ -14,6 +15,7 @@ import com.mikedev.mutxamelcf.service.PartidoService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.ui.ExtendedModelMap;
 import org.springframework.ui.Model;
 
@@ -49,7 +51,13 @@ class MainControllerTest {
         partidoService = mock(PartidoService.class);
         equipoService = mock(EquipoService.class);
         controller = new MainController(comunicacionesService, jugadoresService, cuerpoTecnicoService, noticiaService,
-                partidoService, equipoService);
+                partidoService, equipoService, new PublicFormRateLimiter());
+    }
+
+    private static MockHttpServletRequest httpRequest() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+        return request;
     }
 
     @Test
@@ -130,7 +138,7 @@ class MainControllerTest {
 
     @Test
     void crearPedidoRedirigeConErrorSiFaltanDatosObligatorios() {
-        String vista = controller.crearPedido("", "", "", null, null, null);
+        String vista = controller.crearPedido("", "", "", null, null, null, httpRequest());
 
         assertEquals("redirect:/tienda?error=true", vista);
         verify(comunicacionesService, never()).enviarPedidoTienda(any(), any(), any());
@@ -139,7 +147,7 @@ class MainControllerTest {
     @Test
     void crearPedidoRedirigeConErrorSiLaPrendaNoEsValida() {
         String vista = controller.crearPedido("Ana", "600000000", "ana@example.com",
-                List.of("Prenda inventada"), List.of("1"), List.of("M"));
+                List.of("Prenda inventada"), List.of("1"), List.of("M"), httpRequest());
 
         assertEquals("redirect:/tienda?error=true", vista);
     }
@@ -147,7 +155,7 @@ class MainControllerTest {
     @Test
     void crearPedidoRedirigeConErrorSiLaTallaNoEsValida() {
         String vista = controller.crearPedido("Ana", "600000000", "ana@example.com",
-                List.of("Camiseta oficial"), List.of("1"), List.of("Talla-invalida"));
+                List.of("Camiseta oficial"), List.of("1"), List.of("Talla-invalida"), httpRequest());
 
         assertEquals("redirect:/tienda?error=true", vista);
     }
@@ -155,7 +163,7 @@ class MainControllerTest {
     @Test
     void crearPedidoRedirigeConErrorSiLaCantidadEstaFueraDeRango() {
         String vista = controller.crearPedido("Ana", "600000000", "ana@example.com",
-                List.of("Camiseta oficial"), List.of("25"), List.of("M"));
+                List.of("Camiseta oficial"), List.of("25"), List.of("M"), httpRequest());
 
         assertEquals("redirect:/tienda?error=true", vista);
     }
@@ -163,7 +171,7 @@ class MainControllerTest {
     @Test
     void crearPedidoRedirigeConErrorSiLaCantidadNoEsUnNumero() {
         String vista = controller.crearPedido("Ana", "600000000", "ana@example.com",
-                List.of("Camiseta oficial"), List.of("no-numero"), List.of("M"));
+                List.of("Camiseta oficial"), List.of("no-numero"), List.of("M"), httpRequest());
 
         assertEquals("redirect:/tienda?error=true", vista);
     }
@@ -173,7 +181,7 @@ class MainControllerTest {
         when(comunicacionesService.enviarPedidoTienda(any(), any(), any())).thenReturn(false);
 
         String vista = controller.crearPedido("Ana", "600000000", "ana@example.com",
-                List.of("Camiseta oficial"), List.of("1"), List.of("M"));
+                List.of("Camiseta oficial"), List.of("1"), List.of("M"), httpRequest());
 
         assertEquals("redirect:/tienda?error=true", vista);
     }
@@ -183,7 +191,7 @@ class MainControllerTest {
         when(comunicacionesService.enviarPedidoTienda(any(), any(), any())).thenReturn(true);
 
         String vista = controller.crearPedido("Ana", "600000000", "ana@example.com",
-                List.of("Camiseta oficial"), List.of("1"), List.of("M"));
+                List.of("Camiseta oficial"), List.of("1"), List.of("M"), httpRequest());
 
         assertEquals("redirect:/tienda?pedido=ok", vista);
         verify(comunicacionesService).enviarPedidoTienda(anyString(), anyString(), anyString());
@@ -266,14 +274,34 @@ class MainControllerTest {
     void enviarEmailRedirigeAlIndiceCuandoTieneExito() {
         when(comunicacionesService.enviarMensajeContacto("Ana", "ana@example.com", "Hola")).thenReturn(true);
 
-        assertEquals("redirect:/index", controller.enviarEmail("Ana", "ana@example.com", "Hola"));
+        assertEquals("redirect:/index", controller.enviarEmail("Ana", "ana@example.com", "Hola", httpRequest()));
     }
 
     @Test
     void enviarEmailRedirigeAlIndiceAunqueFalleElEnvio() {
         when(comunicacionesService.enviarMensajeContacto("Ana", "ana@example.com", "Hola")).thenReturn(false);
 
-        assertEquals("redirect:/index", controller.enviarEmail("Ana", "ana@example.com", "Hola"));
+        assertEquals("redirect:/index", controller.enviarEmail("Ana", "ana@example.com", "Hola", httpRequest()));
+    }
+
+    @Test
+    void enviarEmailRedirigeSinEnviarSiElMensajeEsDemasiadoLargo() {
+        String mensajeLargo = "a".repeat(5001);
+
+        assertEquals("redirect:/index", controller.enviarEmail("Ana", "ana@example.com", mensajeLargo, httpRequest()));
+        verify(comunicacionesService, never()).enviarMensajeContacto(any(), any(), any());
+    }
+
+    @Test
+    void enviarEmailRedirigeSinEnviarSiSeSuperaElLimiteDeEnviosDeLaIp() {
+        when(comunicacionesService.enviarMensajeContacto(any(), any(), any())).thenReturn(true);
+
+        for (int i = 0; i < 5; i++) {
+            controller.enviarEmail("Ana", "ana@example.com", "Hola", httpRequest());
+        }
+        controller.enviarEmail("Ana", "ana@example.com", "Hola", httpRequest());
+
+        verify(comunicacionesService, org.mockito.Mockito.times(5)).enviarMensajeContacto(any(), any(), any());
     }
 
     @Test

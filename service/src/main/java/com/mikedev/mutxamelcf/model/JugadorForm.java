@@ -2,10 +2,23 @@ package com.mikedev.mutxamelcf.model;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
 public class JugadorForm {
+
+	private static final String PATRON_NOMBRE = "^[\\p{L} .'-]+$";
+
 	private Long id;
+
+	@Pattern(regexp = PATRON_NOMBRE, message = "El nombre solo puede contener letras y espacios")
+	@Size(max = 100, message = "El nombre es demasiado largo")
 	private String nombre;
+
+	@Pattern(regexp = PATRON_NOMBRE, message = "Los apellidos solo pueden contener letras y espacios")
+	@Size(max = 100, message = "Los apellidos son demasiado largos")
 	private String apellidos;
+
 	private Long equipo;
 	private Integer dorsal;
 	private String posicion;

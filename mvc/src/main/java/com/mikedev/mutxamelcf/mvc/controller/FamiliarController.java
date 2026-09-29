@@ -12,12 +12,16 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
+
+import jakarta.validation.Valid;
 
 import com.mikedev.mutxamelcf.model.FamiliarDTO;
 import com.mikedev.mutxamelcf.model.FamiliarJugadorDTO;
@@ -137,9 +141,21 @@ public class FamiliarController {
      */
     @PostMapping(value = "/familiares/guardar", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
-    public ResponseEntity<Map<String, Object>> guardarFamiliar(@ModelAttribute FamiliarDTO familiar) {
+    public ResponseEntity<Map<String, Object>> guardarFamiliar(@Valid @ModelAttribute FamiliarDTO familiar,
+            BindingResult bindingResult) {
         logger.debug("Inicio guardarFamiliar: id={}, nombre={}", familiar.getId(), familiar.getNombre());
         Map<String, Object> response = new HashMap<>();
+
+        if (bindingResult.hasErrors()) {
+            String mensaje = bindingResult.getFieldErrors().stream()
+                    .map(FieldError::getDefaultMessage)
+                    .findFirst()
+                    .orElse("Datos del familiar no válidos.");
+            response.put("error", mensaje);
+            logger.warn("Guardar familiar rechazado por validación: id={}, motivo={}", familiar.getId(), mensaje);
+            logger.debug("Fin guardarFamiliar: resultado=DATOS_INVALIDOS");
+            return ResponseEntity.badRequest().body(response);
+        }
 
         try {
             if (familiar.getTelefono() == null || familiar.getTelefono().isBlank()

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -106,26 +107,35 @@ class UsuarioAppServiceImplTest {
     }
 
     @Test
-    void loginConCuentaInactivaLanzaExcepcion() {
+    void loginConCuentaInactivaLanzaElMismoMensajeGenericoQueCredencialesInvalidas() {
+        // SEC-06: una cuenta inactiva (invitación pendiente) no debe
+        // distinguirse de un email inexistente o una contraseña
+        // incorrecta, para no permitir enumerar invitaciones pendientes.
         UsuarioApp usuario = usuarioActivo();
         usuario.setActivo(false);
 
         when(usuarioAppDao.obtenerPorEmail("jugador@mutxamelcf.es")).thenReturn(usuario);
+        when(passwordEncoder.matches("password123", "hash-almacenado")).thenReturn(true);
 
         assertThatThrownBy(() -> service.login("jugador@mutxamelcf.es", "password123"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("no está activa");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("incorrectos");
 
-        verify(passwordEncoder, never()).matches(any(), any());
+        verify(usuarioAppDao, never()).actualizarUltimoAcceso(anyInt());
     }
 
     @Test
-    void loginConEmailInexistenteLanzaExcepcionSinRevelarCual() {
+    void loginConEmailInexistenteLanzaElMismoMensajeGenericoYComparaContraUnHashFicticio() {
+        // La comparacion BCrypt se ejecuta igualmente (contra un hash que
+        // no es de nadie) para que el tiempo de respuesta no revele si el
+        // email existe.
         when(usuarioAppDao.obtenerPorEmail("desconocido@mutxamelcf.es")).thenReturn(null);
 
         assertThatThrownBy(() -> service.login("desconocido@mutxamelcf.es", "password123"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("incorrectos");
+
+        verify(passwordEncoder).matches(eq("password123"), anyString());
     }
 
     private UsuarioApp usuarioPendienteActivacion(String codigo) {

@@ -86,6 +86,37 @@ class AppEquipoGestionControllerTest {
     }
 
     @Test
+    void obtenerJugadoresDevuelveElDtoMinimoSinDatosDeMenoresDeMas() {
+        // SEC-10: la API de gestion de entrenadores no debe exponer DNI,
+        // fecha de nacimiento, nacionalidad ni poblacion del jugador.
+        setUp();
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(equipoGestionDao.obtenerJugadoresPorEquipo(1L)).thenReturn(List.of(10L));
+
+        JugadorDTO jugadorCompleto = new JugadorDTO();
+        jugadorCompleto.setId(10L);
+        jugadorCompleto.setNombre("Ana");
+        jugadorCompleto.setApellidos("Garcia");
+        jugadorCompleto.setDni("12345678A");
+        jugadorCompleto.setDorsal(7);
+        jugadorCompleto.setPosicion("Delantera");
+        when(jugadorService.obtenerJugadorPorId(10L)).thenReturn(jugadorCompleto);
+
+        ResponseEntity<?> response = controller.obtenerJugadores(1L, autenticado("1"));
+
+        List<?> body = (List<?>) response.getBody();
+        assertThat(body).hasSize(1);
+        assertThat(body.get(0)).isInstanceOf(com.mikedev.mutxamelcf.model.JugadorEquipoAppDTO.class);
+
+        com.mikedev.mutxamelcf.model.JugadorEquipoAppDTO dto =
+                (com.mikedev.mutxamelcf.model.JugadorEquipoAppDTO) body.get(0);
+        assertThat(dto.getId()).isEqualTo(10L);
+        assertThat(dto.getNombre()).isEqualTo("Ana");
+        assertThat(dto.getDorsal()).isEqualTo(7);
+    }
+
+    @Test
     void obtenerFamiliaresDevuelve400SiElJugadorIdEsInvalido() {
         setUp();
         assertThat(controller.obtenerFamiliares(0L, 1L, autenticado("1")).getStatusCode())

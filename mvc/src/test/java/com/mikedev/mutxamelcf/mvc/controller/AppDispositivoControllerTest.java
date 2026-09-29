@@ -38,4 +38,28 @@ class AppDispositivoControllerTest {
         assertThat(response.getStatusCodeValue()).isEqualTo(200);
         verify(service).registrar(1L, request);
     }
+
+    @Test
+    void desregistrarDevuelve401SiNoHayAutenticacion() {
+        DispositivoAppService service = mock(DispositivoAppService.class);
+        AppDispositivoController controller = new AppDispositivoController(service);
+
+        ResponseEntity<Void> response = controller.desregistrar("token-fcm", null);
+
+        assertThat(response.getStatusCodeValue()).isEqualTo(401);
+    }
+
+    @Test
+    void desregistrarDelegaEnElServicioConElUsuarioAutenticado() {
+        DispositivoAppService service = mock(DispositivoAppService.class);
+        AppDispositivoController controller = new AppDispositivoController(service);
+
+        Authentication auth = new TestingAuthenticationToken("1", null);
+        auth.setAuthenticated(true);
+
+        ResponseEntity<Void> response = controller.desregistrar("token-fcm", auth);
+
+        assertThat(response.getStatusCodeValue()).isEqualTo(200);
+        verify(service).desactivar(1L, "token-fcm");
+    }
 }

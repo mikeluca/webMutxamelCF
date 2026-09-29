@@ -1,6 +1,7 @@
 package com.mikedev.mutxamelcf.model;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 /**
  * Texto libre del once inicial y los suplentes, tal cual los escribe
@@ -9,9 +10,11 @@ import jakarta.validation.constraints.NotBlank;
 public class AlineacionRequest {
 
     @NotBlank(message = "El once inicial es obligatorio")
+    @Size(max = 500, message = "El once inicial es demasiado largo")
     private String onceInicial;
 
     @NotBlank(message = "Los suplentes son obligatorios")
+    @Size(max = 500, message = "Los suplentes son demasiado largos")
     private String suplentes;
 
     public AlineacionRequest() {

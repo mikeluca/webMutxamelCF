@@ -12,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.ui.ExtendedModelMap;
 import org.springframework.ui.Model;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.BindingResult;
 
 import java.util.List;
 import java.util.Map;
@@ -46,6 +48,10 @@ class FamiliarControllerTest {
         return dto;
     }
 
+    private static BindingResult sinErrores(Object dto) {
+        return new BeanPropertyBindingResult(dto, "familiar");
+    }
+
     @Test
     void listarFamiliaresRellenaElModelo() {
         when(familiarService.obtenerTodos()).thenReturn(List.of(new FamiliarDTO()));
@@ -66,11 +72,27 @@ class FamiliarControllerTest {
     }
 
     @Test
+    void guardarFamiliarRechazaSiHayErroresDeValidacion() {
+        // SEC-04: un nombre con HTML/script no debe llegar a guardarse
+        // (defensa en profundidad junto al escapado en el frontend).
+        FamiliarDTO dto = familiarConContacto();
+        dto.setNombre("<img src=x onerror=alert(1)>");
+
+        BindingResult bindingResult = new BeanPropertyBindingResult(dto, "familiar");
+        bindingResult.rejectValue("nombre", "Pattern", "El nombre solo puede contener letras y espacios");
+
+        ResponseEntity<Map<String, Object>> response = controller.guardarFamiliar(dto, bindingResult);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(familiarService, never()).guardarFamiliar(any());
+    }
+
+    @Test
     void guardarFamiliarRechazaSiFaltaTelefonoOEmail() {
         FamiliarDTO dto = new FamiliarDTO();
         dto.setNombre("Ana");
 
-        ResponseEntity<Map<String, Object>> response = controller.guardarFamiliar(dto);
+        ResponseEntity<Map<String, Object>> response = controller.guardarFamiliar(dto, sinErrores(dto));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         verify(familiarService, never()).guardarFamiliar(any());
@@ -84,7 +106,7 @@ class FamiliarControllerTest {
 
         when(familiarService.guardarFamiliar(dto)).thenReturn(true);
 
-        controller.guardarFamiliar(dto);
+        controller.guardarFamiliar(dto, sinErrores(dto));
 
         assertThat(dto.getRecibeInfoClub()).isZero();
         assertThat(dto.getWhatsappActivo()).isZero();
@@ -95,7 +117,7 @@ class FamiliarControllerTest {
         FamiliarDTO dto = familiarConContacto();
         when(familiarService.guardarFamiliar(dto)).thenReturn(false);
 
-        assertThat(controller.guardarFamiliar(dto).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(controller.guardarFamiliar(dto, sinErrores(dto)).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
@@ -103,7 +125,7 @@ class FamiliarControllerTest {
         FamiliarDTO dto = familiarConContacto();
         when(familiarService.guardarFamiliar(dto)).thenThrow(new RuntimeException("fallo"));
 
-        assertThat(controller.guardarFamiliar(dto).getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(controller.guardarFamiliar(dto, sinErrores(dto)).getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @Test
@@ -111,7 +133,7 @@ class FamiliarControllerTest {
         FamiliarDTO dto = familiarConContacto();
         when(familiarService.guardarFamiliar(dto)).thenReturn(true);
 
-        assertThat(controller.guardarFamiliar(dto).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(controller.guardarFamiliar(dto, sinErrores(dto)).getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     @Test
@@ -218,7 +240,7 @@ class FamiliarControllerTest {
         FamiliarDTO dto = familiarConContacto();
         when(familiarService.guardarFamiliar(dto)).thenThrow(new RuntimeException("fallo bd"));
 
-        assertThat(controller.guardarFamiliar(dto).getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(controller.guardarFamiliar(dto, sinErrores(dto)).getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @Test

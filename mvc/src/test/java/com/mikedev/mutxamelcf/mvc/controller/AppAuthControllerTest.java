@@ -75,16 +75,16 @@ class AppAuthControllerTest {
     }
 
     @Test
-    void loginDevuelveForbiddenSiLaCuentaNoEstaActiva() {
+    void loginDevuelveUnauthorizedYRegistraFalloSiLaCuentaNoEstaActiva() {
         when(rateLimiter.estaBloqueado("clave")).thenReturn(false);
         when(usuarioAppService.login("ana@example.com", "secreto123"))
-                .thenThrow(new IllegalStateException("La cuenta no esta activa"));
+                .thenThrow(new IllegalArgumentException("Email o contraseña incorrectos"));
 
         ResponseEntity<?> response = controller.login(loginRequest(), httpRequest());
 
-        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
-        assertEquals("La cuenta no esta activa", response.getBody());
-        verify(rateLimiter, never()).registrarFallo("clave");
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertEquals("Email o contraseña incorrectos", response.getBody());
+        verify(rateLimiter).registrarFallo("clave");
     }
 
     @Test

@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +26,8 @@ import com.mikedev.mutxamelcf.model.JugadorForm;
 import com.mikedev.mutxamelcf.service.EquipoService;
 import com.mikedev.mutxamelcf.service.FamiliarService;
 import com.mikedev.mutxamelcf.service.JugadorService;
+
+import jakarta.validation.Valid;
 
 @Controller
 @RequestMapping("/admin")
@@ -69,9 +73,21 @@ public class JugadorAdminController {
 	// Método para guardar un nuevo jugador
 	@PostMapping("/jugadores/guardar")
 	@ResponseBody
-	public ResponseEntity<Map<String, String>> guardarJugador(@ModelAttribute JugadorForm jugadorForm) {
+	public ResponseEntity<Map<String, String>> guardarJugador(@Valid @ModelAttribute JugadorForm jugadorForm,
+			BindingResult bindingResult) {
 		logger.debug("Inicio guardarJugador: id={}, nombre={}", jugadorForm.getId(), jugadorForm.getNombre());
 		Map<String, String> response = new HashMap<>();
+
+		if (bindingResult.hasErrors()) {
+			String mensaje = bindingResult.getFieldErrors().stream()
+					.map(FieldError::getDefaultMessage)
+					.findFirst()
+					.orElse("Datos del jugador no válidos.");
+			response.put("error", mensaje);
+			logger.warn("Guardar jugador rechazado por validación: id={}, motivo={}", jugadorForm.getId(), mensaje);
+			logger.debug("Fin guardarJugador: resultado=DATOS_INVALIDOS");
+			return ResponseEntity.badRequest().body(response);
+		}
 
 		try {
 			JugadorDTO jugador = new JugadorDTO();

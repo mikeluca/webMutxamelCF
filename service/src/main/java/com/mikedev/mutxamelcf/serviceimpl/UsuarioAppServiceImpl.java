@@ -51,6 +51,25 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
      */
     private static final String MENSAJE_ACTIVACION_INVALIDA = "El código no es válido o ha caducado.";
 
+    /*
+     * SEC-06: un único mensaje para email inexistente, cuenta inactiva
+     * (invitación aún no canjeada) o contraseña incorrecta. Antes la
+     * cuenta inactiva devolvía "La cuenta no está activa" antes de
+     * comprobar la contraseña, lo que permitía enumerar qué emails
+     * tenían una invitación pendiente; además ese caso no contaba como
+     * intento fallido a efectos de rate limiting.
+     */
+    private static final String MENSAJE_LOGIN_INVALIDO = "Email o contraseña incorrectos";
+
+    /*
+     * Hash BCrypt de un valor fijo que no es la contraseña de nadie.
+     * Se compara contra él cuando el usuario no existe (o no tiene aún
+     * contraseña) para que passwordEncoder.matches() tarde lo mismo que
+     * con un usuario real y no se pueda distinguir por tiempos si un
+     * email está o no registrado.
+     */
+    private static final String HASH_FICTICIO_PARA_TIMING = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
     private static final Set<String> TIPOS_VINCULO_CON_PERSONA = Set.of(
             "JUGADOR", "FAMILIAR", "ENTRENADOR");
 
@@ -280,23 +299,16 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
 
         UsuarioApp usuario = obtenerPorEmail(email);
 
-        if (usuario == null) {
-            throw new IllegalArgumentException(
-                    "Email o contraseña incorrectos");
-        }
+        String hashComparar = (usuario != null && usuario.getPasswordHash() != null)
+                ? usuario.getPasswordHash()
+                : HASH_FICTICIO_PARA_TIMING;
 
-        if (!usuario.isActivo()) {
-            throw new IllegalStateException(
-                    "La cuenta no está activa");
-        }
+        // Se compara siempre, exista o no el usuario, para que el tiempo
+        // de respuesta no permita distinguir un email no registrado.
+        boolean passwordValida = passwordEncoder.matches(password, hashComparar);
 
-        if (usuario.getPasswordHash() == null
-                || !passwordEncoder.matches(
-                        password,
-                        usuario.getPasswordHash())) {
-
-            throw new IllegalArgumentException(
-                    "Email o contraseña incorrectos");
+        if (usuario == null || !usuario.isActivo() || !passwordValida) {
+            throw new IllegalArgumentException(MENSAJE_LOGIN_INVALIDO);
         }
 
         List<RolApp> roles = rolAppDao.obtenerPorUsuario(

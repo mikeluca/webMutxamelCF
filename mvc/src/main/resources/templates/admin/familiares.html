@@ -322,6 +322,12 @@
 			cargarJugadoresDeFamiliar(data.id);
 		}
 
+		function escapeHtml(valor) {
+			return String(valor ?? '').replace(/[&<>"']/g, (c) => ({
+				'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+			}[c]));
+		}
+
 		function cargarJugadoresDeFamiliar(familiarId) {
 			if (!familiarId) return;
 
@@ -337,8 +343,9 @@
 					}
 
 					relaciones.forEach(rel => {
-						const jugadorNombreCompleto = (rel.jugadorNombre || '') + ' ' + (rel.jugadorApellidos || '');
-						const equipoCat = rel.jugadorEquipo ? (rel.jugadorEquipo + (rel.jugadorCategoria ? ' - ' + rel.jugadorCategoria : '')) : '-';
+						const jugadorNombreCompleto = escapeHtml((rel.jugadorNombre || '') + ' ' + (rel.jugadorApellidos || ''));
+						const equipoCat = escapeHtml(rel.jugadorEquipo ? (rel.jugadorEquipo + (rel.jugadorCategoria ? ' - ' + rel.jugadorCategoria : '')) : '-');
+						const parentesco = escapeHtml(rel.parentesco || '-');
 						const principalBadge = rel.esPrincipal === 1
 							? '<span class="badge text-bg-primary"><i class="bi bi-star-fill me-1"></i>Principal</span>'
 							: '<span class="text-muted small">No</span>';
@@ -347,7 +354,7 @@
 						tr.innerHTML = `
 							<td><strong>${jugadorNombreCompleto}</strong></td>
 							<td>${equipoCat}</td>
-							<td><span class="badge text-bg-info">${rel.parentesco || '-'}</span></td>
+							<td><span class="badge text-bg-info">${parentesco}</span></td>
 							<td class="text-center">${principalBadge}</td>
 							<td class="text-center">
 								<button type="button" class="btn btn-outline-danger btn-sm" title="Desasignar relación"

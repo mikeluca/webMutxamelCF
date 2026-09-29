@@ -18,6 +18,9 @@ import com.mikedev.mutxamelcf.model.TiendaPedidoItem;
 import com.mikedev.mutxamelcf.model.TiendaPedidoRequest;
 import com.mikedev.mutxamelcf.mvc.communication.ComunicacionesService;
 import com.mikedev.mutxamelcf.mvc.communication.PedidoTiendaHelper;
+import com.mikedev.mutxamelcf.mvc.config.PublicFormRateLimiter;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Versión API (JSON, pública, sin autenticación) del mismo envío de
@@ -37,8 +40,11 @@ public class PublicTiendaController {
 
     private final ComunicacionesService comunicacionesService;
 
-    public PublicTiendaController(ComunicacionesService comunicacionesService) {
+    private final PublicFormRateLimiter formRateLimiter;
+
+    public PublicTiendaController(ComunicacionesService comunicacionesService, PublicFormRateLimiter formRateLimiter) {
         this.comunicacionesService = comunicacionesService;
+        this.formRateLimiter = formRateLimiter;
     }
 
     /**
@@ -47,10 +53,20 @@ public class PublicTiendaController {
      * POST /api/public/tienda/pedido
      */
     @PostMapping("/pedido")
-    public ResponseEntity<Map<String, String>> crearPedido(@RequestBody(required = false) TiendaPedidoRequest request) {
+    public ResponseEntity<Map<String, String>> crearPedido(
+            @RequestBody(required = false) TiendaPedidoRequest request,
+            HttpServletRequest httpRequest) {
 
         logger.debug("Inicio crearPedido (API): nombre={}",
                 request == null ? null : request.getNombre());
+
+        if (!formRateLimiter.permitir(httpRequest.getRemoteAddr())) {
+            logger.warn("Pedido de tienda (API) rechazado por limite de envios: ip={}", httpRequest.getRemoteAddr());
+            logger.debug("Fin crearPedido (API): resultado=LIMITE_SUPERADO");
+            return ResponseEntity
+                    .status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("mensaje", "Demasiados pedidos. Inténtalo de nuevo más tarde."));
+        }
 
         if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
             logger.debug("Fin crearPedido (API): resultado=SIN_ITEMS");

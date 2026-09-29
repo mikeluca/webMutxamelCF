@@ -302,6 +302,12 @@
 			}
 		}
 
+		function escapeHtml(valor) {
+			return String(valor ?? '').replace(/[&<>"']/g, (c) => ({
+				'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+			}[c]));
+		}
+
 		function cargarFamiliaresDeJugador(jugadorId) {
 			if (!jugadorId) return;
 
@@ -317,7 +323,10 @@
 					}
 
 					relaciones.forEach(rel => {
-						const familiarNombreCompleto = (rel.familiarNombre || '') + ' ' + (rel.familiarApellidos || '');
+						const familiarNombreCompleto = escapeHtml((rel.familiarNombre || '') + ' ' + (rel.familiarApellidos || ''));
+						const familiarTelefono = escapeHtml(rel.familiarTelefono || '-');
+						const familiarEmail = escapeHtml(rel.familiarEmail || '-');
+						const parentesco = escapeHtml(rel.parentesco || '-');
 						const principalBadge = rel.esPrincipal === 1
 							? '<span class="badge text-bg-primary"><i class="bi bi-star-fill me-1"></i>Principal</span>'
 							: '<span class="text-muted small">No</span>';
@@ -325,9 +334,9 @@
 						const tr = document.createElement('tr');
 						tr.innerHTML = `
 							<td><strong>${familiarNombreCompleto}</strong></td>
-							<td>${rel.familiarTelefono || '-'}</td>
-							<td>${rel.familiarEmail || '-'}</td>
-							<td><span class="badge text-bg-info">${rel.parentesco || '-'}</span></td>
+							<td>${familiarTelefono}</td>
+							<td>${familiarEmail}</td>
+							<td><span class="badge text-bg-info">${parentesco}</span></td>
 							<td class="text-center">
 								<div class="form-check d-inline-flex align-items-center justify-content-center">
 									<input class="form-check-input" type="radio" name="principal-jugador-${jugadorId}"
