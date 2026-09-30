@@ -73,4 +73,15 @@ public interface EntrenamientoService {
                         Long sesionEntrenamientoId,
                         Long jugadorId,
                         String estado);
+
+        /**
+         * Estado de asistencia (PRESENTE/FALTA/FALTA_JUSTIFICADA/
+         * TARDANZA...) de un jugador en el ENTRENAMIENTO vinculado a una
+         * sesión del calendario, o {@code null} si esa sesión no tiene
+         * ningún ENTRENAMIENTO vinculado o el jugador no está entre sus
+         * asistencias.
+         */
+        String obtenerEstadoAsistencia(
+                        Long sesionEntrenamientoId,
+                        Long jugadorId);
 }

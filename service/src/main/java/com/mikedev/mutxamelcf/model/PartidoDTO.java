@@ -20,6 +20,14 @@ public class PartidoDTO {
 	private String hora;
 	private String campo;
 	private boolean cancelado;
+	/**
+	 * Solo se rellena cuando se pide el calendario de un jugador
+	 * concreto: {@code true}/{@code false} si el partido ya tiene
+	 * convocatoria y el jugador está o no en ella, {@code null} si el
+	 * partido todavía no tiene convocatoria creada (no aplica, no "no
+	 * convocado").
+	 */
+	private Boolean convocado;
 
 	public PartidoDTO() {
 		super();
@@ -127,6 +135,14 @@ public class PartidoDTO {
 
 	public void setCancelado(boolean cancelado) {
 		this.cancelado = cancelado;
+	}
+
+	public Boolean getConvocado() {
+		return convocado;
+	}
+
+	public void setConvocado(Boolean convocado) {
+		this.convocado = convocado;
 	}
 
 }

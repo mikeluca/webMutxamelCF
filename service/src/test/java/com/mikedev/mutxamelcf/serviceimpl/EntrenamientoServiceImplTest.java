@@ -416,4 +416,36 @@ class EntrenamientoServiceImplTest {
 
         verify(asistenciaDao).actualizarEstado(5L, 10L, "FALTA_JUSTIFICADA");
     }
+
+    // ---------- obtenerEstadoAsistencia ----------
+
+    @Test
+    void obtenerEstadoAsistenciaDevuelveNullSiNoHayEntrenamientoVinculado() {
+        when(entrenamientoDao.obtenerPorSesionEntrenamientoId(30L)).thenReturn(null);
+
+        assertThat(service.obtenerEstadoAsistencia(30L, 10L)).isNull();
+    }
+
+    @Test
+    void obtenerEstadoAsistenciaDevuelveNullSiElJugadorNoEstaEnElEntrenamiento() {
+        Entrenamiento entrenamiento = new Entrenamiento();
+        entrenamiento.setId(5L);
+        when(entrenamientoDao.obtenerPorSesionEntrenamientoId(30L)).thenReturn(entrenamiento);
+        when(asistenciaDao.obtenerPorEntrenamientoYJugador(5L, 10L)).thenReturn(null);
+
+        assertThat(service.obtenerEstadoAsistencia(30L, 10L)).isNull();
+    }
+
+    @Test
+    void obtenerEstadoAsistenciaDevuelveElEstadoDelJugador() {
+        Entrenamiento entrenamiento = new Entrenamiento();
+        entrenamiento.setId(5L);
+        when(entrenamientoDao.obtenerPorSesionEntrenamientoId(30L)).thenReturn(entrenamiento);
+
+        EntrenamientoAsistencia asistencia = new EntrenamientoAsistencia();
+        asistencia.setEstado("TARDANZA");
+        when(asistenciaDao.obtenerPorEntrenamientoYJugador(5L, 10L)).thenReturn(asistencia);
+
+        assertThat(service.obtenerEstadoAsistencia(30L, 10L)).isEqualTo("TARDANZA");
+    }
 }

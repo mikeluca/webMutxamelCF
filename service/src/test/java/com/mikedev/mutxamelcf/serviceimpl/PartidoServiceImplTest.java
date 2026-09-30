@@ -16,9 +16,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
+import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
+import com.mikedev.mutxamelcf.model.Convocatoria;
+import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.PartidoDTO;
@@ -37,11 +41,18 @@ class PartidoServiceImplTest {
     @Mock
     private EquipoDao equipoDao;
 
+    @Mock
+    private ConvocatoriaDao convocatoriaDao;
+
+    @Mock
+    private ConvocatoriaJugadorDao convocatoriaJugadorDao;
+
     private PartidoServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new PartidoServiceImpl(partidoDao, equipoGestionDao, equipoDao);
+        service = new PartidoServiceImpl(
+                partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao);
     }
 
     private static PartidoGuardarRequest requestValido() {
@@ -546,6 +557,83 @@ class PartidoServiceImplTest {
 
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).isCancelado()).isTrue();
+    }
+
+    @Test
+    void obtenerPorEquipoYRangoFechasConJugadorIdDejaConvocadoNuloSiElPartidoNoTieneConvocatoria() {
+        Partido partido = new Partido();
+        partido.setId(1L);
+        partido.setEquipoId(1L);
+
+        LocalDate desde = LocalDate.of(2026, 10, 1);
+        LocalDate hasta = LocalDate.of(2026, 10, 31);
+
+        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(partido));
+        when(convocatoriaDao.obtenerPorPartidoId(1L)).thenReturn(null);
+
+        List<PartidoDTO> resultado = service.obtenerPorEquipoYRangoFechas(1L, desde, hasta, 40L);
+
+        assertThat(resultado.get(0).getConvocado()).isNull();
+    }
+
+    @Test
+    void obtenerPorEquipoYRangoFechasConJugadorIdMarcaConvocadoTrueSiEstaEnLaConvocatoria() {
+        Partido partido = new Partido();
+        partido.setId(1L);
+        partido.setEquipoId(1L);
+
+        LocalDate desde = LocalDate.of(2026, 10, 1);
+        LocalDate hasta = LocalDate.of(2026, 10, 31);
+
+        com.mikedev.mutxamelcf.model.Convocatoria convocatoria = new com.mikedev.mutxamelcf.model.Convocatoria();
+        convocatoria.setId(200L);
+
+        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(partido));
+        when(convocatoriaDao.obtenerPorPartidoId(1L)).thenReturn(convocatoria);
+        when(convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(200L, 40L))
+                .thenReturn(new com.mikedev.mutxamelcf.model.ConvocatoriaJugador());
+
+        List<PartidoDTO> resultado = service.obtenerPorEquipoYRangoFechas(1L, desde, hasta, 40L);
+
+        assertThat(resultado.get(0).getConvocado()).isTrue();
+    }
+
+    @Test
+    void obtenerPorEquipoYRangoFechasConJugadorIdMarcaConvocadoFalseSiNoEstaEnLaConvocatoria() {
+        Partido partido = new Partido();
+        partido.setId(1L);
+        partido.setEquipoId(1L);
+
+        LocalDate desde = LocalDate.of(2026, 10, 1);
+        LocalDate hasta = LocalDate.of(2026, 10, 31);
+
+        com.mikedev.mutxamelcf.model.Convocatoria convocatoria = new com.mikedev.mutxamelcf.model.Convocatoria();
+        convocatoria.setId(200L);
+
+        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(partido));
+        when(convocatoriaDao.obtenerPorPartidoId(1L)).thenReturn(convocatoria);
+        when(convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(200L, 40L)).thenReturn(null);
+
+        List<PartidoDTO> resultado = service.obtenerPorEquipoYRangoFechas(1L, desde, hasta, 40L);
+
+        assertThat(resultado.get(0).getConvocado()).isFalse();
+    }
+
+    @Test
+    void obtenerPorEquipoYRangoFechasSinJugadorIdNoConsultaConvocatorias() {
+        Partido partido = new Partido();
+        partido.setId(1L);
+        partido.setEquipoId(1L);
+
+        LocalDate desde = LocalDate.of(2026, 10, 1);
+        LocalDate hasta = LocalDate.of(2026, 10, 31);
+
+        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(partido));
+
+        List<PartidoDTO> resultado = service.obtenerPorEquipoYRangoFechas(1L, desde, hasta, null);
+
+        assertThat(resultado.get(0).getConvocado()).isNull();
+        verify(convocatoriaDao, never()).obtenerPorPartidoId(any());
     }
 
     @Test

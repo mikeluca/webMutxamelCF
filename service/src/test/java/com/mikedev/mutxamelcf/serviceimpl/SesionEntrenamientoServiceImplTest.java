@@ -32,6 +32,7 @@ import com.mikedev.mutxamelcf.model.JustificacionFaltaRequest;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaResponse;
 import com.mikedev.mutxamelcf.model.SesionEntrenamiento;
 import com.mikedev.mutxamelcf.model.SesionEntrenamientoCrearRequest;
+import com.mikedev.mutxamelcf.model.SesionEntrenamientoResponse;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.EntrenamientoService;
 
@@ -516,5 +517,61 @@ class SesionEntrenamientoServiceImplTest {
 
         assertThatThrownBy(() -> service.obtenerJustificaciones(USUARIO_ID, SESION_ID))
                 .isInstanceOf(SecurityException.class);
+    }
+
+    // ---------- obtenerPorEquipoYRangoParaJugador (asistencia) ----------
+
+    @Test
+    void obtenerPorEquipoYRangoParaJugadorRellenaLaAsistenciaDeUnaSesionPasada() {
+        LocalDate desde = LocalDate.now().minusDays(10);
+        LocalDate hasta = LocalDate.now().plusDays(10);
+
+        SesionEntrenamiento sesionPasada = sesion(LocalDate.now().minusDays(2), SesionEntrenamiento.ESTADO_PROGRAMADA);
+
+        when(equipoGestionDao.perteneceJugadorAEquipo(JUGADOR_ID, EQUIPO_ID)).thenReturn(true);
+        when(usuarioAppVinculoDao.tieneVinculoConJugador(USUARIO_ID.intValue(), JUGADOR_ID)).thenReturn(true);
+        when(sesionEntrenamientoDao.obtenerPorEquipoYRango(EQUIPO_ID, desde, hasta)).thenReturn(List.of(sesionPasada));
+        when(entrenamientoService.obtenerEstadoAsistencia(SESION_ID, JUGADOR_ID)).thenReturn("FALTA");
+
+        List<SesionEntrenamientoResponse> respuesta = service.obtenerPorEquipoYRangoParaJugador(
+                USUARIO_ID, EQUIPO_ID, desde, hasta, JUGADOR_ID);
+
+        assertThat(respuesta.get(0).getAsistencia()).isEqualTo("FALTA");
+    }
+
+    @Test
+    void obtenerPorEquipoYRangoParaJugadorNoConsultaLaAsistenciaDeUnaSesionFutura() {
+        LocalDate desde = LocalDate.now().minusDays(10);
+        LocalDate hasta = LocalDate.now().plusDays(10);
+
+        SesionEntrenamiento sesionFutura = sesion(LocalDate.now().plusDays(3), SesionEntrenamiento.ESTADO_PROGRAMADA);
+
+        when(equipoGestionDao.perteneceJugadorAEquipo(JUGADOR_ID, EQUIPO_ID)).thenReturn(true);
+        when(usuarioAppVinculoDao.tieneVinculoConJugador(USUARIO_ID.intValue(), JUGADOR_ID)).thenReturn(true);
+        when(sesionEntrenamientoDao.obtenerPorEquipoYRango(EQUIPO_ID, desde, hasta)).thenReturn(List.of(sesionFutura));
+
+        List<SesionEntrenamientoResponse> respuesta = service.obtenerPorEquipoYRangoParaJugador(
+                USUARIO_ID, EQUIPO_ID, desde, hasta, JUGADOR_ID);
+
+        assertThat(respuesta.get(0).getAsistencia()).isNull();
+        verify(entrenamientoService, never()).obtenerEstadoAsistencia(any(), any());
+    }
+
+    @Test
+    void obtenerPorEquipoYRangoParaJugadorConsultaLaAsistenciaDeLaSesionDeHoy() {
+        LocalDate desde = LocalDate.now().minusDays(10);
+        LocalDate hasta = LocalDate.now().plusDays(10);
+
+        SesionEntrenamiento sesionDeHoy = sesion(LocalDate.now(), SesionEntrenamiento.ESTADO_PROGRAMADA);
+
+        when(equipoGestionDao.perteneceJugadorAEquipo(JUGADOR_ID, EQUIPO_ID)).thenReturn(true);
+        when(usuarioAppVinculoDao.tieneVinculoConJugador(USUARIO_ID.intValue(), JUGADOR_ID)).thenReturn(true);
+        when(sesionEntrenamientoDao.obtenerPorEquipoYRango(EQUIPO_ID, desde, hasta)).thenReturn(List.of(sesionDeHoy));
+        when(entrenamientoService.obtenerEstadoAsistencia(SESION_ID, JUGADOR_ID)).thenReturn("PRESENTE");
+
+        List<SesionEntrenamientoResponse> respuesta = service.obtenerPorEquipoYRangoParaJugador(
+                USUARIO_ID, EQUIPO_ID, desde, hasta, JUGADOR_ID);
+
+        assertThat(respuesta.get(0).getAsistencia()).isEqualTo("PRESENTE");
     }
 }

@@ -396,6 +396,8 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
 
         List<SesionEntrenamientoResponse> respuesta = obtenerPorEquipoYRango(equipoId, desde, hasta);
 
+        LocalDate hoy = LocalDate.now();
+
         for (SesionEntrenamientoResponse sesion : respuesta) {
 
             JustificacionFaltaEntrenamiento justificacion = justificacionFaltaEntrenamientoDao
@@ -404,6 +406,18 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
             if (justificacion != null) {
                 sesion.setJustificado(true);
                 sesion.setMotivoJustificacion(justificacion.getMotivo());
+            }
+
+            /*
+             * La asistencia se registra durante/después de la sesión: no
+             * tiene sentido consultarla para una sesión futura (todo el
+             * mundo sigue a PRESENTE por defecto, generado al crear la
+             * sesión, y mostrarlo daría a entender que la sesión ya se
+             * ha celebrado).
+             */
+            if (sesion.getFecha() != null && !sesion.getFecha().isAfter(hoy)) {
+                sesion.setAsistencia(
+                        entrenamientoService.obtenerEstadoAsistencia(sesion.getId(), jugadorId));
             }
         }
 

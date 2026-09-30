@@ -57,6 +57,15 @@ public interface PartidoService {
 	 */
 	List<PartidoDTO> obtenerPorEquipoYRangoFechas(Long equipoId, LocalDate desde, LocalDate hasta);
 
+	/**
+	 * Igual que {@link #obtenerPorEquipoYRangoFechas(Long, LocalDate, LocalDate)},
+	 * pero además indica si el jugador dado está convocado a cada
+	 * partido: {@code true}/{@code false} si el partido ya tiene una
+	 * convocatoria creada, o {@code null} si todavía no la tiene (no se
+	 * puede afirmar "no convocado" de un partido sin convocatoria).
+	 */
+	List<PartidoDTO> obtenerPorEquipoYRangoFechas(Long equipoId, LocalDate desde, LocalDate hasta, Long jugadorId);
+
 	// Compatibilidad con el contrato público ya existente
 	List<ResultadoDTO> obtenerResultados(String deporte);
 

@@ -673,4 +673,23 @@ public class EntrenamientoServiceImpl
                 asistenciaDao.actualizarEstado(entrenamiento.getId(), jugadorId, estado);
         }
 
+        @Override
+        public String obtenerEstadoAsistencia(
+                        Long sesionEntrenamientoId,
+                        Long jugadorId) {
+
+                Entrenamiento entrenamiento = entrenamientoDao.obtenerPorSesionEntrenamientoId(
+                                sesionEntrenamientoId);
+
+                if (entrenamiento == null) {
+                        return null;
+                }
+
+                EntrenamientoAsistencia asistencia = asistenciaDao.obtenerPorEntrenamientoYJugador(
+                                entrenamiento.getId(),
+                                jugadorId);
+
+                return asistencia != null ? asistencia.getEstado() : null;
+        }
+
 }

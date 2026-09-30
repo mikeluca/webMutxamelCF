@@ -19,9 +19,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
+import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
+import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.PartidoDTO;
@@ -52,15 +55,21 @@ public class PartidoServiceImpl implements PartidoService {
 	private final PartidoDao partidoDao;
 	private final EquipoGestionDao equipoGestionDao;
 	private final EquipoDao equipoDao;
+	private final ConvocatoriaDao convocatoriaDao;
+	private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
 
 	public PartidoServiceImpl(
 			PartidoDao partidoDao,
 			EquipoGestionDao equipoGestionDao,
-			EquipoDao equipoDao) {
+			EquipoDao equipoDao,
+			ConvocatoriaDao convocatoriaDao,
+			ConvocatoriaJugadorDao convocatoriaJugadorDao) {
 
 		this.partidoDao = partidoDao;
 		this.equipoGestionDao = equipoGestionDao;
 		this.equipoDao = equipoDao;
+		this.convocatoriaDao = convocatoriaDao;
+		this.convocatoriaJugadorDao = convocatoriaJugadorDao;
 	}
 
 	@Override
@@ -369,6 +378,45 @@ public class PartidoServiceImpl implements PartidoService {
 		logger.debug("Fin obtenerPorEquipoYRangoFechas: equipoId={}, total={}", equipoId, resultado.size());
 
 		return resultado;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<PartidoDTO> obtenerPorEquipoYRangoFechas(
+			Long equipoId, LocalDate desde, LocalDate hasta, Long jugadorId) {
+
+		logger.debug("Inicio obtenerPorEquipoYRangoFechas: equipoId={}, desde={}, hasta={}, jugadorId={}",
+				equipoId, desde, hasta, jugadorId);
+
+		List<PartidoDTO> resultado = obtenerPorEquipoYRangoFechas(equipoId, desde, hasta);
+
+		if (jugadorId != null) {
+
+			for (PartidoDTO partido : resultado) {
+				partido.setConvocado(resolverConvocado(partido.getId(), jugadorId));
+			}
+		}
+
+		logger.debug("Fin obtenerPorEquipoYRangoFechas: equipoId={}, jugadorId={}, total={}",
+				equipoId, jugadorId, resultado.size());
+
+		return resultado;
+	}
+
+	/**
+	 * {@code null} si el partido todavía no tiene convocatoria creada;
+	 * si la tiene, {@code true}/{@code false} según si el jugador está
+	 * en ella.
+	 */
+	private Boolean resolverConvocado(Long partidoId, Long jugadorId) {
+
+		Convocatoria convocatoria = convocatoriaDao.obtenerPorPartidoId(partidoId);
+
+		if (convocatoria == null) {
+			return null;
+		}
+
+		return convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(convocatoria.getId(), jugadorId) != null;
 	}
 
 	@Override

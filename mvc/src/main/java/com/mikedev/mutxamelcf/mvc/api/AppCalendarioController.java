@@ -45,7 +45,10 @@ public class AppCalendarioController {
      *
      * Si se indica jugadorId (vista jugador/familiar), cada sesión de
      * entrenamiento devuelta indica si ESE jugador ya ha justificado su
-     * falta. El llamante debe estar vinculado a ese jugador.
+     * falta (y, si la sesión ya ha pasado, su asistencia), y cada
+     * partido indica si está convocado a él (null si el partido
+     * todavía no tiene convocatoria creada). El llamante debe estar
+     * vinculado a ese jugador.
      */
     @GetMapping
     public ResponseEntity<?> obtenerCalendario(
@@ -70,7 +73,9 @@ public class AppCalendarioController {
                             usuarioId, equipoId, desde, hasta, jugadorId)
                     : sesionEntrenamientoService.obtenerPorEquipoYRango(equipoId, desde, hasta);
 
-            List<PartidoDTO> partidos = partidoService.obtenerPorEquipoYRangoFechas(equipoId, desde, hasta);
+            List<PartidoDTO> partidos = jugadorId != null
+                    ? partidoService.obtenerPorEquipoYRangoFechas(equipoId, desde, hasta, jugadorId)
+                    : partidoService.obtenerPorEquipoYRangoFechas(equipoId, desde, hasta);
 
             return ResponseEntity.ok(new CalendarioResponse(sesiones, partidos));
 

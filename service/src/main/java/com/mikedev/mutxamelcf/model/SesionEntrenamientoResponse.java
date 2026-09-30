@@ -25,6 +25,16 @@ public class SesionEntrenamientoResponse {
     /** Solo relleno cuando estado = "CANCELADA". */
     private String motivoCancelacion;
 
+    /**
+     * Estado de asistencia del jugador (PRESENTE/FALTA/FALTA_JUSTIFICADA/
+     * TARDANZA...) al ENTRENAMIENTO generado para esta sesión. Solo se
+     * rellena, igual que justificado/motivoJustificacion, cuando la
+     * consulta se hizo con un jugadorId concreto Y la sesión ya ha
+     * pasado (la asistencia se registra durante/después de la sesión,
+     * no tiene sentido para una sesión futura).
+     */
+    private String asistencia;
+
     public SesionEntrenamientoResponse() {
     }
 
@@ -114,5 +124,13 @@ public class SesionEntrenamientoResponse {
 
     public void setMotivoCancelacion(String motivoCancelacion) {
         this.motivoCancelacion = motivoCancelacion;
+    }
+
+    public String getAsistencia() {
+        return asistencia;
+    }
+
+    public void setAsistencia(String asistencia) {
+        this.asistencia = asistencia;
     }
 }
