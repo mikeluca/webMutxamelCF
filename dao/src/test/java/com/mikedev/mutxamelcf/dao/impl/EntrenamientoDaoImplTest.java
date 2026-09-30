@@ -201,6 +201,23 @@ class EntrenamientoDaoImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void obtenerPorEquipoOrdenaPorCercaniaAHoyNoSoloPorFechaDescendente() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        EntrenamientoDaoImpl dao = new EntrenamientoDaoImpl(jdbcTemplate);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        when(jdbcTemplate.query(sqlCaptor.capture(), any(RowMapper.class), eq(2L))).thenReturn(List.of());
+
+        dao.obtenerPorEquipo(2L);
+
+        // Con "ORDER BY FECHA DESC" a secas, el entrenamiento generado
+        // mas lejos en el futuro (las sesiones se generan hasta 2 meses
+        // vista) quedaba arriba del todo, enterrando el de hoy/reciente.
+        assertThat(sqlCaptor.getValue()).contains("ABS(FECHA - TRUNC(SYSDATE))");
+    }
+
+    @Test
     void existeDevuelveTrueCuandoHayFilas() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         EntrenamientoDaoImpl dao = new EntrenamientoDaoImpl(jdbcTemplate);

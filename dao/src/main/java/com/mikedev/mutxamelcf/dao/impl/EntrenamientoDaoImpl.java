@@ -158,6 +158,15 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
         public List<Entrenamiento> obtenerPorEquipo(
                         Long equipoId) {
 
+                /*
+                 * Desde que las sesiones futuras generan su ENTRENAMIENTO
+                 * automáticamente (hasta 2 meses vista), un simple
+                 * "FECHA DESC" dejaba el entrenamiento más lejano en el
+                 * futuro arriba del todo, enterrando el de hoy/reciente
+                 * bajo semanas de sesiones futuras. Se ordena por
+                 * cercanía real a hoy (pasado o futuro), no solo por
+                 * fecha descendente.
+                 */
                 String sql = """
                                 SELECT
                                     ID,
@@ -168,7 +177,7 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
                                     FECHA_CREACION
                                 FROM ENTRENAMIENTOS
                                 WHERE EQUIPO_ID = ?
-                                ORDER BY FECHA DESC, ID DESC
+                                ORDER BY ABS(FECHA - TRUNC(SYSDATE)), FECHA DESC, ID DESC
                                 """;
 
                 return jdbcTemplate.query(
