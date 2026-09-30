@@ -204,6 +204,44 @@ class SeguridadIntegrationTest {
     }
 
     /*
+     * ADMIN es un rol web equivalente a ENTRENADOR: entra al panel
+     * general (ver adminWebPuedeAccederAAdminGeneral), pero sigue sin
+     * poder acceder a /admin/pagos ni /admin/usuarios-app, que exigen
+     * SUPER explicitamente.
+     */
+    @Test
+    void adminWebRecibe403EnPagos() throws Exception {
+
+        mockMvc.perform(get("/admin/pagos")
+                        .with(user("admin").roles("ADMIN")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminWebRecibe403AlIntentarBorrarUnaCuota() throws Exception {
+
+        mockMvc.perform(post("/admin/pagos/cuotas/borrar")
+                        .param("id", "1")
+                        .with(user("admin").roles("ADMIN"))
+                        .with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminWebPuedeAccederAAdminGeneral() throws Exception {
+
+        // Se pide una ruta bajo /admin/** que no existe para comprobar
+        // que el filtro de seguridad NO devuelve 403 (a diferencia de un
+        // rol no reconocido, ver usuarioSinRolAdmiteRedirigeAAdmin) sin
+        // depender de las tablas que el esquema de test no tiene: si el
+        // rol ADMIN pasa el filtro, el 404 lo da el dispatcher de Spring
+        // MVC al no encontrar un handler, no la seguridad.
+        mockMvc.perform(get("/admin/ruta-que-no-existe")
+                        .with(user("admin").roles("ADMIN")))
+                .andExpect(status().isNotFound());
+    }
+
+    /*
      * No se comprueba aqui el camino positivo ("SUPER puede entrar a
      * /admin/pagos") porque el esquema H2 de este perfil de test solo
      * crea la tabla USUARIOS (ver TST-01 de la auditoria): cualquier
