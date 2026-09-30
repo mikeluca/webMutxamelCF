@@ -415,6 +415,68 @@ class SesionEntrenamientoServiceImplTest {
     }
 
     @Test
+    void justificarAvisaALosEntrenadoresDelEquipo() {
+        when(sesionEntrenamientoDao.obtenerPorId(SESION_ID)).thenReturn(
+                sesion(LocalDate.now().plusDays(1), SesionEntrenamiento.ESTADO_PROGRAMADA));
+        when(equipoGestionDao.perteneceJugadorAEquipo(JUGADOR_ID, EQUIPO_ID)).thenReturn(true);
+        when(usuarioAppVinculoDao.tieneVinculoConJugador(USUARIO_ID.intValue(), JUGADOR_ID)).thenReturn(true);
+        when(justificacionFaltaEntrenamientoDao.obtenerPorSesionYJugador(SESION_ID, JUGADOR_ID)).thenReturn(null);
+        when(equipoGestionDao.obtenerNombreJugador(JUGADOR_ID)).thenReturn("Jugador Uno");
+        when(equipoGestionDao.obtenerNombreEquipo(EQUIPO_ID)).thenReturn("Alevín A");
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of(200L, 201L));
+
+        when(justificacionFaltaEntrenamientoDao.crear(any(JustificacionFaltaEntrenamiento.class)))
+                .thenAnswer(invocation -> {
+                    JustificacionFaltaEntrenamiento justificacion = invocation.getArgument(0);
+                    justificacion.setId(99L);
+                    return justificacion;
+                });
+
+        JustificacionFaltaRequest request = new JustificacionFaltaRequest();
+        request.setJugadorId(JUGADOR_ID);
+        request.setMotivo("Lesión");
+
+        service.justificar(USUARIO_ID, SESION_ID, request);
+
+        var comunicacionCaptor = org.mockito.ArgumentCaptor.forClass(
+                com.mikedev.mutxamelcf.model.Comunicacion.class);
+
+        verify(comunicacionService).crearPrivada(
+                comunicacionCaptor.capture(), eq(List.of(200L, 201L)), eq(USUARIO_ID));
+
+        assertThat(comunicacionCaptor.getValue().getContenido())
+                .contains("Jugador Uno")
+                .contains("Alevín A")
+                .contains("Lesión");
+    }
+
+    @Test
+    void justificarNoAvisaANadieSiElEquipoNoTieneEntrenadores() {
+        when(sesionEntrenamientoDao.obtenerPorId(SESION_ID)).thenReturn(
+                sesion(LocalDate.now().plusDays(1), SesionEntrenamiento.ESTADO_PROGRAMADA));
+        when(equipoGestionDao.perteneceJugadorAEquipo(JUGADOR_ID, EQUIPO_ID)).thenReturn(true);
+        when(usuarioAppVinculoDao.tieneVinculoConJugador(USUARIO_ID.intValue(), JUGADOR_ID)).thenReturn(true);
+        when(justificacionFaltaEntrenamientoDao.obtenerPorSesionYJugador(SESION_ID, JUGADOR_ID)).thenReturn(null);
+        when(equipoGestionDao.obtenerNombreJugador(JUGADOR_ID)).thenReturn("Jugador Uno");
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of());
+
+        when(justificacionFaltaEntrenamientoDao.crear(any(JustificacionFaltaEntrenamiento.class)))
+                .thenAnswer(invocation -> {
+                    JustificacionFaltaEntrenamiento justificacion = invocation.getArgument(0);
+                    justificacion.setId(99L);
+                    return justificacion;
+                });
+
+        JustificacionFaltaRequest request = new JustificacionFaltaRequest();
+        request.setJugadorId(JUGADOR_ID);
+        request.setMotivo("Lesión");
+
+        service.justificar(USUARIO_ID, SESION_ID, request);
+
+        verify(comunicacionService, never()).crearPrivada(any(), any(), any());
+    }
+
+    @Test
     void justificarActualizaLaJustificacionExistenteEnVezDeDuplicar() {
         when(sesionEntrenamientoDao.obtenerPorId(SESION_ID)).thenReturn(
                 sesion(LocalDate.now().plusDays(1), SesionEntrenamiento.ESTADO_PROGRAMADA));

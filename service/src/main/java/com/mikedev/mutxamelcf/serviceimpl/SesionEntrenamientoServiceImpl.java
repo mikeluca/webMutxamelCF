@@ -485,7 +485,42 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
         entrenamientoService.sincronizarEstadoPorJustificacion(
                 sesionId, request.getJugadorId(), ESTADO_FALTA_JUSTIFICADA);
 
+        generarNotificacionJustificacion(sesion, request.getJugadorId(), motivo, usuarioAppId);
+
         return respuesta;
+    }
+
+    /**
+     * Avisa a los entrenadores del equipo de la sesión de que se ha
+     * justificado (o actualizado) una falta, tanto si es una
+     * justificación nueva como si se edita una ya existente.
+     */
+    private void generarNotificacionJustificacion(
+            SesionEntrenamiento sesion, Long jugadorId, String motivo, Long usuarioAppId) {
+
+        List<Long> entrenadores = equipoGestionDao.obtenerEntrenadoresPorEquipo(sesion.getEquipoId());
+
+        if (entrenadores.isEmpty()) {
+            return;
+        }
+
+        String equipo = equipoGestionDao.obtenerNombreEquipo(sesion.getEquipoId());
+        String jugador = equipoGestionDao.obtenerNombreJugador(jugadorId);
+        String fecha = sesion.getFecha() != null ? sesion.getFecha().toString() : "";
+
+        Comunicacion comunicacion = new Comunicacion();
+
+        comunicacion.setTitulo("Falta justificada");
+
+        comunicacion.setContenido(
+                jugador
+                        + " ("
+                        + equipo
+                        + ") ha justificado su falta al entrenamiento del día "
+                        + fecha
+                        + (motivo != null && !motivo.isBlank() ? ". Motivo: " + motivo + "." : "."));
+
+        comunicacionService.crearPrivada(comunicacion, entrenadores, usuarioAppId);
     }
 
     @Override
