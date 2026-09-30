@@ -30,7 +30,7 @@
 		<h1 class="page-title" th:text="#{politicaPrivacidad.titulo}">Política de Privacidad</h1>
 
 		<p th:text="#{politicaPrivacidad.intro}">En cumplimiento del Reglamento (UE) 2016/679 (RGPD) y la Ley Orgánica 3/2018 (LOPDGDD), le informamos sobre
-			el tratamiento de sus datos personales en esta página web.</p>
+			el tratamiento de sus datos personales en esta página web y en la aplicación móvil del club.</p>
 
 		<h2 th:text="#{politicaPrivacidad.h1}">1. Responsable del tratamiento</h2>
 		<p>
@@ -52,7 +52,7 @@
 		<p th:text="#{politicaPrivacidad.p4}">Los datos se conservarán mientras exista relación con el club o no se solicite su eliminación.</p>
 
 		<h2 th:text="#{politicaPrivacidad.h5}">5. Destinatarios</h2>
-		<p th:text="#{politicaPrivacidad.p5}">No se cederán datos personales a terceros, salvo obligación legal.</p>
+		<p th:text="#{politicaPrivacidad.p5}">No se cederán datos personales a terceros, salvo obligación legal y los proveedores necesarios para prestar el servicio (ver apartado 8).</p>
 
 		<h2 th:text="#{politicaPrivacidad.h6}">6. Derechos de los usuarios</h2>
 		<p>[[#{politicaPrivacidad.p6.antes}]]
@@ -62,7 +62,26 @@
 		<p th:text="#{politicaPrivacidad.p7}">No se publicará información o imagen de menores sin autorización expresa del padre/madre o tutor legal. El
 			club respeta y protege su privacidad.</p>
 
-		<h2 th:text="#{politicaPrivacidad.h8}">8. Cambios en la política</h2>
+		<h2 id="aplicacion-movil" th:text="#{politicaPrivacidad.app.h}">8. Aplicación móvil</h2>
+		<p th:text="#{politicaPrivacidad.app.intro}">La aplicación móvil del Mutxamel CF permite a jugadores, familiares y cuerpo técnico consultar la información del club.</p>
+		<p th:text="#{politicaPrivacidad.app.datos.titulo}">Datos que trata la aplicación:</p>
+		<ul>
+			<li th:text="#{politicaPrivacidad.app.datos.cuenta}">Cuenta</li>
+			<li th:text="#{politicaPrivacidad.app.datos.perfil}">Perfil</li>
+			<li th:text="#{politicaPrivacidad.app.datos.dispositivo}">Dispositivo</li>
+			<li th:text="#{politicaPrivacidad.app.datos.actividad}">Actividad deportiva</li>
+		</ul>
+		<p th:text="#{politicaPrivacidad.app.sinPermisos}">La aplicación no accede a su ubicación, cámara, micrófono ni contactos.</p>
+		<p th:text="#{politicaPrivacidad.app.finalidad}">Finalidad y base jurídica</p>
+		<p th:text="#{politicaPrivacidad.app.proveedores}">Proveedores</p>
+		<p th:text="#{politicaPrivacidad.app.seguridad}">Seguridad</p>
+		<p th:text="#{politicaPrivacidad.app.conservacion}">Conservación</p>
+
+		<h3 id="eliminar-cuenta" th:text="#{politicaPrivacidad.app.eliminar.titulo}">Cómo eliminar su cuenta y sus datos</h3>
+		<p>[[#{politicaPrivacidad.app.eliminar.antes}]]
+			<a href="mailto:mutxamelcf.gestion@gmail.com?subject=Eliminar%20cuenta">mutxamelcf.gestion@gmail.com</a> [[#{politicaPrivacidad.app.eliminar.despues}]]</p>
+
+		<h2 th:text="#{politicaPrivacidad.h8}">9. Cambios en la política</h2>
 		<p>[[#{politicaPrivacidad.p8.antes}]] <strong th:text="#{politicaPrivacidad.p8.fecha}">agosto de 2025</strong>.</p>
 	</main>
 
