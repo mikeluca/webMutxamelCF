@@ -304,6 +304,28 @@ class SesionEntrenamientoServiceImplTest {
         verify(sesionEntrenamientoDao).eliminarFuturasProgramadasPorHorario(eq(HORARIO_ID), any(LocalDate.class));
         verify(entrenamientoService).eliminarPorSesionEntrenamientoId(31L);
         verify(entrenamientoService).eliminarPorSesionEntrenamientoId(32L);
+        verify(justificacionFaltaEntrenamientoDao).eliminarPorSesionIds(List.of(31L, 32L));
+    }
+
+    @Test
+    void cancelarFuturasPorHorarioBorraLasJustificacionesAntesDeEliminarLasSesiones() {
+        // N-11 (auditoría #3): FK_JUSTIF_FALTA_SESION no tiene ON DELETE
+        // CASCADE; si una familia ya justificó una falta en alguna de
+        // estas sesiones, eliminar la sesión antes de borrar su
+        // justificación provocaría ORA-02292 en Oracle real.
+        SesionEntrenamiento sesion1 = sesion(LocalDate.now().plusDays(1), SesionEntrenamiento.ESTADO_PROGRAMADA);
+        sesion1.setId(31L);
+
+        when(sesionEntrenamientoDao.obtenerFuturasProgramadasPorHorario(eq(HORARIO_ID), any(LocalDate.class)))
+                .thenReturn(List.of(sesion1));
+
+        service.cancelarFuturasPorHorario(HORARIO_ID);
+
+        var orden = org.mockito.Mockito.inOrder(
+                justificacionFaltaEntrenamientoDao, sesionEntrenamientoDao);
+
+        orden.verify(justificacionFaltaEntrenamientoDao).eliminarPorSesionIds(List.of(31L));
+        orden.verify(sesionEntrenamientoDao).eliminarFuturasProgramadasPorHorario(eq(HORARIO_ID), any(LocalDate.class));
     }
 
     @Test
@@ -314,6 +336,7 @@ class SesionEntrenamientoServiceImplTest {
         service.cancelarFuturasPorHorario(HORARIO_ID);
 
         verify(entrenamientoService, never()).eliminarPorSesionEntrenamientoId(any());
+        verify(justificacionFaltaEntrenamientoDao).eliminarPorSesionIds(List.of());
     }
 
     // ---------- justificar ----------

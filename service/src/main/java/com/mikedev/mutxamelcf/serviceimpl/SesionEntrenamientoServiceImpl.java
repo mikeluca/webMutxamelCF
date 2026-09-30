@@ -160,12 +160,23 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
 
         /*
          * Necesitamos saber QUÉ sesiones se van a eliminar para poder
-         * borrar antes sus ENTRENAMIENTOS vinculados: FK_ENTRENAMIENTOS_SESION
-         * impide eliminar la sesión mientras exista un ENTRENAMIENTO que
-         * la referencie.
+         * borrar antes lo que las referencia: FK_ENTRENAMIENTOS_SESION y
+         * FK_JUSTIF_FALTA_SESION impiden eliminar una sesión mientras
+         * exista un ENTRENAMIENTO o una JUSTIFICACION_FALTA que la
+         * referencien (ninguna de las dos FK tiene ON DELETE CASCADE).
+         * Si una familia ya justificó una falta en alguna de estas
+         * sesiones y no se borrara antes, Oracle rechazaría el DELETE de
+         * la sesión con ORA-02292 y toda la operación (incluida la
+         * desactivación del horario) se revertiría.
          */
         List<SesionEntrenamiento> sesionesAEliminar = sesionEntrenamientoDao
                 .obtenerFuturasProgramadasPorHorario(horarioId, hoy);
+
+        List<Long> idsSesionesAEliminar = sesionesAEliminar.stream()
+                .map(SesionEntrenamiento::getId)
+                .toList();
+
+        justificacionFaltaEntrenamientoDao.eliminarPorSesionIds(idsSesionesAEliminar);
 
         for (SesionEntrenamiento sesion : sesionesAEliminar) {
             entrenamientoService.eliminarPorSesionEntrenamientoId(sesion.getId());

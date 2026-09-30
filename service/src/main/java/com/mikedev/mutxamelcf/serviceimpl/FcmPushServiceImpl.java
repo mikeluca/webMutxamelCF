@@ -73,7 +73,8 @@ public class FcmPushServiceImpl implements FcmPushService {
                         // lo desactivamos para no volver a intentar enviarlo.
                         if (e.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED) {
 
-                                logger.warn("Token FCM no válido, debe desactivarse: tokenFcm={}", tokenFcm);
+                                logger.warn("Token FCM no válido, debe desactivarse: tokenFcm={}",
+                                                truncarToken(tokenFcm));
                         }
 
                         // No propagamos la excepción.
@@ -289,5 +290,18 @@ public class FcmPushServiceImpl implements FcmPushService {
 
                         // Tampoco propagamos el error.
                 }
+        }
+
+        /**
+         * Un token FCM no es una credencial de envío, pero sí identifica
+         * un dispositivo concreto; se trunca antes de volcarlo a los
+         * logs (los primeros caracteres bastan para correlacionar
+         * incidencias sin registrar el identificador completo).
+         */
+        private static String truncarToken(String tokenFcm) {
+                if (tokenFcm == null || tokenFcm.length() <= 12) {
+                        return tokenFcm;
+                }
+                return tokenFcm.substring(0, 12) + "…";
         }
 }

@@ -4,7 +4,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -17,6 +19,10 @@ import com.mikedev.mutxamelcf.model.JustificacionFaltaEntrenamiento;
 
 @Repository
 public class JustificacionFaltaEntrenamientoDaoImpl implements JustificacionFaltaEntrenamientoDao {
+
+    // Limite de elementos por clausula IN en Oracle (1000); se deja
+    // margen igual que en el resto del proyecto (p.ej. CuotaJugadorDaoImpl).
+    private static final int TAMANO_LOTE_IN = 900;
 
     private static final RowMapper<JustificacionFaltaEntrenamiento> ROW_MAPPER =
             JustificacionFaltaEntrenamientoDaoImpl::mapRow;
@@ -104,6 +110,35 @@ public class JustificacionFaltaEntrenamientoDaoImpl implements JustificacionFalt
                 """;
 
         return jdbcTemplate.query(sql, ROW_MAPPER, sesionId);
+    }
+
+    @Override
+    public void eliminarPorSesionIds(List<Long> sesionIds) {
+
+        if (sesionIds == null || sesionIds.isEmpty()) {
+            return;
+        }
+
+        List<Long> idsValidos = sesionIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        if (idsValidos.isEmpty()) {
+            return;
+        }
+
+        for (int inicio = 0; inicio < idsValidos.size(); inicio += TAMANO_LOTE_IN) {
+
+            List<Long> lote = idsValidos.subList(
+                    inicio, Math.min(inicio + TAMANO_LOTE_IN, idsValidos.size()));
+
+            String placeholders = String.join(",", Collections.nCopies(lote.size(), "?"));
+
+            jdbcTemplate.update(
+                    "DELETE FROM JUSTIFICACIONES_FALTA_ENTRENAMIENTO WHERE SESION_ID IN (" + placeholders + ")",
+                    lote.toArray());
+        }
     }
 
     private static JustificacionFaltaEntrenamiento mapRow(ResultSet rs, int rowNum) throws SQLException {

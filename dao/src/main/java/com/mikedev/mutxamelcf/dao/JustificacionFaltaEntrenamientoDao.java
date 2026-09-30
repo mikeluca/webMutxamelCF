@@ -14,4 +14,12 @@ public interface JustificacionFaltaEntrenamientoDao {
 
     List<JustificacionFaltaEntrenamiento> obtenerPorSesion(Long sesionId);
 
+    /**
+     * Elimina todas las justificaciones de las sesiones indicadas. Debe
+     * llamarse ANTES de eliminar esas sesiones: FK_JUSTIF_FALTA_SESION
+     * no tiene ON DELETE CASCADE, así que Oracle rechaza (ORA-02292) el
+     * DELETE de una sesión con alguna justificación todavía asociada.
+     */
+    void eliminarPorSesionIds(List<Long> sesionIds);
+
 }
