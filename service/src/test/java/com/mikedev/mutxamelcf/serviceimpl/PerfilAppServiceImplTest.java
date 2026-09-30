@@ -74,6 +74,38 @@ class PerfilAppServiceImplTest {
     }
 
     @Test
+    void obtenerPerfilConRolesFamiliarYJugadorMuestraElNombreDelFamiliarNoElDelJugadorVinculado() {
+        // Un mismo usuario puede tener a la vez FAMILIAR y JUGADOR (p.ej.
+        // invitado como ambos): obtenerJugadoresPorUsuario() puede devolver
+        // un hijo, no al propio usuario, así que el nombre a mostrar debe
+        // ser el del propio titular de la cuenta (Familiar), nunca el del
+        // jugador vinculado.
+        UsuarioApp usuario = new UsuarioApp();
+        usuario.setId(1);
+
+        when(usuarioAppService.obtenerPorId(1)).thenReturn(usuario);
+        when(usuarioAppService.obtenerRoles(1))
+                .thenReturn(List.of(rol("FAMILIAR"), rol("JUGADOR")));
+
+        Familiar familiar = new Familiar();
+        familiar.setNombre("Ana");
+        familiar.setApellidos("Garcia");
+        when(perfilAppDao.obtenerFamiliarPorUsuario(1)).thenReturn(familiar);
+
+        Jugador hijo = new Jugador();
+        hijo.setNombre("Pablo");
+        hijo.setApellidos("Garcia");
+        when(perfilAppDao.obtenerJugadoresPorUsuario(1)).thenReturn(List.of(hijo));
+
+        PerfilAppResponse resultado = service.obtenerPerfil(1);
+
+        assertThat(resultado.getNombre()).isEqualTo("Ana");
+        assertThat(resultado.getApellidos()).isEqualTo("Garcia");
+        // El hijo sigue apareciendo en la lista de jugadores asociados.
+        assertThat(resultado.getJugadores()).hasSize(1);
+    }
+
+    @Test
     void obtenerPerfilRellenaDatosDelPrimerJugadorCuandoTieneEseRol() {
         UsuarioApp usuario = new UsuarioApp();
         usuario.setId(1);

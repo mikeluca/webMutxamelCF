@@ -89,13 +89,24 @@ public class PerfilAppServiceImpl implements PerfilAppService {
          * ========================================================
          * JUGADOR
          * ========================================================
+         *
+         * Un mismo usuario puede tener a la vez los roles JUGADOR y
+         * FAMILIAR (p. ej. se le invita como ambos en la misma
+         * invitación). obtenerJugadoresPorUsuario() devuelve TODOS los
+         * jugadores vinculados a esta cuenta, sin distinguir si el
+         * vínculo es "este usuario ES ese jugador" o "este usuario es
+         * FAMILIAR de ese jugador" (su hijo/a) -- así que si ya se
+         * resolvió el nombre propio del usuario por otro rol (FAMILIAR/
+         * ENTRENADOR), no debe sobrescribirse aquí con el nombre de un
+         * jugador que bien podría ser un hijo, no el propio usuario.
          */
 
         List<Jugador> jugadores = perfilAppDao.obtenerJugadoresPorUsuario(
                 usuarioAppId);
 
         if (codigosRoles.contains("JUGADOR")
-                && !jugadores.isEmpty()) {
+                && !jugadores.isEmpty()
+                && response.getNombre() == null) {
 
             Jugador jugador = jugadores.get(0);
 
@@ -121,11 +132,14 @@ public class PerfilAppServiceImpl implements PerfilAppService {
 
                 CuerpoTecnico miembro = cuerpoTecnico.get(0);
 
-                response.setNombre(
-                        miembro.getNombre());
+                if (response.getNombre() == null) {
 
-                response.setApellidos(
-                        miembro.getApellidos());
+                    response.setNombre(
+                            miembro.getNombre());
+
+                    response.setApellidos(
+                            miembro.getApellidos());
+                }
 
                 response.setTelefono(null);
             }
