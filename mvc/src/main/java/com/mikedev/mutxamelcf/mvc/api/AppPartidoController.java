@@ -391,6 +391,9 @@ public class AppPartidoController {
 
                 } catch (Exception e) {
 
+                        org.slf4j.LoggerFactory.getLogger(AppPartidoController.class)
+                                        .error("Error al guardar las estadísticas del partido id={}", id, e);
+
                         return ResponseEntity
                                         .status(HttpStatus.INTERNAL_SERVER_ERROR)
                                         .body("Error al guardar las estadísticas del partido");

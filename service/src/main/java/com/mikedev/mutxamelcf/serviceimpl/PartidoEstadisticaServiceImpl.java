@@ -349,10 +349,33 @@ public class PartidoEstadisticaServiceImpl
 
         LocalDate fecha = new java.sql.Date(dia.getTime()).toLocalDate();
 
-        LocalTime horaLocal = (hora == null || hora.isBlank())
-                ? LocalTime.MIDNIGHT
-                : LocalTime.parse(hora);
+        return LocalDateTime.of(fecha, parsearHora(hora));
+    }
 
-        return LocalDateTime.of(fecha, horaLocal);
+    /*
+     * HORA es texto libre: acepta "H:mm", "HH:mm", "18.30" o "18:30h".
+     * Si no se puede interpretar se asume medianoche, para no bloquear
+     * el guardado del resultado por un formato de hora inesperado.
+     */
+    private static LocalTime parsearHora(String hora) {
+
+        if (hora == null || hora.isBlank()) {
+            return LocalTime.MIDNIGHT;
+        }
+
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("(\\d{1,2})\\s*[:.hH]\\s*(\\d{2})")
+                .matcher(hora);
+
+        if (m.find()) {
+            int h = Integer.parseInt(m.group(1));
+            int min = Integer.parseInt(m.group(2));
+
+            if (h <= 23 && min <= 59) {
+                return LocalTime.of(h, min);
+            }
+        }
+
+        return LocalTime.MIDNIGHT;
     }
 }
