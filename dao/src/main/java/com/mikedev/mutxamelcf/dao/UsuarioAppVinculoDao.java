@@ -71,6 +71,12 @@ public interface UsuarioAppVinculoDao {
     String obtenerNombrePersona(String tipo, Long personaId);
 
     /**
+     * Solo el nombre de pila (sin apellidos) de una persona
+     * (jugador/familiar/cuerpo técnico). Devuelve null si no existe.
+     */
+    String obtenerNombreDePilaPersona(String tipo, Long personaId);
+
+    /**
      * Email registrado de un familiar (tabla FAMILIARES). El email de
      * la invitación de un familiar siempre sale de aquí, nunca de lo
      * que escriba OFICINA, para que coincida con el dato de contacto

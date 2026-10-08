@@ -375,4 +375,27 @@ class UsuarioAppVinculoDaoImplTest {
         when(rs.next()).thenReturn(false);
         assertThat(rseCaptor.getValue().extractData(rs)).isNull();
     }
+
+    @Test
+    void obtenerNombreDePilaPersonaDevuelveNullParaTipoDesconocidoOIdNulo() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        UsuarioAppVinculoDaoImpl dao = new UsuarioAppVinculoDaoImpl(jdbcTemplate);
+
+        assertThat(dao.obtenerNombreDePilaPersona("OTRO", 1L)).isNull();
+        assertThat(dao.obtenerNombreDePilaPersona("JUGADOR", null)).isNull();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerNombreDePilaPersonaSoloPideLaColumnaNombre() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        UsuarioAppVinculoDaoImpl dao = new UsuarioAppVinculoDaoImpl(jdbcTemplate);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        when(jdbcTemplate.query(sqlCaptor.capture(), any(PreparedStatementSetter.class), any(ResultSetExtractor.class)))
+                .thenReturn("Juan");
+
+        assertThat(dao.obtenerNombreDePilaPersona("FAMILIAR", 1L)).isEqualTo("Juan");
+        assertThat(sqlCaptor.getValue()).contains("SELECT NOMBRE FROM FAMILIARES").doesNotContain("APELLIDOS");
+    }
 }

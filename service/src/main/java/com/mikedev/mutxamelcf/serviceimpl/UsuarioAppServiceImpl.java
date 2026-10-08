@@ -763,13 +763,20 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
     }
 
     @Override
-    public String obtenerNombrePersona(int usuarioAppId) {
+    public String obtenerNombreDePila(int usuarioAppId) {
 
-        return usuarioAppVinculoDao.obtenerVinculos(usuarioAppId).stream()
-                .map(VinculoUsuarioApp::getNombreCompleto)
-                .filter(nombre -> nombre != null && !nombre.isBlank())
-                .findFirst()
-                .orElse(null);
+        for (VinculoUsuarioApp vinculo : usuarioAppVinculoDao.obtenerVinculos(usuarioAppId)) {
+
+            String nombre = usuarioAppVinculoDao.obtenerNombreDePilaPersona(
+                    vinculo.getTipo(),
+                    vinculo.getPersonaId());
+
+            if (nombre != null && !nombre.isBlank()) {
+                return nombre.trim();
+            }
+        }
+
+        return null;
     }
 
     private String emailFamiliarObligatorio(Long familiarId) {

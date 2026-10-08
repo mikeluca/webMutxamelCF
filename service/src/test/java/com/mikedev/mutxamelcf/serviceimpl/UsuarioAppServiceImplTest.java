@@ -657,4 +657,31 @@ class UsuarioAppServiceImplTest {
 
         verify(usuarioAppDao, never()).eliminar(anyInt());
     }
+
+    @Test
+    void obtenerNombreDePilaDevuelveSoloElNombreSinApellidos() {
+        when(usuarioAppVinculoDao.obtenerVinculos(5))
+                .thenReturn(List.of(new VinculoUsuarioApp("FAMILIAR", 8L, "María José García Pérez")));
+        when(usuarioAppVinculoDao.obtenerNombreDePilaPersona("FAMILIAR", 8L)).thenReturn("  María José ");
+
+        assertThat(service.obtenerNombreDePila(5)).isEqualTo("María José");
+    }
+
+    @Test
+    void obtenerNombreDePilaSaltaVinculosSinNombreYDevuelveElSiguiente() {
+        when(usuarioAppVinculoDao.obtenerVinculos(5)).thenReturn(List.of(
+                new VinculoUsuarioApp("JUGADOR", 1L, "Sin Nombre"),
+                new VinculoUsuarioApp("ENTRENADOR", 2L, "Carlos Técnico")));
+        when(usuarioAppVinculoDao.obtenerNombreDePilaPersona("JUGADOR", 1L)).thenReturn(" ");
+        when(usuarioAppVinculoDao.obtenerNombreDePilaPersona("ENTRENADOR", 2L)).thenReturn("Carlos");
+
+        assertThat(service.obtenerNombreDePila(5)).isEqualTo("Carlos");
+    }
+
+    @Test
+    void obtenerNombreDePilaDevuelveNullSinVinculos() {
+        when(usuarioAppVinculoDao.obtenerVinculos(5)).thenReturn(List.of());
+
+        assertThat(service.obtenerNombreDePila(5)).isNull();
+    }
 }

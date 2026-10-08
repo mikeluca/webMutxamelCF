@@ -44,12 +44,12 @@ class CuentaActivadaNotifierTest {
 
         when(usuarioAppService.obtenerPorId(4)).thenReturn(usuario);
         when(usuarioAppService.obtenerRoles(4)).thenReturn(List.of(rol("FAMILIAR"), rol("ENTRENADOR")));
-        when(usuarioAppService.obtenerNombrePersona(4)).thenReturn("Ana López");
+        when(usuarioAppService.obtenerNombreDePila(4)).thenReturn("Ana");
 
         notifier.notificar(4);
 
         verify(comunicacionesService).enviarCuentaActivada(
-                "ana@example.com", "Ana López", List.of("FAMILIAR", "ENTRENADOR"));
+                "ana@example.com", "Ana", List.of("FAMILIAR", "ENTRENADOR"));
     }
 
     @Test

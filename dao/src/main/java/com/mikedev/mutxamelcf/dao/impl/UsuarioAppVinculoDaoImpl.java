@@ -369,6 +369,28 @@ public class UsuarioAppVinculoDaoImpl implements UsuarioAppVinculoDao {
     }
 
     @Override
+    public String obtenerNombreDePilaPersona(String tipo, Long personaId) {
+
+        String tabla = switch (tipo) {
+            case "JUGADOR" -> "JUGADORES";
+            case "FAMILIAR" -> "FAMILIARES";
+            case "ENTRENADOR" -> "CUERPO_TECNICO";
+            default -> null;
+        };
+
+        if (tabla == null || personaId == null) {
+            return null;
+        }
+
+        String sql = "SELECT NOMBRE FROM " + tabla + " WHERE ID = ?";
+
+        return jdbcTemplate.query(
+                sql,
+                ps -> ps.setLong(1, personaId),
+                (ResultSet rs) -> rs.next() ? rs.getString("NOMBRE") : null);
+    }
+
+    @Override
     public String obtenerEmailFamiliar(Long familiarId) {
 
         if (familiarId == null) {
