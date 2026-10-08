@@ -1512,12 +1512,6 @@ public class ComunicacionServiceImpl
                         return new NombreRol(null, null);
                 }
 
-                UsuarioApp cuenta = usuarioAppService.obtenerPorId(usuarioId.intValue());
-
-                if (cuenta != null && cuenta.isEliminada()) {
-                        return new NombreRol("Usuario eliminado", null);
-                }
-
                 List<VinculoUsuarioApp> vinculos = usuarioAppVinculoDao.obtenerVinculos(usuarioId.intValue());
 
                 String nombre = vinculos.stream()
@@ -1543,6 +1537,17 @@ public class ComunicacionServiceImpl
 
                 if (usuarioAppService.tieneRol(usuarioId.intValue(), "COORDINADOR")) {
                         return new NombreRol("Coordinador", "COORDINADOR");
+                }
+
+                /*
+                 * Una cuenta eliminada por su titular no conserva vínculos
+                 * ni roles, así que solo se consulta aquí, al final, y no
+                 * se añade ninguna consulta extra por cada mensaje.
+                 */
+                UsuarioApp cuenta = usuarioAppService.obtenerPorId(usuarioId.intValue());
+
+                if (cuenta != null && cuenta.isEliminada()) {
+                        return new NombreRol("Usuario eliminado", null);
                 }
 
                 return new NombreRol("Usuario", null);

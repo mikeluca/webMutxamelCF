@@ -201,6 +201,36 @@ class UsuarioAppDaoImplTest {
         verify(jdbcTemplate).update(anyString(), eq(1));
     }
 
+    /**
+     * El mapper lee FECHA_ELIMINACION: si alguna consulta no la pide,
+     * Oracle falla con "nombre de columna no válido" y se rompe el login.
+     * Los tests con JdbcTemplate simulado no ejecutan el SQL, así que se
+     * comprueba el texto de cada SELECT que alimenta al mapper.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void todasLasConsultasQueUsanElMapperPidenFechaEliminacion() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        UsuarioAppDaoImpl dao = new UsuarioAppDaoImpl(jdbcTemplate);
+
+        dao.obtenerPorEmail("a@a.com");
+        dao.obtenerPorId(1);
+        dao.obtenerPorTokenActivacion("tok");
+        dao.listarTodos();
+
+        ArgumentCaptor<String> porPss = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate, org.mockito.Mockito.times(3))
+                .query(porPss.capture(), any(PreparedStatementSetter.class), any(ResultSetExtractor.class));
+
+        ArgumentCaptor<String> listado = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(listado.capture(), any(RowMapper.class));
+
+        List<String> consultas = new java.util.ArrayList<>(porPss.getAllValues());
+        consultas.addAll(listado.getAllValues());
+
+        assertThat(consultas).hasSize(4).allSatisfy(sql -> assertThat(sql).contains("FECHA_ELIMINACION"));
+    }
+
     @Test
     void anonimizarSustituyeElEmailYDesactivaLaCuenta() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);

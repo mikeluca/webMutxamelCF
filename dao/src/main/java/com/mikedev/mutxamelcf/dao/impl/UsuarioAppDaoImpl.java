@@ -30,7 +30,8 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        FECHA_ULTIMO_ACCESO,
                        TOKEN_ACTIVACION,
                        TOKEN_ACTIVACION_EXPIRA,
-                       INTENTOS_ACTIVACION
+                       INTENTOS_ACTIVACION,
+                       FECHA_ELIMINACION
                 FROM USUARIOS_APP
                 WHERE LOWER(EMAIL) = LOWER(?)
                 """;
@@ -62,7 +63,8 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        FECHA_ULTIMO_ACCESO,
                        TOKEN_ACTIVACION,
                        TOKEN_ACTIVACION_EXPIRA,
-                       INTENTOS_ACTIVACION
+                       INTENTOS_ACTIVACION,
+                       FECHA_ELIMINACION
                 FROM USUARIOS_APP
                 WHERE ID = ?
                 """;
@@ -95,7 +97,8 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        FECHA_ULTIMO_ACCESO,
                        TOKEN_ACTIVACION,
                        TOKEN_ACTIVACION_EXPIRA,
-                       INTENTOS_ACTIVACION
+                       INTENTOS_ACTIVACION,
+                       FECHA_ELIMINACION
                 FROM USUARIOS_APP
                 WHERE TOKEN_ACTIVACION = ?
                 """;
@@ -127,7 +130,8 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        FECHA_ULTIMO_ACCESO,
                        TOKEN_ACTIVACION,
                        TOKEN_ACTIVACION_EXPIRA,
-                       INTENTOS_ACTIVACION
+                       INTENTOS_ACTIVACION,
+                       FECHA_ELIMINACION
                 FROM USUARIOS_APP
                 ORDER BY FECHA_ALTA DESC
                 """;
