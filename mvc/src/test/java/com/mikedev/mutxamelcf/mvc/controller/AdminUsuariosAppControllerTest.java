@@ -7,6 +7,7 @@ import com.mikedev.mutxamelcf.model.PersonasVinculablesResponse;
 import com.mikedev.mutxamelcf.model.UsuarioAppAdminResponse;
 import com.mikedev.mutxamelcf.model.VinculoSolicitado;
 import com.mikedev.mutxamelcf.mvc.communication.ComunicacionesService;
+import com.mikedev.mutxamelcf.mvc.communication.CuentaActivadaNotifier;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -32,13 +33,15 @@ class AdminUsuariosAppControllerTest {
 
     private UsuarioAppService usuarioAppService;
     private ComunicacionesService comunicacionesService;
+    private CuentaActivadaNotifier cuentaActivadaNotifier;
     private AdminUsuariosAppController controller;
 
     @BeforeEach
     void setUp() {
         usuarioAppService = mock(UsuarioAppService.class);
         comunicacionesService = mock(ComunicacionesService.class);
-        controller = new AdminUsuariosAppController(usuarioAppService, comunicacionesService);
+        cuentaActivadaNotifier = mock(CuentaActivadaNotifier.class);
+        controller = new AdminUsuariosAppController(usuarioAppService, comunicacionesService, cuentaActivadaNotifier);
     }
 
     private static InvitarUsuarioAppRequest request() {
@@ -217,6 +220,7 @@ class AdminUsuariosAppControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(usuarioAppService).activarUsuarioAdmin(1);
+        verify(cuentaActivadaNotifier).notificar(1);
     }
 
     @Test
@@ -227,6 +231,7 @@ class AdminUsuariosAppControllerTest {
         ResponseEntity<Map<String, String>> response = controller.activar(1);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        verify(cuentaActivadaNotifier, org.mockito.Mockito.never()).notificar(org.mockito.ArgumentMatchers.anyInt());
     }
 
     @Test

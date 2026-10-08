@@ -762,6 +762,16 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
         logger.info("Invitación de app eliminada: usuarioAppId={}", usuarioAppId);
     }
 
+    @Override
+    public String obtenerNombrePersona(int usuarioAppId) {
+
+        return usuarioAppVinculoDao.obtenerVinculos(usuarioAppId).stream()
+                .map(VinculoUsuarioApp::getNombreCompleto)
+                .filter(nombre -> nombre != null && !nombre.isBlank())
+                .findFirst()
+                .orElse(null);
+    }
+
     private String emailFamiliarObligatorio(Long familiarId) {
 
         String email = usuarioAppVinculoDao.obtenerEmailFamiliar(familiarId);

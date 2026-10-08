@@ -2,6 +2,7 @@ package com.mikedev.mutxamelcf.mvc.controller;
 
 import com.mikedev.mutxamelcf.model.LoginAppResponse;
 import com.mikedev.mutxamelcf.mvc.config.LoginRateLimiter;
+import com.mikedev.mutxamelcf.mvc.communication.CuentaActivadaNotifier;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 import com.mikedev.mutxamelcf.model.ActivarCuentaAppRequest;
 import com.mikedev.mutxamelcf.model.LoginAppRequest;
@@ -26,13 +27,16 @@ public class AppAuthController {
 
     private final UsuarioAppService usuarioAppService;
     private final LoginRateLimiter rateLimiter;
+    private final CuentaActivadaNotifier cuentaActivadaNotifier;
 
     public AppAuthController(
             UsuarioAppService usuarioAppService,
-            LoginRateLimiter rateLimiter) {
+            LoginRateLimiter rateLimiter,
+            CuentaActivadaNotifier cuentaActivadaNotifier) {
 
         this.usuarioAppService = usuarioAppService;
         this.rateLimiter = rateLimiter;
+        this.cuentaActivadaNotifier = cuentaActivadaNotifier;
     }
 
     /**
@@ -111,6 +115,8 @@ public class AppAuthController {
                     request.getPassword());
 
             rateLimiter.registrarExito(clave);
+
+            cuentaActivadaNotifier.notificar(usuario.getId());
 
             LoginAppResponse loginResponse = usuarioAppService.login(
                     usuario.getEmail(),

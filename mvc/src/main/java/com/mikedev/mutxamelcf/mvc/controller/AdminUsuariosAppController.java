@@ -24,6 +24,7 @@ import com.mikedev.mutxamelcf.model.PersonasVinculablesResponse;
 import com.mikedev.mutxamelcf.model.UsuarioAppAdminResponse;
 import com.mikedev.mutxamelcf.model.VinculoSolicitado;
 import com.mikedev.mutxamelcf.mvc.communication.ComunicacionesService;
+import com.mikedev.mutxamelcf.mvc.communication.CuentaActivadaNotifier;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
 import jakarta.validation.Valid;
@@ -40,13 +41,16 @@ public class AdminUsuariosAppController {
 
     private final UsuarioAppService usuarioAppService;
     private final ComunicacionesService comunicacionesService;
+    private final CuentaActivadaNotifier cuentaActivadaNotifier;
 
     public AdminUsuariosAppController(
             UsuarioAppService usuarioAppService,
-            ComunicacionesService comunicacionesService) {
+            ComunicacionesService comunicacionesService,
+            CuentaActivadaNotifier cuentaActivadaNotifier) {
 
         this.usuarioAppService = usuarioAppService;
         this.comunicacionesService = comunicacionesService;
+        this.cuentaActivadaNotifier = cuentaActivadaNotifier;
     }
 
     @GetMapping
@@ -207,6 +211,7 @@ public class AdminUsuariosAppController {
         try {
 
             usuarioAppService.activarUsuarioAdmin(id);
+            cuentaActivadaNotifier.notificar(id);
             response.put("mensaje", "Cuenta activada.");
             return ResponseEntity.ok(response);
 

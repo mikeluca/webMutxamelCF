@@ -70,4 +70,10 @@ public interface UsuarioAppService {
     void desactivarUsuarioAdmin(int usuarioAppId);
 
     void eliminarInvitacion(int usuarioAppId);
+
+    /**
+     * Nombre completo de la persona vinculada a la cuenta (jugador,
+     * familiar o cuerpo técnico), o {@code null} si no tiene ninguno.
+     */
+    String obtenerNombrePersona(int usuarioAppId);
 }

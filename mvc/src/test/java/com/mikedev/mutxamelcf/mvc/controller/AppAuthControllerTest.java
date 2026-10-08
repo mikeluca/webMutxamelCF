@@ -5,6 +5,7 @@ import com.mikedev.mutxamelcf.model.LoginAppRequest;
 import com.mikedev.mutxamelcf.model.LoginAppResponse;
 import com.mikedev.mutxamelcf.model.RolApp;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
+import com.mikedev.mutxamelcf.mvc.communication.CuentaActivadaNotifier;
 import com.mikedev.mutxamelcf.mvc.config.LoginRateLimiter;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
@@ -28,13 +29,15 @@ class AppAuthControllerTest {
 
     private UsuarioAppService usuarioAppService;
     private LoginRateLimiter rateLimiter;
+    private CuentaActivadaNotifier cuentaActivadaNotifier;
     private AppAuthController controller;
 
     @BeforeEach
     void setUp() {
         usuarioAppService = mock(UsuarioAppService.class);
         rateLimiter = mock(LoginRateLimiter.class);
-        controller = new AppAuthController(usuarioAppService, rateLimiter);
+        cuentaActivadaNotifier = mock(CuentaActivadaNotifier.class);
+        controller = new AppAuthController(usuarioAppService, rateLimiter, cuentaActivadaNotifier);
         when(rateLimiter.clave(LoginRateLimiter.CONTEXTO_APP_LOGIN, "127.0.0.1", "ana@example.com"))
                 .thenReturn("clave");
         when(rateLimiter.clave(LoginRateLimiter.CONTEXTO_APP_ACTIVAR, "127.0.0.1", "ana@example.com"))
@@ -141,6 +144,7 @@ class AppAuthControllerTest {
         assertEquals(loginResponse, response.getBody());
         verify(rateLimiter).registrarExito("clave");
         verify(rateLimiter, never()).registrarFallo("clave");
+        verify(cuentaActivadaNotifier).notificar(1);
     }
 
     @Test

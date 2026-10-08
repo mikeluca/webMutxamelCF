@@ -63,6 +63,71 @@ class ComunicacionesServiceTest {
     }
 
     @Test
+    void enviarCuentaActivadaDevuelveTrueCuandoElEnvioTieneExito() {
+        assertTrue(service.enviarCuentaActivada("ana@example.com", "Ana", java.util.List.of("JUGADOR")));
+    }
+
+    @Test
+    void enviarCuentaActivadaDevuelveFalseSiElEnvioFalla() {
+        doThrow(new RuntimeException("fallo smtp")).when(emailSender).send(
+                org.mockito.ArgumentMatchers.any(MimeMessage.class));
+
+        assertFalse(service.enviarCuentaActivada("ana@example.com", "Ana", java.util.List.of("JUGADOR")));
+    }
+
+    @Test
+    void cuentaActivadaVaEnCastellanoYDespuesEnValencianoSeparados() {
+        String texto = ComunicacionesService.construirCuentaActivada("Ana", java.util.List.of("JUGADOR"));
+
+        int separador = texto.indexOf("------------------------------");
+        int castellano = texto.indexOf("Tu cuenta de la app oficial");
+        int valenciano = texto.indexOf("El teu compte de l'app oficial");
+
+        assertTrue(castellano >= 0 && castellano < separador);
+        assertTrue(separador < valenciano);
+        assertTrue(texto.startsWith("Hola Ana:"));
+    }
+
+    @Test
+    void cuentaActivadaIncluyeSoloLosBloquesDeLosRolesDeLaCuenta() {
+        String texto = ComunicacionesService.construirCuentaActivada("Ana", java.util.List.of("FAMILIAR"));
+
+        assertTrue(texto.contains("Como familiar"));
+        assertTrue(texto.contains("Com a familiar"));
+        assertFalse(texto.contains("Como entrenador"));
+        assertFalse(texto.contains("Como jugador"));
+        assertFalse(texto.contains("Como coordinador"));
+        assertFalse(texto.contains("retransmisión"));
+        assertFalse(texto.toLowerCase().contains("cuota"));
+    }
+
+    @Test
+    void cuentaActivadaConVariosRolesIncluyeTodosSusBloques() {
+        String texto = ComunicacionesService.construirCuentaActivada(
+                "Ana", java.util.List.of("ENTRENADOR", "FAMILIAR", "RETRANSMISION"));
+
+        assertTrue(texto.contains("Como entrenador"));
+        assertTrue(texto.contains("Como familiar"));
+        assertTrue(texto.contains("Como responsable de retransmisión"));
+        assertTrue(texto.contains("Com a responsable de retransmissió"));
+    }
+
+    @Test
+    void cuentaActivadaTratandoCoordinadorYAdminComoUnSoloBloque() {
+        String texto = ComunicacionesService.construirCuentaActivada(
+                "Ana", java.util.List.of("COORDINADOR", "ADMIN_APP"));
+
+        assertTrue(texto.contains("Como coordinador"));
+        assertTrue(texto.indexOf("Como coordinador") == texto.lastIndexOf("Como coordinador"));
+    }
+
+    @Test
+    void cuentaActivadaSaludaDeFormaGenericaSinNombre() {
+        assertTrue(ComunicacionesService.construirCuentaActivada(null, java.util.List.of()).startsWith("Hola:"));
+        assertTrue(ComunicacionesService.construirCuentaActivada("  ", null).startsWith("Hola:"));
+    }
+
+    @Test
     void enviarWhatsappSiempreDevuelveFalse() {
         assertFalse(service.enviarWhatsapp("600000000", "Hola"));
     }
