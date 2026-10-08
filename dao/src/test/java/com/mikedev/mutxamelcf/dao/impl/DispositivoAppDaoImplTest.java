@@ -115,6 +115,16 @@ class DispositivoAppDaoImplTest {
     }
 
     @Test
+    void eliminarTodosDeUsuarioEjecutaElDelete() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        DispositivoAppDaoImpl dao = new DispositivoAppDaoImpl(jdbcTemplate);
+
+        dao.eliminarTodosDeUsuario(1L);
+
+        verify(jdbcTemplate).update(anyString(), eq(1L));
+    }
+
+    @Test
     void desactivarTokenDeOtrosUsuariosEjecutaElUpdate() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         DispositivoAppDaoImpl dao = new DispositivoAppDaoImpl(jdbcTemplate);

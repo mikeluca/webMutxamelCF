@@ -192,4 +192,14 @@ class NotificacionAppDaoImplTest {
 
         assertThat(dao.contarComunicacionesNoLeidas(1L)).isEqualTo(3);
     }
+
+    @Test
+    void eliminarTodasDeUsuarioEjecutaElDelete() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        NotificacionAppDaoImpl dao = new NotificacionAppDaoImpl(jdbcTemplate);
+
+        dao.eliminarTodasDeUsuario(1L);
+
+        verify(jdbcTemplate).update(anyString(), eq(1L));
+    }
 }

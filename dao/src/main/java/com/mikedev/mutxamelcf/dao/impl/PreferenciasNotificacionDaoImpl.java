@@ -137,4 +137,12 @@ public class PreferenciasNotificacionDaoImpl
                 preferencias.getResultadosActivados(),
                 preferencias.getUsuarioAppId());
     }
+
+    @Override
+    public void eliminarPorUsuario(Long usuarioId) {
+
+        jdbcTemplate.update(
+                "DELETE FROM PREFERENCIAS_NOTIFICACION WHERE USUARIO_APP_ID = ?",
+                usuarioId);
+    }
 }

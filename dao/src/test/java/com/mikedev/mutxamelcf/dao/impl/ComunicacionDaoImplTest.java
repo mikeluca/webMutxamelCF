@@ -530,7 +530,7 @@ class ComunicacionDaoImplTest {
         ComunicacionDaoImpl dao = new ComunicacionDaoImpl(jdbcTemplate, rolAppDao);
 
         ArgumentCaptor<RowMapper<Comunicacion>> captor = ArgumentCaptor.forClass(RowMapper.class);
-        when(jdbcTemplate.query(anyString(), captor.capture(), eq(1L), eq(1L), eq(1L))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), captor.capture(), eq(1L), eq(1L), eq(1L), eq(1L))).thenReturn(List.of());
 
         dao.obtenerPrivadasDeUsuario(1L);
 

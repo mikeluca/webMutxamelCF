@@ -25,6 +25,7 @@ import com.mikedev.mutxamelcf.model.DestinatarioComunicacion;
 import com.mikedev.mutxamelcf.model.DestinatarioComunicacionResponse;
 import com.mikedev.mutxamelcf.model.MensajeConversacionResponse;
 import com.mikedev.mutxamelcf.model.NotificacionAppResponse;
+import com.mikedev.mutxamelcf.model.UsuarioApp;
 import com.mikedev.mutxamelcf.model.VinculoUsuarioApp;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
@@ -1509,6 +1510,12 @@ public class ComunicacionServiceImpl
 
                 if (usuarioId == null) {
                         return new NombreRol(null, null);
+                }
+
+                UsuarioApp cuenta = usuarioAppService.obtenerPorId(usuarioId.intValue());
+
+                if (cuenta != null && cuenta.isEliminada()) {
+                        return new NombreRol("Usuario eliminado", null);
                 }
 
                 List<VinculoUsuarioApp> vinculos = usuarioAppVinculoDao.obtenerVinculos(usuarioId.intValue());

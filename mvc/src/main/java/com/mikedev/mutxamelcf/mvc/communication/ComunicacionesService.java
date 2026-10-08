@@ -65,6 +65,17 @@ public class ComunicacionesService {
         return enviado;
     }
 
+    /**
+     * Avisa al club de que un usuario de la app ha denunciado un
+     * mensaje o comunicación (Apple Guideline 1.2).
+     */
+    public boolean enviarReporteContenido(String asunto, String contenido, String emailReportante) {
+        logger.debug("Inicio enviarReporteContenido: asunto={}", asunto);
+        boolean enviado = enviarEmail(REMITENTE, DESTINATARIO_CONTACTO, emailReportante, asunto, contenido);
+        logger.debug("Fin enviarReporteContenido: enviado={}", enviado);
+        return enviado;
+    }
+
     public boolean enviarWhatsapp(String telefono, String mensaje) {
         logger.debug("Inicio enviarWhatsapp: telefono={}", telefono);
         logger.warn("WhatsApp no enviado: no hay proveedor configurado");

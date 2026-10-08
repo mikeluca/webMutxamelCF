@@ -24,6 +24,8 @@ public class UsuarioApp {
 
     private int intentosActivacion;
 
+    private Timestamp fechaEliminacion;
+
     public UsuarioApp() {
     }
 
@@ -105,5 +107,20 @@ public class UsuarioApp {
 
     public void setIntentosActivacion(int intentosActivacion) {
         this.intentosActivacion = intentosActivacion;
+    }
+
+    public Timestamp getFechaEliminacion() {
+        return fechaEliminacion;
+    }
+
+    public void setFechaEliminacion(Timestamp fechaEliminacion) {
+        this.fechaEliminacion = fechaEliminacion;
+    }
+
+    /**
+     * La cuenta fue borrada por su titular y la fila está anonimizada.
+     */
+    public boolean isEliminada() {
+        return fechaEliminacion != null;
     }
 }

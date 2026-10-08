@@ -413,6 +413,12 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
         List<UsuarioAppAdminResponse> respuesta = new ArrayList<>();
 
         for (UsuarioApp usuario : usuarios) {
+
+            // Las cuentas borradas por su titular son filas anonimizadas.
+            if (usuario.isEliminada()) {
+                continue;
+            }
+
             respuesta.add(construirRespuestaAdmin(usuario));
         }
 
@@ -685,6 +691,10 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
             throw new IllegalStateException("La cuenta ya está activa");
         }
 
+        if (usuario.isEliminada()) {
+            throw new IllegalStateException("La cuenta fue eliminada por su titular");
+        }
+
         List<VinculoUsuarioApp> vinculos = usuarioAppVinculoDao.obtenerVinculos(usuarioAppId);
 
         String token = generarTokenActivacion(usuarioAppId);
@@ -701,8 +711,14 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
     @Override
     public void activarUsuarioAdmin(int usuarioAppId) {
 
-        if (usuarioAppDao.obtenerPorId(usuarioAppId) == null) {
+        UsuarioApp usuario = usuarioAppDao.obtenerPorId(usuarioAppId);
+
+        if (usuario == null) {
             throw new IllegalArgumentException("El usuario no existe");
+        }
+
+        if (usuario.isEliminada()) {
+            throw new IllegalStateException("La cuenta fue eliminada por su titular");
         }
 
         usuarioAppDao.activarUsuario(usuarioAppId);

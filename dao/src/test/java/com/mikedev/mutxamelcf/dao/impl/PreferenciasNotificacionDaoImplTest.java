@@ -89,4 +89,14 @@ class PreferenciasNotificacionDaoImplTest {
 
         verify(jdbcTemplate).update(anyString(), eq(1), any(), any(), any(), any(), eq(1L));
     }
+
+    @Test
+    void eliminarPorUsuarioEjecutaElDelete() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        PreferenciasNotificacionDaoImpl dao = new PreferenciasNotificacionDaoImpl(jdbcTemplate);
+
+        dao.eliminarPorUsuario(1L);
+
+        verify(jdbcTemplate).update(anyString(), eq(1L));
+    }
 }

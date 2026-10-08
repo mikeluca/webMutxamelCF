@@ -202,6 +202,22 @@ class UsuarioAppDaoImplTest {
     }
 
     @Test
+    void anonimizarSustituyeElEmailYDesactivaLaCuenta() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        UsuarioAppDaoImpl dao = new UsuarioAppDaoImpl(jdbcTemplate);
+
+        dao.anonimizar(7, "eliminada-7@cuenta-eliminada.invalid");
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(sql.capture(), eq("eliminada-7@cuenta-eliminada.invalid"), eq(7));
+        assertThat(sql.getValue())
+                .contains("UPDATE USUARIOS_APP")
+                .contains("PASSWORD_HASH = NULL")
+                .contains("ACTIVO = 0")
+                .contains("FECHA_ELIMINACION = SYSTIMESTAMP");
+    }
+
+    @Test
     void eliminarEjecutaElDelete() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         UsuarioAppDaoImpl dao = new UsuarioAppDaoImpl(jdbcTemplate);

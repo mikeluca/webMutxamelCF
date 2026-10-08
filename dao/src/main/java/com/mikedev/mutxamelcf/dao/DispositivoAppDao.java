@@ -24,4 +24,6 @@ public interface DispositivoAppDao {
                         String tokenFcm);
 
         List<DispositivoApp> obtenerActivosPorUsuario(Long usuarioAppId);
+
+        void eliminarTodosDeUsuario(Long usuarioAppId);
 }

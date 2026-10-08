@@ -23,6 +23,14 @@ public interface UsuarioAppDao {
 
     void desactivarUsuario(int id);
 
+    /**
+     * Anonimiza la cuenta (borrado a petición del titular): sustituye
+     * el email, vacía la contraseña y los tokens, desactiva la cuenta y
+     * fija FECHA_ELIMINACION. La fila se conserva porque otras tablas
+     * la referencian por clave foránea.
+     */
+    void anonimizar(int id, String emailAnonimo);
+
     void eliminar(int id);
 
     void actualizarUltimoAcceso(int id);

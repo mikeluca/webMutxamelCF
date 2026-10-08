@@ -226,6 +226,23 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
     }
 
     @Override
+    public void anonimizar(int id, String emailAnonimo) {
+
+        String sql = """
+                UPDATE USUARIOS_APP
+                SET EMAIL = ?,
+                    PASSWORD_HASH = NULL,
+                    ACTIVO = 0,
+                    TOKEN_ACTIVACION = NULL,
+                    TOKEN_ACTIVACION_EXPIRA = NULL,
+                    FECHA_ELIMINACION = SYSTIMESTAMP
+                WHERE ID = ?
+                """;
+
+        jdbcTemplate.update(sql, emailAnonimo, id);
+    }
+
+    @Override
     public void eliminar(int id) {
 
         String sql = "DELETE FROM USUARIOS_APP WHERE ID = ?";
@@ -314,6 +331,9 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
         );
         usuario.setIntentosActivacion(
                 rs.getInt("INTENTOS_ACTIVACION")
+        );
+        usuario.setFechaEliminacion(
+                rs.getTimestamp("FECHA_ELIMINACION")
         );
 
         return usuario;

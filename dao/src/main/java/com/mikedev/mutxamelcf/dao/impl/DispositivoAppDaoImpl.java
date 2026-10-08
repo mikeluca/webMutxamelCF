@@ -158,6 +158,14 @@ public class DispositivoAppDaoImpl implements DispositivoAppDao {
                                 usuarioAppId);
         }
 
+        @Override
+        public void eliminarTodosDeUsuario(Long usuarioAppId) {
+
+                jdbcTemplate.update(
+                                "DELETE FROM USUARIOS_APP_DISPOSITIVOS WHERE USUARIO_APP_ID = ?",
+                                usuarioAppId);
+        }
+
         private DispositivoApp mapearDispositivo(
                         java.sql.ResultSet rs) throws java.sql.SQLException {
 

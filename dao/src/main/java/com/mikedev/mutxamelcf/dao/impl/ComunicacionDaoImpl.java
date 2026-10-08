@@ -1168,6 +1168,19 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                 WHERE c.TIPO = 'PRIVADA'
                   AND c.ACTIVA = 1
                   AND (c.USUARIO_AUTOR_ID = ? OR cu.USUARIO_APP_ID = ?)
+                  /*
+                   * Si la otra persona borró su cuenta, la conversación
+                   * deja de mostrarse (sigue en base de datos).
+                   */
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM USUARIOS_APP ue
+                      WHERE ue.FECHA_ELIMINACION IS NOT NULL
+                        AND ue.ID = CASE
+                            WHEN c.USUARIO_AUTOR_ID = ? THEN cu.USUARIO_APP_ID
+                            ELSE c.USUARIO_AUTOR_ID
+                        END
+                  )
                 ORDER BY c.FECHA_CREACION DESC
                 """;
 
@@ -1178,6 +1191,7 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                     comunicacion.setContraparteId(rs.getLong("CONTRAPARTE_ID"));
                     return comunicacion;
                 },
+                usuarioId,
                 usuarioId,
                 usuarioId,
                 usuarioId);

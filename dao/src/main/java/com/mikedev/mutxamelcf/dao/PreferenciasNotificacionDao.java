@@ -9,4 +9,6 @@ public interface PreferenciasNotificacionDao {
     void guardar(PreferenciasNotificacion preferencias);
 
     void actualizar(PreferenciasNotificacion preferencias);
+
+    void eliminarPorUsuario(Long usuarioId);
 }

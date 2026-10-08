@@ -29,4 +29,6 @@ public interface NotificacionAppDao {
 
     int contarComunicacionesNoLeidas(Long usuarioId);
 
+    void eliminarTodasDeUsuario(Long usuarioId);
+
 }

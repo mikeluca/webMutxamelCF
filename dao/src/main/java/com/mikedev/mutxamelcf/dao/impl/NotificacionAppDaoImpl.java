@@ -258,4 +258,12 @@ public class NotificacionAppDaoImpl implements NotificacionAppDao {
 
                 return cantidad != null ? cantidad : 0;
         }
+
+        @Override
+        public void eliminarTodasDeUsuario(Long usuarioId) {
+
+                jdbcTemplate.update(
+                                "DELETE FROM NOTIFICACIONES_APP WHERE USUARIO_APP_ID = ?",
+                                usuarioId);
+        }
 }
