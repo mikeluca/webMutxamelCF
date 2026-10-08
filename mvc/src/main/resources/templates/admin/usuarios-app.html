@@ -54,7 +54,10 @@
 						<td class="align-middle">
 							<span th:if="${!#lists.isEmpty(usuario.vinculos)}"
 								th:text="${usuario.vinculos[0].nombreCompleto}"></span>
-							<span th:if="${#lists.isEmpty(usuario.vinculos)}" class="text-muted">&mdash;</span>
+							<span th:if="${#lists.isEmpty(usuario.vinculos)} and ${usuario.nombreCuenta} != null"
+								th:text="${usuario.nombreCuenta}"></span>
+							<span th:if="${#lists.isEmpty(usuario.vinculos)} and ${usuario.nombreCuenta} == null"
+								class="text-muted">&mdash;</span>
 						</td>
 						<td class="align-middle" th:text="${#strings.listJoin(usuario.roles, ', ')}"></td>
 						<td class="align-middle">
@@ -80,6 +83,9 @@
 							<div class="d-flex justify-content-center align-items-center gap-2">
 								<button type="button" class="btn btn-outline-secondary btn-sm"
 									title="Editar vínculos y roles" th:attr="data-id=${usuario.id},
+											data-tiene-ficha=${usuario.tieneFicha},
+											data-nombre=${usuario.nombre},
+											data-apellidos=${usuario.apellidos},
 										data-tiene-jugador=${usuario.tieneJugador},
 										data-tiene-familiar=${usuario.tieneFamiliar},
 										data-tiene-coordinador=${usuario.tieneCoordinador},
@@ -235,6 +241,19 @@
 								todavía.</small>
 						</div>
 
+						<!-- Solo si ningún vínculo es jugador/familiar/entrenador: no hay ficha de la que sacar el nombre. -->
+						<div class="row mb-3" id="grupoNombreCuenta" style="display:none;">
+							<div class="col-md-6">
+								<label for="nombreCuenta">Nombre <span class="text-danger">*</span></label>
+								<input type="text" class="form-control" id="nombreCuenta" maxlength="100">
+							</div>
+							<div class="col-md-6">
+								<label for="apellidosCuenta">Apellidos <small class="text-muted">(opcional)</small></label>
+								<input type="text" class="form-control" id="apellidosCuenta" maxlength="150">
+							</div>
+							<small class="text-muted">Es el nombre que verán los demás en el chat y en los correos.</small>
+						</div>
+
 						<div class="mb-3">
 							<label for="email">Email de acceso <span class="text-danger">*</span></label>
 							<input type="email" class="form-control" id="email" name="email" required>
@@ -270,6 +289,25 @@
 
 					<h4 class="lead">Vínculos y roles actuales</h4>
 					<div id="editarVinculosActuales" class="mb-4"></div>
+
+					<!-- Oculto si la cuenta tiene ficha vinculada: el nombre sale de la ficha. -->
+					<div id="editarNombreCuenta" class="mb-4" style="display:none;">
+						<h4 class="lead">Nombre de la cuenta</h4>
+						<div class="row g-2 align-items-end">
+							<div class="col-md-5">
+								<label for="editarNombre">Nombre <span class="text-danger">*</span></label>
+								<input type="text" class="form-control" id="editarNombre" maxlength="100">
+							</div>
+							<div class="col-md-5">
+								<label for="editarApellidos">Apellidos <small class="text-muted">(opcional)</small></label>
+								<input type="text" class="form-control" id="editarApellidos" maxlength="150">
+							</div>
+							<div class="col-md-2">
+								<button type="button" class="btn btn-outline-success w-100"
+									onclick="guardarNombre()">Guardar</button>
+							</div>
+						</div>
+					</div>
 
 					<h4 class="lead">Añadir un vínculo o rol nuevo</h4>
 					<form id="editarForm">
@@ -382,6 +420,22 @@
 
 			if (!sufijo) {
 				actualizarEstadoEmail();
+				actualizarGrupoNombre();
+			}
+		}
+
+		// El nombre de la cuenta solo se pide si hay algo marcado y ningún tipo
+		// es de los que traen ficha (jugador, familiar, entrenador).
+		function actualizarGrupoNombre() {
+			const marcados = Array.from(document.querySelectorAll('.tipo-vinculo-check:checked'));
+			const sinFicha = marcados.length > 0
+				&& marcados.every(check => TIPOS_VINCULO_SIN_PERSONA.includes(check.value));
+
+			document.getElementById('grupoNombreCuenta').style.display = sinFicha ? 'flex' : 'none';
+
+			if (!sinFicha) {
+				document.getElementById('nombreCuenta').value = '';
+				document.getElementById('apellidosCuenta').value = '';
 			}
 		}
 
@@ -491,13 +545,27 @@
 				vinculos.push({ tipo, personaId });
 			}
 
+			const nombre = document.getElementById('nombreCuenta').value.trim();
+			const apellidos = document.getElementById('apellidosCuenta').value.trim();
+			const pideNombre = document.getElementById('grupoNombreCuenta').style.display !== 'none';
+
+			if (pideNombre && !nombre) {
+				mostrarMensaje('mensajeModal', 'error', 'El nombre es obligatorio para esta cuenta.');
+				return;
+			}
+
 			fetch('/admin/usuarios-app/invitar', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 					'X-CSRF-TOKEN': token
 				},
-				body: JSON.stringify({ vinculos, email })
+				body: JSON.stringify({
+					vinculos,
+					email,
+					nombre: pideNombre ? nombre : null,
+					apellidos: pideNombre ? apellidos : null
+				})
 			})
 				.then(leerRespuesta)
 				.then(({ ok, data }) => {
@@ -526,6 +594,12 @@
 			contenedor.innerHTML = '';
 			contenedor.appendChild(plantilla.content.cloneNode(true));
 
+			// Con ficha vinculada el nombre sale de la ficha: el campo no se muestra.
+			const tieneFicha = boton.getAttribute('data-tiene-ficha') === 'true';
+			document.getElementById('editarNombreCuenta').style.display = tieneFicha ? 'none' : 'block';
+			document.getElementById('editarNombre').value = boton.getAttribute('data-nombre') || '';
+			document.getElementById('editarApellidos').value = boton.getAttribute('data-apellidos') || '';
+
 			document.querySelectorAll('.tipo-vinculo-check-editar').forEach(check => {
 				check.checked = false;
 				check.disabled = false;
@@ -542,6 +616,40 @@
 			document.getElementById('grupoEditarEntrenador').style.display = 'none';
 
 			new bootstrap.Modal(document.getElementById('editarModal')).show();
+		}
+
+		function guardarNombre() {
+			const usuarioId = document.getElementById('editarUsuarioId').value;
+			const token = document.querySelector('#editarForm input[name="_csrf"]').value;
+			const nombre = document.getElementById('editarNombre').value.trim();
+			const apellidos = document.getElementById('editarApellidos').value.trim();
+
+			if (!nombre) {
+				mostrarMensaje('mensajeEditarModal', 'error', 'El nombre es obligatorio.');
+				return;
+			}
+
+			fetch('/admin/usuarios-app/' + usuarioId + '/nombre', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-TOKEN': token
+				},
+				body: JSON.stringify({ nombre, apellidos })
+			})
+				.then(leerRespuesta)
+				.then(({ ok, data }) => {
+					if (!ok) {
+						mostrarMensaje('mensajeEditarModal', 'error', data.error || 'Error desconocido');
+						return;
+					}
+					window.location.href = '/admin/usuarios-app';
+				})
+				.catch(err => {
+					console.error(err);
+					mostrarMensaje('mensajeEditarModal', 'error',
+						'No se ha podido contactar con el servidor. Revisa tu conexión e inténtalo de nuevo.');
+				});
 		}
 
 		function anadirVinculos() {

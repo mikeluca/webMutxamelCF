@@ -26,6 +26,15 @@ public class UsuarioApp {
 
     private Timestamp fechaEliminacion;
 
+    /**
+     * Nombre propio de la cuenta. Solo se rellena en las que no tienen
+     * ficha vinculada (coordinador, retransmisión, admin); si hay ficha,
+     * el nombre sale de ella.
+     */
+    private String nombre;
+
+    private String apellidos;
+
     public UsuarioApp() {
     }
 
@@ -115,6 +124,22 @@ public class UsuarioApp {
 
     public void setFechaEliminacion(Timestamp fechaEliminacion) {
         this.fechaEliminacion = fechaEliminacion;
+    }
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
+    }
+
+    public String getApellidos() {
+        return apellidos;
+    }
+
+    public void setApellidos(String apellidos) {
+        this.apellidos = apellidos;
     }
 
     /**

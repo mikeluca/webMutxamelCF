@@ -154,7 +154,114 @@ class UsuarioAppDaoImplTest {
         int idGenerado = dao.guardar(usuario);
 
         assertThat(idGenerado).isEqualTo(9);
-        verify(jdbcTemplate).update(anyString(), eq("test@example.com"), eq(null), eq(0), any(), any(), any());
+        verify(jdbcTemplate).update(anyString(), eq("test@example.com"), eq(null), eq(0), any(), any(), any(),
+                any(), any());
+    }
+
+    @Test
+    void guardarPersisteNombreYApellidosDeLaCuenta() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        UsuarioAppDaoImpl dao = new UsuarioAppDaoImpl(jdbcTemplate);
+
+        UsuarioApp usuario = new UsuarioApp();
+        usuario.setEmail("coord@example.com");
+        usuario.setNombre("Juan");
+        usuario.setApellidos("Pérez");
+
+        UsuarioApp guardado = new UsuarioApp();
+        guardado.setId(3);
+        when(jdbcTemplate.query(anyString(), any(PreparedStatementSetter.class), any(ResultSetExtractor.class)))
+                .thenReturn(guardado);
+
+        dao.guardar(usuario);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(sql.capture(), eq("coord@example.com"), eq(null), eq(0), any(), any(), any(),
+                eq("Juan"), eq("Pérez"));
+        assertThat(sql.getValue()).contains("NOMBRE").contains("APELLIDOS");
+    }
+
+    @Test
+    void actualizarNombreEjecutaElUpdate() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        UsuarioAppDaoImpl dao = new UsuarioAppDaoImpl(jdbcTemplate);
+
+        dao.actualizarNombre(4, "Ana", "López");
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(sql.capture(), eq("Ana"), eq("López"), eq(4));
+        assertThat(sql.getValue())
+                .contains("UPDATE USUARIOS_APP")
+                .contains("NOMBRE = ?")
+                .contains("APELLIDOS = ?");
+    }
+
+    /**
+     * Lee una fila completa con el mapper real y comprueba que CADA columna
+     * que pide al ResultSet figura en CADA SELECT que lo alimenta. Los tests
+     * con JdbcTemplate simulado no ejecutan el SQL, y una columna que el
+     * mapper lee pero un SELECT no pide es un error de Oracle en producción
+     * (ya pasó con FECHA_ELIMINACION): así el próximo campo nuevo falla aquí.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void todasLasConsultasPidenTodasLasColumnasQueLeeElMapper() throws Exception {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        UsuarioAppDaoImpl dao = new UsuarioAppDaoImpl(jdbcTemplate);
+
+        dao.listarTodos();
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<RowMapper<UsuarioApp>> mapperCaptor = ArgumentCaptor.forClass(RowMapper.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), mapperCaptor.capture());
+
+        java.util.Set<String> columnasLeidas = new java.util.LinkedHashSet<>();
+        ResultSet rs = mock(ResultSet.class, invocation -> {
+            if (invocation.getArguments().length == 1 && invocation.getArgument(0) instanceof String columna) {
+                columnasLeidas.add(columna);
+            }
+            return org.mockito.Answers.RETURNS_DEFAULTS.answer(invocation);
+        });
+
+        mapperCaptor.getValue().mapRow(rs, 0);
+
+        assertThat(columnasLeidas).contains("NOMBRE", "APELLIDOS", "FECHA_ELIMINACION");
+
+        dao.obtenerPorEmail("a@a.com");
+        dao.obtenerPorId(1);
+        dao.obtenerPorTokenActivacion("tok");
+
+        ArgumentCaptor<String> porPss = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate, org.mockito.Mockito.times(3))
+                .query(porPss.capture(), any(PreparedStatementSetter.class), any(ResultSetExtractor.class));
+
+        List<String> consultas = new java.util.ArrayList<>(porPss.getAllValues());
+        consultas.add(sqlCaptor.getValue());
+
+        assertThat(consultas).hasSize(4).allSatisfy(sql -> {
+            String proyeccion = sql.substring(0, sql.indexOf("FROM"));
+            assertThat(columnasLeidas).allSatisfy(columna -> assertThat(proyeccion).contains(columna));
+        });
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void elMapperLeeNombreYApellidosDeLaFila() throws Exception {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        UsuarioAppDaoImpl dao = new UsuarioAppDaoImpl(jdbcTemplate);
+
+        ArgumentCaptor<RowMapper<UsuarioApp>> captor = ArgumentCaptor.forClass(RowMapper.class);
+        when(jdbcTemplate.query(anyString(), captor.capture())).thenReturn(List.of());
+        dao.listarTodos();
+
+        ResultSet rs = mock(ResultSet.class);
+        when(rs.getString("NOMBRE")).thenReturn("Juan");
+        when(rs.getString("APELLIDOS")).thenReturn("Pérez");
+
+        UsuarioApp mapeado = captor.getValue().mapRow(rs, 0);
+
+        assertThat(mapeado.getNombre()).isEqualTo("Juan");
+        assertThat(mapeado.getApellidos()).isEqualTo("Pérez");
     }
 
     @Test
@@ -243,6 +350,8 @@ class UsuarioAppDaoImplTest {
         assertThat(sql.getValue())
                 .contains("UPDATE USUARIOS_APP")
                 .contains("PASSWORD_HASH = NULL")
+                .contains("NOMBRE = NULL")
+                .contains("APELLIDOS = NULL")
                 .contains("ACTIVO = 0")
                 .contains("FECHA_ELIMINACION = SYSTIMESTAMP");
     }

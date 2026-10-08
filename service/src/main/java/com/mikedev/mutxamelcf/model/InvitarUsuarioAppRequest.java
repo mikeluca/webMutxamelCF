@@ -24,7 +24,32 @@ public class InvitarUsuarioAppRequest {
 
     private String email;
 
+    /**
+     * Nombre propio de la cuenta. Obligatorio solo si ningún vínculo es
+     * jugador/familiar/entrenador (no hay ficha de la que sacarlo); si hay
+     * ficha se ignora. Los apellidos son siempre opcionales.
+     */
+    private String nombre;
+
+    private String apellidos;
+
     public InvitarUsuarioAppRequest() {
+    }
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
+    }
+
+    public String getApellidos() {
+        return apellidos;
+    }
+
+    public void setApellidos(String apellidos) {
+        this.apellidos = apellidos;
     }
 
     public List<VinculoSolicitado> getVinculos() {

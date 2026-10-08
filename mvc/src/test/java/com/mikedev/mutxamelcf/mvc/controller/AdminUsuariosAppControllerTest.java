@@ -273,6 +273,30 @@ class AdminUsuariosAppControllerTest {
     }
 
     @Test
+    void actualizarNombreDelegaEnElServicio() {
+        com.mikedev.mutxamelcf.model.ActualizarNombreUsuarioAppRequest peticion =
+                new com.mikedev.mutxamelcf.model.ActualizarNombreUsuarioAppRequest();
+        peticion.setNombre("Juan");
+        peticion.setApellidos("Pérez");
+
+        ResponseEntity<Map<String, String>> response = controller.actualizarNombre(1, peticion);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(usuarioAppService).actualizarNombre(1, "Juan", "Pérez");
+    }
+
+    @Test
+    void actualizarNombreDevuelveBadRequestSiFaltaElNombre() {
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("El nombre es obligatorio"))
+                .when(usuarioAppService).actualizarNombre(1, null, null);
+
+        ResponseEntity<Map<String, String>> response = controller.actualizarNombre(
+                1, new com.mikedev.mutxamelcf.model.ActualizarNombreUsuarioAppRequest());
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
     void eliminarDelegaEnElServicio() {
         ResponseEntity<Map<String, String>> response = controller.eliminar(1);
 

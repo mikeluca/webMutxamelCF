@@ -146,6 +146,16 @@ public class PerfilAppServiceImpl implements PerfilAppService {
         }
 
         /*
+         * Sin ficha vinculada (coordinador, retransmisión, admin) el nombre
+         * es el de la propia cuenta.
+         */
+        if (response.getNombre() == null && usuario.getNombre() != null) {
+
+            response.setNombre(usuario.getNombre());
+            response.setApellidos(usuario.getApellidos());
+        }
+
+        /*
          * ========================================================
          * JUGADORES ASOCIADOS
          * ========================================================

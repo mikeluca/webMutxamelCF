@@ -31,7 +31,9 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        TOKEN_ACTIVACION,
                        TOKEN_ACTIVACION_EXPIRA,
                        INTENTOS_ACTIVACION,
-                       FECHA_ELIMINACION
+                       FECHA_ELIMINACION,
+                       NOMBRE,
+                       APELLIDOS
                 FROM USUARIOS_APP
                 WHERE LOWER(EMAIL) = LOWER(?)
                 """;
@@ -64,7 +66,9 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        TOKEN_ACTIVACION,
                        TOKEN_ACTIVACION_EXPIRA,
                        INTENTOS_ACTIVACION,
-                       FECHA_ELIMINACION
+                       FECHA_ELIMINACION,
+                       NOMBRE,
+                       APELLIDOS
                 FROM USUARIOS_APP
                 WHERE ID = ?
                 """;
@@ -98,7 +102,9 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        TOKEN_ACTIVACION,
                        TOKEN_ACTIVACION_EXPIRA,
                        INTENTOS_ACTIVACION,
-                       FECHA_ELIMINACION
+                       FECHA_ELIMINACION,
+                       NOMBRE,
+                       APELLIDOS
                 FROM USUARIOS_APP
                 WHERE TOKEN_ACTIVACION = ?
                 """;
@@ -131,7 +137,9 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        TOKEN_ACTIVACION,
                        TOKEN_ACTIVACION_EXPIRA,
                        INTENTOS_ACTIVACION,
-                       FECHA_ELIMINACION
+                       FECHA_ELIMINACION,
+                       NOMBRE,
+                       APELLIDOS
                 FROM USUARIOS_APP
                 ORDER BY FECHA_ALTA DESC
                 """;
@@ -152,9 +160,11 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                     FECHA_ALTA,
                     FECHA_ACTIVACION,
                     FECHA_ULTIMO_ACCESO,
-                    TOKEN_ACTIVACION
+                    TOKEN_ACTIVACION,
+                    NOMBRE,
+                    APELLIDOS
                 )
-                VALUES (?, ?, ?, SYSTIMESTAMP, ?, ?, ?)
+                VALUES (?, ?, ?, SYSTIMESTAMP, ?, ?, ?, ?, ?)
                 """;
 
         jdbcTemplate.update(
@@ -164,7 +174,9 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                 usuario.isActivo() ? 1 : 0,
                 usuario.getFechaActivacion(),
                 usuario.getFechaUltimoAcceso(),
-                usuario.getTokenActivacion()
+                usuario.getTokenActivacion(),
+                usuario.getNombre(),
+                usuario.getApellidos()
         );
 
         /*
@@ -239,11 +251,26 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                     ACTIVO = 0,
                     TOKEN_ACTIVACION = NULL,
                     TOKEN_ACTIVACION_EXPIRA = NULL,
+                    NOMBRE = NULL,
+                    APELLIDOS = NULL,
                     FECHA_ELIMINACION = SYSTIMESTAMP
                 WHERE ID = ?
                 """;
 
         jdbcTemplate.update(sql, emailAnonimo, id);
+    }
+
+    @Override
+    public void actualizarNombre(int id, String nombre, String apellidos) {
+
+        String sql = """
+                UPDATE USUARIOS_APP
+                SET NOMBRE = ?,
+                    APELLIDOS = ?
+                WHERE ID = ?
+                """;
+
+        jdbcTemplate.update(sql, nombre, apellidos, id);
     }
 
     @Override
@@ -338,6 +365,12 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
         );
         usuario.setFechaEliminacion(
                 rs.getTimestamp("FECHA_ELIMINACION")
+        );
+        usuario.setNombre(
+                rs.getString("NOMBRE")
+        );
+        usuario.setApellidos(
+                rs.getString("APELLIDOS")
         );
 
         return usuario;

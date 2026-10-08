@@ -76,4 +76,17 @@ public interface UsuarioAppService {
      * familiar o cuerpo técnico), o {@code null} si no tiene ninguno.
      */
     String obtenerNombreDePila(int usuarioAppId);
+
+    /**
+     * Cambia el nombre propio de la cuenta (el que se muestra cuando no
+     * tiene ficha vinculada). Sin ficha el nombre es obligatorio; los
+     * apellidos son siempre opcionales.
+     */
+    void actualizarNombre(int usuarioAppId, String nombre, String apellidos);
+
+    /**
+     * Nombre completo para mostrar: el de la ficha vinculada si la hay y,
+     * si no, el de la propia cuenta. {@code null} si no tiene ninguno.
+     */
+    String obtenerNombreMostrable(int usuarioAppId);
 }

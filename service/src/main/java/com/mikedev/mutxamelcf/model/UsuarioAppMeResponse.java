@@ -8,7 +8,18 @@ public class UsuarioAppMeResponse {
     private String email;
     private List<String> roles;
 
+    /** Nombre para mostrar (ficha o cuenta); null si la cuenta no tiene ninguno. */
+    private String nombre;
+
     public UsuarioAppMeResponse() {
+    }
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
     }
 
     public UsuarioAppMeResponse(

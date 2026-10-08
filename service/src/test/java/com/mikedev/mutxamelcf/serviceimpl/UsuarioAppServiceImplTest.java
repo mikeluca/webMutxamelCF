@@ -406,6 +406,8 @@ class UsuarioAppServiceImplTest {
     @Test
     void invitarUsuarioCoordinadorNoRequierePersonaVinculada() {
         InvitarUsuarioAppRequest request = requestInvitacion("COORDINADOR", null, "coordinador@mutxamelcf.es");
+        request.setNombre("  Juan ");
+        request.setApellidos(" Pérez ");
 
         when(rolAppDao.obtenerPorCodigo("COORDINADOR")).thenReturn(rol(9, "COORDINADOR"));
         when(usuarioAppDao.obtenerPorEmail("coordinador@mutxamelcf.es")).thenReturn(null);
@@ -419,7 +421,14 @@ class UsuarioAppServiceImplTest {
 
         InvitacionUsuarioApp invitacion = service.invitarUsuario(request);
 
-        assertThat(invitacion.getNombrePersona()).isNull();
+        // Sin ficha, el nombre de la invitación es el de la cuenta.
+        assertThat(invitacion.getNombrePersona()).isEqualTo("Juan");
+
+        org.mockito.ArgumentCaptor<UsuarioApp> guardado = org.mockito.ArgumentCaptor.forClass(UsuarioApp.class);
+        verify(usuarioAppDao).guardar(guardado.capture());
+        assertThat(guardado.getValue().getNombre()).isEqualTo("Juan");
+        assertThat(guardado.getValue().getApellidos()).isEqualTo("Pérez");
+
         verify(rolAppDao).asignarRol(7, 9);
         verify(usuarioAppVinculoDao, never()).vincularJugador(anyInt(), any());
         verify(usuarioAppVinculoDao, never()).vincularFamiliar(anyInt(), any());
@@ -429,6 +438,7 @@ class UsuarioAppServiceImplTest {
     @Test
     void invitarUsuarioRetransmisionNoRequierePersonaVinculada() {
         InvitarUsuarioAppRequest request = requestInvitacion("RETRANSMISION", null, "retransmision@mutxamelcf.es");
+        request.setNombre("Ana");
 
         when(rolAppDao.obtenerPorCodigo("RETRANSMISION")).thenReturn(rol(10, "RETRANSMISION"));
         when(usuarioAppDao.obtenerPorEmail("retransmision@mutxamelcf.es")).thenReturn(null);
@@ -442,11 +452,117 @@ class UsuarioAppServiceImplTest {
 
         InvitacionUsuarioApp invitacion = service.invitarUsuario(request);
 
-        assertThat(invitacion.getNombrePersona()).isNull();
+        assertThat(invitacion.getNombrePersona()).isEqualTo("Ana");
         verify(rolAppDao).asignarRol(8, 10);
         verify(usuarioAppVinculoDao, never()).vincularJugador(anyInt(), any());
         verify(usuarioAppVinculoDao, never()).vincularFamiliar(anyInt(), any());
         verify(usuarioAppVinculoDao, never()).vincularCuerpoTecnico(anyInt(), any());
+    }
+
+    @Test
+    void invitarUsuarioSinFichaExigeNombreYNoCreaNada() {
+        InvitarUsuarioAppRequest request = requestInvitacion("COORDINADOR", null, "coordinador@mutxamelcf.es");
+        request.setNombre("   ");
+
+        when(rolAppDao.obtenerPorCodigo("COORDINADOR")).thenReturn(rol(9, "COORDINADOR"));
+
+        assertThatThrownBy(() -> service.invitarUsuario(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("nombre es obligatorio");
+
+        verify(usuarioAppDao, never()).guardar(any());
+    }
+
+    @Test
+    void invitarUsuarioConFichaIgnoraElNombreEscritoEnLaPeticion() {
+        InvitarUsuarioAppRequest request = requestInvitacion("JUGADOR", 55L, "nuevo@mutxamelcf.es");
+        request.setNombre("Otro Nombre");
+
+        when(usuarioAppVinculoDao.jugadorTieneCuenta(55L)).thenReturn(false);
+        when(usuarioAppVinculoDao.obtenerNombrePersona("JUGADOR", 55L)).thenReturn("Juan Perez");
+        when(rolAppDao.obtenerPorCodigo("JUGADOR")).thenReturn(rol(2, "JUGADOR"));
+        when(usuarioAppDao.obtenerPorEmail("nuevo@mutxamelcf.es")).thenReturn(null);
+        when(usuarioAppDao.guardar(any())).thenReturn(42);
+
+        UsuarioApp creado = new UsuarioApp();
+        creado.setId(42);
+        when(usuarioAppDao.obtenerPorId(42)).thenReturn(creado);
+        when(rolAppDao.obtenerPorUsuario(42)).thenReturn(List.of());
+
+        service.invitarUsuario(request);
+
+        org.mockito.ArgumentCaptor<UsuarioApp> guardado = org.mockito.ArgumentCaptor.forClass(UsuarioApp.class);
+        verify(usuarioAppDao).guardar(guardado.capture());
+        assertThat(guardado.getValue().getNombre()).isNull();
+    }
+
+    @Test
+    void actualizarNombreSinFichaGuardaNombreYApellidosLimpios() {
+        UsuarioApp cuenta = new UsuarioApp();
+        cuenta.setId(7);
+        when(usuarioAppDao.obtenerPorId(7)).thenReturn(cuenta);
+        when(usuarioAppVinculoDao.obtenerVinculos(7)).thenReturn(List.of());
+
+        service.actualizarNombre(7, " Juan ", "  ");
+
+        verify(usuarioAppDao).actualizarNombre(7, "Juan", null);
+    }
+
+    @Test
+    void actualizarNombreSinFichaYSinNombreLanzaExcepcion() {
+        UsuarioApp cuenta = new UsuarioApp();
+        cuenta.setId(7);
+        when(usuarioAppDao.obtenerPorId(7)).thenReturn(cuenta);
+        when(usuarioAppVinculoDao.obtenerVinculos(7)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.actualizarNombre(7, null, "Pérez"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("nombre es obligatorio");
+
+        verify(usuarioAppDao, never()).actualizarNombre(anyInt(), any(), any());
+    }
+
+    @Test
+    void actualizarNombreDeCuentaInexistenteOEliminadaLanzaExcepcion() {
+        when(usuarioAppDao.obtenerPorId(1)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.actualizarNombre(1, "Ana", null))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        UsuarioApp eliminada = new UsuarioApp();
+        eliminada.setFechaEliminacion(Timestamp.valueOf("2026-01-01 00:00:00"));
+        when(usuarioAppDao.obtenerPorId(2)).thenReturn(eliminada);
+
+        assertThatThrownBy(() -> service.actualizarNombre(2, "Ana", null))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void obtenerNombreDePilaSinFichaUsaElNombreDeLaCuenta() {
+        when(usuarioAppVinculoDao.obtenerVinculos(7)).thenReturn(List.of());
+        UsuarioApp cuenta = new UsuarioApp();
+        cuenta.setNombre(" Juan ");
+        when(usuarioAppDao.obtenerPorId(7)).thenReturn(cuenta);
+
+        assertThat(service.obtenerNombreDePila(7)).isEqualTo("Juan");
+    }
+
+    @Test
+    void obtenerNombreMostrablePrefiereLaFichaYSinFichaUsaLaCuenta() {
+        when(usuarioAppVinculoDao.obtenerVinculos(1))
+                .thenReturn(List.of(new VinculoUsuarioApp("JUGADOR", 3L, "Luis Gómez")));
+        assertThat(service.obtenerNombreMostrable(1)).isEqualTo("Luis Gómez");
+
+        when(usuarioAppVinculoDao.obtenerVinculos(2)).thenReturn(List.of());
+        UsuarioApp cuenta = new UsuarioApp();
+        cuenta.setNombre("Juan");
+        cuenta.setApellidos("Pérez");
+        when(usuarioAppDao.obtenerPorId(2)).thenReturn(cuenta);
+        assertThat(service.obtenerNombreMostrable(2)).isEqualTo("Juan Pérez");
+
+        when(usuarioAppVinculoDao.obtenerVinculos(3)).thenReturn(List.of());
+        when(usuarioAppDao.obtenerPorId(3)).thenReturn(new UsuarioApp());
+        assertThat(service.obtenerNombreMostrable(3)).isNull();
     }
 
     @Test

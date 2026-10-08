@@ -984,12 +984,14 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                         J.NOMBRE,
                         F.NOMBRE,
                         CT.NOMBRE,
-                        U.EMAIL
+                        U.NOMBRE,
+                        'Usuario'
                     ) AS NOMBRE,
                     COALESCE(
                         J.APELLIDOS,
                         F.APELLIDOS,
                         CT.APELLIDOS,
+                        U.APELLIDOS,
                         ''
                     ) AS APELLIDOS
                 FROM USUARIOS_APP U

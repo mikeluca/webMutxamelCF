@@ -1531,26 +1531,46 @@ public class ComunicacionServiceImpl
                         return new NombreRol(nombre, rol.isBlank() ? null : rol);
                 }
 
+                /*
+                 * Sin ficha vinculada: el nombre es el que se le puso a la
+                 * cuenta; el rol (ADMIN_APP/COORDINADOR) se devuelve aparte
+                 * para que el chat pueda mostrar "Juan Pérez · Coordinador".
+                 * Si la cuenta no tiene nombre (aún no se ha rellenado), se
+                 * usa el genérico del rol.
+                 */
+                UsuarioApp cuenta = usuarioAppService.obtenerPorId(usuarioId.intValue());
+
+                String nombreCuenta = nombreDeCuenta(cuenta);
+
                 if (usuarioAppService.tieneRol(usuarioId.intValue(), "ADMIN_APP")) {
-                        return new NombreRol("Administrador", "ADMIN_APP");
+                        return new NombreRol(nombreCuenta != null ? nombreCuenta : "Administrador", "ADMIN_APP");
                 }
 
                 if (usuarioAppService.tieneRol(usuarioId.intValue(), "COORDINADOR")) {
-                        return new NombreRol("Coordinador", "COORDINADOR");
+                        return new NombreRol(nombreCuenta != null ? nombreCuenta : "Coordinador", "COORDINADOR");
                 }
 
                 /*
                  * Una cuenta eliminada por su titular no conserva vínculos
-                 * ni roles, así que solo se consulta aquí, al final, y no
-                 * se añade ninguna consulta extra por cada mensaje.
+                 * ni roles (ni nombre), así que solo se detecta aquí, al
+                 * final, sin consultas extra por cada mensaje.
                  */
-                UsuarioApp cuenta = usuarioAppService.obtenerPorId(usuarioId.intValue());
-
                 if (cuenta != null && cuenta.isEliminada()) {
                         return new NombreRol("Usuario eliminado", null);
                 }
 
-                return new NombreRol("Usuario", null);
+                return new NombreRol(nombreCuenta != null ? nombreCuenta : "Usuario", null);
+        }
+
+        private String nombreDeCuenta(UsuarioApp cuenta) {
+
+                if (cuenta == null || cuenta.getNombre() == null || cuenta.getNombre().isBlank()) {
+                        return null;
+                }
+
+                String apellidos = cuenta.getApellidos() == null ? "" : cuenta.getApellidos().trim();
+
+                return (cuenta.getNombre().trim() + " " + apellidos).trim();
         }
 
 }

@@ -274,6 +274,74 @@ class ComunicacionServiceImplTest {
                 .obtenerTodas();
     }
 
+    private com.mikedev.mutxamelcf.model.ComunicacionResponse conversacionCon(long contraparteId) {
+        Comunicacion mensaje = new Comunicacion();
+        mensaje.setId(8L);
+        mensaje.setContenido("Hola");
+        mensaje.setUsuarioAutorId(USUARIO_ID);
+        mensaje.setContraparteId(contraparteId);
+        mensaje.setTipo("PRIVADA");
+
+        when(comunicacionDao.obtenerPrivadasDeUsuario(USUARIO_ID)).thenReturn(List.of(mensaje));
+        when(notificacionAppService.obtenerNoLeidas(USUARIO_ID)).thenReturn(List.of());
+
+        // El autor (el propio usuario) también se resuelve; aquí no importa su nombre.
+        org.mockito.Mockito.lenient().when(usuarioAppVinculoDao.obtenerVinculos(USUARIO_ID.intValue()))
+                .thenReturn(List.of(new com.mikedev.mutxamelcf.model.VinculoUsuarioApp("JUGADOR", 1L, "Yo Mismo")));
+
+        return service.listarConversacionesParaUsuario(USUARIO_ID).get(0);
+    }
+
+    private com.mikedev.mutxamelcf.model.UsuarioApp cuentaConNombre(String nombre, String apellidos) {
+        com.mikedev.mutxamelcf.model.UsuarioApp cuenta = new com.mikedev.mutxamelcf.model.UsuarioApp();
+        cuenta.setNombre(nombre);
+        cuenta.setApellidos(apellidos);
+        return cuenta;
+    }
+
+    @Test
+    void contraparteSinFichaMuestraElNombreDeLaCuentaYElRolAparte() {
+        when(usuarioAppService.obtenerPorId(99)).thenReturn(cuentaConNombre("Juan", "Pérez"));
+        when(usuarioAppService.tieneRol(99, "ADMIN_APP")).thenReturn(false);
+        when(usuarioAppService.tieneRol(99, "COORDINADOR")).thenReturn(true);
+
+        var respuesta = conversacionCon(99L);
+
+        assertThat(respuesta.getContraparteNombre()).isEqualTo("Juan Pérez");
+        assertThat(respuesta.getContraparteRol()).isEqualTo("COORDINADOR");
+    }
+
+    @Test
+    void contraparteSinFichaNiNombreCaeAlGenericoDelRol() {
+        when(usuarioAppService.obtenerPorId(99)).thenReturn(cuentaConNombre(null, null));
+        when(usuarioAppService.tieneRol(99, "ADMIN_APP")).thenReturn(true);
+
+        var respuesta = conversacionCon(99L);
+
+        assertThat(respuesta.getContraparteNombre()).isEqualTo("Administrador");
+        assertThat(respuesta.getContraparteRol()).isEqualTo("ADMIN_APP");
+    }
+
+    @Test
+    void contraparteConFichaMantieneElNombreDeLaFichaAunqueLaCuentaTengaOtro() {
+        when(usuarioAppVinculoDao.obtenerVinculos(99))
+                .thenReturn(List.of(new com.mikedev.mutxamelcf.model.VinculoUsuarioApp("ENTRENADOR", 4L, "Carlos Ruiz")));
+
+        var respuesta = conversacionCon(99L);
+
+        assertThat(respuesta.getContraparteNombre()).isEqualTo("Carlos Ruiz");
+        assertThat(respuesta.getContraparteRol()).isEqualTo("ENTRENADOR");
+    }
+
+    @Test
+    void contraparteEliminadaSeMuestraComoUsuarioEliminado() {
+        com.mikedev.mutxamelcf.model.UsuarioApp eliminada = cuentaConNombre(null, null);
+        eliminada.setFechaEliminacion(java.sql.Timestamp.valueOf("2026-01-01 00:00:00"));
+        when(usuarioAppService.obtenerPorId(99)).thenReturn(eliminada);
+
+        assertThat(conversacionCon(99L).getContraparteNombre()).isEqualTo("Usuario eliminado");
+    }
+
     @Test
     void obtenerConversacionPaginaSinUsuarioLanzaExcepcion() {
         assertThatThrownBy(() -> service.obtenerConversacionPagina(null, 99L, null, null))

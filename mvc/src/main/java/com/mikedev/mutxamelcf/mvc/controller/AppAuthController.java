@@ -170,6 +170,8 @@ public class AppAuthController {
                     usuario.getEmail(),
                     codigosRoles);
 
+            response.setNombre(usuarioAppService.obtenerNombreMostrable(usuarioId));
+
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {

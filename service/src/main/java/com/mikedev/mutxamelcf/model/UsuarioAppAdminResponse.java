@@ -11,6 +11,10 @@ public class UsuarioAppAdminResponse {
 
     private int id;
     private String email;
+
+    /** Nombre propio de la cuenta (solo se usa si no tiene ficha vinculada). */
+    private String nombre;
+    private String apellidos;
     private boolean activo;
     private Timestamp fechaAlta;
     private Timestamp fechaActivacion;
@@ -44,6 +48,38 @@ public class UsuarioAppAdminResponse {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
+    }
+
+    public String getApellidos() {
+        return apellidos;
+    }
+
+    public void setApellidos(String apellidos) {
+        this.apellidos = apellidos;
+    }
+
+    /**
+     * Nombre propio + apellidos de la cuenta, o null si no tiene nombre.
+     */
+    public String getNombreCuenta() {
+        String completo = ((nombre == null ? "" : nombre) + " " + (apellidos == null ? "" : apellidos)).trim();
+        return completo.isEmpty() ? null : completo;
+    }
+
+    /**
+     * La cuenta tiene una ficha vinculada (jugador, familiar o entrenador):
+     * su nombre sale de ella y no se pide ni se edita aquí.
+     */
+    public boolean isTieneFicha() {
+        return vinculos != null && !vinculos.isEmpty();
     }
 
     public boolean isActivo() {

@@ -42,6 +42,11 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
 
     private static final int MAX_INTENTOS_ACTIVACION = 5;
 
+    // Tamaño de las columnas USUARIOS_APP.NOMBRE / APELLIDOS.
+    private static final int MAX_LONGITUD_NOMBRE = 100;
+
+    private static final int MAX_LONGITUD_APELLIDOS = 150;
+
     /*
      * SEC-02: un único mensaje para cualquier motivo por el que la
      * activación no puede continuar (email sin invitación, código
@@ -453,6 +458,21 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
         List<VinculoResuelto> resueltos = validarVinculos(vinculos);
 
         /*
+         * Sin ficha de jugador/familiar/entrenador no hay de dónde sacar el
+         * nombre de la cuenta, así que se pide aquí y es obligatorio.
+         */
+        boolean tieneFicha = resueltos.stream()
+                .anyMatch(v -> TIPOS_VINCULO_CON_PERSONA.contains(v.tipo()));
+
+        String nombreCuenta = null;
+        String apellidosCuenta = null;
+
+        if (!tieneFicha) {
+            nombreCuenta = validarNombreObligatorio(request.getNombre());
+            apellidosCuenta = limpiarApellidos(request.getApellidos());
+        }
+
+        /*
          * El email de un familiar SIEMPRE sale de su ficha (FAMILIARES.EMAIL),
          * nunca de lo que escriba OFICINA en el formulario: así solo se puede
          * cambiar editando al familiar, y no hay forma de que la invitación
@@ -470,10 +490,16 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
 
         UsuarioApp usuario = new UsuarioApp();
         usuario.setEmail(email);
+        usuario.setNombre(nombreCuenta);
+        usuario.setApellidos(apellidosCuenta);
 
         int usuarioAppId = crearUsuario(usuario);
 
         String nombrePersona = aplicarVinculosResueltos(usuarioAppId, resueltos);
+
+        if (nombrePersona == null) {
+            nombrePersona = nombreCuenta;
+        }
 
         String token = generarTokenActivacion(usuarioAppId);
 
@@ -704,8 +730,69 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
         return new InvitacionUsuarioApp(
                 usuarioAppId,
                 usuario.getEmail(),
-                vinculos.isEmpty() ? null : vinculos.get(0).getNombreCompleto(),
+                vinculos.isEmpty() ? usuario.getNombre() : vinculos.get(0).getNombreCompleto(),
                 token);
+    }
+
+    @Override
+    public void actualizarNombre(int usuarioAppId, String nombre, String apellidos) {
+
+        UsuarioApp usuario = usuarioAppDao.obtenerPorId(usuarioAppId);
+
+        if (usuario == null) {
+            throw new IllegalArgumentException("El usuario no existe");
+        }
+
+        if (usuario.isEliminada()) {
+            throw new IllegalStateException("La cuenta fue eliminada por su titular");
+        }
+
+        boolean tieneFicha = !usuarioAppVinculoDao.obtenerVinculos(usuarioAppId).isEmpty();
+
+        /*
+         * Con ficha el nombre real es el de la ficha, así que aquí es
+         * opcional; sin ficha es lo único que identifica a la cuenta.
+         */
+        String nombreLimpio = tieneFicha && (nombre == null || nombre.isBlank())
+                ? null
+                : validarNombreObligatorio(nombre);
+
+        usuarioAppDao.actualizarNombre(usuarioAppId, nombreLimpio, limpiarApellidos(apellidos));
+
+        logger.info("Nombre de cuenta de app actualizado: usuarioAppId={}", usuarioAppId);
+    }
+
+    private String validarNombreObligatorio(String nombre) {
+
+        if (nombre == null || nombre.isBlank()) {
+            throw new IllegalArgumentException(
+                    "El nombre es obligatorio para una cuenta sin jugador, familiar ni entrenador vinculado");
+        }
+
+        String limpio = nombre.trim();
+
+        if (limpio.length() > MAX_LONGITUD_NOMBRE) {
+            throw new IllegalArgumentException(
+                    "El nombre no puede superar los " + MAX_LONGITUD_NOMBRE + " caracteres");
+        }
+
+        return limpio;
+    }
+
+    private String limpiarApellidos(String apellidos) {
+
+        if (apellidos == null || apellidos.isBlank()) {
+            return null;
+        }
+
+        String limpio = apellidos.trim();
+
+        if (limpio.length() > MAX_LONGITUD_APELLIDOS) {
+            throw new IllegalArgumentException(
+                    "Los apellidos no pueden superar los " + MAX_LONGITUD_APELLIDOS + " caracteres");
+        }
+
+        return limpio;
     }
 
     @Override
@@ -776,7 +863,40 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
             }
         }
 
+        // Sin ficha: el nombre que se le puso a la cuenta.
+        UsuarioApp usuario = usuarioAppDao.obtenerPorId(usuarioAppId);
+
+        if (usuario != null && usuario.getNombre() != null && !usuario.getNombre().isBlank()) {
+            return usuario.getNombre().trim();
+        }
+
         return null;
+    }
+
+    @Override
+    public String obtenerNombreMostrable(int usuarioAppId) {
+
+        for (VinculoUsuarioApp vinculo : usuarioAppVinculoDao.obtenerVinculos(usuarioAppId)) {
+
+            if (vinculo.getNombreCompleto() != null && !vinculo.getNombreCompleto().isBlank()) {
+                return vinculo.getNombreCompleto().trim();
+            }
+        }
+
+        UsuarioApp usuario = usuarioAppDao.obtenerPorId(usuarioAppId);
+
+        return usuario == null ? null : nombreCompletoDeCuenta(usuario);
+    }
+
+    private String nombreCompletoDeCuenta(UsuarioApp usuario) {
+
+        if (usuario.getNombre() == null || usuario.getNombre().isBlank()) {
+            return null;
+        }
+
+        String apellidos = usuario.getApellidos() == null ? "" : usuario.getApellidos().trim();
+
+        return (usuario.getNombre().trim() + " " + apellidos).trim();
     }
 
     private String emailFamiliarObligatorio(Long familiarId) {
@@ -838,6 +958,8 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
 
         response.setId(usuario.getId());
         response.setEmail(usuario.getEmail());
+        response.setNombre(usuario.getNombre());
+        response.setApellidos(usuario.getApellidos());
         response.setActivo(usuario.isActivo());
         response.setFechaAlta(usuario.getFechaAlta());
         response.setFechaActivacion(usuario.getFechaActivacion());

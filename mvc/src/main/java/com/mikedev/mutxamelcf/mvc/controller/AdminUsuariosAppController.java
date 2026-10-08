@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.mikedev.mutxamelcf.model.ActualizarNombreUsuarioAppRequest;
 import com.mikedev.mutxamelcf.model.AnadirVinculosRequest;
 import com.mikedev.mutxamelcf.model.InvitacionUsuarioApp;
 import com.mikedev.mutxamelcf.model.InvitarUsuarioAppRequest;
@@ -105,6 +106,34 @@ public class AdminUsuariosAppController {
 
             logger.error("Error al invitar al usuario de la app: {}", e.getMessage(), e);
             response.put("error", "Error inesperado al crear la invitación.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    @PostMapping("/{id}/nombre")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> actualizarNombre(
+            @PathVariable int id,
+            @RequestBody ActualizarNombreUsuarioAppRequest request) {
+
+        Map<String, String> response = new HashMap<>();
+
+        try {
+
+            usuarioAppService.actualizarNombre(id, request.getNombre(), request.getApellidos());
+            response.put("mensaje", "Nombre actualizado correctamente.");
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException | IllegalStateException e) {
+
+            logger.warn("No se ha podido actualizar el nombre: {}", e.getMessage());
+            response.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+
+        } catch (Exception e) {
+
+            logger.error("Error al actualizar el nombre de la cuenta: {}", e.getMessage(), e);
+            response.put("error", "Error inesperado al actualizar el nombre.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
