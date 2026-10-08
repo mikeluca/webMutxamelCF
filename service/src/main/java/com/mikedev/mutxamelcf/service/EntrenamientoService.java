@@ -25,6 +25,18 @@ public interface EntrenamientoService {
                         Long equipoId);
 
         /**
+         * Entrenamientos del equipo con fecha entre desde y hasta (ambos
+         * incluidos; cualquiera puede ser null para dejar ese extremo
+         * abierto), ordenados por cercanía a hoy. Sin ningún límite
+         * equivale a {@link #obtenerPorEquipo(Long, Long)}.
+         */
+        List<EntrenamientoResponse> obtenerPorEquipo(
+                        Long usuarioAppId,
+                        Long equipoId,
+                        java.time.LocalDate desde,
+                        java.time.LocalDate hasta);
+
+        /**
          * Crea automáticamente el ENTRENAMIENTO (registro de asistencia)
          * ligado a una sesión del calendario recién creada, con todos los
          * jugadores del equipo a PRESENTE. Pensado para ser llamado desde

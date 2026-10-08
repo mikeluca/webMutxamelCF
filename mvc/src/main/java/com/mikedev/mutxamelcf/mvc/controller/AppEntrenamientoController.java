@@ -183,6 +183,8 @@ public class AppEntrenamientoController {
         @GetMapping
         public ResponseEntity<?> obtenerPorEquipo(
                         @org.springframework.web.bind.annotation.RequestParam Long equipoId,
+                        @org.springframework.web.bind.annotation.RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate desde,
+                        @org.springframework.web.bind.annotation.RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate hasta,
                         Authentication authentication) {
 
                 if (authentication == null
@@ -198,9 +200,9 @@ public class AppEntrenamientoController {
                         Long usuarioId = Long.parseLong(
                                         authentication.getName());
 
-                        List<EntrenamientoResponse> entrenamientos = entrenamientoService.obtenerPorEquipo(
-                                        usuarioId,
-                                        equipoId);
+                        List<EntrenamientoResponse> entrenamientos = desde == null && hasta == null
+                                        ? entrenamientoService.obtenerPorEquipo(usuarioId, equipoId)
+                                        : entrenamientoService.obtenerPorEquipo(usuarioId, equipoId, desde, hasta);
 
                         return ResponseEntity.ok(
                                         entrenamientos);

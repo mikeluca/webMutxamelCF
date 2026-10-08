@@ -218,6 +218,47 @@ class EntrenamientoDaoImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void obtenerPorEquipoEnRangoFiltraPorLasDosFechas() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        EntrenamientoDaoImpl dao = new EntrenamientoDaoImpl(jdbcTemplate);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        when(jdbcTemplate.query(sqlCaptor.capture(), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(List.of());
+
+        LocalDate desde = LocalDate.of(2026, 10, 8);
+        LocalDate hasta = LocalDate.of(2026, 10, 22);
+
+        dao.obtenerPorEquipoEnRango(2L, desde, hasta);
+
+        assertThat(sqlCaptor.getValue())
+                .contains("FECHA >= ?")
+                .contains("FECHA <= ?")
+                .contains("ABS(FECHA - TRUNC(SYSDATE))");
+
+        ArgumentCaptor<Object[]> paramsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).query(anyString(), any(RowMapper.class), paramsCaptor.capture());
+        assertThat(paramsCaptor.getValue()).containsExactly(
+                2L, java.sql.Date.valueOf(desde), java.sql.Date.valueOf(hasta));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerPorEquipoEnRangoConUnSoloExtremoSoloAplicaEseFiltro() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        EntrenamientoDaoImpl dao = new EntrenamientoDaoImpl(jdbcTemplate);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        when(jdbcTemplate.query(sqlCaptor.capture(), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(List.of());
+
+        dao.obtenerPorEquipoEnRango(2L, null, LocalDate.of(2026, 10, 7));
+
+        assertThat(sqlCaptor.getValue()).contains("FECHA <= ?").doesNotContain("FECHA >= ?");
+    }
+
+    @Test
     void existeDevuelveTrueCuandoHayFilas() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         EntrenamientoDaoImpl dao = new EntrenamientoDaoImpl(jdbcTemplate);

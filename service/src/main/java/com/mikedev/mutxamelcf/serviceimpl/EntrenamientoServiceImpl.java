@@ -24,6 +24,7 @@ import com.mikedev.mutxamelcf.model.EntrenamientoGuardarRequest;
 import com.mikedev.mutxamelcf.model.EntrenamientoResponse;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.EntrenamientoService;
+import com.mikedev.mutxamelcf.service.TemporadaService;
 
 @Service
 public class EntrenamientoServiceImpl
@@ -46,17 +47,20 @@ public class EntrenamientoServiceImpl
         private final EntrenamientoAsistenciaDao asistenciaDao;
         private final EquipoGestionDao equipoGestionDao;
         private final ComunicacionService comunicacionService;
+        private final TemporadaService temporadaService;
 
         public EntrenamientoServiceImpl(
                         EntrenamientoDao entrenamientoDao,
                         EntrenamientoAsistenciaDao asistenciaDao,
                         EquipoGestionDao equipoGestionDao,
-                        ComunicacionService comunicacionService) {
+                        ComunicacionService comunicacionService,
+                        TemporadaService temporadaService) {
 
                 this.entrenamientoDao = entrenamientoDao;
                 this.asistenciaDao = asistenciaDao;
                 this.equipoGestionDao = equipoGestionDao;
                 this.comunicacionService = comunicacionService;
+                this.temporadaService = temporadaService;
         }
 
         @Override
@@ -298,6 +302,14 @@ public class EntrenamientoServiceImpl
                 if (request.getFecha().isAfter(LocalDate.now())) {
                         throw new IllegalArgumentException(
                                         "La fecha del entrenamiento no puede ser posterior a hoy");
+                }
+
+                LocalDate finTemporada = temporadaService.obtenerFechaFinTemporadaActiva();
+
+                if (finTemporada != null && request.getFecha().isAfter(finTemporada)) {
+                        throw new IllegalArgumentException(
+                                        "No se pueden crear entrenamientos después del final de la temporada ("
+                                                        + finTemporada + ")");
                 }
 
                 if (request.getAsistencias() == null
@@ -570,6 +582,50 @@ public class EntrenamientoServiceImpl
                 List<Entrenamiento> entrenamientos = entrenamientoDao.obtenerPorEquipo(equipoId);
 
                 return entrenamientos.stream()
+                                .map(this::construirResponse)
+                                .toList();
+        }
+
+        @Override
+        public List<EntrenamientoResponse> obtenerPorEquipo(
+                        Long usuarioAppId,
+                        Long equipoId,
+                        LocalDate desde,
+                        LocalDate hasta) {
+
+                if (desde == null && hasta == null) {
+                        return obtenerPorEquipo(usuarioAppId, equipoId);
+                }
+
+                if (desde != null && hasta != null && desde.isAfter(hasta)) {
+                        throw new IllegalArgumentException(
+                                        "La fecha de inicio no puede ser posterior a la de fin");
+                }
+
+                if (usuarioAppId == null) {
+                        throw new SecurityException(
+                                        "Usuario no autenticado");
+                }
+
+                if (equipoId == null) {
+                        throw new IllegalArgumentException(
+                                        "El equipo es obligatorio");
+                }
+
+                if (!equipoGestionDao.existeEquipo(equipoId)) {
+                        throw new IllegalArgumentException(
+                                        "El equipo no existe");
+                }
+
+                if (!equipoGestionDao.puedeGestionarEquipo(
+                                usuarioAppId,
+                                equipoId)) {
+
+                        throw new SecurityException(
+                                        "El usuario no puede consultar los entrenamientos de este equipo");
+                }
+
+                return entrenamientoDao.obtenerPorEquipoEnRango(equipoId, desde, hasta).stream()
                                 .map(this::construirResponse)
                                 .toList();
         }

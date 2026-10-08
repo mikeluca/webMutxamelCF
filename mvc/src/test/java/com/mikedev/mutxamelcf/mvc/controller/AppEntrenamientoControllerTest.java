@@ -135,9 +135,25 @@ class AppEntrenamientoControllerTest {
 
         when(service.obtenerPorEquipo(1L, 5L)).thenReturn(List.of(new EntrenamientoResponse()));
 
-        ResponseEntity<?> response = controller.obtenerPorEquipo(5L, autenticado("1"));
+        ResponseEntity<?> response = controller.obtenerPorEquipo(5L, null, null, autenticado("1"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void obtenerPorEquipoConRangoUsaElServicioConLasFechas() {
+        EntrenamientoService service = mock(EntrenamientoService.class);
+        AppEntrenamientoController controller = new AppEntrenamientoController(service);
+
+        java.time.LocalDate desde = java.time.LocalDate.of(2026, 10, 8);
+        java.time.LocalDate hasta = java.time.LocalDate.of(2026, 10, 22);
+
+        when(service.obtenerPorEquipo(1L, 5L, desde, hasta)).thenReturn(List.of(new EntrenamientoResponse()));
+
+        ResponseEntity<?> response = controller.obtenerPorEquipo(5L, desde, hasta, autenticado("1"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((List<?>) response.getBody()).hasSize(1);
     }
 
     @Test
@@ -217,7 +233,7 @@ class AppEntrenamientoControllerTest {
         EntrenamientoService service = mock(EntrenamientoService.class);
         AppEntrenamientoController controller = new AppEntrenamientoController(service);
 
-        assertThat(controller.obtenerPorEquipo(5L, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(controller.obtenerPorEquipo(5L, null, null, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
@@ -225,7 +241,7 @@ class AppEntrenamientoControllerTest {
         EntrenamientoService service = mock(EntrenamientoService.class);
         AppEntrenamientoController controller = new AppEntrenamientoController(service);
 
-        assertThat(controller.obtenerPorEquipo(5L, autenticado("no-numero")).getStatusCode())
+        assertThat(controller.obtenerPorEquipo(5L, null, null, autenticado("no-numero")).getStatusCode())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
@@ -235,7 +251,7 @@ class AppEntrenamientoControllerTest {
         AppEntrenamientoController controller = new AppEntrenamientoController(service);
         when(service.obtenerPorEquipo(1L, 5L)).thenThrow(new SecurityException("sin permiso"));
 
-        assertThat(controller.obtenerPorEquipo(5L, autenticado("1")).getStatusCode())
+        assertThat(controller.obtenerPorEquipo(5L, null, null, autenticado("1")).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
     }
 
@@ -245,7 +261,7 @@ class AppEntrenamientoControllerTest {
         AppEntrenamientoController controller = new AppEntrenamientoController(service);
         when(service.obtenerPorEquipo(1L, 5L)).thenThrow(new IllegalArgumentException("no existe"));
 
-        assertThat(controller.obtenerPorEquipo(5L, autenticado("1")).getStatusCode())
+        assertThat(controller.obtenerPorEquipo(5L, null, null, autenticado("1")).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
     }
 
@@ -255,7 +271,7 @@ class AppEntrenamientoControllerTest {
         AppEntrenamientoController controller = new AppEntrenamientoController(service);
         when(service.obtenerPorEquipo(1L, 5L)).thenThrow(new RuntimeException("fallo"));
 
-        assertThat(controller.obtenerPorEquipo(5L, autenticado("1")).getStatusCode())
+        assertThat(controller.obtenerPorEquipo(5L, null, null, autenticado("1")).getStatusCode())
                 .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

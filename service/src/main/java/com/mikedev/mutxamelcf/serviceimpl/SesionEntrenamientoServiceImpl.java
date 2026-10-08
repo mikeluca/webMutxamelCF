@@ -27,6 +27,7 @@ import com.mikedev.mutxamelcf.model.SesionEntrenamientoResponse;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.EntrenamientoService;
 import com.mikedev.mutxamelcf.service.SesionEntrenamientoService;
+import com.mikedev.mutxamelcf.service.TemporadaService;
 
 @Service
 public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoService {
@@ -40,6 +41,7 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
     private final UsuarioAppVinculoDao usuarioAppVinculoDao;
     private final ComunicacionService comunicacionService;
     private final EntrenamientoService entrenamientoService;
+    private final TemporadaService temporadaService;
 
     public SesionEntrenamientoServiceImpl(
             SesionEntrenamientoDao sesionEntrenamientoDao,
@@ -48,7 +50,8 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
             EquipoGestionDao equipoGestionDao,
             UsuarioAppVinculoDao usuarioAppVinculoDao,
             ComunicacionService comunicacionService,
-            EntrenamientoService entrenamientoService) {
+            EntrenamientoService entrenamientoService,
+            TemporadaService temporadaService) {
 
         this.sesionEntrenamientoDao = sesionEntrenamientoDao;
         this.horarioEntrenamientoDao = horarioEntrenamientoDao;
@@ -57,6 +60,7 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
         this.usuarioAppVinculoDao = usuarioAppVinculoDao;
         this.comunicacionService = comunicacionService;
         this.entrenamientoService = entrenamientoService;
+        this.temporadaService = temporadaService;
     }
 
     @Override
@@ -71,6 +75,16 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
 
         if (hasta == null) {
             return;
+        }
+
+        /*
+         * No se generan sesiones (ni sus entrenamientos) más allá del
+         * final de la temporada activa.
+         */
+        LocalDate finTemporada = temporadaService.obtenerFechaFinTemporadaActiva();
+
+        if (finTemporada != null && hasta.isAfter(finTemporada)) {
+            hasta = finTemporada;
         }
 
         LocalDate ultimaGenerada = sesionEntrenamientoDao.obtenerUltimaFechaGenerada(horarioId);
@@ -209,6 +223,14 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
 
         if (!equipoGestionDao.puedeGestionarEquipo(usuarioAppId, request.getEquipoId())) {
             throw new SecurityException("No tienes permiso para gestionar este equipo");
+        }
+
+        LocalDate finTemporada = temporadaService.obtenerFechaFinTemporadaActiva();
+
+        if (finTemporada != null && request.getFecha().isAfter(finTemporada)) {
+            throw new IllegalArgumentException(
+                    "No se pueden crear entrenamientos después del final de la temporada ("
+                            + finTemporada + ")");
         }
 
         SesionEntrenamiento sesion = new SesionEntrenamiento();

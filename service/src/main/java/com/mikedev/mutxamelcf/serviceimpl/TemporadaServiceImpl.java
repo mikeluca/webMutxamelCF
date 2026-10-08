@@ -57,6 +57,22 @@ public class TemporadaServiceImpl implements TemporadaService {
     }
 
     @Override
+    public java.time.LocalDate obtenerFechaFinTemporadaActiva() {
+        TemporadaDTO temporada = obtenerTemporadaActiva();
+
+        if (temporada == null || temporada.getFechaFin() == null) {
+            return null;
+        }
+
+        java.util.Date fin = temporada.getFechaFin();
+
+        // java.sql.Date no admite toInstant().
+        return fin instanceof java.sql.Date sqlDate
+                ? sqlDate.toLocalDate()
+                : fin.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+    }
+
+    @Override
     public List<TemporadaDTO> obtenerTodos() {
         logger.debug("Inicio obtenerTodos");
         List<TemporadaDTO> temporadas = toDTOList(temporadaDao.obtenerTodos());

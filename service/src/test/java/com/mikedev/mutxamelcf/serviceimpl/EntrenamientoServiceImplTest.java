@@ -29,6 +29,7 @@ import com.mikedev.mutxamelcf.model.EntrenamientoAsistenciaRequest;
 import com.mikedev.mutxamelcf.model.EntrenamientoGuardarRequest;
 import com.mikedev.mutxamelcf.model.EntrenamientoResponse;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
+import com.mikedev.mutxamelcf.service.TemporadaService;
 
 @ExtendWith(MockitoExtension.class)
 class EntrenamientoServiceImplTest {
@@ -45,12 +46,15 @@ class EntrenamientoServiceImplTest {
     @Mock
     private ComunicacionService comunicacionService;
 
+    @Mock
+    private TemporadaService temporadaService;
+
     private EntrenamientoServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new EntrenamientoServiceImpl(entrenamientoDao, asistenciaDao, equipoGestionDao,
-                comunicacionService);
+                comunicacionService, temporadaService);
     }
 
     private static EntrenamientoGuardarRequest requestValido() {
@@ -75,6 +79,16 @@ class EntrenamientoServiceImplTest {
 
         assertThatThrownBy(() -> service.crear(1L, request)).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("posterior a hoy");
+    }
+
+    @Test
+    void crearLanzaExcepcionSiLaFechaEsPosteriorAlFinDeTemporada() {
+        when(temporadaService.obtenerFechaFinTemporadaActiva()).thenReturn(LocalDate.now().minusDays(10));
+
+        assertThatThrownBy(() -> service.crear(1L, requestValido())).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("final de la temporada");
+
+        verify(entrenamientoDao, never()).guardar(any());
     }
 
     @Test
@@ -292,6 +306,44 @@ class EntrenamientoServiceImplTest {
 
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).getEquipo()).isEqualTo("Senior A");
+    }
+
+    @Test
+    void obtenerPorEquipoConRangoUsaElDaoEnRango() {
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+
+        Entrenamiento entrenamiento = new Entrenamiento();
+        entrenamiento.setId(5L);
+        entrenamiento.setEquipoId(1L);
+
+        LocalDate desde = LocalDate.now();
+        LocalDate hasta = desde.plusDays(14);
+
+        when(entrenamientoDao.obtenerPorEquipoEnRango(1L, desde, hasta)).thenReturn(List.of(entrenamiento));
+        when(equipoGestionDao.obtenerNombreEquipo(1L)).thenReturn("Senior A");
+        when(asistenciaDao.obtenerPorEntrenamiento(5L)).thenReturn(List.of());
+
+        assertThat(service.obtenerPorEquipo(1L, 1L, desde, hasta)).hasSize(1);
+
+        verify(entrenamientoDao, never()).obtenerPorEquipo(anyLong());
+    }
+
+    @Test
+    void obtenerPorEquipoConRangoInvertidoLanzaExcepcion() {
+        LocalDate hoy = LocalDate.now();
+
+        assertThatThrownBy(() -> service.obtenerPorEquipo(1L, 1L, hoy, hoy.minusDays(1)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void obtenerPorEquipoConRangoRequierePermisosSobreElEquipo() {
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.obtenerPorEquipo(1L, 1L, LocalDate.now(), null))
+                .isInstanceOf(SecurityException.class);
     }
 
     // ---------- crearAutomaticoParaSesion ----------

@@ -33,6 +33,25 @@ class TemporadaServiceImplTest {
     }
 
     @Test
+    void obtenerFechaFinTemporadaActivaDevuelveLaFechaDeFin() {
+        Temporada temporada = new Temporada();
+        temporada.setId(1L);
+        temporada.setActiva(1);
+        temporada.setFechaFin(java.sql.Date.valueOf("2027-06-30"));
+
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporada);
+
+        assertThat(service.obtenerFechaFinTemporadaActiva()).isEqualTo(java.time.LocalDate.of(2027, 6, 30));
+    }
+
+    @Test
+    void obtenerFechaFinTemporadaActivaEsNullSinTemporadaActiva() {
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(null);
+
+        assertThat(service.obtenerFechaFinTemporadaActiva()).isNull();
+    }
+
+    @Test
     void guardarTemporadaActivaDesactivaLasDemas() {
         TemporadaDTO dto = new TemporadaDTO();
         dto.setId(1L);

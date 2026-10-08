@@ -187,6 +187,50 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
         }
 
         @Override
+        public List<Entrenamiento> obtenerPorEquipoEnRango(
+                        Long equipoId,
+                        java.time.LocalDate desde,
+                        java.time.LocalDate hasta) {
+
+                /*
+                 * Mismo orden que obtenerPorEquipo: por cercanía a hoy. Con
+                 * un rango futuro queda el más próximo primero; con uno
+                 * pasado, el más reciente primero.
+                 */
+                StringBuilder sql = new StringBuilder("""
+                                SELECT
+                                    ID,
+                                    EQUIPO_ID,
+                                    FECHA,
+                                    USUARIO_ENTRENADOR_ID,
+                                    SESION_ENTRENAMIENTO_ID,
+                                    FECHA_CREACION
+                                FROM ENTRENAMIENTOS
+                                WHERE EQUIPO_ID = ?
+                                """);
+
+                java.util.List<Object> parametros = new java.util.ArrayList<>();
+                parametros.add(equipoId);
+
+                if (desde != null) {
+                        sql.append("  AND FECHA >= ?\n");
+                        parametros.add(Date.valueOf(desde));
+                }
+
+                if (hasta != null) {
+                        sql.append("  AND FECHA <= ?\n");
+                        parametros.add(Date.valueOf(hasta));
+                }
+
+                sql.append("ORDER BY ABS(FECHA - TRUNC(SYSDATE)), FECHA DESC, ID DESC");
+
+                return jdbcTemplate.query(
+                                sql.toString(),
+                                rowMapper,
+                                parametros.toArray());
+        }
+
+        @Override
         public Entrenamiento obtenerPorSesionEntrenamientoId(
                         Long sesionEntrenamientoId) {
 

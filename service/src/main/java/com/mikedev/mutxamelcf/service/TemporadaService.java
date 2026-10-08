@@ -12,6 +12,13 @@ public interface TemporadaService {
 
     TemporadaDTO obtenerTemporadaActiva();
 
+    /**
+     * Último día de la temporada activa, o {@code null} si no hay
+     * ninguna temporada activa (o no tiene fecha de fin). Es el tope
+     * hasta el que se pueden crear entrenamientos.
+     */
+    java.time.LocalDate obtenerFechaFinTemporadaActiva();
+
     List<TemporadaDTO> obtenerTodos();
 
     void eliminar(Long id);

@@ -35,6 +35,7 @@ import com.mikedev.mutxamelcf.model.SesionEntrenamientoCrearRequest;
 import com.mikedev.mutxamelcf.model.SesionEntrenamientoResponse;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.EntrenamientoService;
+import com.mikedev.mutxamelcf.service.TemporadaService;
 
 @ExtendWith(MockitoExtension.class)
 class SesionEntrenamientoServiceImplTest {
@@ -60,6 +61,9 @@ class SesionEntrenamientoServiceImplTest {
     @Mock
     private EntrenamientoService entrenamientoService;
 
+    @Mock
+    private TemporadaService temporadaService;
+
     private SesionEntrenamientoServiceImpl service;
 
     private static final Long USUARIO_ID = 1L;
@@ -72,7 +76,7 @@ class SesionEntrenamientoServiceImplTest {
     void setUp() {
         service = new SesionEntrenamientoServiceImpl(sesionEntrenamientoDao, horarioEntrenamientoDao,
                 justificacionFaltaEntrenamientoDao, equipoGestionDao, usuarioAppVinculoDao, comunicacionService,
-                entrenamientoService);
+                entrenamientoService, temporadaService);
     }
 
     private static HorarioEntrenamiento horario(int diaSemana, boolean activo) {
@@ -134,6 +138,48 @@ class SesionEntrenamientoServiceImplTest {
         service.generarSesiones(HORARIO_ID, hasta);
 
         verify(sesionEntrenamientoDao, times((int) contarMartes(LocalDate.now(), hasta))).crear(any());
+    }
+
+    @Test
+    void generarSesionesNoGeneraMasAllaDelFinDeLaTemporadaActiva() {
+        when(horarioEntrenamientoDao.obtenerPorId(HORARIO_ID)).thenReturn(horario(2, true));
+        when(sesionEntrenamientoDao.obtenerUltimaFechaGenerada(HORARIO_ID)).thenReturn(null);
+        when(sesionEntrenamientoDao.existePorHorarioYFecha(eq(HORARIO_ID), any(LocalDate.class))).thenReturn(false);
+
+        LocalDate finTemporada = LocalDate.now().plusWeeks(2);
+        when(temporadaService.obtenerFechaFinTemporadaActiva()).thenReturn(finTemporada);
+
+        // Se piden 10 semanas, pero la temporada acaba en 2.
+        service.generarSesiones(HORARIO_ID, LocalDate.now().plusWeeks(10));
+
+        verify(sesionEntrenamientoDao, times((int) contarMartes(LocalDate.now(), finTemporada))).crear(any());
+    }
+
+    @Test
+    void generarSesionesNoGeneraNadaSiLaTemporadaActivaYaHaTerminado() {
+        when(horarioEntrenamientoDao.obtenerPorId(HORARIO_ID)).thenReturn(horario(2, true));
+        when(temporadaService.obtenerFechaFinTemporadaActiva()).thenReturn(LocalDate.now().minusDays(1));
+
+        service.generarSesiones(HORARIO_ID, LocalDate.now().plusWeeks(10));
+
+        verify(sesionEntrenamientoDao, never()).crear(any());
+    }
+
+    @Test
+    void crearUnaSesionSueltaDespuesDelFinDeTemporadaLanzaExcepcion() {
+        when(equipoGestionDao.existeEquipo(EQUIPO_ID)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(USUARIO_ID, EQUIPO_ID)).thenReturn(true);
+        when(temporadaService.obtenerFechaFinTemporadaActiva()).thenReturn(LocalDate.now().plusDays(5));
+
+        SesionEntrenamientoCrearRequest request = new SesionEntrenamientoCrearRequest();
+        request.setEquipoId(EQUIPO_ID);
+        request.setFecha(LocalDate.now().plusDays(6));
+
+        assertThatThrownBy(() -> service.crear(USUARIO_ID, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("final de la temporada");
+
+        verify(sesionEntrenamientoDao, never()).crear(any());
     }
 
     private static long contarMartes(LocalDate desde, LocalDate hasta) {

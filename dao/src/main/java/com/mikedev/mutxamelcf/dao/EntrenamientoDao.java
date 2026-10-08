@@ -15,6 +15,12 @@ public interface EntrenamientoDao {
     List<Entrenamiento> obtenerPorEquipo(Long equipoId);
 
     /**
+     * Igual que {@link #obtenerPorEquipo(Long)} pero limitado a las fechas
+     * entre desde y hasta (ambas incluidas); un extremo null queda abierto.
+     */
+    List<Entrenamiento> obtenerPorEquipoEnRango(Long equipoId, java.time.LocalDate desde, java.time.LocalDate hasta);
+
+    /**
      * Entrenamiento creado automáticamente para esa sesión del calendario
      * (SESIONES_ENTRENAMIENTO), o {@code null} si esa sesión todavía no
      * tiene ningún ENTRENAMIENTO vinculado. La UNIQUE(SESION_ENTRENAMIENTO_ID)
