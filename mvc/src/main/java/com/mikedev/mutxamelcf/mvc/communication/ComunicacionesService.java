@@ -57,7 +57,7 @@ public class ComunicacionesService {
                 + "Para activar tu cuenta abre la app, entra en \"Área Club - Activar cuenta\" "
                 + "e introduce tu email, el siguiente código y la contraseña que quieras usar:\n\n"
                 + codigoActivacion + "\n\n"
-                + "Este código caduca en 4 horas y solo se puede usar 5 veces. Si no lo usas a "
+                + "Este código caduca en 48 horas y solo se puede usar 5 veces. Si no lo usas a "
                 + "tiempo o lo introduces mal varias veces, pide a la oficina del club que te "
                 + "reenvie la invitacion.\n\n"
                 + "Si no esperabas este email, puedes ignorarlo.";

@@ -38,7 +38,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
 
     private static final Logger logger = LoggerFactory.getLogger(UsuarioAppServiceImpl.class);
 
-    private static final long HORAS_VALIDEZ_TOKEN = 4;
+    private static final long HORAS_VALIDEZ_TOKEN = 48;
 
     private static final int MAX_INTENTOS_ACTIVACION = 5;
 
