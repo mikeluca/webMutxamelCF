@@ -47,7 +47,7 @@ class PartidoDaoImplColumnasTest {
         dao.obtenerMasRelevantePorEquipo(1L);
         dao.obtenerPorEquipoYRangoFechas(1L, LocalDate.now(), LocalDate.now());
         dao.obtenerPorRangoFechas(LocalDate.now(), LocalDate.now());
-        dao.obtenerPendientesDeAvisoResultado(LocalDateTime.now());
+        dao.obtenerPendientesDeAvisoResultado(LocalDateTime.now().minusDays(3), LocalDateTime.now());
 
         List<String> consultas = new ArrayList<>();
         RowMapper<Partido> mapper = null;

@@ -65,13 +65,22 @@ public interface PartidoDao {
     void cancelar(Long id);
 
     /**
-     * Partidos no cancelados cuya fecha+hora ya haya pasado al menos hasta
-     * {@code limite}, a los que todavía no se les ha introducido el
-     * resultado (GOLES_FAVOR IS NULL) y para los que todavía no se ha
-     * enviado el recordatorio automático (AVISO_RESULTADO_ENVIADO = 0).
+     * Partidos no cancelados cuyo inicio (DIA + HORA válida, o DIA a
+     * medianoche) está entre {@code desde} y {@code hasta}, sin resultado
+     * por ninguna vía (ni goles ni texto de resultado) y sin recordatorio
+     * enviado (AVISO_RESULTADO_ENVIADO = 0).
      * Usado por RecordatorioResultadoPartidoScheduler.
      */
-    List<Partido> obtenerPendientesDeAvisoResultado(LocalDateTime limite);
+    List<Partido> obtenerPendientesDeAvisoResultado(LocalDateTime desde, LocalDateTime hasta);
+
+    /**
+     * Marca como avisados (sin enviar nada) los partidos sin resultado cuyo
+     * inicio es anterior a {@code limite}, para que una importación o un
+     * alta tardía no dispare avisos de hace semanas.
+     *
+     * @return filas afectadas
+     */
+    int marcarAvisosAntiguosComoEnviados(LocalDateTime limite);
 
     /**
      * Marca que ya se ha enviado el recordatorio de resultado pendiente

@@ -119,6 +119,15 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
 
     @Override
     public List<Long> obtenerCoordinadores() {
+        return obtenerUsuariosPorRol("COORDINADOR");
+    }
+
+    @Override
+    public List<Long> obtenerAdministradoresApp() {
+        return obtenerUsuariosPorRol("ADMIN_APP");
+    }
+
+    private List<Long> obtenerUsuariosPorRol(String codigoRol) {
 
         String sql = """
                 SELECT DISTINCT U.ID
@@ -127,14 +136,15 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
                     ON UAR.USUARIO_APP_ID = U.ID
                 INNER JOIN ROLES_APP R
                     ON R.ID = UAR.ROL_ID
-                WHERE R.CODIGO = 'COORDINADOR'
+                WHERE R.CODIGO = ?
                   AND U.ACTIVO = 1
                 ORDER BY U.ID
                 """;
 
         return jdbcTemplate.query(
                 sql,
-                (rs, rowNum) -> rs.getLong("ID"));
+                (rs, rowNum) -> rs.getLong("ID"),
+                codigoRol);
     }
 
     @Override

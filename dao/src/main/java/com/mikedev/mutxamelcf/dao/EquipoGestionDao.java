@@ -16,6 +16,9 @@ public interface EquipoGestionDao {
 
     List<Long> obtenerCoordinadores();
 
+    /** Usuarios app activos con rol ADMIN_APP, por ID. */
+    List<Long> obtenerAdministradoresApp();
+
     /**
      * Usuarios app con rol ENTRENADOR asignados como cuerpo técnico del
      * equipo indicado (mismo criterio de emparejamiento

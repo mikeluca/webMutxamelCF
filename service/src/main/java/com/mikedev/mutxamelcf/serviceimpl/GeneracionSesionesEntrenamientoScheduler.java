@@ -31,7 +31,7 @@ public class GeneracionSesionesEntrenamientoScheduler {
     /**
      * A las 3:00 del día 1 de cada mes.
      */
-    @Scheduled(cron = "0 0 3 1 * ?")
+    @Scheduled(cron = "0 0 3 1 * ?", zone = "Europe/Madrid")
     public void generarSesionesMensualmente() {
 
         logger.info("Inicio job mensual de generación de sesiones de entrenamiento");

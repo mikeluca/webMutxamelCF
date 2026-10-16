@@ -79,9 +79,20 @@ class EquipoGestionDaoImplTest {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         EquipoGestionDaoImpl dao = new EquipoGestionDaoImpl(jdbcTemplate);
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class))).thenReturn(List.of(1L, 2L));
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq("COORDINADOR"))).thenReturn(List.of(1L, 2L));
 
         assertThat(dao.obtenerCoordinadores()).containsExactly(1L, 2L);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void obtenerAdministradoresAppFiltraPorElRolAdminApp() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        EquipoGestionDaoImpl dao = new EquipoGestionDaoImpl(jdbcTemplate);
+
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq("ADMIN_APP"))).thenReturn(List.of(7L));
+
+        assertThat(dao.obtenerAdministradoresApp()).containsExactly(7L);
     }
 
     @Test

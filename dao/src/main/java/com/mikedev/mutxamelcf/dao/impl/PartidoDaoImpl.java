@@ -33,6 +33,28 @@ public class PartidoDaoImpl implements PartidoDao {
 			P.GOLES_FAVOR, P.GOLES_CONTRA, P.AVISO_RESULTADO_ENVIADO, P.ORIGEN, P.JORNADA, P.ES_LOCAL
 			""";
 
+	/*
+	 * Sin resultado por ninguna vía: ni goles ni texto (" - " o "-" cuentan
+	 * como vacío; en Oracle la cadena vacía es NULL), y sin aviso enviado.
+	 */
+	private static final String CONDICION_PENDIENTE_DE_AVISO = """
+			P.GOLES_FAVOR IS NULL
+			AND (P.RESULTADO IS NULL OR TRIM(REPLACE(P.RESULTADO, '-', '')) IS NULL)
+			AND P.AVISO_RESULTADO_ENVIADO = 0
+			""";
+
+	/*
+	 * DIA es DATE (sin hora) y HORA un VARCHAR2 libre: la hora solo se usa
+	 * si es HH:mm válida (con TRIM: el CSV de la FFCV traía "19:30 "); si
+	 * no, se usa DIA (medianoche) en vez de dejar que TO_DATE falle
+	 * (ORA-01850/01858) y rompa toda la consulta.
+	 */
+	private static final String INICIO_PARTIDO = """
+			(CASE WHEN REGEXP_LIKE(TRIM(P.HORA), '^([01]?[0-9]|2[0-3]):[0-5][0-9]$')
+			     THEN TO_DATE(TO_CHAR(P.DIA, 'YYYY-MM-DD') || ' ' || TRIM(P.HORA), 'YYYY-MM-DD HH24:MI')
+			     ELSE P.DIA END)
+			""";
+
 	private final JdbcTemplate jdbcTemplate;
 
 	public PartidoDaoImpl(JdbcTemplate jdbcTemplate) {
@@ -476,42 +498,38 @@ public class PartidoDaoImpl implements PartidoDao {
 	}
 
 	@Override
-	public List<Partido> obtenerPendientesDeAvisoResultado(LocalDateTime limite) {
-		logger.debug("Inicio obtenerPendientesDeAvisoResultado: limite={}", limite);
+	public List<Partido> obtenerPendientesDeAvisoResultado(LocalDateTime desde, LocalDateTime hasta) {
+		logger.debug("Inicio obtenerPendientesDeAvisoResultado: desde={}, hasta={}", desde, hasta);
 
-		/*
-		 * DIA es una columna DATE (sin hora) y HORA es un VARCHAR2 libre
-		 * ("HH:mm"), así que la fecha+hora real del partido se reconstruye
-		 * combinando ambas columnas en SQL. Si un partido no tiene HORA
-		 * informada (campo opcional), se usa únicamente DIA (medianoche)
-		 * como aproximación, para no dejar esos partidos sin recordatorio
-		 * nunca.
-		 */
-		String sql = "SELECT " + CAMPOS_SELECT + """
-				FROM PARTIDOS P
-				WHERE P.CANCELADO = 0
-				  AND P.GOLES_FAVOR IS NULL
-				  AND P.AVISO_RESULTADO_ENVIADO = 0
-				  AND P.DIA IS NOT NULL
-				  AND (
-				        CASE
-				            WHEN P.HORA IS NOT NULL THEN
-				                TO_DATE(TO_CHAR(P.DIA, 'YYYY-MM-DD') || ' ' || P.HORA, 'YYYY-MM-DD HH24:MI')
-				            ELSE
-				                P.DIA
-				        END
-				      ) <= ?
-				ORDER BY P.DIA ASC, P.ID ASC
-				""";
+		String sql = "SELECT " + CAMPOS_SELECT + " FROM PARTIDOS P WHERE P.CANCELADO = 0 AND "
+				+ CONDICION_PENDIENTE_DE_AVISO
+				+ " AND " + INICIO_PARTIDO + " >= ? AND " + INICIO_PARTIDO + " <= ?"
+				+ " ORDER BY P.DIA ASC, P.ID ASC";
 
 		List<Partido> partidos = jdbcTemplate.query(
 				sql,
 				PARTIDO_ROW_MAPPER,
-				Timestamp.valueOf(limite));
+				Timestamp.valueOf(desde),
+				Timestamp.valueOf(hasta));
 
 		logger.debug("Fin obtenerPendientesDeAvisoResultado: total={}", partidos.size());
 
 		return partidos;
+	}
+
+	@Override
+	public int marcarAvisosAntiguosComoEnviados(LocalDateTime limite) {
+		logger.debug("Inicio marcarAvisosAntiguosComoEnviados: limite={}", limite);
+
+		int filasAfectadas = jdbcTemplate.update(
+				"UPDATE PARTIDOS P SET P.AVISO_RESULTADO_ENVIADO = 1 WHERE "
+						+ CONDICION_PENDIENTE_DE_AVISO
+						+ " AND P.DIA IS NOT NULL AND " + INICIO_PARTIDO + " < ?",
+				Timestamp.valueOf(limite));
+
+		logger.info("Avisos de resultado antiguos descartados: filasAfectadas={}", filasAfectadas);
+
+		return filasAfectadas;
 	}
 
 	@Override
