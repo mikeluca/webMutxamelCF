@@ -12,6 +12,9 @@
 	<style>
 		.categoria-seccion { margin-top: 2rem; }
 		.categoria-titulo { margin-bottom: 0.75rem; font-weight: bold; }
+		/* Mismo reparto de columnas en todas las categorías */
+		.tabla-resultados { table-layout: fixed; width: 100%; }
+		.tabla-resultados td, .tabla-resultados th { overflow-wrap: anywhere; }
 		.tipo-liga { border-left: 4px solid #0d6efd; }
 		.tipo-amistoso { border-left: 4px solid #6c757d; }
 		.tipo-copa { border-left: 4px solid #ffc107; }
@@ -54,16 +57,20 @@
 			<div th:each="entrada : ${resultadosPorCategoria}" class="categoria-seccion">
 				<h2 class="categoria-titulo" th:text="${entrada.key}"></h2>
 				<div class="table-responsive">
-					<table>
+					<table class="tabla-resultados">
+						<colgroup>
+							<col style="width: 7%;"><col style="width: 16%;"><col style="width: 10%;"><col style="width: 24%;">
+							<col style="width: 9%;"><col style="width: 7%;"><col style="width: 27%;">
+						</colgroup>
 						<thead>
 							<tr>
 								<th th:text="#{resultados.col.tipo}">TIPO</th>
-								<th style="width: 22%;" th:text="#{resultados.col.equipo}">EQUIPO</th>
+								<th th:text="#{resultados.col.equipo}">EQUIPO</th>
 								<th th:text="#{resultados.col.resultado}">RESULTADO</th>
 								<th th:text="#{resultados.col.rival}">RIVAL</th>
 								<th th:text="#{resultados.col.dia}">DIA</th>
 								<th th:text="#{resultados.col.hora}">HORA</th>
-								<th style="width: 22%;" th:text="#{resultados.col.campo}">CAMPO</th>
+								<th th:text="#{resultados.col.campo}">CAMPO</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -73,17 +80,17 @@
 								<td>
 									<span th:if="${resultado.tipo != null}" th:text="${resultado.tipo}" th:class="${'tipo-badge tipo-badge-' + #strings.toLowerCase(resultado.tipo)}"></span>
 								</td>
-								<td th:text="${resultado.equipo}" style="width: 22%;"></td>
+								<td th:text="${resultado.equipo}"></td>
 								<!-- Equipo sin proximo partido ni ultimo resultado: fila "placeholder" -->
 								<!-- Equipo que descansa este fin de semana (importador FFCV) -->
 								<td th:if="${resultado.descansa}" colspan="5" class="text-center text-muted" th:text="#{resultados.descansa}">Descansa</td>
 								<td th:if="${!resultado.descansa and (resultado.rival == null or #strings.isEmpty(resultado.rival))}" colspan="5" class="text-center text-muted" th:text="#{resultados.sinPartido}">No tiene partido</td>
 								<th:block th:unless="${resultado.descansa or resultado.rival == null or #strings.isEmpty(resultado.rival)}">
-									<td th:text="${resultado.resultado}" style="width: 80px;"></td>
-									<td th:text="${resultado.rival}" style="width: auto;"></td>
-									<td th:text="${#dates.format(resultado.dia, 'dd/MM/yyyy')}" style="width: 80px; "></td>
-									<td th:text="${resultado.hora}" style="width: 80px;"></td>
-									<td th:text="${resultado.campo}" style="width: 22%;"></td>
+									<td th:text="${resultado.resultado}"></td>
+									<td th:text="${resultado.rival}"></td>
+									<td th:text="${#dates.format(resultado.dia, 'dd/MM/yyyy')}"></td>
+									<td th:text="${resultado.hora}"></td>
+									<td th:text="${resultado.campo}"></td>
 								</th:block>
 							</tr>
 						</tbody>
@@ -108,12 +115,12 @@
 		<!--				<tbody>-->
 		<!--					 Iteramos sobre la lista de resultados -->
 		<!--					<tr th:each="resultado : ${resultadosFutbolSala}">-->
-		<!--						<td th:text="${resultado.equipo}" style="width: auto;"></td>-->
-		<!--						<td th:text="${resultado.resultado}" style="width: 80px;"></td>-->
-		<!--						<td th:text="${resultado.rival}" style="width: auto;"></td>-->
-		<!--						<td th:text="${#dates.format(resultado.dia, 'dd/MM/yyyy')}" style="width: 80px; "></td>-->
-		<!--						<td th:text="${resultado.hora}" style="width: 80px;"></td>-->
-		<!--						<td th:text="${resultado.campo}" style="width: auto;"></td>-->
+		<!--						<td th:text="${resultado.equipo}"></td>-->
+		<!--						<td th:text="${resultado.resultado}"></td>-->
+		<!--						<td th:text="${resultado.rival}"></td>-->
+		<!--						<td th:text="${#dates.format(resultado.dia, 'dd/MM/yyyy')}"></td>-->
+		<!--						<td th:text="${resultado.hora}"></td>-->
+		<!--						<td th:text="${resultado.campo}"></td>-->
 		<!--					</tr>-->
 		<!--				</tbody>-->
 		<!--			</table>-->
