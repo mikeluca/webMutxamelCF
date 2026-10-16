@@ -34,7 +34,7 @@ class ImportadorFfcvDaoImplTest {
         dao.actualizarDatosFfcv(partido);
 
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-        verify(jdbcTemplate).update(sql.capture(), eq("Rival"), eq("10:00"), eq("Campo"), eq(3), eq(5L));
+        verify(jdbcTemplate).update(sql.capture(), eq("Rival"), eq("10:00"), eq("Campo"), eq(3), eq(1), eq(5L));
         assertThat(sql.getValue())
                 .contains("RIVAL", "HORA", "CAMPO", "JORNADA", "ORIGEN = 'FFCV'")
                 .doesNotContain("RESULTADO", "GOLES", "CANCELADO", "DIA =", "TIPO");

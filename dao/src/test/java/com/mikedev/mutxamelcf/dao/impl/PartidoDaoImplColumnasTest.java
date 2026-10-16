@@ -75,7 +75,7 @@ class PartidoDaoImplColumnasTest {
 
         mapper.mapRow(rs, 0);
 
-        assertThat(columnasLeidas).contains("ORIGEN", "JORNADA", "RESULTADO", "AVISO_RESULTADO_ENVIADO");
+        assertThat(columnasLeidas).contains("ORIGEN", "JORNADA", "ES_LOCAL", "RESULTADO", "AVISO_RESULTADO_ENVIADO");
 
         assertThat(consultas).allSatisfy(sql -> {
             String proyeccion = sql.substring(0, sql.indexOf("FROM"));

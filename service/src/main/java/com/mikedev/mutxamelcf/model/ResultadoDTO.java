@@ -16,6 +16,8 @@ public class ResultadoDTO {
 	private String diaFormateado;
 	private String hora;
 	private String campo;
+	/** true si el Mutxamel juega como local (se muestra a la izquierda). */
+	private boolean local = true;
 	/** true si el equipo tiene un descanso registrado este fin de semana y ningún partido. */
 	private boolean descansa;
 
@@ -121,6 +123,15 @@ public class ResultadoDTO {
 
 	public void setDescansa(boolean descansa) {
 		this.descansa = descansa;
+	}
+
+
+	public boolean isLocal() {
+		return local;
+	}
+
+	public void setLocal(boolean local) {
+		this.local = local;
 	}
 
 }

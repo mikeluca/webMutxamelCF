@@ -36,6 +36,9 @@ public class Partido {
     private String origen = ORIGEN_MANUAL;
     private Integer jornada;
 
+    /** true si el Mutxamel juega como local (columna ES_LOCAL). */
+    private boolean local = true;
+
     public Partido() {
         super();
     }
@@ -183,6 +186,14 @@ public class Partido {
 
     public void setOrigen(String origen) {
         this.origen = origen;
+    }
+
+    public boolean isLocal() {
+        return local;
+    }
+
+    public void setLocal(boolean local) {
+        this.local = local;
     }
 
     public Integer getJornada() {

@@ -520,6 +520,7 @@ public class PartidoServiceImpl implements PartidoService {
 		aplicarFecha(partido.getDia(), resultado::setDia, resultado::setDiaFormateado);
 		resultado.setHora(partido.getHora());
 		resultado.setCampo(partido.getCampo());
+		resultado.setLocal(partido.isLocal());
 
 		logger.debug("Fin obtenerResultadoPrimerEquipo: encontrado=true");
 
@@ -671,6 +672,7 @@ public class PartidoServiceImpl implements PartidoService {
 		aplicarFecha(partido.getDia(), dto::setDia, dto::setDiaFormateado);
 		dto.setHora(partido.getHora());
 		dto.setCampo(partido.getCampo());
+		dto.setLocal(partido.isLocal());
 		dto.setCancelado(partido.isCancelado());
 
 		return dto;
@@ -706,6 +708,7 @@ public class PartidoServiceImpl implements PartidoService {
 		aplicarFecha(partido.getDia(), dto::setDia, dto::setDiaFormateado);
 		dto.setHora(partido.getHora());
 		dto.setCampo(partido.getCampo());
+		dto.setLocal(partido.isLocal());
 
 		return dto;
 	}

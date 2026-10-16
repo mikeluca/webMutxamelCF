@@ -312,6 +312,7 @@ public class ImportacionFfcvServiceImpl implements ImportacionFfcvService {
 		partido.setHora(fila.hora());
 		partido.setCampo(fila.campo());
 		partido.setJornada(fila.jornada());
+		partido.setLocal(fila.local());
 		partido.setTipo(TIPO_LIGA);
 		partido.setOrigen(Partido.ORIGEN_FFCV);
 
@@ -468,6 +469,10 @@ public class ImportacionFfcvServiceImpl implements ImportacionFfcvService {
 		anadirCambio(cambios, "Jornada",
 				existente.getJornada() != null ? existente.getJornada().toString() : null,
 				fila.jornada() != null ? fila.jornada().toString() : null);
+		if (existente.isLocal() != fila.local()) {
+			cambios.add("Condición: " + (existente.isLocal() ? "local" : "visitante") + " → "
+					+ (fila.local() ? "local" : "visitante"));
+		}
 
 		return cambios;
 	}

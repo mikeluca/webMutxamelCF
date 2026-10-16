@@ -389,6 +389,19 @@ class ImportacionFfcvServiceImplTest {
     }
 
     @Test
+    void confirmarGuardaSiElMutxamelJuegaDeLocalOVisitante() {
+        service.confirmar("coordinador", service.previsualizar(archivoBasico()), List.of());
+
+        ArgumentCaptor<Partido> captor = ArgumentCaptor.forClass(Partido.class);
+        verify(partidoDao, org.mockito.Mockito.times(2)).crear(captor.capture());
+
+        assertThat(captor.getAllValues().stream().filter(p -> p.getEquipoId() == FILIAL).findFirst().orElseThrow()
+                .isLocal()).isTrue();
+        assertThat(captor.getAllValues().stream().filter(p -> p.getEquipoId() == PRIMER_EQUIPO).findFirst()
+                .orElseThrow().isLocal()).isFalse();
+    }
+
+    @Test
     void confirmarActualizaSoloHoraCampoRivalYJornadaSinTocarResultadoNiBorrarNada() {
         partidos.add(partido(50L, FILIAL, SABADO, "FFCV", "C.F. Calpe", "18:00", "Camp Nou", 4));
         PrevisualizacionFfcv previa = service.previsualizar(archivoBasico());

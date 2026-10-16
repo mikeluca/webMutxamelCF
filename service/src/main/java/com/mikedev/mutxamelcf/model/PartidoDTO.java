@@ -19,6 +19,8 @@ public class PartidoDTO {
 	private String diaFormateado;
 	private String hora;
 	private String campo;
+	/** true si el Mutxamel juega como local (se muestra a la izquierda). */
+	private boolean local = true;
 	private boolean cancelado;
 	/**
 	 * Solo se rellena cuando se pide el calendario de un jugador
@@ -143,6 +145,15 @@ public class PartidoDTO {
 
 	public void setConvocado(Boolean convocado) {
 		this.convocado = convocado;
+	}
+
+
+	public boolean isLocal() {
+		return local;
+	}
+
+	public void setLocal(boolean local) {
+		this.local = local;
 	}
 
 }
