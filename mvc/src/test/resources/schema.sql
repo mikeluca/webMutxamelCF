@@ -1,4 +1,4 @@
-CREATE TABLE usuarios (
+CREATE TABLE IF NOT EXISTS usuarios (
     usuario VARCHAR(100) PRIMARY KEY,
     password VARCHAR(200) NOT NULL,
     rol VARCHAR(50)

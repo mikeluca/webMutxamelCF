@@ -44,6 +44,28 @@ class ComunicacionesServiceTest {
     }
 
     @Test
+    void enviarRecordatorioImportacionFfcvVaAGestionConElTextoAcordado() throws Exception {
+        org.mockito.ArgumentCaptor<MimeMessage> captor = org.mockito.ArgumentCaptor.forClass(MimeMessage.class);
+
+        assertTrue(service.enviarRecordatorioImportacionFfcv());
+
+        org.mockito.Mockito.verify(emailSender).send(captor.capture());
+        MimeMessage enviado = captor.getValue();
+        assertTrue(enviado.getAllRecipients()[0].toString().equals("mutxamelcf.gestion@gmail.com"));
+        java.io.ByteArrayOutputStream salida = new java.io.ByteArrayOutputStream();
+        enviado.writeTo(salida);
+        assertTrue(salida.toString().contains("Recuerda importar los partidos de la jornada desde la intranet de la FFCV"));
+    }
+
+    @Test
+    void enviarRecordatorioImportacionFfcvDevuelveFalseSiElEnvioFalla() {
+        doThrow(new org.springframework.mail.MailSendException("fallo smtp")).when(emailSender).send(
+                org.mockito.ArgumentMatchers.any(MimeMessage.class));
+
+        assertFalse(service.enviarRecordatorioImportacionFfcv());
+    }
+
+    @Test
     void enviarInvitacionAppSaludaConElNombreDeLaPersona() {
         assertTrue(service.enviarInvitacionApp("familia@example.com", "Ana", "123456"));
     }

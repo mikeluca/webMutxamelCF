@@ -21,10 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
+import com.mikedev.mutxamelcf.dao.DescansoEquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.model.Convocatoria;
+import com.mikedev.mutxamelcf.model.DescansoEquipo;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.PartidoDTO;
@@ -57,19 +59,22 @@ public class PartidoServiceImpl implements PartidoService {
 	private final EquipoDao equipoDao;
 	private final ConvocatoriaDao convocatoriaDao;
 	private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
+	private final DescansoEquipoDao descansoEquipoDao;
 
 	public PartidoServiceImpl(
 			PartidoDao partidoDao,
 			EquipoGestionDao equipoGestionDao,
 			EquipoDao equipoDao,
 			ConvocatoriaDao convocatoriaDao,
-			ConvocatoriaJugadorDao convocatoriaJugadorDao) {
+			ConvocatoriaJugadorDao convocatoriaJugadorDao,
+			DescansoEquipoDao descansoEquipoDao) {
 
 		this.partidoDao = partidoDao;
 		this.equipoGestionDao = equipoGestionDao;
 		this.equipoDao = equipoDao;
 		this.convocatoriaDao = convocatoriaDao;
 		this.convocatoriaJugadorDao = convocatoriaJugadorDao;
+		this.descansoEquipoDao = descansoEquipoDao;
 	}
 
 	@Override
@@ -474,7 +479,9 @@ public class PartidoServiceImpl implements PartidoService {
 		List<ResultadoDTO> resultados = new ArrayList<>();
 
 		for (EquipoConPartidoMasReciente ep : equiposConPartido) {
-			resultados.add(toResultadoDTO(ep.partido, ep.equipo));
+			ResultadoDTO dto = toResultadoDTO(ep.partido, ep.equipo);
+			dto.setDescansa(descansa(ep.equipo != null ? ep.equipo.getId() : null, ep.partido));
+			resultados.add(dto);
 		}
 
 		logger.debug("Fin obtenerResultados: deporte={}, total={}", deporte, resultados.size());
@@ -494,6 +501,8 @@ public class PartidoServiceImpl implements PartidoService {
 		ResultadoDTO resultado = new ResultadoDTO();
 		resultado.setCategoria(CATEGORIA_PRIMER_EQUIPO);
 		resultado.setEquipo(EQUIPO_PRIMER_EQUIPO);
+		resultado.setDescansa(descansa(
+				partido != null ? partido.getEquipoId() : idEquipoPorNombre(EQUIPO_PRIMER_EQUIPO), partido));
 
 		if (partido == null) {
 			// Sin próximo partido ni último jugado: se devuelve igualmente
@@ -515,6 +524,48 @@ public class PartidoServiceImpl implements PartidoService {
 		logger.debug("Fin obtenerResultadoPrimerEquipo: encontrado=true");
 
 		return resultado;
+	}
+
+	private Long idEquipoPorNombre(String nombre) {
+		Equipo equipo = equipoDao.obtenerEquipoPorNombre(nombre);
+		return equipo != null ? equipo.getId() : null;
+	}
+
+	/*
+	 * El equipo descansa si tiene un descanso registrado (importador FFCV)
+	 * para el fin de semana en curso o el próximo (la fecha del descanso es
+	 * el primer día del fin de semana, que dura dos días) y no tiene un
+	 * partido pendiente hasta el final de ese fin de semana.
+	 */
+	private boolean descansa(Long equipoId, Partido partidoRelevante) {
+
+		if (equipoId == null) {
+			return false;
+		}
+
+		LocalDate hoy = LocalDate.now();
+
+		List<DescansoEquipo> descansos = descansoEquipoDao.obtenerDesde(equipoId, hoy.minusDays(1));
+
+		if (descansos == null || descansos.isEmpty()) {
+			return false;
+		}
+
+		LocalDate finDeSemana = descansos.get(0).getFecha().plusDays(1);
+
+		boolean tienePartidoPendiente = partidoRelevante != null
+				&& partidoRelevante.getDia() != null
+				&& !partidoRelevante.isCancelado()
+				&& (partidoRelevante.getResultado() == null || partidoRelevante.getResultado().isBlank())
+				&& !aLocalDate(partidoRelevante.getDia()).isAfter(finDeSemana);
+
+		return !tienePartidoPendiente;
+	}
+
+	private static LocalDate aLocalDate(Date dia) {
+		return dia instanceof java.sql.Date sqlDate
+				? sqlDate.toLocalDate()
+				: dia.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
 	}
 
 	private Equipo obtenerEquipo(Long equipoId) {

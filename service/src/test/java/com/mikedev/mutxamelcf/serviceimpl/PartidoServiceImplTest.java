@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
+import com.mikedev.mutxamelcf.dao.DescansoEquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
@@ -47,12 +48,16 @@ class PartidoServiceImplTest {
     @Mock
     private ConvocatoriaJugadorDao convocatoriaJugadorDao;
 
+    @Mock
+    private DescansoEquipoDao descansoEquipoDao;
+
     private PartidoServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new PartidoServiceImpl(
-                partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao);
+                partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
+                descansoEquipoDao);
     }
 
     private static PartidoGuardarRequest requestValido() {
@@ -865,4 +870,86 @@ class PartidoServiceImplTest {
         assertThat(resultado.getDiaFormateado()).isEmpty();
         assertThat(resultado.getDia()).isNull();
     }
+
+    // ---- descansa (importador FFCV) -------------------------------------------
+
+    private static Partido partidoPendiente(long equipoId, LocalDate dia) {
+        Partido partido = new Partido();
+        partido.setId(equipoId * 10);
+        partido.setEquipoId(equipoId);
+        partido.setRival("Rival");
+        partido.setDia(java.sql.Date.valueOf(dia));
+        return partido;
+    }
+
+    @Test
+    void obtenerResultadosMarcaDescansaSiElEquipoTieneDescansoYNingunPartidoEseFinDeSemana() {
+        LocalDate sabado = LocalDate.now().plusDays(3);
+        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
+        when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(null);
+        when(descansoEquipoDao.obtenerDesde(org.mockito.ArgumentMatchers.eq(1L), any()))
+                .thenReturn(List.of(new com.mikedev.mutxamelcf.model.DescansoEquipo(1L, 1L, sabado, null)));
+
+        assertThat(service.obtenerResultados("F")).singleElement()
+                .satisfies(r -> assertThat(r.isDescansa()).isTrue());
+    }
+
+    @Test
+    void obtenerResultadosNoMarcaDescansaSiElEquipoTienePartidoPendienteEseFinDeSemana() {
+        LocalDate sabado = LocalDate.now().plusDays(3);
+        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
+        when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(partidoPendiente(1L, sabado.plusDays(1)));
+        when(descansoEquipoDao.obtenerDesde(org.mockito.ArgumentMatchers.eq(1L), any()))
+                .thenReturn(List.of(new com.mikedev.mutxamelcf.model.DescansoEquipo(1L, 1L, sabado, null)));
+
+        assertThat(service.obtenerResultados("F")).singleElement()
+                .satisfies(r -> assertThat(r.isDescansa()).isFalse());
+    }
+
+    @Test
+    void obtenerResultadosNoMarcaDescansaSiElPartidoPendienteEsAnteriorAlDescanso() {
+        LocalDate sabado = LocalDate.now().plusDays(8);
+        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
+        when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(partidoPendiente(1L, LocalDate.now().plusDays(2)));
+        when(descansoEquipoDao.obtenerDesde(org.mockito.ArgumentMatchers.eq(1L), any()))
+                .thenReturn(List.of(new com.mikedev.mutxamelcf.model.DescansoEquipo(1L, 1L, sabado, null)));
+
+        assertThat(service.obtenerResultados("F")).singleElement()
+                .satisfies(r -> assertThat(r.isDescansa()).isFalse());
+    }
+
+    @Test
+    void obtenerResultadosMarcaDescansaSiElUnicoPartidoYaTieneResultado() {
+        LocalDate sabado = LocalDate.now().plusDays(3);
+        Partido jugado = partidoPendiente(1L, LocalDate.now().minusDays(4));
+        jugado.setResultado("2-1");
+        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
+        when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(jugado);
+        when(descansoEquipoDao.obtenerDesde(org.mockito.ArgumentMatchers.eq(1L), any()))
+                .thenReturn(List.of(new com.mikedev.mutxamelcf.model.DescansoEquipo(1L, 1L, sabado, null)));
+
+        assertThat(service.obtenerResultados("F")).singleElement()
+                .satisfies(r -> assertThat(r.isDescansa()).isTrue());
+    }
+
+    @Test
+    void obtenerResultadosNoMarcaDescansaSinDescansoRegistrado() {
+        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
+        when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(null);
+
+        assertThat(service.obtenerResultados("F")).singleElement()
+                .satisfies(r -> assertThat(r.isDescansa()).isFalse());
+    }
+
+    @Test
+    void obtenerResultadoPrimerEquipoMarcaDescansaSiNoHayPartidoPeroSiDescanso() {
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(null);
+        when(equipoDao.obtenerEquipoPorNombre("Primer Equipo")).thenReturn(equipo(21L));
+        when(descansoEquipoDao.obtenerDesde(org.mockito.ArgumentMatchers.eq(21L), any()))
+                .thenReturn(List.of(new com.mikedev.mutxamelcf.model.DescansoEquipo(
+                        1L, 21L, LocalDate.now().plusDays(3), null)));
+
+        assertThat(service.obtenerResultadoPrimerEquipo().isDescansa()).isTrue();
+    }
+
 }

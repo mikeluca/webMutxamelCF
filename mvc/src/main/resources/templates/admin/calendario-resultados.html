@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 
 <head>
 	<title>Calendario y Resultados | Mutxamel CF</title>
@@ -41,7 +41,14 @@
 		<p class="dashboard-eyebrow mb-1">Administración Deportiva</p>
 		<h1 class="admin-screen-title">Calendario / Resultados Fútbol</h1>
 
-		<div class="d-flex justify-content-end mb-4">
+		<div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-4">
+			<div sec:authorize="hasAnyRole('SUPER', 'ADMIN')">
+				<button type="button" class="btn btn-primary" data-bs-toggle="modal"
+					data-bs-target="#importarFfcvModal" onclick="ffcvAbrirModal()">
+					<i class="bi bi-upload"></i> Importar partidos FFCV
+				</button>
+				<a href="/admin/equipos-ffcv" class="btn btn-outline-secondary ms-2">Equipos FFCV</a>
+			</div>
 			<div>
 				<label for="filtroTexto" class="form-label mb-1">Buscar</label>
 				<input type="text" id="filtroTexto" class="form-control form-control-sm"
@@ -195,6 +202,90 @@
 		-->
 	</main>
 
+	<!-- Importador semanal de partidos desde el CSV de la intranet de la FFCV (SUPER y ADMIN) -->
+	<div class="modal fade lead" id="importarFfcvModal" tabindex="-1" aria-labelledby="importarFfcvLabel"
+		aria-hidden="true" sec:authorize="hasAnyRole('SUPER', 'ADMIN')">
+		<div class="modal-dialog modal-xl modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 class="modal-title lead" id="importarFfcvLabel">Importar partidos FFCV</h3>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+				</div>
+				<div class="modal-body">
+					<input type="hidden" id="ffcvCsrf" th:value="${_csrf.token}" />
+
+					<!-- Plantilla de equipos para las filas sin equipo asignado -->
+					<select id="ffcvEquiposPlantilla" class="d-none">
+						<option value="">— Elegir equipo —</option>
+						<option th:each="equipo : ${listaEquipos}" th:value="${equipo.id}"
+							th:text="${equipo.nombre}"></option>
+					</select>
+
+					<p class="text-muted mb-2">
+						Descarga el listado <strong>LstPartidos.csv</strong> de la intranet de la FFCV y súbelo aquí.
+						Primero verás una vista previa; no se guarda nada hasta pulsar «Confirmar».
+					</p>
+
+					<div class="d-flex gap-2 align-items-end flex-wrap mb-3">
+						<div class="flex-grow-1">
+							<label for="ffcvArchivo" class="form-label mb-1">Archivo CSV</label>
+							<input type="file" id="ffcvArchivo" class="form-control" accept=".csv,text/csv">
+						</div>
+						<button type="button" class="btn btn-primary" id="ffcvBotonPrevisualizar"
+							onclick="ffcvPrevisualizar()">Previsualizar</button>
+					</div>
+
+					<div id="ffcvAlerta" class="alert" style="display:none;" role="alert"></div>
+
+					<div id="ffcvPrevia" style="display:none;">
+						<h4 class="h6" id="ffcvResumen"></h4>
+
+						<div class="table-responsive">
+							<table class="table table-sm align-middle">
+								<thead>
+									<tr>
+										<th>Estado</th>
+										<th>Fecha</th>
+										<th>Equipo</th>
+										<th>Rival</th>
+										<th>Campo</th>
+										<th>Hora</th>
+										<th>Jda.</th>
+										<th>Detalle</th>
+									</tr>
+								</thead>
+								<tbody id="ffcvFilas"></tbody>
+							</table>
+						</div>
+
+						<div id="ffcvSeccionDescansan" class="mt-3" style="display:none;">
+							<h4 class="h6">Descansan</h4>
+							<div id="ffcvDescansan" class="d-flex flex-wrap gap-2"></div>
+						</div>
+
+						<div id="ffcvSeccionDesaparecidos" class="mt-3" style="display:none;">
+							<h4 class="h6">Ya no aparecen en la FFCV (¿aplazado?)</h4>
+							<p class="text-muted small mb-1">No se borran ni se modifican automáticamente.</p>
+							<ul id="ffcvDesaparecidos" class="mb-0"></ul>
+						</div>
+
+						<div id="ffcvSeccionErrores" class="mt-3" style="display:none;">
+							<h4 class="h6 text-danger">Líneas que no se han podido leer</h4>
+							<ul id="ffcvErrores" class="mb-0"></ul>
+						</div>
+					</div>
+
+					<div id="ffcvResultado" style="display:none;"></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+					<button type="button" class="btn btn-success" id="ffcvBotonConfirmar" style="display:none;"
+						onclick="ffcvConfirmar()">Confirmar importación</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<!-- Incluir el footer -->
 	<div th:replace="~{admin/footerAdmin.html}"></div>
 
@@ -218,6 +309,270 @@
 					.some(fila => fila.style.display !== 'none');
 
 				item.style.display = (nombreEquipo.includes(texto) || hayPartidoVisible) ? '' : 'none';
+			});
+		}
+	</script>
+	<script>
+		/* Importador de partidos FFCV. El contenido del CSV se pinta siempre con textContent. */
+		let ffcvPrevia = null;
+		let ffcvImportado = false;
+
+		const FFCV_ESTADOS = {
+			NUEVO: { texto: 'Nuevo', clase: 'table-success' },
+			ACTUALIZADO: { texto: 'Actualizado', clase: 'table-warning' },
+			SIN_CAMBIOS: { texto: 'Sin cambios', clase: '' },
+			SIN_EQUIPO: { texto: 'Sin equipo', clase: 'table-danger' },
+			CONFLICTO_MANUAL: { texto: 'Conflicto: ya hay un partido manual', clase: 'table-secondary' }
+		};
+
+		function ffcvEl(id) {
+			return document.getElementById(id);
+		}
+
+		function ffcvCrear(etiqueta, texto, clase) {
+			const el = document.createElement(etiqueta);
+			if (texto !== undefined && texto !== null) el.textContent = texto;
+			if (clase) el.className = clase;
+			return el;
+		}
+
+		function ffcvFecha(iso) {
+			if (!iso) return '';
+			const partes = iso.split('-');
+			return partes[2] + '/' + partes[1] + '/' + partes[0];
+		}
+
+		function ffcvAlerta(mensaje, tipo) {
+			const alerta = ffcvEl('ffcvAlerta');
+			if (!mensaje) {
+				alerta.style.display = 'none';
+				return;
+			}
+			alerta.className = 'alert alert-' + (tipo || 'danger');
+			alerta.textContent = mensaje;
+			alerta.style.display = '';
+		}
+
+		function ffcvAbrirModal() {
+			ffcvPrevia = null;
+			ffcvEl('ffcvArchivo').value = '';
+			ffcvEl('ffcvPrevia').style.display = 'none';
+			ffcvEl('ffcvResultado').style.display = 'none';
+			ffcvEl('ffcvBotonConfirmar').style.display = 'none';
+			ffcvAlerta(null);
+		}
+
+		async function ffcvLlamar(url, opciones) {
+			let respuesta;
+			try {
+				respuesta = await fetch(url, opciones);
+			} catch (e) {
+				throw new Error('No se ha podido conectar con el servidor');
+			}
+
+			// Con la sesión caducada el servidor responde 403 o redirige al login.
+			if (respuesta.status === 403 || respuesta.redirected) {
+				throw new Error('Tu sesión ha caducado, recarga la página');
+			}
+
+			const tipo = respuesta.headers.get('content-type') || '';
+			if (!tipo.includes('application/json')) {
+				throw new Error('Error inesperado del servidor (código ' + respuesta.status + ')');
+			}
+
+			const cuerpo = await respuesta.json();
+			if (!respuesta.ok) {
+				throw new Error(cuerpo.error || 'Error inesperado');
+			}
+			return cuerpo;
+		}
+
+		async function ffcvPrevisualizar() {
+			ffcvAlerta(null);
+			ffcvEl('ffcvResultado').style.display = 'none';
+
+			const archivo = ffcvEl('ffcvArchivo').files[0];
+			if (!archivo) {
+				ffcvAlerta('Selecciona el archivo LstPartidos.csv');
+				return;
+			}
+
+			const datos = new FormData();
+			datos.append('archivo', archivo);
+
+			const boton = ffcvEl('ffcvBotonPrevisualizar');
+			boton.disabled = true;
+			try {
+				ffcvPrevia = await ffcvLlamar('/admin/ffcv/previsualizar', {
+					method: 'POST',
+					headers: { 'X-CSRF-TOKEN': ffcvEl('ffcvCsrf').value },
+					body: datos
+				});
+				ffcvPintarPrevia(ffcvPrevia);
+			} catch (e) {
+				ffcvPrevia = null;
+				ffcvEl('ffcvPrevia').style.display = 'none';
+				ffcvEl('ffcvBotonConfirmar').style.display = 'none';
+				ffcvAlerta(e.message);
+			} finally {
+				boton.disabled = false;
+			}
+		}
+
+		function ffcvPintarPrevia(previa) {
+			const cuerpo = ffcvEl('ffcvFilas');
+			cuerpo.replaceChildren();
+
+			const cuentas = {};
+			previa.filas.forEach(function (fila) {
+				cuentas[fila.estado] = (cuentas[fila.estado] || 0) + 1;
+
+				const estado = FFCV_ESTADOS[fila.estado] || { texto: fila.estado, clase: '' };
+				const tr = ffcvCrear('tr', null, estado.clase);
+
+				tr.appendChild(ffcvCrear('td', estado.texto));
+				tr.appendChild(ffcvCrear('td', ffcvFecha(fila.fecha)));
+				tr.appendChild(ffcvCrear('td', fila.equipoNombre || (fila.competicion + (fila.letra ? ' "' + fila.letra + '"' : ''))));
+				tr.appendChild(ffcvCrear('td', (fila.local ? 'Local · ' : 'Visitante · ') + fila.rival));
+				tr.appendChild(ffcvCrear('td', fila.campo || ''));
+				tr.appendChild(ffcvCrear('td', fila.hora || ''));
+				tr.appendChild(ffcvCrear('td', fila.jornada === null ? '' : fila.jornada));
+
+				const detalle = ffcvCrear('td');
+				if (fila.estado === 'SIN_EQUIPO') {
+					detalle.appendChild(ffcvCrearSelectorEquipo(fila));
+				} else if (fila.cambios && fila.cambios.length) {
+					detalle.textContent = fila.cambios.join(' · ');
+				}
+				tr.appendChild(detalle);
+
+				cuerpo.appendChild(tr);
+			});
+
+			const partes = [];
+			Object.keys(FFCV_ESTADOS).forEach(function (clave) {
+				if (cuentas[clave]) partes.push(cuentas[clave] + ' ' + FFCV_ESTADOS[clave].texto.toLowerCase());
+			});
+			ffcvEl('ffcvResumen').textContent = previa.filas.length
+				? 'Fin de semana ' + ffcvFecha(previa.desde) + ' – ' + ffcvFecha(previa.hasta) + ': ' + partes.join(', ')
+				: 'No se ha encontrado ningún partido del Mutxamel en el archivo';
+
+			ffcvPintarLista('ffcvDescansan', 'ffcvSeccionDescansan', previa.descansan, function (d) {
+				return ffcvCrear('span', d.equipoNombre, 'badge text-bg-info');
+			});
+
+			ffcvPintarLista('ffcvDesaparecidos', 'ffcvSeccionDesaparecidos', previa.desaparecidos, function (d) {
+				return ffcvCrear('li', (d.equipoNombre || '') + ' · ' + ffcvFecha(d.fecha) + ' · ' + d.rival
+					+ (d.hora ? ' (' + d.hora + ')' : '')
+					+ (d.tieneConvocatoria ? ' — tiene convocatoria' : ''));
+			});
+
+			ffcvPintarLista('ffcvErrores', 'ffcvSeccionErrores', previa.errores, function (e) {
+				return ffcvCrear('li', (e.linea > 0 ? 'Línea ' + e.linea + ': ' : '') + e.mensaje);
+			});
+
+			ffcvEl('ffcvPrevia').style.display = '';
+			ffcvEl('ffcvBotonConfirmar').style.display = previa.filas.length ? '' : 'none';
+		}
+
+		function ffcvPintarLista(idContenedor, idSeccion, elementos, crear) {
+			const contenedor = ffcvEl(idContenedor);
+			contenedor.replaceChildren();
+			(elementos || []).forEach(function (elemento) {
+				contenedor.appendChild(crear(elemento));
+			});
+			ffcvEl(idSeccion).style.display = (elementos && elementos.length) ? '' : 'none';
+		}
+
+		function ffcvClave(fila) {
+			return fila.competicion + '|' + (fila.letra || '');
+		}
+
+		function ffcvCrearSelectorEquipo(fila) {
+			const select = ffcvCrear('select', null, 'form-select form-select-sm ffcv-selector-equipo');
+			Array.from(ffcvEl('ffcvEquiposPlantilla').options).forEach(function (opcion) {
+				select.appendChild(new Option(opcion.text, opcion.value));
+			});
+			select.dataset.competicion = fila.competicion;
+			select.dataset.letra = fila.letra || '';
+			select.dataset.clave = ffcvClave(fila);
+
+			// Las filas de la misma competición+letra comparten el equipo elegido.
+			select.addEventListener('change', function () {
+				document.querySelectorAll('.ffcv-selector-equipo').forEach(function (otro) {
+					if (otro.dataset.clave === select.dataset.clave) otro.value = select.value;
+				});
+			});
+			return select;
+		}
+
+		function ffcvAsignaciones() {
+			const porClave = {};
+			document.querySelectorAll('.ffcv-selector-equipo').forEach(function (select) {
+				if (select.value) {
+					porClave[select.dataset.clave] = {
+						competicion: select.dataset.competicion,
+						letra: select.dataset.letra || null,
+						equipoId: Number(select.value)
+					};
+				}
+			});
+			return Object.values(porClave);
+		}
+
+		async function ffcvConfirmar() {
+			if (!ffcvPrevia) return;
+			ffcvAlerta(null);
+
+			const boton = ffcvEl('ffcvBotonConfirmar');
+			boton.disabled = true;
+			try {
+				const resultado = await ffcvLlamar('/admin/ffcv/confirmar', {
+					method: 'POST',
+					headers: {
+						'X-CSRF-TOKEN': ffcvEl('ffcvCsrf').value,
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ previsualizacion: ffcvPrevia, asignaciones: ffcvAsignaciones() })
+				});
+				ffcvImportado = true;
+				ffcvPintarResultado(resultado);
+			} catch (e) {
+				ffcvAlerta(e.message);
+			} finally {
+				boton.disabled = false;
+			}
+		}
+
+		function ffcvPintarResultado(r) {
+			ffcvEl('ffcvPrevia').style.display = 'none';
+			ffcvEl('ffcvBotonConfirmar').style.display = 'none';
+
+			const contenedor = ffcvEl('ffcvResultado');
+			contenedor.replaceChildren();
+
+			const resumen = ffcvCrear('div', null, 'alert alert-success');
+			resumen.textContent = 'Importación guardada: ' + r.creados + ' nuevos, ' + r.actualizados
+				+ ' actualizados, ' + r.sinCambios + ' sin cambios, ' + r.conflictosManuales
+				+ ' conflictos manuales, ' + r.sinEquipo + ' sin equipo. Descansos: +' + r.descansosCreados
+				+ ' / −' + r.descansosEliminados + '.';
+			contenedor.appendChild(resumen);
+
+			if (r.avisos && r.avisos.length) {
+				contenedor.appendChild(ffcvCrear('h4', 'Avisos', 'h6'));
+				const lista = ffcvCrear('ul');
+				r.avisos.forEach(function (aviso) { lista.appendChild(ffcvCrear('li', aviso)); });
+				contenedor.appendChild(lista);
+			}
+
+			contenedor.style.display = '';
+		}
+
+		// Al cerrar tras importar se recarga el calendario para ver los partidos nuevos.
+		const ffcvModal = document.getElementById('importarFfcvModal');
+		if (ffcvModal) {
+			ffcvModal.addEventListener('hidden.bs.modal', function () {
+				if (ffcvImportado) window.location.reload();
 			});
 		}
 	</script>

@@ -16,6 +16,8 @@ public class ResultadoDTO {
 	private String diaFormateado;
 	private String hora;
 	private String campo;
+	/** true si el equipo tiene un descanso registrado este fin de semana y ningún partido. */
+	private boolean descansa;
 
 	public ResultadoDTO() {
 		super();
@@ -111,6 +113,14 @@ public class ResultadoDTO {
 
 	public void setDiaFormateado(String diaFormateado) {
 		this.diaFormateado = diaFormateado;
+	}
+
+	public boolean isDescansa() {
+		return descansa;
+	}
+
+	public void setDescansa(boolean descansa) {
+		this.descansa = descansa;
 	}
 
 }

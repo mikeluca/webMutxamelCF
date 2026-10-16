@@ -151,6 +151,16 @@ public class SecurityConfig {
                                                 .hasRole("SUPER")
 
                                                 /*
+                                                 * Importador de partidos FFCV y relaciones
+                                                 * competición -> equipo: solo SUPER y ADMIN
+                                                 * (no ENTRENADOR).
+                                                 */
+                                                .requestMatchers(
+                                                                "/admin/ffcv/**",
+                                                                "/admin/equipos-ffcv/**")
+                                                .hasAnyRole("SUPER", "ADMIN")
+
+                                                /*
                                                  * SEC-03: nunca solo authenticated() aqui.
                                                  * Los roles web que existen hoy son SUPER,
                                                  * ENTRENADOR y ADMIN (no hay ningun otro

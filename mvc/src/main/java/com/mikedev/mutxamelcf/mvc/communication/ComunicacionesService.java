@@ -69,6 +69,19 @@ public class ComunicacionesService {
         return enviado;
     }
 
+    /**
+     * Aviso a la gestión del club de que falta importar el CSV semanal de
+     * partidos de la intranet de la FFCV.
+     */
+    public boolean enviarRecordatorioImportacionFfcv() {
+        logger.debug("Inicio enviarRecordatorioImportacionFfcv");
+        boolean enviado = enviarEmail(REMITENTE, DESTINATARIO_CONTACTO, null,
+                "Recordatorio: importar los partidos de la jornada",
+                "Recuerda importar los partidos de la jornada desde la intranet de la FFCV");
+        logger.debug("Fin enviarRecordatorioImportacionFfcv: enviado={}", enviado);
+        return enviado;
+    }
+
     private static final String SEPARADOR_IDIOMAS = "\n\n------------------------------\n\n";
 
     /**

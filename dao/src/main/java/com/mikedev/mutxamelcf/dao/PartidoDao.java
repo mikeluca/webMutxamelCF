@@ -44,6 +44,18 @@ public interface PartidoDao {
      */
     List<Partido> obtenerPorEquipoYRangoFechas(Long equipoId, LocalDate desde, LocalDate hasta);
 
+    /**
+     * Todos los partidos (de cualquier equipo) cuya fecha cae en el rango
+     * indicado, ambos extremos incluidos. Usado por el importador FFCV.
+     */
+    List<Partido> obtenerPorRangoFechas(LocalDate desde, LocalDate hasta);
+
+    /**
+     * Actualiza solo rival, hora, campo y jornada de un partido de origen
+     * FFCV. Nunca toca resultado, goles ni cancelación.
+     */
+    void actualizarDatosFfcv(Partido partido);
+
     void eliminar(Long id);
 
     /**

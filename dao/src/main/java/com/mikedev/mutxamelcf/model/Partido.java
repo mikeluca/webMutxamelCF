@@ -5,6 +5,9 @@ import java.util.Date;
 
 public class Partido {
 
+    public static final String ORIGEN_MANUAL = "MANUAL";
+    public static final String ORIGEN_FFCV = "FFCV";
+
     private Long id;
     private Long equipoId;
     private String rival;
@@ -25,6 +28,13 @@ public class Partido {
      * PartidoDTO ni en ninguna respuesta de la API.
      */
     private boolean avisoResultadoEnviado;
+
+    /*
+     * MANUAL (alta desde el panel/app) o FFCV (importado del CSV de la
+     * intranet de la FFCV). El importador solo toca los partidos FFCV.
+     */
+    private String origen = ORIGEN_MANUAL;
+    private Integer jornada;
 
     public Partido() {
         super();
@@ -165,6 +175,22 @@ public class Partido {
 
     public void setAvisoResultadoEnviado(boolean avisoResultadoEnviado) {
         this.avisoResultadoEnviado = avisoResultadoEnviado;
+    }
+
+    public String getOrigen() {
+        return origen;
+    }
+
+    public void setOrigen(String origen) {
+        this.origen = origen;
+    }
+
+    public Integer getJornada() {
+        return jornada;
+    }
+
+    public void setJornada(Integer jornada) {
+        this.jornada = jornada;
     }
 
 }

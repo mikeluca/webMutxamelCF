@@ -28,6 +28,7 @@
 							<li><a class="dropdown-item" href="/admin/familiares">Familiares</a></li>
 							<li><a class="dropdown-item" href="/admin/equipos">Equipos</a></li>
 							<li><a class="dropdown-item" href="/admin/cuerpo-tecnico">Cuerpo Técnico</a></li>
+							<li sec:authorize="hasAnyRole('SUPER', 'ADMIN')"><a class="dropdown-item" href="/admin/equipos-ffcv">Equipos FFCV</a></li>
 						</ul>
 					</li>
 					<!-- Control de pagos -->

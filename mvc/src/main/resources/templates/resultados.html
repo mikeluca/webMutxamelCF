@@ -75,8 +75,10 @@
 								</td>
 								<td th:text="${resultado.equipo}" style="width: 22%;"></td>
 								<!-- Equipo sin proximo partido ni ultimo resultado: fila "placeholder" -->
-								<td th:if="${resultado.rival == null or #strings.isEmpty(resultado.rival)}" colspan="5" class="text-center text-muted" th:text="#{resultados.sinPartido}">No tiene partido</td>
-								<th:block th:unless="${resultado.rival == null or #strings.isEmpty(resultado.rival)}">
+								<!-- Equipo que descansa este fin de semana (importador FFCV) -->
+								<td th:if="${resultado.descansa}" colspan="5" class="text-center text-muted" th:text="#{resultados.descansa}">Descansa</td>
+								<td th:if="${!resultado.descansa and (resultado.rival == null or #strings.isEmpty(resultado.rival))}" colspan="5" class="text-center text-muted" th:text="#{resultados.sinPartido}">No tiene partido</td>
+								<th:block th:unless="${resultado.descansa or resultado.rival == null or #strings.isEmpty(resultado.rival)}">
 									<td th:text="${resultado.resultado}" style="width: 80px;"></td>
 									<td th:text="${resultado.rival}" style="width: auto;"></td>
 									<td th:text="${#dates.format(resultado.dia, 'dd/MM/yyyy')}" style="width: 80px; "></td>

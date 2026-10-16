@@ -30,7 +30,7 @@ public class PartidoDaoImpl implements PartidoDao {
 	private static final String CAMPOS_SELECT = """
 			P.ID, P.EQUIPO_ID, P.RIVAL, P.DIA, P.HORA, P.CAMPO, P.RESULTADO, P.TIPO,
 			P.USUARIO_ACTUALIZO_ID, P.FECHA_ACTUALIZACION, P.CANCELADO,
-			P.GOLES_FAVOR, P.GOLES_CONTRA, P.AVISO_RESULTADO_ENVIADO
+			P.GOLES_FAVOR, P.GOLES_CONTRA, P.AVISO_RESULTADO_ENVIADO, P.ORIGEN, P.JORNADA
 			""";
 
 	private final JdbcTemplate jdbcTemplate;
@@ -51,9 +51,11 @@ public class PartidoDaoImpl implements PartidoDao {
 				    HORA,
 				    CAMPO,
 				    RESULTADO,
-				    TIPO
+				    TIPO,
+				    ORIGEN,
+				    JORNADA
 				)
-				VALUES (?, ?, ?, ?, ?, ?, ?)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""";
 
 		KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -76,6 +78,13 @@ public class PartidoDaoImpl implements PartidoDao {
 			ps.setString(5, partido.getCampo());
 			ps.setString(6, partido.getResultado());
 			ps.setString(7, partido.getTipo());
+			ps.setString(8, partido.getOrigen() != null ? partido.getOrigen() : Partido.ORIGEN_MANUAL);
+
+			if (partido.getJornada() != null) {
+				ps.setInt(9, partido.getJornada());
+			} else {
+				ps.setNull(9, Types.NUMERIC);
+			}
 
 			return ps;
 		}, keyHolder);
@@ -141,7 +150,7 @@ public class PartidoDaoImpl implements PartidoDao {
 		String sql = """
 				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
 				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO,
-				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO
+				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO, ORIGEN, JORNADA
 				FROM PARTIDOS
 				WHERE ID = ?
 				""";
@@ -162,7 +171,7 @@ public class PartidoDaoImpl implements PartidoDao {
 		String sql = """
 				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
 				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO,
-				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO
+				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO, ORIGEN, JORNADA
 				FROM PARTIDOS
 				WHERE EQUIPO_ID = ?
 				ORDER BY DIA DESC, ID DESC
@@ -182,7 +191,7 @@ public class PartidoDaoImpl implements PartidoDao {
 		String sql = """
 				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
 				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO,
-				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO
+				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO, ORIGEN, JORNADA
 				FROM PARTIDOS
 				WHERE EQUIPO_ID = ?
 				ORDER BY DIA DESC, ID DESC
@@ -227,7 +236,7 @@ public class PartidoDaoImpl implements PartidoDao {
 		String sql = """
 				SELECT P.ID, P.EQUIPO_ID, P.RIVAL, P.DIA, P.HORA, P.CAMPO, P.RESULTADO, P.TIPO,
 				       P.USUARIO_ACTUALIZO_ID, P.FECHA_ACTUALIZACION, P.CANCELADO,
-				       P.GOLES_FAVOR, P.GOLES_CONTRA, P.AVISO_RESULTADO_ENVIADO
+				       P.GOLES_FAVOR, P.GOLES_CONTRA, P.AVISO_RESULTADO_ENVIADO, P.ORIGEN, P.JORNADA
 				FROM PARTIDOS P
 				LEFT JOIN CONVOCATORIAS C ON C.PARTIDO_ID = P.ID
 				WHERE P.EQUIPO_ID = ?
@@ -358,6 +367,47 @@ public class PartidoDaoImpl implements PartidoDao {
 	}
 
 	@Override
+	public List<Partido> obtenerPorRangoFechas(LocalDate desde, LocalDate hasta) {
+		logger.debug("Inicio obtenerPorRangoFechas: desde={}, hasta={}", desde, hasta);
+
+		String sql = "SELECT " + CAMPOS_SELECT + """
+				FROM PARTIDOS P
+				WHERE P.DIA BETWEEN ? AND ?
+				ORDER BY P.DIA ASC, P.ID ASC
+				""";
+
+		List<Partido> partidos = jdbcTemplate.query(
+				sql,
+				PARTIDO_ROW_MAPPER,
+				java.sql.Date.valueOf(desde),
+				java.sql.Date.valueOf(hasta));
+
+		logger.debug("Fin obtenerPorRangoFechas: total={}", partidos.size());
+
+		return partidos;
+	}
+
+	@Override
+	public void actualizarDatosFfcv(Partido partido) {
+		logger.debug("Inicio actualizarDatosFfcv: id={}", partido.getId());
+
+		/*
+		 * Solo rival, hora, campo y jornada: el importador nunca toca el
+		 * resultado, los goles ni el resto de datos del partido.
+		 */
+		int filasAfectadas = jdbcTemplate.update(
+				"UPDATE PARTIDOS SET RIVAL = ?, HORA = ?, CAMPO = ?, JORNADA = ? WHERE ID = ? AND ORIGEN = 'FFCV'",
+				partido.getRival(),
+				partido.getHora(),
+				partido.getCampo(),
+				partido.getJornada(),
+				partido.getId());
+
+		logger.info("Partido FFCV actualizado: id={}, filasAfectadas={}", partido.getId(), filasAfectadas);
+		logger.debug("Fin actualizarDatosFfcv: id={}", partido.getId());
+	}
+
+	@Override
 	public void eliminar(Long id) {
 		logger.debug("Inicio eliminar: id={}", id);
 
@@ -407,6 +457,12 @@ public class PartidoDaoImpl implements PartidoDao {
 		partido.setGolesContra(rs.wasNull() ? null : golesContra);
 
 		partido.setAvisoResultadoEnviado(rs.getInt("AVISO_RESULTADO_ENVIADO") == 1);
+
+		String origen = rs.getString("ORIGEN");
+		partido.setOrigen(origen != null ? origen : Partido.ORIGEN_MANUAL);
+
+		int jornada = rs.getInt("JORNADA");
+		partido.setJornada(rs.wasNull() ? null : jornada);
 
 		return partido;
 	}
