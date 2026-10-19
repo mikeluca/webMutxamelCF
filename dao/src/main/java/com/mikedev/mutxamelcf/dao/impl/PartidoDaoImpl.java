@@ -551,4 +551,15 @@ public class PartidoDaoImpl implements PartidoDao {
 		logger.debug("Fin marcarAvisoResultadoEnviado: id={}", id);
 	}
 
+	@Override
+	public void actualizarAvisoResultadoEnviado(Long id, boolean enviado) {
+
+		int filasAfectadas = jdbcTemplate.update(
+				"UPDATE PARTIDOS SET AVISO_RESULTADO_ENVIADO = ? WHERE ID = ?",
+				enviado ? 1 : 0, id);
+
+		logger.info("Aviso de resultado actualizado: id={}, enviado={}, filasAfectadas={}", id, enviado,
+				filasAfectadas);
+	}
+
 }

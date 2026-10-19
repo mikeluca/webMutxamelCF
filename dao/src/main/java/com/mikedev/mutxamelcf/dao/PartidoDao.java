@@ -89,4 +89,10 @@ public interface PartidoDao {
      */
     void marcarAvisoResultadoEnviado(Long id);
 
+    /**
+     * Pone AVISO_RESULTADO_ENVIADO a 1 o a 0 (para devolver el partido a como
+     * estaba al deshacer el final de un directo).
+     */
+    void actualizarAvisoResultadoEnviado(Long id, boolean enviado);
+
 }

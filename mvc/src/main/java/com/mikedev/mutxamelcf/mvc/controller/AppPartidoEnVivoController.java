@@ -11,9 +11,12 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 
+import java.util.function.Function;
+
 /**
- * Avisos en directo del partido del primer equipo, reservados al rol
- * RETRANSMISION (ver {@link PartidoEnVivoService}).
+ * Retransmisión en directo de los partidos del Primer Equipo, reservada al rol
+ * RETRANSMISION (ver {@link PartidoEnVivoService}). Todos los eventos llevan el
+ * partidoId en la ruta y devuelven el estado resultante del partido.
  */
 @RestController
 @RequestMapping("/api/app/partido-en-vivo")
@@ -30,51 +33,83 @@ public class AppPartidoEnVivoController {
             @Valid @RequestBody AlineacionRequest request,
             Authentication authentication) {
 
-        return ejecutar(authentication, usuarioId ->
-                partidoEnVivoService.enviarAlineacion(
-                        usuarioId, request.getOnceInicial(), request.getSuplentes()));
+        return ejecutar(authentication, usuarioId -> {
+            partidoEnVivoService.enviarAlineacion(usuarioId, request.getOnceInicial(), request.getSuplentes());
+            return null;
+        });
     }
 
-    @PostMapping("/inicio")
-    public ResponseEntity<?> inicio(Authentication authentication) {
+    /** Partidos del Primer Equipo de hoy, no cancelados. */
+    @GetMapping("/partidos-disponibles")
+    public ResponseEntity<?> partidosDisponibles(Authentication authentication) {
 
-        return ejecutar(authentication, partidoEnVivoService::enviarInicioPartido);
+        return ejecutar(authentication, partidoEnVivoService::obtenerPartidosDisponibles);
     }
 
-    @PostMapping("/gol-favor")
+    @GetMapping("/{partidoId}")
+    public ResponseEntity<?> estado(@PathVariable Long partidoId, Authentication authentication) {
+
+        return ejecutar(authentication, usuarioId -> partidoEnVivoService.obtenerEstado(usuarioId, partidoId));
+    }
+
+    /** Jugadores entre los que elegir al autor de un gol. */
+    @GetMapping("/{partidoId}/convocados")
+    public ResponseEntity<?> convocados(@PathVariable Long partidoId, Authentication authentication) {
+
+        return ejecutar(authentication, usuarioId -> partidoEnVivoService.obtenerConvocados(usuarioId, partidoId));
+    }
+
+    @PostMapping("/{partidoId}/inicio")
+    public ResponseEntity<?> inicio(@PathVariable Long partidoId, Authentication authentication) {
+
+        return ejecutar(authentication, usuarioId -> partidoEnVivoService.enviarInicioPartido(usuarioId, partidoId));
+    }
+
+    @PostMapping("/{partidoId}/gol-favor")
     public ResponseEntity<?> golFavor(
+            @PathVariable Long partidoId,
             @Valid @RequestBody GolFavorRequest request,
             Authentication authentication) {
 
-        return ejecutar(authentication, usuarioId ->
-                partidoEnVivoService.enviarGolFavor(usuarioId, request.getAutor()));
+        return ejecutar(authentication, usuarioId -> partidoEnVivoService.enviarGolFavor(
+                usuarioId, partidoId, request.getJugadorId(), request.getAutorTexto()));
     }
 
-    @PostMapping("/gol-contra")
-    public ResponseEntity<?> golContra(Authentication authentication) {
+    @PostMapping("/{partidoId}/gol-contra")
+    public ResponseEntity<?> golContra(@PathVariable Long partidoId, Authentication authentication) {
 
-        return ejecutar(authentication, partidoEnVivoService::enviarGolContra);
+        return ejecutar(authentication, usuarioId -> partidoEnVivoService.enviarGolContra(usuarioId, partidoId));
     }
 
-    @PostMapping("/descanso")
-    public ResponseEntity<?> descanso(Authentication authentication) {
+    @PostMapping("/{partidoId}/descanso")
+    public ResponseEntity<?> descanso(@PathVariable Long partidoId, Authentication authentication) {
 
-        return ejecutar(authentication, partidoEnVivoService::enviarDescanso);
+        return ejecutar(authentication, usuarioId -> partidoEnVivoService.enviarDescanso(usuarioId, partidoId));
     }
 
-    @PostMapping("/segunda-parte")
-    public ResponseEntity<?> segundaParte(Authentication authentication) {
+    @PostMapping("/{partidoId}/segunda-parte")
+    public ResponseEntity<?> segundaParte(@PathVariable Long partidoId, Authentication authentication) {
 
-        return ejecutar(authentication, partidoEnVivoService::enviarSegundaParte);
+        return ejecutar(authentication, usuarioId -> partidoEnVivoService.enviarSegundaParte(usuarioId, partidoId));
     }
 
-    @PostMapping("/final")
-    public ResponseEntity<?> finalPartido(Authentication authentication) {
+    @PostMapping("/{partidoId}/final")
+    public ResponseEntity<?> finalPartido(@PathVariable Long partidoId, Authentication authentication) {
 
-        return ejecutar(authentication, partidoEnVivoService::enviarFinalPartido);
+        return ejecutar(authentication, usuarioId -> partidoEnVivoService.enviarFinalPartido(usuarioId, partidoId));
     }
 
-    private ResponseEntity<?> ejecutar(Authentication authentication, java.util.function.Consumer<Long> accion) {
+    /** Anula el último evento del partido (solo durante los 2 minutos siguientes). */
+    @PostMapping("/{partidoId}/eventos/{eventoId}/deshacer")
+    public ResponseEntity<?> deshacer(
+            @PathVariable Long partidoId,
+            @PathVariable Long eventoId,
+            Authentication authentication) {
+
+        return ejecutar(authentication, usuarioId -> partidoEnVivoService.deshacer(usuarioId, partidoId, eventoId));
+    }
+
+    private ResponseEntity<?> ejecutar(Authentication authentication, Function<Long, Object> accion) {
 
         if (authentication == null || !authentication.isAuthenticated()) {
 
@@ -87,9 +122,11 @@ public class AppPartidoEnVivoController {
 
             Long usuarioId = Long.valueOf(authentication.getName());
 
-            accion.accept(usuarioId);
+            Object resultado = accion.apply(usuarioId);
 
-            return ResponseEntity.ok().build();
+            return resultado == null
+                    ? ResponseEntity.ok().build()
+                    : ResponseEntity.ok(resultado);
 
         } catch (NumberFormatException e) {
 
