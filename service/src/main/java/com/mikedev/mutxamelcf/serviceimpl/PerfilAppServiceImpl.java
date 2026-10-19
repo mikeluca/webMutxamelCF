@@ -200,6 +200,7 @@ public class PerfilAppServiceImpl implements PerfilAppService {
         response.setApellidos(jugador.getApellidos());
         response.setCategoria(jugador.getCategoria());
         response.setEquipo(jugador.getEquipo());
+        response.setEquipoId(jugador.getEquipoId());
         response.setDeporte(jugador.getDeporte());
         response.setDorsal(jugador.getDorsal());
         response.setPosicion(jugador.getPosicion());

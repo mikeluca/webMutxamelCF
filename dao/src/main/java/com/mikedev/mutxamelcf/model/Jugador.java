@@ -13,6 +13,8 @@ public class Jugador {
 	private String categoria;
 	private String deporte;
 	private String equipo;
+	/** ID del EQUIPO cuyo NOMBRE coincide con el campo equipo; solo lo rellena el perfil de la app. */
+	private Long equipoId;
 	private Integer dorsal;
 	private String posicion;
 	private byte[] foto;
@@ -118,6 +120,14 @@ public class Jugador {
 
 	public void setFoto(byte[] foto) {
 		this.foto = foto;
+	}
+
+	public Long getEquipoId() {
+		return equipoId;
+	}
+
+	public void setEquipoId(Long equipoId) {
+		this.equipoId = equipoId;
 	}
 
 	public String getEquipo() {

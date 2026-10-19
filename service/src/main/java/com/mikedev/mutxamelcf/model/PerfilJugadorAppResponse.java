@@ -7,6 +7,7 @@ public class PerfilJugadorAppResponse {
     private String apellidos;
     private String categoria;
     private String equipo;
+    private Long equipoId;
     private String deporte;
     private Integer dorsal;
     private String posicion;
@@ -44,6 +45,14 @@ public class PerfilJugadorAppResponse {
 
     public void setCategoria(String categoria) {
         this.categoria = categoria;
+    }
+
+    public Long getEquipoId() {
+        return equipoId;
+    }
+
+    public void setEquipoId(Long equipoId) {
+        this.equipoId = equipoId;
     }
 
     public String getEquipo() {

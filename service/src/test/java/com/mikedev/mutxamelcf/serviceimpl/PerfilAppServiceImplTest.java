@@ -106,6 +106,36 @@ class PerfilAppServiceImplTest {
     }
 
     @Test
+    void elPerfilDeUnFamiliarConDosJugadoresDevuelveElEquipoIdDeCada() {
+        UsuarioApp usuario = new UsuarioApp();
+        usuario.setId(1);
+
+        when(usuarioAppService.obtenerPorId(1)).thenReturn(usuario);
+        when(usuarioAppService.obtenerRoles(1)).thenReturn(List.of(rol("FAMILIAR")));
+        when(perfilAppDao.obtenerFamiliarPorUsuario(1)).thenReturn(new Familiar());
+
+        Jugador pablo = new Jugador();
+        pablo.setId(10L);
+        pablo.setNombre("Pablo");
+        pablo.setEquipo("Cadete A");
+        pablo.setEquipoId(5L);
+
+        Jugador lucia = new Jugador();
+        lucia.setId(11L);
+        lucia.setNombre("Lucia");
+        lucia.setEquipo("Alevín B");
+        lucia.setEquipoId(8L);
+
+        when(perfilAppDao.obtenerJugadoresPorUsuario(1)).thenReturn(List.of(pablo, lucia));
+
+        PerfilAppResponse resultado = service.obtenerPerfil(1);
+
+        assertThat(resultado.getJugadores())
+                .extracting(j -> j.getNombre() + ":" + j.getEquipoId())
+                .containsExactly("Pablo:5", "Lucia:8");
+    }
+
+    @Test
     void obtenerPerfilRellenaDatosDelPrimerJugadorCuandoTieneEseRol() {
         UsuarioApp usuario = new UsuarioApp();
         usuario.setId(1);
