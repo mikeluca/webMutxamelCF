@@ -30,6 +30,8 @@ public class PartidoDTO {
 	 * convocado").
 	 */
 	private Boolean convocado;
+	/** "VA", "NO_PUEDE" o null; solo en la vista de jugador/familia de un partido con convocatoria. */
+	private String respuestaConvocatoria;
 
 	public PartidoDTO() {
 		super();
@@ -137,6 +139,14 @@ public class PartidoDTO {
 
 	public void setCancelado(boolean cancelado) {
 		this.cancelado = cancelado;
+	}
+
+	public String getRespuestaConvocatoria() {
+		return respuestaConvocatoria;
+	}
+
+	public void setRespuestaConvocatoria(String respuestaConvocatoria) {
+		this.respuestaConvocatoria = respuestaConvocatoria;
 	}
 
 	public Boolean getConvocado() {

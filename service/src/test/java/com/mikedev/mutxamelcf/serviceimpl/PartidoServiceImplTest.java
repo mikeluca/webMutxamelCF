@@ -604,6 +604,53 @@ class PartidoServiceImplTest {
     }
 
     @Test
+    void obtenerPorEquipoYRangoFechasConJugadorIdIncluyeSuRespuestaALaConvocatoria() {
+        Partido partido = new Partido();
+        partido.setId(1L);
+        partido.setEquipoId(1L);
+
+        LocalDate desde = LocalDate.of(2026, 10, 1);
+        LocalDate hasta = LocalDate.of(2026, 10, 31);
+
+        com.mikedev.mutxamelcf.model.Convocatoria convocatoria = new com.mikedev.mutxamelcf.model.Convocatoria();
+        convocatoria.setId(200L);
+
+        com.mikedev.mutxamelcf.model.ConvocatoriaJugador convocado = new com.mikedev.mutxamelcf.model.ConvocatoriaJugador();
+        convocado.setRespuesta("NO_PUEDE");
+
+        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(partido));
+        when(convocatoriaDao.obtenerPorPartidoId(1L)).thenReturn(convocatoria);
+        when(convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(200L, 40L)).thenReturn(convocado);
+
+        List<PartidoDTO> resultado = service.obtenerPorEquipoYRangoFechas(1L, desde, hasta, 40L);
+
+        assertThat(resultado.get(0).getConvocado()).isTrue();
+        assertThat(resultado.get(0).getRespuestaConvocatoria()).isEqualTo("NO_PUEDE");
+    }
+
+    @Test
+    void obtenerPorEquipoYRangoFechasSinRespuestaDejaRespuestaConvocatoriaNula() {
+        Partido partido = new Partido();
+        partido.setId(1L);
+        partido.setEquipoId(1L);
+
+        LocalDate desde = LocalDate.of(2026, 10, 1);
+        LocalDate hasta = LocalDate.of(2026, 10, 31);
+
+        com.mikedev.mutxamelcf.model.Convocatoria convocatoria = new com.mikedev.mutxamelcf.model.Convocatoria();
+        convocatoria.setId(200L);
+
+        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(partido));
+        when(convocatoriaDao.obtenerPorPartidoId(1L)).thenReturn(convocatoria);
+        when(convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(200L, 40L))
+                .thenReturn(new com.mikedev.mutxamelcf.model.ConvocatoriaJugador());
+
+        List<PartidoDTO> resultado = service.obtenerPorEquipoYRangoFechas(1L, desde, hasta, 40L);
+
+        assertThat(resultado.get(0).getRespuestaConvocatoria()).isNull();
+    }
+
+    @Test
     void obtenerPorEquipoYRangoFechasConJugadorIdMarcaConvocadoFalseSiNoEstaEnLaConvocatoria() {
         Partido partido = new Partido();
         partido.setId(1L);

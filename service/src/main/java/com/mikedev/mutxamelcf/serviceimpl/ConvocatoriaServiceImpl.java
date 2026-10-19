@@ -11,6 +11,7 @@ import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.Partido;
+import com.mikedev.mutxamelcf.model.ResumenRespuestasConvocatoria;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.ConvocatoriaService;
 
@@ -483,6 +484,10 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
                 List<ConvocatoriaJugadorResponse> jugadoresResponse = new ArrayList<>();
 
+                int va = 0;
+                int noPuede = 0;
+                int sinResponder = 0;
+
                 for (ConvocatoriaJugador jugador : jugadores) {
 
                         String nombre = equipoGestionDao.obtenerNombreJugador(
@@ -491,10 +496,23 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         jugadoresResponse.add(
                                         new ConvocatoriaJugadorResponse(
                                                         jugador.getJugadorId(),
-                                                        nombre));
+                                                        nombre,
+                                                        jugador.getRespuesta(),
+                                                        jugador.getMotivo(),
+                                                        jugador.getFechaRespuesta()));
+
+                        if ("VA".equals(jugador.getRespuesta())) {
+                                va++;
+                        } else if ("NO_PUEDE".equals(jugador.getRespuesta())) {
+                                noPuede++;
+                        } else {
+                                sinResponder++;
+                        }
                 }
 
                 response.setJugadores(jugadoresResponse);
+                response.setResumen(
+                                new ResumenRespuestasConvocatoria(va, noPuede, sinResponder));
 
                 return response;
         }

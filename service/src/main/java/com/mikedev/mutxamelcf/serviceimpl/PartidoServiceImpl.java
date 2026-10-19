@@ -29,6 +29,7 @@ import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.model.Convocatoria;
+import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.DescansoEquipo;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.Partido;
@@ -405,6 +406,7 @@ public class PartidoServiceImpl implements PartidoService {
 
 			for (PartidoDTO partido : resultado) {
 				partido.setConvocado(resolverConvocado(partido.getId(), jugadorId));
+				partido.setRespuestaConvocatoria(resolverRespuestaConvocatoria(partido.getId(), jugadorId));
 			}
 		}
 
@@ -412,6 +414,24 @@ public class PartidoServiceImpl implements PartidoService {
 				equipoId, jugadorId, resultado.size());
 
 		return resultado;
+	}
+
+	/**
+	 * "VA", "NO_PUEDE" o {@code null} (sin responder, no convocado o sin
+	 * convocatoria): la respuesta de ese jugador a la convocatoria del partido.
+	 */
+	private String resolverRespuestaConvocatoria(Long partidoId, Long jugadorId) {
+
+		Convocatoria convocatoria = convocatoriaDao.obtenerPorPartidoId(partidoId);
+
+		if (convocatoria == null) {
+			return null;
+		}
+
+		ConvocatoriaJugador convocado = convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(convocatoria.getId(),
+				jugadorId);
+
+		return convocado != null ? convocado.getRespuesta() : null;
 	}
 
 	/**
