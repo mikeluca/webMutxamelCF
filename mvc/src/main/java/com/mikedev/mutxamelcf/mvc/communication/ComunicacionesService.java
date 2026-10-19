@@ -77,7 +77,8 @@ public class ComunicacionesService {
         logger.debug("Inicio enviarRecordatorioImportacionFfcv");
         boolean enviado = enviarEmail(REMITENTE, DESTINATARIO_CONTACTO, null,
                 "Recordatorio: importar los partidos de la jornada",
-                "Recuerda importar los partidos de la jornada desde la intranet de la FFCV");
+                "Recuerda importar los partidos de la jornada desde la intranet de la FFCV\n"
+                        + "Sube también el Excel de clasificaciones (ListadoClasificaciones.xlsx)");
         logger.debug("Fin enviarRecordatorioImportacionFfcv: enviado={}", enviado);
         return enviado;
     }

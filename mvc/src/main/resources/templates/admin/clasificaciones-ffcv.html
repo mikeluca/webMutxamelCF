@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Importar clasificaciones FFCV | Mutxamel CF</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+	<link th:href="@{/css/estilos.css}" rel="stylesheet">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+	<link href="https://fonts.googleapis.com/css2?family=Fredericka+the+Great&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" integrity="sha384-tViUnnbYAV00FLIhhi3v/dWt3Jxw4gZQcNoSCxCIFNJVCx7/D55/wXsrNIRANwdD" crossorigin="anonymous">
+</head>
+
+<body>
+
+	<!-- Incluir el header -->
+	<div th:replace="~{admin/cabeceraAdmin.html}"></div>
+
+	<main class="admin-screen-shell lead">
+		<p class="dashboard-eyebrow mb-1">Administración Deportiva</p>
+		<h1 class="admin-screen-title">Importar clasificaciones FFCV</h1>
+
+		<p class="text-muted">
+			Descarga <strong>ListadoClasificaciones.xlsx</strong> de la intranet de la FFCV y súbelo aquí. El
+			archivo trae todas las clasificaciones de la Comunitat: solo se importan los grupos de los equipos
+			relacionados en <a href="/admin/equipos-ffcv">Equipos FFCV</a>. Antes de guardar nada verás una vista
+			previa.
+		</p>
+
+		<div th:if="${error}" class="alert alert-danger" role="alert" th:text="${error}"></div>
+
+		<!-- Resultado de la última importación -->
+		<div th:if="${resultado}" class="alert alert-success" role="alert">
+			<p class="mb-1">
+				<strong th:text="${resultado.importados()}"></strong> equipo(s) actualizado(s),
+				<span th:text="${resultado.filas()}"></span> filas de clasificación guardadas.
+			</p>
+			<ul class="mb-0" th:if="${!#lists.isEmpty(resultado.equipos())}">
+				<li th:each="nombre : ${resultado.equipos()}" th:text="${nombre}"></li>
+			</ul>
+			<ul class="mb-0 text-danger" th:if="${!#lists.isEmpty(resultado.avisos())}">
+				<li th:each="aviso : ${resultado.avisos()}" th:text="${aviso}"></li>
+			</ul>
+		</div>
+
+		<!-- Paso 1: subir el archivo -->
+		<form th:action="@{/admin/ffcv/clasificaciones/previsualizar}" method="post" enctype="multipart/form-data"
+			class="row g-2 align-items-end mb-4">
+			<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+			<div class="col-md-8">
+				<label for="archivo" class="form-label mb-1">Archivo Excel</label>
+				<input type="file" id="archivo" name="archivo" class="form-control"
+					accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+			</div>
+			<div class="col-md-4">
+				<button type="submit" class="btn btn-primary w-100">Previsualizar</button>
+			</div>
+		</form>
+
+		<!-- Paso 2: vista previa y confirmación -->
+		<th:block th:if="${previa}">
+
+			<h2 class="h5">Vista previa</h2>
+			<p class="text-muted">
+				<span th:text="${previa.filasLeidas()}"></span> filas leídas en
+				<span th:text="${previa.competiciones()}"></span> grupos. Marca los equipos cuya clasificación
+				quieres actualizar: se sustituye por completo la tabla guardada de cada uno.
+			</p>
+
+			<form th:action="@{/admin/ffcv/clasificaciones/confirmar}" method="post">
+				<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+				<div class="admin-list-panel">
+					<table class="table table-striped align-middle w-100">
+						<thead>
+							<tr>
+								<th style="width: 4%;"></th>
+								<th>Equipo</th>
+								<th>Estado</th>
+								<th>Competición</th>
+								<th class="text-end">Jornada</th>
+								<th class="text-end">Pos.</th>
+								<th class="text-end">Pts</th>
+								<th class="text-end">PJ</th>
+								<th>Cambios</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr th:each="e : ${previa.equipos()}" th:classappend="${e.antiguo()} ? 'table-warning'">
+								<td>
+									<input type="checkbox" name="equipoId" class="form-check-input"
+										th:value="${e.equipoId()}" th:checked="${e.marcadoPorDefecto()}"
+										th:disabled="${!e.importable()}"
+										th:attr="aria-label='Importar ' + ${e.equipoNombre()}">
+								</td>
+								<td th:text="${e.equipoNombre()}"></td>
+								<td>
+									<span th:if="${e.encontrado()}" class="badge text-bg-success">Encontrado</span>
+									<span th:unless="${e.encontrado()}" class="badge text-bg-secondary">No encontrado</span>
+								</td>
+								<td th:text="${e.competicion()}"></td>
+								<td class="text-end" th:text="${e.jornada()}"></td>
+								<td class="text-end" th:text="${e.posicion()}"></td>
+								<td class="text-end" th:text="${e.puntos()}"></td>
+								<td class="text-end" th:text="${e.pj()}"></td>
+								<td>
+									<div th:if="${e.antiguo()}" class="text-danger fw-bold">
+										<i class="bi bi-exclamation-triangle"></i>
+										Aviso: el archivo es de la jornada <span th:text="${e.jornada()}"></span> y lo
+										guardado es de la jornada <span th:text="${e.jornadaGuardada()}"></span>
+										(¿archivo antiguo?). Desmarcado por defecto.
+									</div>
+									<div th:unless="${e.encontrado()}" class="text-muted" th:text="${e.motivo()}"></div>
+									<ul class="mb-0 ps-3" th:if="${e.encontrado() and e.cambia()}">
+										<li th:each="cambio : ${e.cambios()}" th:text="${cambio}"></li>
+									</ul>
+									<span th:if="${e.encontrado() and !e.cambia()}" class="text-muted">Sin cambios</span>
+								</td>
+							</tr>
+							<tr th:if="${#lists.isEmpty(previa.equipos())}">
+								<td colspan="9" class="text-center text-muted">
+									No hay ningún equipo relacionado. Añádelos en
+									<a href="/admin/equipos-ffcv">Equipos FFCV</a>.
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+
+				<div class="d-flex gap-2 mt-3">
+					<button type="submit" class="btn btn-success">Confirmar importación</button>
+					<button type="submit" class="btn btn-outline-secondary"
+						th:formaction="@{/admin/ffcv/clasificaciones/cancelar}" formnovalidate>Cancelar</button>
+				</div>
+			</form>
+
+			<!-- Filas del club sin relación en EQUIPOS_FFCV -->
+			<div th:if="${!#lists.isEmpty(previa.sinMapeo())}" class="alert alert-warning mt-4" role="alert">
+				<h3 class="h6">Equipos del club sin grupo asignado</h3>
+				<p class="mb-2">
+					Estas filas del Mutxamel C.F. están en el archivo, pero ninguna relación de
+					<a href="/admin/equipos-ffcv">Equipos FFCV</a> las reconoce, así que no se importan. Añade la
+					relación (competición y letra) para incluirlas.
+				</p>
+				<ul class="mb-2">
+					<li th:each="s : ${previa.sinMapeo()}">
+						<span th:text="${s.competicion()}"></span>
+						<span th:if="${s.letra()}" th:text="'· letra ' + ${s.letra()}"></span>
+						<span class="text-muted" th:text="'(' + ${s.equipo()} + ')'"></span>
+					</li>
+				</ul>
+				<a href="/admin/equipos-ffcv" class="btn btn-outline-dark btn-sm">Equipos FFCV</a>
+			</div>
+
+			<!-- Filas ilegibles -->
+			<div th:if="${!#lists.isEmpty(previa.errores())}" class="alert alert-danger mt-4" role="alert">
+				<h3 class="h6">Filas que no se han podido leer</h3>
+				<ul class="mb-0">
+					<li th:each="err : ${previa.errores()}"
+						th:text="'Fila ' + ${err.linea()} + ': ' + ${err.mensaje()}"></li>
+				</ul>
+			</div>
+
+		</th:block>
+	</main>
+
+	<!-- Incluir el footer -->
+	<div th:replace="~{admin/footerAdmin.html}"></div>
+
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+</body>
+
+</html>
