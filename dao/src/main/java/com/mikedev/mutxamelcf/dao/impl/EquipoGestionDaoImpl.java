@@ -253,4 +253,21 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
         return count != null && count > 0;
     }
 
+    @Override
+    public Long obtenerEquipoIdDeJugador(Long jugadorId) {
+
+        List<Long> ids = jdbcTemplate.queryForList(
+                """
+                        SELECT E.ID
+                        FROM JUGADORES J
+                        INNER JOIN EQUIPO E
+                            ON UPPER(TRIM(E.NOMBRE)) = UPPER(TRIM(J.EQUIPO))
+                        WHERE J.ID = ?
+                        """,
+                Long.class,
+                jugadorId);
+
+        return ids.isEmpty() ? null : ids.get(0);
+    }
+
 }

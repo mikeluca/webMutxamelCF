@@ -32,4 +32,10 @@ public interface EquipoGestionDao {
     List<Long> obtenerUsuariosFamiliaresPorJugador(Long jugadorId);
 
     boolean perteneceJugadorAEquipo(Long jugadorId, Long equipoId);
+
+    /**
+     * ID del equipo de un jugador (su campo EQUIPO es el nombre del equipo),
+     * o {@code null} si no tiene o no coincide con ninguno.
+     */
+    Long obtenerEquipoIdDeJugador(Long jugadorId);
 }
