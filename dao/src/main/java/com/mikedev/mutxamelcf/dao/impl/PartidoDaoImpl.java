@@ -37,9 +37,12 @@ public class PartidoDaoImpl implements PartidoDao {
 	 * Sin resultado por ninguna vía: ni goles ni texto (" - " o "-" cuentan
 	 * como vacío; en Oracle la cadena vacía es NULL), y sin aviso enviado.
 	 */
-	private static final String CONDICION_PENDIENTE_DE_AVISO = """
-			P.GOLES_FAVOR IS NULL
-			AND (P.RESULTADO IS NULL OR TRIM(REPLACE(P.RESULTADO, '-', '')) IS NULL)
+	private static final String CONDICION_SIN_RESULTADO = """
+			(P.GOLES_FAVOR IS NULL
+			AND (P.RESULTADO IS NULL OR TRIM(REPLACE(P.RESULTADO, '-', '')) IS NULL))
+			""";
+
+	private static final String CONDICION_PENDIENTE_DE_AVISO = CONDICION_SIN_RESULTADO + """
 			AND P.AVISO_RESULTADO_ENVIADO = 0
 			""";
 
@@ -298,18 +301,20 @@ public class PartidoDaoImpl implements PartidoDao {
 				INNER JOIN EQUIPO E ON E.ID = P.EQUIPO_ID
 				WHERE UPPER(TRIM(E.NOMBRE)) = UPPER(TRIM(?))
 				  AND UPPER(TRIM(E.CATEGORIA)) = UPPER(TRIM(?))
-				  AND P.RESULTADO IS NULL
+				  AND P.CANCELADO = 0
+				  AND %s
 				  AND P.DIA >= TRUNC(SYSDATE)
 				ORDER BY P.DIA ASC, P.ID ASC
 				FETCH FIRST 1 ROW ONLY
-				""";
+				""".formatted(CONDICION_SIN_RESULTADO);
 
 		String sqlUltimo = "SELECT " + CAMPOS_SELECT + """
 				FROM PARTIDOS P
 				INNER JOIN EQUIPO E ON E.ID = P.EQUIPO_ID
 				WHERE UPPER(TRIM(E.NOMBRE)) = UPPER(TRIM(?))
 				  AND UPPER(TRIM(E.CATEGORIA)) = UPPER(TRIM(?))
-				  AND P.RESULTADO IS NOT NULL
+				  AND P.CANCELADO = 0
+				  AND P.DIA <= TRUNC(SYSDATE)
 				ORDER BY P.DIA DESC, P.ID DESC
 				FETCH FIRST 1 ROW ONLY
 				""";
@@ -328,16 +333,18 @@ public class PartidoDaoImpl implements PartidoDao {
 		String sqlProximo = "SELECT " + CAMPOS_SELECT + """
 				FROM PARTIDOS P
 				WHERE P.EQUIPO_ID = ?
-				  AND P.RESULTADO IS NULL
+				  AND P.CANCELADO = 0
+				  AND %s
 				  AND P.DIA >= TRUNC(SYSDATE)
 				ORDER BY P.DIA ASC, P.ID ASC
 				FETCH FIRST 1 ROW ONLY
-				""";
+				""".formatted(CONDICION_SIN_RESULTADO);
 
 		String sqlUltimo = "SELECT " + CAMPOS_SELECT + """
 				FROM PARTIDOS P
 				WHERE P.EQUIPO_ID = ?
-				  AND P.RESULTADO IS NOT NULL
+				  AND P.CANCELADO = 0
+				  AND P.DIA <= TRUNC(SYSDATE)
 				ORDER BY P.DIA DESC, P.ID DESC
 				FETCH FIRST 1 ROW ONLY
 				""";

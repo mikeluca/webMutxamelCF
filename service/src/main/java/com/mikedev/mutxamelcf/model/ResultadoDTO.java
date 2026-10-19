@@ -20,6 +20,8 @@ public class ResultadoDTO {
 	private boolean local = true;
 	/** true si el equipo tiene un descanso registrado este fin de semana y ningún partido. */
 	private boolean descansa;
+	/** true si el último partido ya se jugó (o ha empezado hace rato) y aún no tiene resultado ni goles. */
+	private boolean pendienteResultado;
 
 	public ResultadoDTO() {
 		super();
@@ -125,6 +127,14 @@ public class ResultadoDTO {
 		this.descansa = descansa;
 	}
 
+
+	public boolean isPendienteResultado() {
+		return pendienteResultado;
+	}
+
+	public void setPendienteResultado(boolean pendienteResultado) {
+		this.pendienteResultado = pendienteResultado;
+	}
 
 	public boolean isLocal() {
 		return local;

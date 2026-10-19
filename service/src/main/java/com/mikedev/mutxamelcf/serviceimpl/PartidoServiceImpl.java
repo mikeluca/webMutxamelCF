@@ -2,8 +2,11 @@ package com.mikedev.mutxamelcf.serviceimpl;
 
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -60,6 +63,7 @@ public class PartidoServiceImpl implements PartidoService {
 	private final ConvocatoriaDao convocatoriaDao;
 	private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
 	private final DescansoEquipoDao descansoEquipoDao;
+	private final Clock clock;
 
 	public PartidoServiceImpl(
 			PartidoDao partidoDao,
@@ -67,7 +71,8 @@ public class PartidoServiceImpl implements PartidoService {
 			EquipoDao equipoDao,
 			ConvocatoriaDao convocatoriaDao,
 			ConvocatoriaJugadorDao convocatoriaJugadorDao,
-			DescansoEquipoDao descansoEquipoDao) {
+			DescansoEquipoDao descansoEquipoDao,
+			Clock clock) {
 
 		this.partidoDao = partidoDao;
 		this.equipoGestionDao = equipoGestionDao;
@@ -75,6 +80,7 @@ public class PartidoServiceImpl implements PartidoService {
 		this.convocatoriaDao = convocatoriaDao;
 		this.convocatoriaJugadorDao = convocatoriaJugadorDao;
 		this.descansoEquipoDao = descansoEquipoDao;
+		this.clock = clock;
 	}
 
 	@Override
@@ -481,6 +487,7 @@ public class PartidoServiceImpl implements PartidoService {
 		for (EquipoConPartidoMasReciente ep : equiposConPartido) {
 			ResultadoDTO dto = toResultadoDTO(ep.partido, ep.equipo);
 			dto.setDescansa(descansa(ep.equipo != null ? ep.equipo.getId() : null, ep.partido));
+			dto.setPendienteResultado(pendienteResultado(ep.partido));
 			resultados.add(dto);
 		}
 
@@ -521,6 +528,7 @@ public class PartidoServiceImpl implements PartidoService {
 		resultado.setHora(partido.getHora());
 		resultado.setCampo(partido.getCampo());
 		resultado.setLocal(partido.isLocal());
+		resultado.setPendienteResultado(pendienteResultado(partido));
 
 		logger.debug("Fin obtenerResultadoPrimerEquipo: encontrado=true");
 
@@ -544,7 +552,7 @@ public class PartidoServiceImpl implements PartidoService {
 			return false;
 		}
 
-		LocalDate hoy = LocalDate.now();
+		LocalDate hoy = LocalDate.now(clock);
 
 		List<DescansoEquipo> descansos = descansoEquipoDao.obtenerDesde(equipoId, hoy.minusDays(1));
 
@@ -554,13 +562,65 @@ public class PartidoServiceImpl implements PartidoService {
 
 		LocalDate finDeSemana = descansos.get(0).getFecha().plusDays(1);
 
+		/*
+		 * Pendiente = partido por jugar (hoy o más adelante) sin resultado,
+		 * dentro de ese fin de semana. Un partido YA PASADO sin resultado
+		 * (el último, a la espera de que el entrenador lo introduzca) no
+		 * anula el descanso del fin de semana siguiente.
+		 */
 		boolean tienePartidoPendiente = partidoRelevante != null
 				&& partidoRelevante.getDia() != null
 				&& !partidoRelevante.isCancelado()
-				&& (partidoRelevante.getResultado() == null || partidoRelevante.getResultado().isBlank())
+				&& !tieneResultado(partidoRelevante)
+				&& !aLocalDate(partidoRelevante.getDia()).isBefore(hoy)
 				&& !aLocalDate(partidoRelevante.getDia()).isAfter(finDeSemana);
 
 		return !tienePartidoPendiente;
+	}
+
+	/*
+	 * Mismo criterio que el recordatorio de resultado
+	 * (RecordatorioResultadoPartidoScheduler): hay resultado si hay goles o
+	 * un texto que no sea solo guiones.
+	 */
+	private static boolean tieneResultado(Partido partido) {
+
+		if (partido.getGolesFavor() != null) {
+			return true;
+		}
+
+		String resultado = partido.getResultado();
+
+		return resultado != null && !resultado.replace("-", "").isBlank();
+	}
+
+	/**
+	 * El partido ya empezó (día anterior a hoy, o hoy con la hora ya pasada
+	 * en hora de Madrid) y no tiene resultado ni goles. Con hoy y sin una hora
+	 * válida HH:mm no se puede saber si ya se jugó: no se marca.
+	 */
+	private boolean pendienteResultado(Partido partido) {
+
+		if (partido == null || partido.getDia() == null || partido.isCancelado() || tieneResultado(partido)) {
+			return false;
+		}
+
+		LocalDateTime ahora = LocalDateTime.now(clock);
+		LocalDate dia = aLocalDate(partido.getDia());
+
+		if (dia.isBefore(ahora.toLocalDate())) {
+			return true;
+		}
+
+		if (!dia.equals(ahora.toLocalDate()) || partido.getHora() == null) {
+			return false;
+		}
+
+		try {
+			return !ahora.toLocalTime().isBefore(LocalTime.parse(partido.getHora().trim()));
+		} catch (DateTimeParseException e) {
+			return false;
+		}
 	}
 
 	private static LocalDate aLocalDate(Date dia) {

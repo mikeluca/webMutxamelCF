@@ -57,7 +57,7 @@ class PartidoServiceImplTest {
     void setUp() {
         service = new PartidoServiceImpl(
                 partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
-                descansoEquipoDao);
+                descansoEquipoDao, java.time.Clock.systemDefaultZone());
     }
 
     private static PartidoGuardarRequest requestValido() {
@@ -916,6 +916,105 @@ class PartidoServiceImplTest {
 
         assertThat(service.obtenerResultados("F")).singleElement()
                 .satisfies(r -> assertThat(r.isDescansa()).isFalse());
+    }
+
+    // ---- resultado pendiente (reloj fijo: miércoles 21/10/2026 10:00, Madrid) ----
+
+    private static final java.time.Clock MIERCOLES = java.time.Clock.fixed(
+            java.time.LocalDateTime.of(2026, 10, 21, 10, 0).atZone(java.time.ZoneId.of("Europe/Madrid")).toInstant(),
+            java.time.ZoneId.of("Europe/Madrid"));
+
+    private PartidoServiceImpl serviceConReloj(java.time.Clock reloj) {
+        return new PartidoServiceImpl(
+                partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
+                descansoEquipoDao, reloj);
+    }
+
+    private ResultadoDTO resultadoDe(Partido partido) {
+        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
+        when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(partido);
+        return serviceConReloj(MIERCOLES).obtenerResultados("F").get(0);
+    }
+
+    @Test
+    void partidoDelSabadoPasadoSinResultadoSeMarcaPendiente() {
+        ResultadoDTO dto = resultadoDe(partidoPendiente(1L, LocalDate.of(2026, 10, 17)));
+
+        assertThat(dto.getRival()).isEqualTo("Rival");
+        assertThat(dto.isPendienteResultado()).isTrue();
+    }
+
+    @Test
+    void partidoDelSabadoPasadoConResultadoNoEstaPendiente() {
+        Partido jugado = partidoPendiente(1L, LocalDate.of(2026, 10, 17));
+        jugado.setResultado("2-1");
+
+        ResultadoDTO dto = resultadoDe(jugado);
+
+        assertThat(dto.getResultado()).isEqualTo("2-1");
+        assertThat(dto.isPendienteResultado()).isFalse();
+    }
+
+    @Test
+    void unPartidoConSoloGolesNoEstaPendiente() {
+        Partido jugado = partidoPendiente(1L, LocalDate.of(2026, 10, 17));
+        jugado.setGolesFavor(2);
+        jugado.setGolesContra(1);
+
+        assertThat(resultadoDe(jugado).isPendienteResultado()).isFalse();
+    }
+
+    @Test
+    void unResultadoSoloConGuionesSigueEstandoPendiente() {
+        Partido jugado = partidoPendiente(1L, LocalDate.of(2026, 10, 17));
+        jugado.setResultado(" - ");
+
+        assertThat(resultadoDe(jugado).isPendienteResultado()).isTrue();
+    }
+
+    @Test
+    void unPartidoFuturoOCanceladoNoEstaPendiente() {
+        assertThat(resultadoDe(partidoPendiente(1L, LocalDate.of(2026, 10, 24))).isPendienteResultado()).isFalse();
+
+        Partido cancelado = partidoPendiente(1L, LocalDate.of(2026, 10, 17));
+        cancelado.setCancelado(true);
+        assertThat(resultadoDe(cancelado).isPendienteResultado()).isFalse();
+    }
+
+    @Test
+    void unPartidoDeHoyEstaPendienteSoloCuandoLaHoraYaHaPasado() {
+        Partido hoy = partidoPendiente(1L, LocalDate.of(2026, 10, 21));
+
+        hoy.setHora("09:30");
+        assertThat(resultadoDe(hoy).isPendienteResultado()).isTrue();
+
+        hoy.setHora("18:00");
+        assertThat(resultadoDe(hoy).isPendienteResultado()).isFalse();
+
+        hoy.setHora(null);
+        assertThat(resultadoDe(hoy).isPendienteResultado()).isFalse();
+    }
+
+    @Test
+    void elPrimerEquipoTambienIndicaQueEstaPendiente() {
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo"))
+                .thenReturn(partidoPendiente(1L, LocalDate.of(2026, 10, 17)));
+
+        ResultadoDTO dto = serviceConReloj(MIERCOLES).obtenerResultadoPrimerEquipo();
+
+        assertThat(dto.isPendienteResultado()).isTrue();
+    }
+
+    @Test
+    void unPartidoPasadoPendienteNoAnulaElDescansoDelFinDeSemanaSiguiente() {
+        LocalDate sabadoSiguiente = LocalDate.of(2026, 10, 24);
+        when(descansoEquipoDao.obtenerDesde(org.mockito.ArgumentMatchers.eq(1L), any()))
+                .thenReturn(List.of(new com.mikedev.mutxamelcf.model.DescansoEquipo(1L, 1L, sabadoSiguiente, null)));
+
+        ResultadoDTO dto = resultadoDe(partidoPendiente(1L, LocalDate.of(2026, 10, 17)));
+
+        assertThat(dto.isDescansa()).isTrue();
+        assertThat(dto.isPendienteResultado()).isTrue();
     }
 
     @Test
