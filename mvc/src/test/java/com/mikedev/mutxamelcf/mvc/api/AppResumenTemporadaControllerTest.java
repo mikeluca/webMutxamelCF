@@ -11,7 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
-import com.mikedev.mutxamelcf.model.ResumenRespuestasConvocatoria;
 import com.mikedev.mutxamelcf.model.ResumenTemporadaResponse;
 import com.mikedev.mutxamelcf.model.ResumenTemporadaResponse.EntrenamientosResumen;
 import com.mikedev.mutxamelcf.model.ResumenTemporadaResponse.PartidosResumen;
@@ -36,8 +35,7 @@ class AppResumenTemporadaControllerTest {
     @Test
     void devuelve200ConElResumen() {
         ResumenTemporadaResponse resumen = new ResumenTemporadaResponse(
-                null, new PartidosResumen(0, 0, 0, 0, 0), new EntrenamientosResumen(0, 0, 0, 0, null),
-                new ResumenRespuestasConvocatoria(0, 0, 0));
+                null, new PartidosResumen(0, 0, 0, 0, 0, 0), new EntrenamientosResumen(0, 0, 0, 0, null));
         when(servicio.obtenerResumen(7L, 100L)).thenReturn(resumen);
 
         ResponseEntity<?> respuesta = controller.obtenerResumen(100L, autenticado("7"));

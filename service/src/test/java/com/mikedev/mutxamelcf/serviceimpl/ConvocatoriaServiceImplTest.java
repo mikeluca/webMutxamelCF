@@ -24,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
+import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.ConvocatoriaGuardarRequest;
@@ -49,6 +50,9 @@ class ConvocatoriaServiceImplTest {
     @Mock
     private ComunicacionService comunicacionService;
 
+    @Mock
+    private JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
+
     private ConvocatoriaServiceImpl service;
 
     private static final Long USUARIO_ID = 1L;
@@ -59,7 +63,8 @@ class ConvocatoriaServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new ConvocatoriaServiceImpl(
-                convocatoriaDao, convocatoriaJugadorDao, equipoGestionDao, partidoDao, comunicacionService);
+                convocatoriaDao, convocatoriaJugadorDao, equipoGestionDao, partidoDao, comunicacionService,
+                justificacionFaltaPartidoDao);
     }
 
     private ConvocatoriaGuardarRequest requestValido() {

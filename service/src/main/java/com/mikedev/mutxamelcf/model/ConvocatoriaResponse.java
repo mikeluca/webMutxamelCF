@@ -24,7 +24,6 @@ public class ConvocatoriaResponse {
     private String lugarConvocatoria;
     private Long usuarioEntrenadorId;
     private List<ConvocatoriaJugadorResponse> jugadores;
-    private ResumenRespuestasConvocatoria resumen;
 
     public ConvocatoriaResponse() {
     }
@@ -125,13 +124,5 @@ public class ConvocatoriaResponse {
             List<ConvocatoriaJugadorResponse> jugadores) {
 
         this.jugadores = jugadores;
-    }
-
-    public ResumenRespuestasConvocatoria getResumen() {
-        return resumen;
-    }
-
-    public void setResumen(ResumenRespuestasConvocatoria resumen) {
-        this.resumen = resumen;
     }
 }

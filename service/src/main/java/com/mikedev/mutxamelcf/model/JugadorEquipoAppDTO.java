@@ -89,4 +89,27 @@ public class JugadorEquipoAppDTO {
     public void setFotoBase64(String fotoBase64) {
         this.fotoBase64 = fotoBase64;
     }
+
+    /**
+     * Solo si se pide el listado para un partido concreto (formulario de
+     * convocatoria): el jugador ha justificado su ausencia a ese partido.
+     */
+    private boolean ausenciaJustificada;
+    private String motivoAusencia;
+
+    public boolean isAusenciaJustificada() {
+        return ausenciaJustificada;
+    }
+
+    public void setAusenciaJustificada(boolean ausenciaJustificada) {
+        this.ausenciaJustificada = ausenciaJustificada;
+    }
+
+    public String getMotivoAusencia() {
+        return motivoAusencia;
+    }
+
+    public void setMotivoAusencia(String motivoAusencia) {
+        this.motivoAusencia = motivoAusencia;
+    }
 }

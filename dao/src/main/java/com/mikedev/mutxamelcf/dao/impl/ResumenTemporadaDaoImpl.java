@@ -11,7 +11,6 @@ import com.mikedev.mutxamelcf.dao.ResumenTemporadaDao;
 import com.mikedev.mutxamelcf.model.AsistenciaEntrenamientosJugador;
 import com.mikedev.mutxamelcf.model.EntrenamientoDelDia;
 import com.mikedev.mutxamelcf.model.EstadisticasPartidosJugador;
-import com.mikedev.mutxamelcf.model.RespuestasConvocatoriaJugador;
 
 @Repository
 public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
@@ -86,21 +85,20 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 	}
 
 	@Override
-	public RespuestasConvocatoriaJugador respuestasConvocatoria(Long jugadorId, LocalDate desde, LocalDate hasta) {
+	public int ausenciasJustificadas(Long jugadorId, LocalDate desde, LocalDate hasta) {
 
-		return jdbcTemplate.queryForObject("""
-				SELECT COALESCE(SUM(CASE WHEN CJ.RESPUESTA = 'VA' THEN 1 ELSE 0 END), 0),
-				       COALESCE(SUM(CASE WHEN CJ.RESPUESTA = 'NO_PUEDE' THEN 1 ELSE 0 END), 0),
-				       COALESCE(SUM(CASE WHEN CJ.RESPUESTA IS NULL THEN 1 ELSE 0 END), 0)
-				FROM CONVOCATORIA_JUGADOR CJ
-				JOIN CONVOCATORIAS C ON C.ID = CJ.CONVOCATORIA_ID
-				JOIN PARTIDOS P ON P.ID = C.PARTIDO_ID
-				WHERE CJ.JUGADOR_ID = ?
+		Integer total = jdbcTemplate.queryForObject("""
+				SELECT COUNT(*)
+				FROM JUSTIFICACIONES_FALTA_PARTIDO J
+				JOIN PARTIDOS P ON P.ID = J.PARTIDO_ID
+				WHERE J.JUGADOR_ID = ?
 				  AND P.CANCELADO = 0
 				  AND P.DIA BETWEEN ? AND ?
 				""",
-				(rs, n) -> new RespuestasConvocatoriaJugador(rs.getInt(1), rs.getInt(2), rs.getInt(3)),
+				Integer.class,
 				jugadorId, Date.valueOf(desde), Date.valueOf(hasta));
+
+		return total == null ? 0 : total;
 	}
 
 	@Override

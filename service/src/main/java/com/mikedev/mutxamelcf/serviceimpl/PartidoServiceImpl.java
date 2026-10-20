@@ -27,9 +27,10 @@ import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.DescansoEquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
+import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.model.Convocatoria;
-import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
+import com.mikedev.mutxamelcf.model.JustificacionFaltaPartido;
 import com.mikedev.mutxamelcf.model.DescansoEquipo;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.Partido;
@@ -64,6 +65,7 @@ public class PartidoServiceImpl implements PartidoService {
 	private final ConvocatoriaDao convocatoriaDao;
 	private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
 	private final DescansoEquipoDao descansoEquipoDao;
+	private final JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
 	private final Clock clock;
 
 	public PartidoServiceImpl(
@@ -73,6 +75,7 @@ public class PartidoServiceImpl implements PartidoService {
 			ConvocatoriaDao convocatoriaDao,
 			ConvocatoriaJugadorDao convocatoriaJugadorDao,
 			DescansoEquipoDao descansoEquipoDao,
+			JustificacionFaltaPartidoDao justificacionFaltaPartidoDao,
 			Clock clock) {
 
 		this.partidoDao = partidoDao;
@@ -81,6 +84,7 @@ public class PartidoServiceImpl implements PartidoService {
 		this.convocatoriaDao = convocatoriaDao;
 		this.convocatoriaJugadorDao = convocatoriaJugadorDao;
 		this.descansoEquipoDao = descansoEquipoDao;
+		this.justificacionFaltaPartidoDao = justificacionFaltaPartidoDao;
 		this.clock = clock;
 	}
 
@@ -406,7 +410,7 @@ public class PartidoServiceImpl implements PartidoService {
 
 			for (PartidoDTO partido : resultado) {
 				partido.setConvocado(resolverConvocado(partido.getId(), jugadorId));
-				partido.setRespuestaConvocatoria(resolverRespuestaConvocatoria(partido.getId(), jugadorId));
+				resolverAusencia(partido, jugadorId);
 			}
 		}
 
@@ -417,21 +421,28 @@ public class PartidoServiceImpl implements PartidoService {
 	}
 
 	/**
-	 * "VA", "NO_PUEDE" o {@code null} (sin responder, no convocado o sin
-	 * convocatoria): la respuesta de ese jugador a la convocatoria del partido.
+	 * Rellena en el calendario del jugador si ha justificado su ausencia (y
+	 * por qué), si todavía puede justificarla o retirarla y hasta cuándo.
 	 */
-	private String resolverRespuestaConvocatoria(Long partidoId, Long jugadorId) {
+	private void resolverAusencia(PartidoDTO dto, Long jugadorId) {
 
-		Convocatoria convocatoria = convocatoriaDao.obtenerPorPartidoId(partidoId);
+		JustificacionFaltaPartido justificacion = justificacionFaltaPartidoDao
+				.obtenerPorPartidoYJugador(dto.getId(), jugadorId);
 
-		if (convocatoria == null) {
-			return null;
+		dto.setAusenciaJustificada(justificacion != null);
+		dto.setMotivoAusencia(justificacion != null ? justificacion.getMotivo() : null);
+
+		Partido partido = partidoDao.obtenerPorId(dto.getId());
+
+		if (partido == null) {
+			return;
 		}
 
-		ConvocatoriaJugador convocado = convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(convocatoria.getId(),
-				jugadorId);
+		LocalDateTime limite = PlazoJustificacionPartido.limite(partido, convocatoriaDao.obtenerPorPartidoId(dto.getId()));
 
-		return convocado != null ? convocado.getRespuesta() : null;
+		dto.setLimiteJustificacion(limite);
+		dto.setPuedeJustificar(
+				!partido.isCancelado() && limite != null && !LocalDateTime.now(clock).isAfter(limite));
 	}
 
 	/**

@@ -319,6 +319,8 @@ class PartidoDaoImplTest {
 
         dao.eliminar(1L);
 
-        verify(jdbcTemplate).update(anyString(), eq(1L));
+        // Primero las justificaciones de ausencia (FK sin cascade) y luego el partido.
+        verify(jdbcTemplate).update("DELETE FROM JUSTIFICACIONES_FALTA_PARTIDO WHERE PARTIDO_ID = ?", 1L);
+        verify(jdbcTemplate).update("DELETE FROM PARTIDOS WHERE ID = ?", 1L);
     }
 }

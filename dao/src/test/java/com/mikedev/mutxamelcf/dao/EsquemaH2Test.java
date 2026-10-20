@@ -1,6 +1,7 @@
 package com.mikedev.mutxamelcf.dao;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,8 +15,16 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 class EsquemaH2Test {
 
     private static JdbcTemplate nuevaBase() {
-        return new JdbcTemplate(new DriverManagerDataSource(
+        JdbcTemplate jdbc = new JdbcTemplate(new DriverManagerDataSource(
                 "jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=Oracle;DB_CLOSE_DELAY=-1", "sa", ""));
+        EsquemaH2.crear(jdbc);
+        return jdbc;
+    }
+
+    private static List<String> columnas(JdbcTemplate jdbc, String tabla) {
+        return jdbc.queryForList(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ? ORDER BY ORDINAL_POSITION",
+                String.class, tabla);
     }
 
     @Test
@@ -27,43 +36,50 @@ class EsquemaH2Test {
     }
 
     @Test
-    void elEsquemaTieneLasColumnasAplicadasMasLosAjustes() {
+    void convocatoriaJugadorQuedaSoloConIdConvocatoriaYJugador() {
+        assertThat(columnas(nuevaBase(), "CONVOCATORIA_JUGADOR"))
+                .containsExactly("ID", "CONVOCATORIA_ID", "JUGADOR_ID");
+    }
+
+    @Test
+    void laTablaDeEventosTieneLasColumnasAplicadasMasLosAjustes() {
         JdbcTemplate jdbc = nuevaBase();
-        EsquemaH2.crear(jdbc);
 
-        List<String> eventos = jdbc.queryForList(
-                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'PARTIDO_LIVE_EVENTOS'",
-                String.class);
+        assertThat(columnas(jdbc, "PARTIDO_LIVE_EVENTOS")).contains("FECHA_ANULACION", "RESULTADO_ANTERIOR",
+                "GOLES_FAVOR_ANTERIOR", "GOLES_CONTRA_ANTERIOR", "AVISO_ANTERIOR", "ESTADISTICAS_GUARDADAS");
 
-        assertThat(eventos).contains("FECHA_ANULACION", "RESULTADO_ANTERIOR", "GOLES_FAVOR_ANTERIOR",
-                "GOLES_CONTRA_ANTERIOR", "AVISO_ANTERIOR", "ESTADISTICAS_GUARDADAS");
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO PARTIDO_LIVE_EVENTOS (PARTIDO_ID, TIPO, USUARIO_APP_ID, FECHA, ESTADISTICAS_GUARDADAS)"
+                        + " VALUES (1, 'INICIO', 1, CURRENT_TIMESTAMP, 2)")).isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void laTablaDeJustificacionesDePartidoTieneElEsquemaDelScript() {
+        JdbcTemplate jdbc = nuevaBase();
+
+        assertThat(columnas(jdbc, "JUSTIFICACIONES_FALTA_PARTIDO")).containsExactly(
+                "ID", "PARTIDO_ID", "JUGADOR_ID", "USUARIO_APP_ID", "MOTIVO", "FECHA_CREACION");
 
         List<String> indices = jdbc.queryForList(
-                "SELECT INDEX_NAME FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME = 'CONVOCATORIA_JUGADOR'",
+                "SELECT INDEX_NAME FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME = 'JUSTIFICACIONES_FALTA_PARTIDO'",
                 String.class);
 
-        assertThat(indices).contains("IDX_CONV_JUG_JUGADOR");
-    }
+        assertThat(indices).contains("IDX_JUSTIF_PART_JUGADOR");
 
-    @Test
-    void laRestriccionDeEstadisticasGuardadasSeAplica() {
-        JdbcTemplate jdbc = nuevaBase();
-        EsquemaH2.crear(jdbc);
+        String insert = "INSERT INTO JUSTIFICACIONES_FALTA_PARTIDO"
+                + " (PARTIDO_ID, JUGADOR_ID, USUARIO_APP_ID, MOTIVO, FECHA_CREACION)"
+                + " VALUES (30, 100, 7, ?, CURRENT_TIMESTAMP)";
 
-        org.junit.jupiter.api.Assertions.assertThrows(Exception.class, () -> jdbc.update(
-                "INSERT INTO PARTIDO_LIVE_EVENTOS (PARTIDO_ID, TIPO, USUARIO_APP_ID, FECHA, ESTADISTICAS_GUARDADAS)"
-                        + " VALUES (1, 'INICIO', 1, CURRENT_TIMESTAMP, 2)"));
-    }
+        // Motivo de 500 caracteres con acentos (VARCHAR2(500 CHAR)).
+        jdbc.update(insert, "é".repeat(500));
 
-    @Test
-    void elMotivoAdmiteQuinientosCaracteresConAcentos() {
-        JdbcTemplate jdbc = nuevaBase();
-        EsquemaH2.crear(jdbc);
+        // UNIQUE (PARTIDO_ID, JUGADOR_ID)
+        assertThatThrownBy(() -> jdbc.update(insert, "otra vez")).isInstanceOf(Exception.class);
 
-        jdbc.update("INSERT INTO CONVOCATORIA_JUGADOR (CONVOCATORIA_ID, JUGADOR_ID, RESPUESTA, MOTIVO)"
-                + " VALUES (1, 1, 'NO_PUEDE', ?)", "é".repeat(500));
-
-        assertThat(jdbc.queryForObject("SELECT LENGTH(MOTIVO) FROM CONVOCATORIA_JUGADOR", Integer.class))
-                .isEqualTo(500);
+        // MOTIVO NOT NULL
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO JUSTIFICACIONES_FALTA_PARTIDO"
+                        + " (PARTIDO_ID, JUGADOR_ID, USUARIO_APP_ID, MOTIVO, FECHA_CREACION)"
+                        + " VALUES (30, 101, 7, NULL, CURRENT_TIMESTAMP)")).isInstanceOf(Exception.class);
     }
 }

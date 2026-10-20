@@ -18,8 +18,6 @@ import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
 import com.mikedev.mutxamelcf.model.AsistenciaEntrenamientosJugador;
 import com.mikedev.mutxamelcf.model.EntrenamientoDelDia;
 import com.mikedev.mutxamelcf.model.EstadisticasPartidosJugador;
-import com.mikedev.mutxamelcf.model.RespuestasConvocatoriaJugador;
-import com.mikedev.mutxamelcf.model.ResumenRespuestasConvocatoria;
 import com.mikedev.mutxamelcf.model.ResumenTemporadaResponse;
 import com.mikedev.mutxamelcf.model.ResumenTemporadaResponse.EntrenamientosResumen;
 import com.mikedev.mutxamelcf.model.ResumenTemporadaResponse.PartidosResumen;
@@ -97,7 +95,7 @@ public class ResumenTemporadaServiceImpl implements ResumenTemporadaService {
 		if (!hoy.isBefore(desde) && (finTemporada == null || !hoy.isAfter(finTemporada))) {
 			asistencia = sumar(asistencia, entrenamientosDeHoy(jugadorId, hoy));
 		}
-		RespuestasConvocatoriaJugador respuestas = resumenTemporadaDao.respuestasConvocatoria(jugadorId, desde, hasta);
+		int ausencias = resumenTemporadaDao.ausenciasJustificadas(jugadorId, desde, hasta);
 
 		logger.debug("Fin obtenerResumen: jugadorId={}", jugadorId);
 
@@ -105,9 +103,8 @@ public class ResumenTemporadaServiceImpl implements ResumenTemporadaService {
 				new TemporadaResumen(temporada.getNombre(),
 						temporada.getFechaInicio() != null ? desde : null, finTemporada),
 				new PartidosResumen(partidos.convocado(), partidos.goles(), partidos.asistencias(),
-						partidos.amarillas(), partidos.rojas()),
-				entrenamientos(asistencia),
-				new ResumenRespuestasConvocatoria(respuestas.va(), respuestas.noPuede(), respuestas.sinResponder()));
+						partidos.amarillas(), partidos.rojas(), ausencias),
+				entrenamientos(asistencia));
 	}
 
 	/*
@@ -189,9 +186,8 @@ public class ResumenTemporadaServiceImpl implements ResumenTemporadaService {
 	private static ResumenTemporadaResponse vacio() {
 		return new ResumenTemporadaResponse(
 				null,
-				new PartidosResumen(0, 0, 0, 0, 0),
-				new EntrenamientosResumen(0, 0, 0, 0, null),
-				new ResumenRespuestasConvocatoria(0, 0, 0));
+				new PartidosResumen(0, 0, 0, 0, 0, 0),
+				new EntrenamientosResumen(0, 0, 0, 0, null));
 	}
 
 	private static LocalDate aLocalDate(Date fecha) {

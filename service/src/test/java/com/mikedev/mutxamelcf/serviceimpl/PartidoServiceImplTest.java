@@ -51,13 +51,16 @@ class PartidoServiceImplTest {
     @Mock
     private DescansoEquipoDao descansoEquipoDao;
 
+    @Mock
+    private com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
+
     private PartidoServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new PartidoServiceImpl(
                 partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
-                descansoEquipoDao, java.time.Clock.systemDefaultZone());
+                descansoEquipoDao, justificacionFaltaPartidoDao, java.time.Clock.systemDefaultZone());
     }
 
     private static PartidoGuardarRequest requestValido() {
@@ -604,53 +607,6 @@ class PartidoServiceImplTest {
     }
 
     @Test
-    void obtenerPorEquipoYRangoFechasConJugadorIdIncluyeSuRespuestaALaConvocatoria() {
-        Partido partido = new Partido();
-        partido.setId(1L);
-        partido.setEquipoId(1L);
-
-        LocalDate desde = LocalDate.of(2026, 10, 1);
-        LocalDate hasta = LocalDate.of(2026, 10, 31);
-
-        com.mikedev.mutxamelcf.model.Convocatoria convocatoria = new com.mikedev.mutxamelcf.model.Convocatoria();
-        convocatoria.setId(200L);
-
-        com.mikedev.mutxamelcf.model.ConvocatoriaJugador convocado = new com.mikedev.mutxamelcf.model.ConvocatoriaJugador();
-        convocado.setRespuesta("NO_PUEDE");
-
-        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(partido));
-        when(convocatoriaDao.obtenerPorPartidoId(1L)).thenReturn(convocatoria);
-        when(convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(200L, 40L)).thenReturn(convocado);
-
-        List<PartidoDTO> resultado = service.obtenerPorEquipoYRangoFechas(1L, desde, hasta, 40L);
-
-        assertThat(resultado.get(0).getConvocado()).isTrue();
-        assertThat(resultado.get(0).getRespuestaConvocatoria()).isEqualTo("NO_PUEDE");
-    }
-
-    @Test
-    void obtenerPorEquipoYRangoFechasSinRespuestaDejaRespuestaConvocatoriaNula() {
-        Partido partido = new Partido();
-        partido.setId(1L);
-        partido.setEquipoId(1L);
-
-        LocalDate desde = LocalDate.of(2026, 10, 1);
-        LocalDate hasta = LocalDate.of(2026, 10, 31);
-
-        com.mikedev.mutxamelcf.model.Convocatoria convocatoria = new com.mikedev.mutxamelcf.model.Convocatoria();
-        convocatoria.setId(200L);
-
-        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(partido));
-        when(convocatoriaDao.obtenerPorPartidoId(1L)).thenReturn(convocatoria);
-        when(convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(200L, 40L))
-                .thenReturn(new com.mikedev.mutxamelcf.model.ConvocatoriaJugador());
-
-        List<PartidoDTO> resultado = service.obtenerPorEquipoYRangoFechas(1L, desde, hasta, 40L);
-
-        assertThat(resultado.get(0).getRespuestaConvocatoria()).isNull();
-    }
-
-    @Test
     void obtenerPorEquipoYRangoFechasConJugadorIdMarcaConvocadoFalseSiNoEstaEnLaConvocatoria() {
         Partido partido = new Partido();
         partido.setId(1L);
@@ -974,7 +930,86 @@ class PartidoServiceImplTest {
     private PartidoServiceImpl serviceConReloj(java.time.Clock reloj) {
         return new PartidoServiceImpl(
                 partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
-                descansoEquipoDao, reloj);
+                descansoEquipoDao, justificacionFaltaPartidoDao, reloj);
+    }
+
+    // ---- ausencia justificada en el calendario del jugador (reloj fijo: miércoles 21/10/2026 10:00) ----
+
+    private Partido partidoDelSabado(boolean cancelado) {
+        Partido partido = new Partido();
+        partido.setId(1L);
+        partido.setEquipoId(1L);
+        partido.setDia(java.sql.Date.valueOf(LocalDate.of(2026, 10, 24)));
+        partido.setHora("11:00");
+        partido.setCancelado(cancelado);
+        return partido;
+    }
+
+    private List<PartidoDTO> calendarioDelJugador(Partido partido) {
+        LocalDate desde = LocalDate.of(2026, 10, 1);
+        LocalDate hasta = LocalDate.of(2026, 10, 31);
+
+        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(partido));
+        when(partidoDao.obtenerPorId(1L)).thenReturn(partido);
+
+        return serviceConReloj(MIERCOLES).obtenerPorEquipoYRangoFechas(1L, desde, hasta, 40L);
+    }
+
+    @Test
+    void elCalendarioDelJugadorIncluyeSuAusenciaJustificadaYELPlazo() {
+        com.mikedev.mutxamelcf.model.JustificacionFaltaPartido justificacion =
+                new com.mikedev.mutxamelcf.model.JustificacionFaltaPartido();
+        justificacion.setMotivo("Examen");
+        when(justificacionFaltaPartidoDao.obtenerPorPartidoYJugador(1L, 40L)).thenReturn(justificacion);
+
+        com.mikedev.mutxamelcf.model.Convocatoria convocatoria = new com.mikedev.mutxamelcf.model.Convocatoria();
+        convocatoria.setId(200L);
+        convocatoria.setHoraConvocatoria("9:30");
+        when(convocatoriaDao.obtenerPorPartidoId(1L)).thenReturn(convocatoria);
+
+        PartidoDTO partido = calendarioDelJugador(partidoDelSabado(false)).get(0);
+
+        assertThat(partido.isAusenciaJustificada()).isTrue();
+        assertThat(partido.getMotivoAusencia()).isEqualTo("Examen");
+        assertThat(partido.isPuedeJustificar()).isTrue();
+        // El plazo es la hora de convocatoria del día del partido, no la del partido.
+        assertThat(partido.getLimiteJustificacion()).isEqualTo(java.time.LocalDateTime.of(2026, 10, 24, 9, 30));
+    }
+
+    @Test
+    void sinConvocatoriaElPlazoEsLaHoraDelPartidoYSePuedeJustificarDesdeElMiercoles() {
+        PartidoDTO partido = calendarioDelJugador(partidoDelSabado(false)).get(0);
+
+        assertThat(partido.isAusenciaJustificada()).isFalse();
+        assertThat(partido.getMotivoAusencia()).isNull();
+        assertThat(partido.isPuedeJustificar()).isTrue();
+        assertThat(partido.getLimiteJustificacion()).isEqualTo(java.time.LocalDateTime.of(2026, 10, 24, 11, 0));
+    }
+
+    @Test
+    void fueraDePlazoOCanceladoNoSePuedeJustificar() {
+        Partido ayer = partidoDelSabado(false);
+        ayer.setDia(java.sql.Date.valueOf(LocalDate.of(2026, 10, 20)));
+
+        assertThat(calendarioDelJugador(ayer).get(0).isPuedeJustificar()).isFalse();
+        assertThat(calendarioDelJugador(ayer).get(0).getLimiteJustificacion())
+                .isEqualTo(java.time.LocalDateTime.of(2026, 10, 20, 11, 0));
+
+        assertThat(calendarioDelJugador(partidoDelSabado(true)).get(0).isPuedeJustificar()).isFalse();
+    }
+
+    @Test
+    void sinJugadorLosCamposDeAusenciaNoSeRellenan() {
+        Partido partido = partidoDelSabado(false);
+        LocalDate desde = LocalDate.of(2026, 10, 1);
+        LocalDate hasta = LocalDate.of(2026, 10, 31);
+        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(partido));
+
+        PartidoDTO dto = service.obtenerPorEquipoYRangoFechas(1L, desde, hasta).get(0);
+
+        assertThat(dto.isAusenciaJustificada()).isFalse();
+        assertThat(dto.isPuedeJustificar()).isFalse();
+        assertThat(dto.getLimiteJustificacion()).isNull();
     }
 
     private ResultadoDTO resultadoDe(Partido partido) {

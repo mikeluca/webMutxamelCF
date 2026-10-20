@@ -444,6 +444,11 @@ public class PartidoDaoImpl implements PartidoDao {
 	public void eliminar(Long id) {
 		logger.debug("Inicio eliminar: id={}", id);
 
+		// FK_JUSTIF_PART_PARTIDO no tiene ON DELETE CASCADE.
+		jdbcTemplate.update(
+				"DELETE FROM JUSTIFICACIONES_FALTA_PARTIDO WHERE PARTIDO_ID = ?",
+				id);
+
 		int filasAfectadas = jdbcTemplate.update(
 				"DELETE FROM PARTIDOS WHERE ID = ?",
 				id);

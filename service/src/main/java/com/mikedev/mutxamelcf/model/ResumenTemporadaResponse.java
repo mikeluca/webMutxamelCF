@@ -9,14 +9,17 @@ import java.time.LocalDate;
 public record ResumenTemporadaResponse(
         TemporadaResumen temporada,
         PartidosResumen partidos,
-        EntrenamientosResumen entrenamientos,
-        ResumenRespuestasConvocatoria convocatorias) {
+        EntrenamientosResumen entrenamientos) {
 
     public record TemporadaResumen(String nombre, LocalDate inicio, LocalDate fin) {
     }
 
-    /** convocado: convocatorias en partidos ya jugados y no cancelados. */
-    public record PartidosResumen(int convocado, int goles, int asistencias, int amarillas, int rojas) {
+    /**
+     * convocado: convocatorias en partidos ya jugados y no cancelados.
+     * ausenciasJustificadas: partidos de la temporada con una ausencia justificada.
+     */
+    public record PartidosResumen(int convocado, int goles, int asistencias, int amarillas, int rojas,
+            int ausenciasJustificadas) {
     }
 
     /** porcentaje: asistidos / total * 100 redondeado, o null si total = 0. */

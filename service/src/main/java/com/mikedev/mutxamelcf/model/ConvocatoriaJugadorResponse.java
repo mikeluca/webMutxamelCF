@@ -1,14 +1,13 @@
 package com.mikedev.mutxamelcf.model;
 
-import java.time.LocalDateTime;
-
 public class ConvocatoriaJugadorResponse {
 
     private Long jugadorId;
     private String jugador;
-    private String respuesta;
-    private String motivo;
-    private LocalDateTime fechaRespuesta;
+
+    /** true si el jugador ha justificado su ausencia a este partido (sigue en la convocatoria hasta que el entrenador lo sustituya). */
+    private boolean ausenciaJustificada;
+    private String motivoAusencia;
 
     public ConvocatoriaJugadorResponse() {
     }
@@ -24,14 +23,12 @@ public class ConvocatoriaJugadorResponse {
     public ConvocatoriaJugadorResponse(
             Long jugadorId,
             String jugador,
-            String respuesta,
-            String motivo,
-            LocalDateTime fechaRespuesta) {
+            boolean ausenciaJustificada,
+            String motivoAusencia) {
 
         this(jugadorId, jugador);
-        this.respuesta = respuesta;
-        this.motivo = motivo;
-        this.fechaRespuesta = fechaRespuesta;
+        this.ausenciaJustificada = ausenciaJustificada;
+        this.motivoAusencia = motivoAusencia;
     }
 
     public Long getJugadorId() {
@@ -50,28 +47,19 @@ public class ConvocatoriaJugadorResponse {
         this.jugador = jugador;
     }
 
-    /** "VA", "NO_PUEDE" o null (sin responder). */
-    public String getRespuesta() {
-        return respuesta;
+    public boolean isAusenciaJustificada() {
+        return ausenciaJustificada;
     }
 
-    public void setRespuesta(String respuesta) {
-        this.respuesta = respuesta;
+    public void setAusenciaJustificada(boolean ausenciaJustificada) {
+        this.ausenciaJustificada = ausenciaJustificada;
     }
 
-    public String getMotivo() {
-        return motivo;
+    public String getMotivoAusencia() {
+        return motivoAusencia;
     }
 
-    public void setMotivo(String motivo) {
-        this.motivo = motivo;
-    }
-
-    public LocalDateTime getFechaRespuesta() {
-        return fechaRespuesta;
-    }
-
-    public void setFechaRespuesta(LocalDateTime fechaRespuesta) {
-        this.fechaRespuesta = fechaRespuesta;
+    public void setMotivoAusencia(String motivoAusencia) {
+        this.motivoAusencia = motivoAusencia;
     }
 }

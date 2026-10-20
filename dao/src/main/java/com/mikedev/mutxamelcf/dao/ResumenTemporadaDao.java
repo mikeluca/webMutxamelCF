@@ -6,7 +6,6 @@ import java.util.List;
 import com.mikedev.mutxamelcf.model.AsistenciaEntrenamientosJugador;
 import com.mikedev.mutxamelcf.model.EntrenamientoDelDia;
 import com.mikedev.mutxamelcf.model.EstadisticasPartidosJugador;
-import com.mikedev.mutxamelcf.model.RespuestasConvocatoriaJugador;
 
 /**
  * Agregados (SUM/COUNT) para el resumen de temporada de la ficha de un jugador.
@@ -24,8 +23,8 @@ public interface ResumenTemporadaDao {
     /** Asistencia a entrenamientos con fecha en el rango. */
     AsistenciaEntrenamientosJugador asistenciaEntrenamientos(Long jugadorId, LocalDate desde, LocalDate hasta);
 
-    /** Respuestas a las convocatorias de partidos no cancelados del rango. */
-    RespuestasConvocatoriaJugador respuestasConvocatoria(Long jugadorId, LocalDate desde, LocalDate hasta);
+    /** Partidos no cancelados del rango en los que el jugador tiene una ausencia justificada. */
+    int ausenciasJustificadas(Long jugadorId, LocalDate desde, LocalDate hasta);
 
     /**
      * Asistencia del jugador a los entrenamientos de un día concreto, cada uno

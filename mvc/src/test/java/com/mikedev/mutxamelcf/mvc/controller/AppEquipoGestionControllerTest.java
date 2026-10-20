@@ -1,6 +1,7 @@
 package com.mikedev.mutxamelcf.mvc.controller;
 
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
+import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
 import com.mikedev.mutxamelcf.model.FamiliarContactoDTO;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
 import com.mikedev.mutxamelcf.service.FamiliarService;
@@ -29,25 +30,27 @@ class AppEquipoGestionControllerTest {
     private EquipoGestionDao equipoGestionDao;
     private JugadorService jugadorService;
     private FamiliarService familiarService;
+    private JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
     private AppEquipoGestionController controller;
 
     private void setUp() {
         equipoGestionDao = mock(EquipoGestionDao.class);
         jugadorService = mock(JugadorService.class);
         familiarService = mock(FamiliarService.class);
-        controller = new AppEquipoGestionController(equipoGestionDao, jugadorService, familiarService);
+        justificacionFaltaPartidoDao = mock(JustificacionFaltaPartidoDao.class);
+        controller = new AppEquipoGestionController(equipoGestionDao, jugadorService, familiarService, justificacionFaltaPartidoDao);
     }
 
     @Test
     void obtenerJugadoresDevuelve401SinAutenticacion() {
         setUp();
-        assertThat(controller.obtenerJugadores(1L, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(controller.obtenerJugadores(1L, null, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
     void obtenerJugadoresDevuelve400SiElEquipoIdEsInvalido() {
         setUp();
-        assertThat(controller.obtenerJugadores(0L, autenticado("1")).getStatusCode())
+        assertThat(controller.obtenerJugadores(0L, null, autenticado("1")).getStatusCode())
                 .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
@@ -56,7 +59,7 @@ class AppEquipoGestionControllerTest {
         setUp();
         when(equipoGestionDao.existeEquipo(1L)).thenReturn(false);
 
-        assertThat(controller.obtenerJugadores(1L, autenticado("1")).getStatusCode())
+        assertThat(controller.obtenerJugadores(1L, null, autenticado("1")).getStatusCode())
                 .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
@@ -66,7 +69,7 @@ class AppEquipoGestionControllerTest {
         when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
         when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(false);
 
-        assertThat(controller.obtenerJugadores(1L, autenticado("1")).getStatusCode())
+        assertThat(controller.obtenerJugadores(1L, null, autenticado("1")).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
     }
 
@@ -79,7 +82,7 @@ class AppEquipoGestionControllerTest {
         when(jugadorService.obtenerJugadorPorId(10L)).thenReturn(new JugadorDTO());
         when(jugadorService.obtenerJugadorPorId(20L)).thenReturn(null);
 
-        ResponseEntity<?> response = controller.obtenerJugadores(1L, autenticado("1"));
+        ResponseEntity<?> response = controller.obtenerJugadores(1L, null, autenticado("1"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat((List<?>) response.getBody()).hasSize(1);
@@ -103,7 +106,7 @@ class AppEquipoGestionControllerTest {
         jugadorCompleto.setPosicion("Delantera");
         when(jugadorService.obtenerJugadorPorId(10L)).thenReturn(jugadorCompleto);
 
-        ResponseEntity<?> response = controller.obtenerJugadores(1L, autenticado("1"));
+        ResponseEntity<?> response = controller.obtenerJugadores(1L, null, autenticado("1"));
 
         List<?> body = (List<?>) response.getBody();
         assertThat(body).hasSize(1);
@@ -151,7 +154,7 @@ class AppEquipoGestionControllerTest {
     @Test
     void obtenerJugadoresDevuelve401SiElNombreDeUsuarioNoEsNumerico() {
         setUp();
-        assertThat(controller.obtenerJugadores(1L, autenticado("no-numero")).getStatusCode())
+        assertThat(controller.obtenerJugadores(1L, null, autenticado("no-numero")).getStatusCode())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
@@ -160,7 +163,7 @@ class AppEquipoGestionControllerTest {
         setUp();
         when(equipoGestionDao.existeEquipo(1L)).thenThrow(new RuntimeException("fallo"));
 
-        assertThat(controller.obtenerJugadores(1L, autenticado("1")).getStatusCode())
+        assertThat(controller.obtenerJugadores(1L, null, autenticado("1")).getStatusCode())
                 .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
@@ -210,5 +213,47 @@ class AppEquipoGestionControllerTest {
 
         assertThat(controller.obtenerFamiliares(5L, 1L, autenticado("1")).getStatusCode())
                 .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @Test
+    void conPartidoIdCadaJugadorLlevaSuAusenciaJustificada() {
+        setUp();
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(equipoGestionDao.obtenerJugadoresPorEquipo(1L)).thenReturn(List.of(10L, 20L));
+
+        for (long id : new long[] { 10L, 20L }) {
+            JugadorDTO jugador = new JugadorDTO();
+            jugador.setId(id);
+            when(jugadorService.obtenerJugadorPorId(id)).thenReturn(jugador);
+        }
+
+        com.mikedev.mutxamelcf.model.JustificacionFaltaPartido ausencia =
+                new com.mikedev.mutxamelcf.model.JustificacionFaltaPartido();
+        ausencia.setJugadorId(20L);
+        ausencia.setMotivo("Examen");
+        when(justificacionFaltaPartidoDao.obtenerPorPartido(30L)).thenReturn(List.of(ausencia));
+
+        ResponseEntity<?> response = controller.obtenerJugadores(1L, 30L, autenticado("1"));
+
+        List<com.mikedev.mutxamelcf.model.JugadorEquipoAppDTO> jugadores =
+                (List<com.mikedev.mutxamelcf.model.JugadorEquipoAppDTO>) response.getBody();
+
+        assertThat(jugadores).extracting(j -> j.getId(), j -> j.isAusenciaJustificada(), j -> j.getMotivoAusencia())
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(10L, false, null),
+                        org.assertj.core.groups.Tuple.tuple(20L, true, "Examen"));
+    }
+
+    @Test
+    void sinPartidoIdNoSeConsultanLasAusencias() {
+        setUp();
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(equipoGestionDao.obtenerJugadoresPorEquipo(1L)).thenReturn(List.of());
+
+        controller.obtenerJugadores(1L, null, autenticado("1"));
+
+        org.mockito.Mockito.verifyNoInteractions(justificacionFaltaPartidoDao);
     }
 }

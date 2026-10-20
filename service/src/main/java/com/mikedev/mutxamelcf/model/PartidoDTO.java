@@ -1,5 +1,6 @@
 package com.mikedev.mutxamelcf.model;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 
 import org.springframework.format.annotation.DateTimeFormat;
@@ -30,8 +31,15 @@ public class PartidoDTO {
 	 * convocado").
 	 */
 	private Boolean convocado;
-	/** "VA", "NO_PUEDE" o null; solo en la vista de jugador/familia de un partido con convocatoria. */
-	private String respuestaConvocatoria;
+	/*
+	 * Solo en el calendario de un jugador concreto (JUGADOR/FAMILIAR): si ha
+	 * justificado su ausencia y por qué, si todavía puede justificarla (o
+	 * retirarla) y hasta cuándo.
+	 */
+	private boolean ausenciaJustificada;
+	private String motivoAusencia;
+	private boolean puedeJustificar;
+	private LocalDateTime limiteJustificacion;
 
 	public PartidoDTO() {
 		super();
@@ -141,12 +149,36 @@ public class PartidoDTO {
 		this.cancelado = cancelado;
 	}
 
-	public String getRespuestaConvocatoria() {
-		return respuestaConvocatoria;
+	public boolean isAusenciaJustificada() {
+		return ausenciaJustificada;
 	}
 
-	public void setRespuestaConvocatoria(String respuestaConvocatoria) {
-		this.respuestaConvocatoria = respuestaConvocatoria;
+	public void setAusenciaJustificada(boolean ausenciaJustificada) {
+		this.ausenciaJustificada = ausenciaJustificada;
+	}
+
+	public String getMotivoAusencia() {
+		return motivoAusencia;
+	}
+
+	public void setMotivoAusencia(String motivoAusencia) {
+		this.motivoAusencia = motivoAusencia;
+	}
+
+	public boolean isPuedeJustificar() {
+		return puedeJustificar;
+	}
+
+	public void setPuedeJustificar(boolean puedeJustificar) {
+		this.puedeJustificar = puedeJustificar;
+	}
+
+	public LocalDateTime getLimiteJustificacion() {
+		return limiteJustificacion;
+	}
+
+	public void setLimiteJustificacion(LocalDateTime limiteJustificacion) {
+		this.limiteJustificacion = limiteJustificacion;
 	}
 
 	public Boolean getConvocado() {

@@ -99,11 +99,17 @@ class ResumenTemporadaServiceImplH2Test {
         return id;
     }
 
-    private void convocar(long partidoId, String respuesta) {
+    private void convocar(long partidoId) {
         long convocatoria = siguienteId++;
         jdbc.update("INSERT INTO CONVOCATORIAS VALUES (?, ?)", convocatoria, partidoId);
-        jdbc.update("INSERT INTO CONVOCATORIA_JUGADOR (CONVOCATORIA_ID, JUGADOR_ID, RESPUESTA) VALUES (?, ?, ?)",
-                convocatoria, JUGADOR, respuesta);
+        jdbc.update("INSERT INTO CONVOCATORIA_JUGADOR (CONVOCATORIA_ID, JUGADOR_ID) VALUES (?, ?)",
+                convocatoria, JUGADOR);
+    }
+
+    private void justificar(long partidoId, long jugadorId) {
+        jdbc.update("INSERT INTO JUSTIFICACIONES_FALTA_PARTIDO"
+                + " (PARTIDO_ID, JUGADOR_ID, USUARIO_APP_ID, MOTIVO, FECHA_CREACION) VALUES (?, ?, 7, ?, ?)",
+                partidoId, jugadorId, "Motivo", java.sql.Timestamp.valueOf(HOY.atStartOfDay()));
     }
 
     private void estadistica(long partidoId, int goles, int asistencias, int amarillas, int roja) {
@@ -235,9 +241,9 @@ class ResumenTemporadaServiceImplH2Test {
         long uno = partido(INICIO.plusDays(10), false, "2-1");
         long dos = partido(INICIO.plusDays(17), false, "0-0");
         long fuera = partido(INICIO.minusDays(20), false, "5-0");   // temporada anterior
-        convocar(uno, "VA");
-        convocar(dos, "VA");
-        convocar(fuera, "VA");
+        convocar(uno);
+        convocar(dos);
+        convocar(fuera);
         estadistica(uno, 2, 1, 1, 0);
         estadistica(dos, 1, 0, 1, 1);
         estadistica(fuera, 9, 9, 9, 1);
@@ -255,8 +261,8 @@ class ResumenTemporadaServiceImplH2Test {
     void losPartidosCanceladosSeExcluyen() {
         long jugado = partido(INICIO.plusDays(10), false, "1-0");
         long cancelado = partido(INICIO.plusDays(17), true, null);
-        convocar(jugado, "VA");
-        convocar(cancelado, "NO_PUEDE");
+        convocar(jugado);
+        convocar(cancelado);
         estadistica(jugado, 1, 0, 0, 0);
         estadistica(cancelado, 4, 4, 4, 1);
 
@@ -265,9 +271,6 @@ class ResumenTemporadaServiceImplH2Test {
         assertThat(resumen.partidos().convocado()).isEqualTo(1);
         assertThat(resumen.partidos().goles()).isEqualTo(1);
         assertThat(resumen.partidos().rojas()).isZero();
-        // Tampoco cuenta su respuesta.
-        assertThat(resumen.convocatorias().noPuede()).isZero();
-        assertThat(resumen.convocatorias().va()).isEqualTo(1);
     }
 
     @Test
@@ -276,31 +279,15 @@ class ResumenTemporadaServiceImplH2Test {
         long hoyConResultado = partido(HOY, false, "2-2");
         long hoySinResultado = partido(HOY, false, null);
         long futuro = partido(HOY.plusDays(3), false, null);
-        convocar(pasado, "VA");
-        convocar(hoyConResultado, "VA");
-        convocar(hoySinResultado, "VA");
-        convocar(futuro, "VA");
+        convocar(pasado);
+        convocar(hoyConResultado);
+        convocar(hoySinResultado);
+        convocar(futuro);
 
         assertThat(service.obtenerResumen(USUARIO, JUGADOR).partidos().convocado()).isEqualTo(2);
     }
 
-    // ---- convocatorias -----------------------------------------------------------------
-
-    @Test
-    void cuentaLasRespuestasDeLaTemporadaIncluidasLasSinResponder() {
-        convocar(partido(INICIO.plusDays(5), false, "1-0"), "VA");
-        convocar(partido(INICIO.plusDays(12), false, "1-1"), "VA");
-        convocar(partido(INICIO.plusDays(19), false, "0-1"), "NO_PUEDE");
-        convocar(partido(HOY.plusDays(3), false, null), null);
-        convocar(partido(FIN.plusDays(10), false, null), "VA");   // fuera de temporada
-
-        var r = service.obtenerResumen(USUARIO, JUGADOR).convocatorias();
-
-        assertThat(r.va()).isEqualTo(2);
-        assertThat(r.noPuede()).isEqualTo(1);
-        assertThat(r.sinResponder()).isEqualTo(1);
-    }
-
+// ---- ausencias justificadas ----------------------------------------------------------    @Test    void cuentaLosPartidosDeLaTemporadaConAusenciaJustificadaDeEsteJugador() {        justificar(partido(INICIO.plusDays(5), false, "1-0"), JUGADOR);        justificar(partido(HOY.plusDays(3), false, null), JUGADOR);          // futuro: también cuenta        justificar(partido(HOY.plusDays(4), true, null), JUGADOR);           // cancelado: no        justificar(partido(FIN.plusDays(10), false, null), JUGADOR);         // fuera de temporada        justificar(partido(INICIO.plusDays(6), false, "2-0"), 999L);        // otro jugador        assertThat(service.obtenerResumen(USUARIO, JUGADOR).partidos().ausenciasJustificadas()).isEqualTo(2);    }    @Test    void sinAusenciasElContadorEsCero() {        assertThat(service.obtenerResumen(USUARIO, JUGADOR).partidos().ausenciasJustificadas()).isZero();    }
     // ---- temporada y seguridad -----------------------------------------------------------
 
     @Test
@@ -323,7 +310,7 @@ class ResumenTemporadaServiceImplH2Test {
         assertThat(resumen.entrenamientos().total()).isZero();
         assertThat(resumen.entrenamientos().porcentaje()).isNull();
         assertThat(resumen.partidos().goles()).isZero();
-        assertThat(resumen.convocatorias().sinResponder()).isZero();
+        assertThat(resumen.partidos().ausenciasJustificadas()).isZero();
     }
 
     @Test

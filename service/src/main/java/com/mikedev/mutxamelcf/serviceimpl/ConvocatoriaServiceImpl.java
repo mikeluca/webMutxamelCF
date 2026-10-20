@@ -3,8 +3,10 @@ package com.mikedev.mutxamelcf.serviceimpl;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
+import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.model.ConvocatoriaGuardarRequest;
+import com.mikedev.mutxamelcf.model.JustificacionFaltaPartido;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugadorResponse;
 import com.mikedev.mutxamelcf.model.ConvocatoriaResponse;
 import com.mikedev.mutxamelcf.model.Comunicacion;
@@ -12,7 +14,6 @@ import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.OpcionesPushComunicacion;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.Partido;
-import com.mikedev.mutxamelcf.model.ResumenRespuestasConvocatoria;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.ConvocatoriaService;
 
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,14 +38,17 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
         private final EquipoGestionDao equipoGestionDao;
         private final PartidoDao partidoDao;
         private final ComunicacionService comunicacionService;
+        private final JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
 
         public ConvocatoriaServiceImpl(
                         ConvocatoriaDao convocatoriaDao,
                         ConvocatoriaJugadorDao convocatoriaJugadorDao,
                         EquipoGestionDao equipoGestionDao,
                         PartidoDao partidoDao,
-                        ComunicacionService comunicacionService) {
+                        ComunicacionService comunicacionService,
+                        JustificacionFaltaPartidoDao justificacionFaltaPartidoDao) {
 
+                this.justificacionFaltaPartidoDao = justificacionFaltaPartidoDao;
                 this.convocatoriaDao = convocatoriaDao;
                 this.convocatoriaJugadorDao = convocatoriaJugadorDao;
                 this.equipoGestionDao = equipoGestionDao;
@@ -100,6 +105,14 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 validarJugadoresSeleccionados(
                                 request.getJugadoresIds(),
                                 jugadoresEquipo);
+
+                // Serializa con quien justifica su ausencia a este partido.
+                partidoDao.bloquearPorId(partido.getId());
+
+                rechazarJustificados(
+                                partido.getId(),
+                                request.getJugadoresIds(),
+                                Set.of());
 
                 Convocatoria convocatoria = new Convocatoria();
 
@@ -321,18 +334,49 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         "Ya existe una convocatoria para este partido");
                 }
 
-                /*
-                 * Los jugadores convocados NO se modifican.
-                 * Se mantienen los jugadores asociados actualmente
-                 * a la convocatoria.
-                 */
+                // Serializa con quien justifica su ausencia a este partido.
+                partidoDao.bloquearPorId(partido.getId());
 
                 /*
-                 * Actualizamos únicamente el partido vinculado y los
-                 * datos propios de la convocatoria.
+                 * Si el request trae la lista de jugadores, la convocatoria
+                 * pasa a tener esos: salen (solo su fila) los que ya no
+                 * están, entran los nuevos y los demás se conservan. Sin
+                 * lista (null), los convocados no se tocan.
                  */
-                boolean cambiaElPartido = !partido.getId().equals(convocatoria.getPartidoId());
+                List<ConvocatoriaJugador> actuales = convocatoriaJugadorDao.obtenerPorConvocatoria(
+                                convocatoriaId);
 
+                Set<Long> idsActuales = new HashSet<>();
+
+                for (ConvocatoriaJugador actual : actuales) {
+                        idsActuales.add(actual.getJugadorId());
+                }
+
+                List<Long> nuevosIds = request.getJugadoresIds();
+
+                if (nuevosIds != null) {
+
+                        if (nuevosIds.isEmpty()) {
+                                throw new IllegalArgumentException(
+                                                "Debes seleccionar al menos un jugador");
+                        }
+
+                        validarJugadoresSeleccionados(
+                                        nuevosIds,
+                                        equipoGestionDao.obtenerJugadoresPorEquipo(
+                                                        convocatoria.getEquipoId()));
+
+                        // Mantener a uno que ya estaba se permite aunque haya justificado su ausencia.
+                        rechazarJustificados(
+                                        partido.getId(),
+                                        nuevosIds,
+                                        idsActuales);
+                }
+
+                /*
+                 * Actualizamos el partido vinculado y los datos propios
+                 * de la convocatoria.
+                 */
                 convocatoria.setPartidoId(partido.getId());
 
                 convocatoria.setHoraConvocatoria(
@@ -343,15 +387,29 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
                 convocatoriaDao.actualizar(convocatoria);
 
-                /*
-                 * Un "Va" o un "No puede" era para otro partido: si la
-                 * convocatoria pasa a otro, todos vuelven a "sin responder".
-                 * Con el mismo partido (solo cambia la hora o el lugar)
-                 * se conservan.
-                 */
-                if (cambiaElPartido) {
-                        convocatoriaJugadorDao.limpiarRespuestasPorConvocatoria(
-                                        convocatoriaId);
+                if (nuevosIds != null) {
+
+                        for (Long actualId : idsActuales) {
+
+                                if (!nuevosIds.contains(actualId)) {
+                                        convocatoriaJugadorDao.eliminarPorConvocatoriaYJugador(
+                                                        convocatoriaId,
+                                                        actualId);
+                                }
+                        }
+
+                        for (Long nuevoId : nuevosIds) {
+
+                                if (!idsActuales.contains(nuevoId)) {
+
+                                        ConvocatoriaJugador convocatoriaJugador = new ConvocatoriaJugador();
+
+                                        convocatoriaJugador.setConvocatoriaId(convocatoriaId);
+                                        convocatoriaJugador.setJugadorId(nuevoId);
+
+                                        convocatoriaJugadorDao.guardar(convocatoriaJugador);
+                                }
+                        }
                 }
 
                 aplicarDatosPartido(convocatoria, partido);
@@ -508,37 +566,59 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
                 List<ConvocatoriaJugadorResponse> jugadoresResponse = new ArrayList<>();
 
-                int va = 0;
-                int noPuede = 0;
-                int sinResponder = 0;
+                Map<Long, JustificacionFaltaPartido> justificadas = new HashMap<>();
+
+                if (convocatoria.getPartidoId() != null) {
+
+                        for (JustificacionFaltaPartido justificacion : justificacionFaltaPartidoDao
+                                        .obtenerPorPartido(convocatoria.getPartidoId())) {
+
+                                justificadas.put(justificacion.getJugadorId(), justificacion);
+                        }
+                }
 
                 for (ConvocatoriaJugador jugador : jugadores) {
 
                         String nombre = equipoGestionDao.obtenerNombreJugador(
                                         jugador.getJugadorId());
 
+                        JustificacionFaltaPartido ausencia = justificadas.get(jugador.getJugadorId());
+
                         jugadoresResponse.add(
                                         new ConvocatoriaJugadorResponse(
                                                         jugador.getJugadorId(),
                                                         nombre,
-                                                        jugador.getRespuesta(),
-                                                        jugador.getMotivo(),
-                                                        jugador.getFechaRespuesta()));
-
-                        if ("VA".equals(jugador.getRespuesta())) {
-                                va++;
-                        } else if ("NO_PUEDE".equals(jugador.getRespuesta())) {
-                                noPuede++;
-                        } else {
-                                sinResponder++;
-                        }
+                                                        ausencia != null,
+                                                        ausencia != null ? ausencia.getMotivo() : null));
                 }
 
                 response.setJugadores(jugadoresResponse);
-                response.setResumen(
-                                new ResumenRespuestasConvocatoria(va, noPuede, sinResponder));
 
                 return response;
+        }
+
+        /*
+         * Un jugador con ausencia justificada a este partido no se puede
+         * añadir a la convocatoria (sí mantener, si ya estaba en ella).
+         */
+        private void rechazarJustificados(
+                        Long partidoId,
+                        List<Long> jugadoresIds,
+                        Set<Long> yaConvocados) {
+
+                for (JustificacionFaltaPartido justificacion : justificacionFaltaPartidoDao
+                                .obtenerPorPartido(partidoId)) {
+
+                        Long jugadorId = justificacion.getJugadorId();
+
+                        if (jugadoresIds.contains(jugadorId) && !yaConvocados.contains(jugadorId)) {
+
+                                throw new IllegalArgumentException(
+                                                equipoGestionDao.obtenerNombreJugador(jugadorId)
+                                                                + " ha justificado su ausencia a este partido"
+                                                                + " y no se puede convocar");
+                        }
+                }
         }
 
         private void validarRequest(

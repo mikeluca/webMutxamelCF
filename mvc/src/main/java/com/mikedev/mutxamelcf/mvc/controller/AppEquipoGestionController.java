@@ -1,6 +1,8 @@
 package com.mikedev.mutxamelcf.mvc.controller;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -13,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
+import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
+import com.mikedev.mutxamelcf.model.JustificacionFaltaPartido;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
 import com.mikedev.mutxamelcf.model.JugadorEquipoAppDTO;
 import com.mikedev.mutxamelcf.service.JugadorService;
@@ -26,11 +30,15 @@ public class AppEquipoGestionController {
         private final EquipoGestionDao equipoGestionDao;
         private final JugadorService jugadorService;
         private final FamiliarService familiarService;
+        private final JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
 
         public AppEquipoGestionController(
                         EquipoGestionDao equipoGestionDao,
                         JugadorService jugadorService,
-                        FamiliarService familiarService) {
+                        FamiliarService familiarService,
+                        JustificacionFaltaPartidoDao justificacionFaltaPartidoDao) {
+
+                this.justificacionFaltaPartidoDao = justificacionFaltaPartidoDao;
 
                 this.equipoGestionDao = equipoGestionDao;
                 this.jugadorService = jugadorService;
@@ -40,11 +48,15 @@ public class AppEquipoGestionController {
         /**
          * Obtener los jugadores de un equipo que el usuario puede gestionar.
          *
-         * GET /api/app/equipos/jugadores?equipoId=...
+         * GET /api/app/equipos/jugadores?equipoId=...&partidoId=... (opcional)
+         *
+         * Con partidoId, cada jugador lleva ausenciaJustificada y
+         * motivoAusencia para ese partido (formulario de convocatoria).
          */
         @GetMapping
         public ResponseEntity<?> obtenerJugadores(
                         @RequestParam Long equipoId,
+                        @RequestParam(required = false) Long partidoId,
                         Authentication authentication) {
 
                 if (authentication == null
@@ -88,12 +100,28 @@ public class AppEquipoGestionController {
                         // de nacimiento, nacionalidad, población ni la foto en byte[].
                         List<JugadorEquipoAppDTO> jugadores = new ArrayList<>();
 
+                        Map<Long, JustificacionFaltaPartido> ausencias = new HashMap<>();
+
+                        if (partidoId != null) {
+                                for (JustificacionFaltaPartido j : justificacionFaltaPartidoDao.obtenerPorPartido(partidoId)) {
+                                        ausencias.put(j.getJugadorId(), j);
+                                }
+                        }
+
                         for (Long jugadorId : jugadoresIds) {
 
                                 JugadorDTO jugador = jugadorService.obtenerJugadorPorId(jugadorId);
 
                                 if (jugador != null) {
-                                        jugadores.add(JugadorEquipoAppDTO.desde(jugador));
+                                        JugadorEquipoAppDTO dto = JugadorEquipoAppDTO.desde(jugador);
+                                        JustificacionFaltaPartido ausencia = ausencias.get(jugadorId);
+
+                                        if (ausencia != null) {
+                                                dto.setAusenciaJustificada(true);
+                                                dto.setMotivoAusencia(ausencia.getMotivo());
+                                        }
+
+                                        jugadores.add(dto);
                                 }
                         }
 
