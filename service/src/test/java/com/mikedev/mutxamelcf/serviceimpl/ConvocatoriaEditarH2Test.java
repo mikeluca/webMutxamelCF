@@ -307,7 +307,9 @@ class ConvocatoriaEditarH2Test {
         assertThat(opciones.getValue().contenidoPush()).isNull();
         assertThat(opciones.getValue().datos())
                 .containsEntry("tipo", "CONVOCATORIA")
-                .containsEntry("convocatoriaId", String.valueOf(creada.getId()));
+                .containsEntry("convocatoriaId", String.valueOf(creada.getId()))
+                // El día del partido (sábado 24/10/2026) para abrir el calendario en él.
+                .containsEntry("fechaPartido", "2026-10-24");
     }
 
     @Test

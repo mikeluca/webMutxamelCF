@@ -260,16 +260,23 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 comunicacion.setTitulo(titulo);
                                 comunicacion.setContenido(mensaje);
 
-                                // La app abre "Mis convocatorias" según este tipo,
-                                // no según el título del aviso.
+                                // La app navega según este tipo (no según el título
+                                // del aviso): JUGADOR/FAMILIAR abren el calendario en
+                                // el día del partido (fechaPartido, yyyy-MM-dd).
+                                Map<String, String> datosPush = new HashMap<>();
+
+                                datosPush.put("tipo", TIPO_PUSH_CONVOCATORIA);
+                                datosPush.put("convocatoriaId", String.valueOf(convocatoria.getId()));
+
+                                if (convocatoria.getFechaPartido() != null) {
+                                        datosPush.put("fechaPartido", convocatoria.getFechaPartido().toString());
+                                }
+
                                 comunicacionService.crearPrivada(
                                                 comunicacion,
                                                 List.of(usuarioId),
                                                 convocatoria.getUsuarioEntrenadorId(),
-                                                new OpcionesPushComunicacion(null, Map.of(
-                                                                "tipo", TIPO_PUSH_CONVOCATORIA,
-                                                                "convocatoriaId",
-                                                                String.valueOf(convocatoria.getId()))));
+                                                new OpcionesPushComunicacion(null, datosPush));
                         }
                 }
         }
