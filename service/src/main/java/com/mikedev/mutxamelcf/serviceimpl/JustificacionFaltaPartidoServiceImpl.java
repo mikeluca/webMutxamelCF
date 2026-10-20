@@ -15,6 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
@@ -165,7 +167,7 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 
 		if (!convocado) {
 
-			if (!permitirAviso(partido.getId(), jugadorId)) {
+			if (repetido(partido.getId(), jugadorId, TipoAviso.JUSTIFICADA)) {
 				return;
 			}
 
@@ -177,12 +179,14 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 							+ " Motivo: " + motivo,
 					jugador + " no podrá jugar el partido contra " + rival + " (" + fecha + "). Ausencia justificada.",
 					Map.of());
+
+			registrarAvisoTrasCommit(partido.getId(), jugadorId, TipoAviso.JUSTIFICADA);
 			return;
 		}
 
 		if (hayDisponibles(partido, convocatoria)) {
 
-			if (!permitirAviso(partido.getId(), jugadorId)) {
+			if (repetido(partido.getId(), jugadorId, TipoAviso.CONVOCADO_SUSTITUIR)) {
 				return;
 			}
 
@@ -195,6 +199,8 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 					texto,
 					Map.of("tipo", TIPO_PUSH_CONVOCATORIA_EDITAR,
 							"convocatoriaId", String.valueOf(convocatoria.getId())));
+
+			registrarAvisoTrasCommit(partido.getId(), jugadorId, TipoAviso.CONVOCADO_SUSTITUIR);
 			return;
 		}
 
@@ -209,6 +215,8 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 				texto + " Motivo: " + motivo,
 				texto,
 				Map.of());
+
+		registrarAvisoTrasCommit(partido.getId(), jugadorId, TipoAviso.QUITADO);
 	}
 
 	/*
@@ -261,7 +269,7 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 
 		logger.info("Ausencia a partido retirada: partidoId={}, jugadorId={}", partidoId, jugadorId);
 
-		if (!permitirAviso(partidoId, jugadorId)) {
+		if (repetido(partidoId, jugadorId, TipoAviso.RETIRADA)) {
 			return;
 		}
 
@@ -270,6 +278,8 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 				+ "; no se ha añadido a la convocatoria.";
 
 		enviar(partido.getEquipoId(), usuarioAppId, "Ausencia retirada", texto, texto, Map.of());
+
+		registrarAvisoTrasCommit(partidoId, jugadorId, TipoAviso.RETIRADA);
 	}
 
 	// ------------------------------------------------------------------
@@ -370,8 +380,50 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 	// Avisos
 	// ------------------------------------------------------------------
 
-	private boolean permitirAviso(Long partidoId, Long jugadorId) {
-		return limitadorAvisos.permitir(partidoId + ":" + jugadorId);
+	/** Qué aviso se manda al cuerpo técnico; el límite de 10 minutos es por tipo. */
+	enum TipoAviso {
+		JUSTIFICADA, CONVOCADO_SUSTITUIR, QUITADO, RETIRADA
+	}
+
+	private static String claveAviso(Long partidoId, Long jugadorId) {
+		return partidoId + ":" + jugadorId;
+	}
+
+	/*
+	 * true si el último aviso de este jugador y partido fue del MISMO tipo hace
+	 * menos de 10 minutos. Un cambio de estado (justificar -> retirar, etc.)
+	 * se avisa siempre.
+	 */
+	private boolean repetido(Long partidoId, Long jugadorId, TipoAviso tipo) {
+		return !limitadorAvisos.permitir(claveAviso(partidoId, jugadorId), tipo.name());
+	}
+
+	/*
+	 * El envío se anota en el limitador cuando la transacción ha confirmado: si
+	 * se deshace, no consta ningún aviso enviado.
+	 */
+	private void registrarAvisoTrasCommit(Long partidoId, Long jugadorId, TipoAviso tipo) {
+
+		Runnable registrar = () -> limitadorAvisos.registrar(claveAviso(partidoId, jugadorId), tipo.name());
+
+		if (TransactionSynchronizationManager.isSynchronizationActive()) {
+
+			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+				@Override
+				public void afterCommit() {
+					registrar.run();
+				}
+			});
+
+		} else {
+
+			registrar.run();
+		}
+	}
+
+	/** Solo para tests: el tipo del último aviso registrado para ese partido y jugador. */
+	String ultimoTipoAviso(Long partidoId, Long jugadorId) {
+		return limitadorAvisos.ultimoTipo(claveAviso(partidoId, jugadorId));
 	}
 
 	private String textoFecha(Partido partido) {
@@ -386,6 +438,18 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 			Map<String, String> datosPush) {
 
 		List<Long> entrenadores = new ArrayList<>(equipoGestionDao.obtenerEntrenadoresPorEquipo(equipoId));
+
+		// Sin ningún entrenador con cuenta, el aviso va a los coordinadores.
+		if (entrenadores.isEmpty()) {
+
+			entrenadores.addAll(equipoGestionDao.obtenerCoordinadores());
+
+			if (entrenadores.isEmpty()) {
+				logger.warn("Aviso de ausencia sin destinatarios: el equipo {} no tiene entrenadores ni hay coordinadores",
+						equipoId);
+				return;
+			}
+		}
 
 		// Quien justifica puede ser también del cuerpo técnico: no se avisa a sí mismo.
 		entrenadores.remove(usuarioAppId);

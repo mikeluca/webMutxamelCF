@@ -16,6 +16,10 @@ public interface JustificacionFaltaPartidoDao {
 
     List<JustificacionFaltaPartido> obtenerPorPartido(Long partidoId);
 
+    /** Las justificaciones del jugador en partidos con fecha entre las dos (ambas incluidas), en una sola consulta. */
+    List<JustificacionFaltaPartido> obtenerPorJugadorYRango(Long jugadorId, java.time.LocalDate desde,
+            java.time.LocalDate hasta);
+
     /** Borra la justificación; devuelve las filas borradas. */
     int eliminar(Long partidoId, Long jugadorId);
 }

@@ -25,7 +25,32 @@ class JustificacionFaltaPartidoDaoH2Test {
                 "jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=Oracle;DB_CLOSE_DELAY=-1", "sa", ""));
         EsquemaH2.crear(jdbc);
 
+        jdbc.execute("CREATE TABLE PARTIDOS (ID NUMBER PRIMARY KEY, DIA DATE)");
+        jdbc.update("INSERT INTO PARTIDOS VALUES (30, DATE '2026-10-24')");
+        jdbc.update("INSERT INTO PARTIDOS VALUES (31, DATE '2026-10-31')");
+        jdbc.update("INSERT INTO PARTIDOS VALUES (32, DATE '2026-11-07')");
+
         dao = new JustificacionFaltaPartidoDaoImpl(jdbc);
+    }
+
+    @Test
+    void obtienePorJugadorYRangoEnUnaSolaConsulta() {
+        crear(30, 100, "Uno");
+        crear(31, 100, "Dos");
+        crear(32, 100, "Fuera de rango");
+        crear(30, 101, "Otro jugador");
+
+        assertThat(dao.obtenerPorJugadorYRango(100L, java.time.LocalDate.of(2026, 10, 24),
+                java.time.LocalDate.of(2026, 10, 31)))
+                .extracting(JustificacionFaltaPartido::getPartidoId, JustificacionFaltaPartido::getMotivo)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(30L, "Uno"),
+                        org.assertj.core.groups.Tuple.tuple(31L, "Dos"));
+
+        assertThat(dao.obtenerPorJugadorYRango(100L, java.time.LocalDate.of(2026, 11, 1),
+                java.time.LocalDate.of(2026, 11, 30)))
+                .extracting(JustificacionFaltaPartido::getPartidoId)
+                .containsExactly(32L);
     }
 
     private JustificacionFaltaPartido crear(long partido, long jugador, String motivo) {

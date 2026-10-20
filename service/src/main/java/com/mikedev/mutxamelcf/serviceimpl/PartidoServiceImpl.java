@@ -408,9 +408,27 @@ public class PartidoServiceImpl implements PartidoService {
 
 		if (jugadorId != null) {
 
-			for (PartidoDTO partido : resultado) {
-				partido.setConvocado(resolverConvocado(partido.getId(), jugadorId));
-				resolverAusencia(partido, jugadorId);
+			// Una sola consulta para las justificaciones del jugador en el rango, y
+			// el Partido y la Convocatoria de cada partido se cargan una vez.
+			Map<Long, JustificacionFaltaPartido> justificaciones = new HashMap<>();
+
+			for (JustificacionFaltaPartido j : justificacionFaltaPartidoDao
+					.obtenerPorJugadorYRango(jugadorId, desde, hasta)) {
+				justificaciones.put(j.getPartidoId(), j);
+			}
+
+			Map<Long, Partido> partidos = new HashMap<>();
+
+			for (Partido p : partidoDao.obtenerPorEquipoYRangoFechas(equipoId, desde, hasta)) {
+				partidos.put(p.getId(), p);
+			}
+
+			for (PartidoDTO dto : resultado) {
+
+				Convocatoria convocatoria = convocatoriaDao.obtenerPorPartidoId(dto.getId());
+
+				dto.setConvocado(resolverConvocado(convocatoria, jugadorId));
+				resolverAusencia(dto, partidos.get(dto.getId()), convocatoria, justificaciones.get(dto.getId()));
 			}
 		}
 
@@ -424,21 +442,17 @@ public class PartidoServiceImpl implements PartidoService {
 	 * Rellena en el calendario del jugador si ha justificado su ausencia (y
 	 * por qué), si todavía puede justificarla o retirarla y hasta cuándo.
 	 */
-	private void resolverAusencia(PartidoDTO dto, Long jugadorId) {
-
-		JustificacionFaltaPartido justificacion = justificacionFaltaPartidoDao
-				.obtenerPorPartidoYJugador(dto.getId(), jugadorId);
+	private void resolverAusencia(
+			PartidoDTO dto, Partido partido, Convocatoria convocatoria, JustificacionFaltaPartido justificacion) {
 
 		dto.setAusenciaJustificada(justificacion != null);
 		dto.setMotivoAusencia(justificacion != null ? justificacion.getMotivo() : null);
-
-		Partido partido = partidoDao.obtenerPorId(dto.getId());
 
 		if (partido == null) {
 			return;
 		}
 
-		LocalDateTime limite = PlazoJustificacionPartido.limite(partido, convocatoriaDao.obtenerPorPartidoId(dto.getId()));
+		LocalDateTime limite = PlazoJustificacionPartido.limite(partido, convocatoria);
 
 		dto.setLimiteJustificacion(limite);
 		dto.setPuedeJustificar(
@@ -450,9 +464,7 @@ public class PartidoServiceImpl implements PartidoService {
 	 * si la tiene, {@code true}/{@code false} según si el jugador está
 	 * en ella.
 	 */
-	private Boolean resolverConvocado(Long partidoId, Long jugadorId) {
-
-		Convocatoria convocatoria = convocatoriaDao.obtenerPorPartidoId(partidoId);
+	private Boolean resolverConvocado(Convocatoria convocatoria, Long jugadorId) {
 
 		if (convocatoria == null) {
 			return null;

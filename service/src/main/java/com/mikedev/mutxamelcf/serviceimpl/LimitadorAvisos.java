@@ -7,38 +7,51 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Deja pasar como mucho un aviso por clave (p. ej. "partido:jugador") cada
- * cierto intervalo, con el reloj inyectado. El registro es en memoria: se
- * pierde al reiniciar y no se comparte entre instancias, lo que basta para
- * evitar la avalancha de avisos de quien cambia de idea varias veces seguidas.
+ * Deja pasar un aviso salvo que el anterior con la misma clave (p. ej.
+ * "partido:jugador") fuera del MISMO tipo y de hace menos del intervalo: un
+ * cambio de estado siempre se avisa. Consultar ({@link #permitir}) y anotar el
+ * envío ({@link #registrar}) son dos pasos, para anotarlo cuando la
+ * transacción ha confirmado. El registro es en memoria: se pierde al reiniciar
+ * y no se comparte entre instancias.
  */
 final class LimitadorAvisos {
 
+	private record Aviso(String tipo, LocalDateTime fecha) {
+	}
+
 	private final Clock clock;
 	private final Duration intervalo;
-	private final Map<String, LocalDateTime> ultimos = new ConcurrentHashMap<>();
+	private final Map<String, Aviso> ultimos = new ConcurrentHashMap<>();
 
 	LimitadorAvisos(Clock clock, Duration intervalo) {
 		this.clock = clock;
 		this.intervalo = intervalo;
 	}
 
-	/**
-	 * true (y lo registra) si no hubo otro aviso con esta clave hace menos del
-	 * intervalo. Un aviso omitido no reinicia la cuenta.
-	 */
-	boolean permitir(String clave) {
+	/** true si no consta un aviso de este tipo con esta clave hace menos del intervalo. No registra nada. */
+	boolean permitir(String clave, String tipo) {
+
+		Aviso anterior = ultimos.get(clave);
+
+		return anterior == null
+				|| !anterior.tipo().equals(tipo)
+				|| !LocalDateTime.now(clock).isBefore(anterior.fecha().plus(intervalo));
+	}
+
+	/** Anota que se ha enviado un aviso de este tipo con esta clave, ahora. */
+	void registrar(String clave, String tipo) {
 
 		LocalDateTime ahora = LocalDateTime.now(clock);
-		LocalDateTime anterior = ultimos.get(clave);
 
-		if (anterior != null && ahora.isBefore(anterior.plus(intervalo))) {
-			return false;
-		}
+		ultimos.values().removeIf(aviso -> !ahora.isBefore(aviso.fecha().plus(intervalo)));
+		ultimos.put(clave, new Aviso(tipo, ahora));
+	}
 
-		ultimos.values().removeIf(fecha -> !ahora.isBefore(fecha.plus(intervalo)));
-		ultimos.put(clave, ahora);
+	/** El tipo del último aviso anotado para la clave (aunque haya pasado el intervalo); null si no hay. */
+	String ultimoTipo(String clave) {
 
-		return true;
+		Aviso aviso = ultimos.get(clave);
+
+		return aviso == null ? null : aviso.tipo();
 	}
 }

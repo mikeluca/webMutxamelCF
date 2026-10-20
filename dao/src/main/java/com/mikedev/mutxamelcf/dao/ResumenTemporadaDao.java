@@ -23,8 +23,11 @@ public interface ResumenTemporadaDao {
     /** Asistencia a entrenamientos con fecha en el rango. */
     AsistenciaEntrenamientosJugador asistenciaEntrenamientos(Long jugadorId, LocalDate desde, LocalDate hasta);
 
-    /** Partidos no cancelados del rango en los que el jugador tiene una ausencia justificada. */
-    int ausenciasJustificadas(Long jugadorId, LocalDate desde, LocalDate hasta);
+    /**
+     * Partidos no cancelados del rango y con fecha hasta {@code hoy} (incluida),
+     * como el recuento de convocados, en los que el jugador tiene una ausencia justificada.
+     */
+    int ausenciasJustificadas(Long jugadorId, LocalDate desde, LocalDate hasta, LocalDate hoy);
 
     /**
      * Asistencia del jugador a los entrenamientos de un día concreto, cada uno

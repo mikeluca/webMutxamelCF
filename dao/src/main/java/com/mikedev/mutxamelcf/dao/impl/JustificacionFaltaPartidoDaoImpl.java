@@ -118,6 +118,17 @@ public class JustificacionFaltaPartidoDaoImpl implements JustificacionFaltaParti
     }
 
     @Override
+    public List<JustificacionFaltaPartido> obtenerPorJugadorYRango(
+            Long jugadorId, java.time.LocalDate desde, java.time.LocalDate hasta) {
+
+        return jdbcTemplate.query(
+                "SELECT J.ID, J.PARTIDO_ID, J.JUGADOR_ID, J.USUARIO_APP_ID, J.MOTIVO, J.FECHA_CREACION"
+                        + " FROM JUSTIFICACIONES_FALTA_PARTIDO J JOIN PARTIDOS P ON P.ID = J.PARTIDO_ID"
+                        + " WHERE J.JUGADOR_ID = ? AND P.DIA BETWEEN ? AND ? ORDER BY P.DIA, J.ID",
+                ROW_MAPPER, jugadorId, java.sql.Date.valueOf(desde), java.sql.Date.valueOf(hasta));
+    }
+
+    @Override
     public int eliminar(Long partidoId, Long jugadorId) {
 
         return jdbcTemplate.update(

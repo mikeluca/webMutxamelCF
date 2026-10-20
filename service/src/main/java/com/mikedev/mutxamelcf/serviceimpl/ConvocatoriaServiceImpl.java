@@ -94,6 +94,11 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         "El equipo no tiene jugadores");
                 }
 
+                // Se bloquea el partido ANTES de comprobar si ya tiene convocatoria:
+                // así dos altas simultáneas no pasan las dos la comprobación, y se
+                // serializa también con quien justifica su ausencia a este partido.
+                partidoDao.bloquearPorId(partido.getId());
+
                 if (convocatoriaDao.existePorPartido(
                                 partido.getId(),
                                 null)) {
@@ -105,9 +110,6 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 validarJugadoresSeleccionados(
                                 request.getJugadoresIds(),
                                 jugadoresEquipo);
-
-                // Serializa con quien justifica su ausencia a este partido.
-                partidoDao.bloquearPorId(partido.getId());
 
                 rechazarJustificados(
                                 partido.getId(),
@@ -197,7 +199,24 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
                 String titulo = "Nueva convocatoria";
 
+                // A quien ha justificado su ausencia a este partido no se le avisa de
+                // que "ha sido convocado" (sigue en la lista hasta que se le sustituya).
+                Set<Long> ausentes = new HashSet<>();
+
+                if (convocatoria.getPartidoId() != null) {
+
+                        for (JustificacionFaltaPartido justificacion : justificacionFaltaPartidoDao
+                                        .obtenerPorPartido(convocatoria.getPartidoId())) {
+
+                                ausentes.add(justificacion.getJugadorId());
+                        }
+                }
+
                 for (Long jugadorId : jugadoresIds) {
+
+                        if (ausentes.contains(jugadorId)) {
+                                continue;
+                        }
 
                         String jugador = equipoGestionDao.obtenerNombreJugador(
                                         jugadorId);
@@ -373,11 +392,15 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         equipoGestionDao.obtenerJugadoresPorEquipo(
                                                         convocatoria.getEquipoId()));
 
-                        // Mantener a uno que ya estaba se permite aunque haya justificado su ausencia.
+                        // Mantener a uno que ya estaba se permite aunque haya justificado su
+                        // ausencia, pero solo si el partido no cambia: sus justificaciones eran
+                        // de otro partido, y con el nuevo se rechaza a quien esté justificado.
+                        boolean cambiaElPartido = !partido.getId().equals(convocatoria.getPartidoId());
+
                         rechazarJustificados(
                                         partido.getId(),
                                         nuevosIds,
-                                        idsActuales);
+                                        cambiaElPartido ? Set.<Long>of() : idsActuales);
                 }
 
                 /*

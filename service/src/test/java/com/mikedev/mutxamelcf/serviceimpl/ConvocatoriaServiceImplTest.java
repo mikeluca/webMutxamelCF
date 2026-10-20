@@ -137,6 +137,22 @@ class ConvocatoriaServiceImplTest {
     }
 
     @Test
+    void crearBloqueaElPartidoAntesDeComprobarSiYaTieneConvocatoria() {
+        when(partidoDao.obtenerPorId(PARTIDO_ID)).thenReturn(partidoValido());
+        when(equipoGestionDao.existeEquipo(EQUIPO_ID)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(USUARIO_ID, EQUIPO_ID)).thenReturn(true);
+        when(equipoGestionDao.obtenerJugadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of(JUGADOR_ID));
+        when(convocatoriaDao.existePorPartido(eq(PARTIDO_ID), isNull())).thenReturn(true);
+
+        assertThatThrownBy(() -> service.crear(USUARIO_ID, requestValido()))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        var orden = Mockito.inOrder(partidoDao, convocatoriaDao);
+        orden.verify(partidoDao).bloquearPorId(PARTIDO_ID);
+        orden.verify(convocatoriaDao).existePorPartido(eq(PARTIDO_ID), isNull());
+    }
+
+    @Test
     void crearConConvocatoriaDuplicadaParaElMismoPartidoLanzaExcepcion() {
         when(partidoDao.obtenerPorId(PARTIDO_ID)).thenReturn(partidoValido());
         when(equipoGestionDao.existeEquipo(EQUIPO_ID)).thenReturn(true);

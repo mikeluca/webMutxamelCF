@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -950,7 +951,6 @@ class PartidoServiceImplTest {
         LocalDate hasta = LocalDate.of(2026, 10, 31);
 
         when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(partido));
-        when(partidoDao.obtenerPorId(1L)).thenReturn(partido);
 
         return serviceConReloj(MIERCOLES).obtenerPorEquipoYRangoFechas(1L, desde, hasta, 40L);
     }
@@ -960,7 +960,9 @@ class PartidoServiceImplTest {
         com.mikedev.mutxamelcf.model.JustificacionFaltaPartido justificacion =
                 new com.mikedev.mutxamelcf.model.JustificacionFaltaPartido();
         justificacion.setMotivo("Examen");
-        when(justificacionFaltaPartidoDao.obtenerPorPartidoYJugador(1L, 40L)).thenReturn(justificacion);
+        justificacion.setPartidoId(1L);
+        when(justificacionFaltaPartidoDao.obtenerPorJugadorYRango(
+                40L, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31))).thenReturn(List.of(justificacion));
 
         com.mikedev.mutxamelcf.model.Convocatoria convocatoria = new com.mikedev.mutxamelcf.model.Convocatoria();
         convocatoria.setId(200L);
@@ -974,6 +976,36 @@ class PartidoServiceImplTest {
         assertThat(partido.isPuedeJustificar()).isTrue();
         // El plazo es la hora de convocatoria del día del partido, no la del partido.
         assertThat(partido.getLimiteJustificacion()).isEqualTo(java.time.LocalDateTime.of(2026, 10, 24, 9, 30));
+    }
+
+    @Test
+    void elCalendarioDelJugadorNoRepiteConsultasPorPartido() {
+        Partido uno = partidoDelSabado(false);
+        Partido dos = partidoDelSabado(false);
+        dos.setId(2L);
+
+        LocalDate desde = LocalDate.of(2026, 10, 1);
+        LocalDate hasta = LocalDate.of(2026, 10, 31);
+
+        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(uno, dos));
+
+        com.mikedev.mutxamelcf.model.JustificacionFaltaPartido deDos =
+                new com.mikedev.mutxamelcf.model.JustificacionFaltaPartido();
+        deDos.setPartidoId(2L);
+        deDos.setMotivo("Viaje");
+        when(justificacionFaltaPartidoDao.obtenerPorJugadorYRango(40L, desde, hasta)).thenReturn(List.of(deDos));
+
+        List<PartidoDTO> resultado = serviceConReloj(MIERCOLES).obtenerPorEquipoYRangoFechas(1L, desde, hasta, 40L);
+
+        assertThat(resultado).extracting(PartidoDTO::isAusenciaJustificada).containsExactly(false, true);
+        assertThat(resultado.get(1).getMotivoAusencia()).isEqualTo("Viaje");
+
+        // Una sola consulta de justificaciones, y el Partido y la Convocatoria ya cargados se reutilizan.
+        verify(justificacionFaltaPartidoDao, times(1)).obtenerPorJugadorYRango(40L, desde, hasta);
+        verify(justificacionFaltaPartidoDao, never()).obtenerPorPartidoYJugador(any(), any());
+        verify(partidoDao, never()).obtenerPorId(any());
+        verify(convocatoriaDao, times(1)).obtenerPorPartidoId(1L);
+        verify(convocatoriaDao, times(1)).obtenerPorPartidoId(2L);
     }
 
     @Test

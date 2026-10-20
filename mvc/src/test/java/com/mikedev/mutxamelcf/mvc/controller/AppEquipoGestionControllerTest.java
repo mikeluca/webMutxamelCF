@@ -2,6 +2,7 @@ package com.mikedev.mutxamelcf.mvc.controller;
 
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
+import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.model.FamiliarContactoDTO;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
 import com.mikedev.mutxamelcf.service.FamiliarService;
@@ -31,6 +32,7 @@ class AppEquipoGestionControllerTest {
     private JugadorService jugadorService;
     private FamiliarService familiarService;
     private JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
+    private PartidoDao partidoDao;
     private AppEquipoGestionController controller;
 
     private void setUp() {
@@ -38,7 +40,8 @@ class AppEquipoGestionControllerTest {
         jugadorService = mock(JugadorService.class);
         familiarService = mock(FamiliarService.class);
         justificacionFaltaPartidoDao = mock(JustificacionFaltaPartidoDao.class);
-        controller = new AppEquipoGestionController(equipoGestionDao, jugadorService, familiarService, justificacionFaltaPartidoDao);
+        partidoDao = mock(PartidoDao.class);
+        controller = new AppEquipoGestionController(equipoGestionDao, jugadorService, familiarService, justificacionFaltaPartidoDao, partidoDao);
     }
 
     @Test
@@ -233,6 +236,7 @@ class AppEquipoGestionControllerTest {
         ausencia.setJugadorId(20L);
         ausencia.setMotivo("Examen");
         when(justificacionFaltaPartidoDao.obtenerPorPartido(30L)).thenReturn(List.of(ausencia));
+        when(partidoDao.obtenerPorId(30L)).thenReturn(partidoDelEquipo(30L, 1L));
 
         ResponseEntity<?> response = controller.obtenerJugadores(1L, 30L, autenticado("1"));
 
@@ -243,6 +247,38 @@ class AppEquipoGestionControllerTest {
                 .containsExactly(
                         org.assertj.core.groups.Tuple.tuple(10L, false, null),
                         org.assertj.core.groups.Tuple.tuple(20L, true, "Examen"));
+    }
+
+    private static com.mikedev.mutxamelcf.model.Partido partidoDelEquipo(Long partidoId, Long equipoId) {
+        com.mikedev.mutxamelcf.model.Partido partido = new com.mikedev.mutxamelcf.model.Partido();
+        partido.setId(partidoId);
+        partido.setEquipoId(equipoId);
+        return partido;
+    }
+
+    @Test
+    void unPartidoDeOtroEquipoEs400SinConsultarLasAusencias() {
+        setUp();
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(partidoDao.obtenerPorId(30L)).thenReturn(partidoDelEquipo(30L, 2L));
+
+        ResponseEntity<?> response = controller.obtenerJugadores(1L, 30L, autenticado("1"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isEqualTo("El partido no pertenece al equipo");
+        org.mockito.Mockito.verifyNoInteractions(justificacionFaltaPartidoDao);
+        org.mockito.Mockito.verify(equipoGestionDao, org.mockito.Mockito.never()).obtenerJugadoresPorEquipo(1L);
+    }
+
+    @Test
+    void unPartidoQueNoExisteEs400() {
+        setUp();
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+
+        assertThat(controller.obtenerJugadores(1L, 999L, autenticado("1")).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test

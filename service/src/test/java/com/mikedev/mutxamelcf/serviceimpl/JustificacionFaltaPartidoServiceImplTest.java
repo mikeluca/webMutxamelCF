@@ -26,7 +26,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
@@ -532,24 +539,133 @@ class JustificacionFaltaPartidoServiceImplTest {
     // ---- como máximo un aviso cada 10 minutos ---------------------------------------------------
 
     @Test
-    void comoMaximoUnAvisoPorJugadorYPartidoCada10Minutos() {
-        justificar(JUGADOR, "Examen");                       // aviso 1 (10:00)
+    void unCambioDeEstadoSiempreSeAvisaAunqueSeaAlInstante() {
+        justificar(JUGADOR, "Examen");                       // JUSTIFICADA (10:00)
 
         reloj.avanzar(Duration.ofMinutes(2));
-        service.retirar(USUARIO, PARTIDO, JUGADOR);          // omitido (10:02)
+        service.retirar(USUARIO, PARTIDO, JUGADOR);          // RETIRADA (10:02): otro tipo, se avisa
 
         reloj.avanzar(Duration.ofMinutes(2));
-        justificar(JUGADOR, "Otra vez");                     // omitido (10:04)
+        justificar(JUGADOR, "Otra vez");                     // JUSTIFICADA (10:04): el anterior fue RETIRADA
 
-        reloj.avanzar(Duration.ofMinutes(5).plusSeconds(59));
-        service.retirar(USUARIO, PARTIDO, JUGADOR);          // omitido (10:09:59): no reinicia la cuenta
+        reloj.avanzar(Duration.ofMinutes(1));
+        service.retirar(USUARIO, PARTIDO, JUGADOR);          // RETIRADA (10:05)
+
+        verify(comunicacionService, times(4)).crearPrivada(any(), any(), anyLong(), any());
+    }
+
+    @Test
+    void dosCambiosDeMotivoSeguidosNoAvisan() {
+        justificar(JUGADOR, "Primer motivo");                // aviso (10:00)
+
+        reloj.avanzar(Duration.ofMinutes(1));
+        justificar(JUGADOR, "Segundo motivo");
+        reloj.avanzar(Duration.ofMinutes(1));
+        justificar(JUGADOR, "Tercer motivo");
+
+        verify(comunicacionService, times(1)).crearPrivada(any(), any(), anyLong(), any());
+        assertThat(justificacionDao.obtenerPorPartidoYJugador(PARTIDO, JUGADOR).getMotivo())
+                .isEqualTo("Tercer motivo");
+    }
+
+    @Test
+    void elMismoTipoDeAvisoSeDescartaAntesDe10MinutosYSeEnviaDespues() {
+        justificar(JUGADOR, "Examen");                       // JUSTIFICADA (10:00)
+
+        // Se borra por otra vía (sin aviso) y se vuelve a justificar: mismo tipo que el anterior.
+        justificacionDao.eliminar(PARTIDO, JUGADOR);
+        reloj.avanzar(Duration.ofMinutes(9).plusSeconds(59));
+        justificar(JUGADOR, "Examen otra vez");              // descartado
 
         verify(comunicacionService, times(1)).crearPrivada(any(), any(), anyLong(), any());
 
-        reloj.avanzar(Duration.ofSeconds(1));                // 10:10:00 desde el primer aviso
-        justificar(JUGADOR, "Y otra");                       // aviso 2
+        justificacionDao.eliminar(PARTIDO, JUGADOR);
+        reloj.avanzar(Duration.ofSeconds(1));                // 10 minutos desde el primer aviso
+        justificar(JUGADOR, "Y otra");                       // se envía
 
         verify(comunicacionService, times(2)).crearPrivada(any(), any(), anyLong(), any());
+    }
+
+    @Test
+    void elEnvioSeAnotaEnElLimitadorSoloCuandoLaTransaccionConfirma() {
+        TransactionSynchronizationManager.initSynchronization();
+
+        try {
+            justificar(JUGADOR, "Examen");
+
+            // Dentro de la transacción todavía no consta ningún aviso enviado...
+            assertThat(service.ultimoTipoAviso(PARTIDO, JUGADOR)).isNull();
+
+            // ...y consta al confirmar.
+            TransactionSynchronizationManager.getSynchronizations().forEach(s -> s.afterCommit());
+
+            assertThat(service.ultimoTipoAviso(PARTIDO, JUGADOR)).isEqualTo("JUSTIFICADA");
+
+        } finally {
+            TransactionSynchronizationManager.clear();
+        }
+    }
+
+    @Test
+    void siLaTransaccionSeDeshaceNoConstaElAviso() {
+        TransactionSynchronizationManager.initSynchronization();
+
+        try {
+            justificar(JUGADOR, "Examen");
+
+            TransactionSynchronizationManager.getSynchronizations().forEach(s -> s.afterCompletion(1));
+
+            assertThat(service.ultimoTipoAviso(PARTIDO, JUGADOR)).isNull();
+
+        } finally {
+            TransactionSynchronizationManager.clear();
+        }
+    }
+
+    // ---- destinatarios ------------------------------------------------------------------------
+
+    @Test
+    void sinEntrenadoresConCuentaElAvisoVaALosCoordinadores() {
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO)).thenReturn(List.of());
+        when(equipoGestionDao.obtenerCoordinadores()).thenReturn(List.of(77L, 78L));
+
+        justificar(JUGADOR, "Examen");
+
+        verify(comunicacionService).crearPrivada(any(), eq(List.of(77L, 78L)), eq(USUARIO), any());
+    }
+
+    @Test
+    void conEntrenadoresNoSeAvisaALosCoordinadores() {
+        when(equipoGestionDao.obtenerCoordinadores()).thenReturn(List.of(77L));
+
+        justificar(JUGADOR, "Examen");
+
+        verify(comunicacionService).crearPrivada(any(), eq(List.of(ENTRENADOR)), eq(USUARIO), any());
+    }
+
+    @Test
+    void sinEntrenadoresNiCoordinadoresSeDejaUnWarn() {
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO)).thenReturn(List.of());
+        when(equipoGestionDao.obtenerCoordinadores()).thenReturn(List.of());
+
+        Logger logger = (Logger) LoggerFactory.getLogger(JustificacionFaltaPartidoServiceImpl.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            justificar(JUGADOR, "Examen");
+
+            assertThat(appender.list)
+                    .filteredOn(evento -> evento.getLevel() == Level.WARN)
+                    .singleElement()
+                    .satisfies(evento -> assertThat(evento.getFormattedMessage()).contains(String.valueOf(EQUIPO)));
+
+        } finally {
+            logger.detachAppender(appender);
+        }
+
+        verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong(), any());
     }
 
     @Test

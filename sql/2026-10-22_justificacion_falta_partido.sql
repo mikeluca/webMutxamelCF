@@ -1,3 +1,4 @@
+-- NO EJECUTAR: ya aplicado
 -- ============================================================================
 -- Justificación de ausencia a partidos (sustituye a la respuesta "Va / No puede"
 -- a la convocatoria).

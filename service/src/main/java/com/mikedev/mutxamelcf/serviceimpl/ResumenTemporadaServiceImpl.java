@@ -95,7 +95,7 @@ public class ResumenTemporadaServiceImpl implements ResumenTemporadaService {
 		if (!hoy.isBefore(desde) && (finTemporada == null || !hoy.isAfter(finTemporada))) {
 			asistencia = sumar(asistencia, entrenamientosDeHoy(jugadorId, hoy));
 		}
-		int ausencias = resumenTemporadaDao.ausenciasJustificadas(jugadorId, desde, hasta);
+		int ausencias = resumenTemporadaDao.ausenciasJustificadas(jugadorId, desde, hasta, hoy);
 
 		logger.debug("Fin obtenerResumen: jugadorId={}", jugadorId);
 

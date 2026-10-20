@@ -246,6 +246,48 @@ class ConvocatoriaEditarH2Test {
     }
 
     @Test
+    void alCambiarDePartidoYaNoSeMantieneAUnoJustificadoParaElPartidoNuevo() {
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L, 101L)));
+
+        // 101 estaba convocado y justificó... el partido NUEVO (31): ya no vale "ya estaba".
+        justificar(31, 101, "Viaje");
+
+        assertThatThrownBy(() -> service.actualizar(
+                ENTRENADOR, creada.getId(), request(31L, "09:30", List.of(100L, 101L))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Jugador 101");
+
+        assertThat(convocados(creada.getId())).containsExactly(100L, 101L);
+
+        // Con el partido sin cambiar, en cambio, se mantiene.
+        justificar(30, 100, "Examen");
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L, 101L)));
+
+        assertThat(convocados(creada.getId())).containsExactly(100L, 101L);
+    }
+
+    @Test
+    void alNotificarTrasUnPutNoSeDiceHasSidoConvocadoAQuienHaJustificado() {
+        when(equipoGestionDao.obtenerUsuariosPorJugador(100L)).thenReturn(List.of(55L));
+        when(equipoGestionDao.obtenerUsuariosPorJugador(101L)).thenReturn(List.of(56L));
+
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L, 101L)));
+        org.mockito.Mockito.clearInvocations(comunicacionService);
+
+        justificar(30, 101, "Examen");
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L, 101L)));
+
+        // Sigue en la lista, pero solo el otro recibe el aviso de convocatoria.
+        assertThat(convocados(creada.getId())).containsExactly(100L, 101L);
+        verify(comunicacionService).crearPrivada(any(Comunicacion.class), eq(List.of(55L)), eq(ENTRENADOR),
+                any(OpcionesPushComunicacion.class));
+        verify(comunicacionService, never()).crearPrivada(any(Comunicacion.class), eq(List.of(56L)), anyLong(),
+                any(OpcionesPushComunicacion.class));
+    }
+
+    @Test
     void elPutRechazaJugadoresQueNoSonDelEquipo() {
         ConvocatoriaResponse creada = service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L)));
 

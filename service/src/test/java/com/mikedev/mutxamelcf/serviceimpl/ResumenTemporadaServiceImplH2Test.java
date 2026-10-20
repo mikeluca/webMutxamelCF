@@ -287,7 +287,26 @@ class ResumenTemporadaServiceImplH2Test {
         assertThat(service.obtenerResumen(USUARIO, JUGADOR).partidos().convocado()).isEqualTo(2);
     }
 
-// ---- ausencias justificadas ----------------------------------------------------------    @Test    void cuentaLosPartidosDeLaTemporadaConAusenciaJustificadaDeEsteJugador() {        justificar(partido(INICIO.plusDays(5), false, "1-0"), JUGADOR);        justificar(partido(HOY.plusDays(3), false, null), JUGADOR);          // futuro: también cuenta        justificar(partido(HOY.plusDays(4), true, null), JUGADOR);           // cancelado: no        justificar(partido(FIN.plusDays(10), false, null), JUGADOR);         // fuera de temporada        justificar(partido(INICIO.plusDays(6), false, "2-0"), 999L);        // otro jugador        assertThat(service.obtenerResumen(USUARIO, JUGADOR).partidos().ausenciasJustificadas()).isEqualTo(2);    }    @Test    void sinAusenciasElContadorEsCero() {        assertThat(service.obtenerResumen(USUARIO, JUGADOR).partidos().ausenciasJustificadas()).isZero();    }
+    // ---- ausencias justificadas ----------------------------------------------------------
+
+    @Test
+    void cuentaLosPartidosYaJugadosDeLaTemporadaConAusenciaJustificadaDeEsteJugador() {
+        justificar(partido(INICIO.plusDays(5), false, "1-0"), JUGADOR);
+        justificar(partido(HOY.minusDays(2), false, "2-2"), JUGADOR);
+        justificar(partido(HOY, false, null), JUGADOR);                       // hoy: cuenta, como "convocado"
+        justificar(partido(HOY.plusDays(3), false, null), JUGADOR);          // futuro: todavía no
+        justificar(partido(HOY.minusDays(1), true, null), JUGADOR);          // cancelado: no
+        justificar(partido(FIN.plusDays(10), false, null), JUGADOR);         // fuera de temporada
+        justificar(partido(INICIO.plusDays(6), false, "2-0"), 999L);         // otro jugador
+
+        assertThat(service.obtenerResumen(USUARIO, JUGADOR).partidos().ausenciasJustificadas()).isEqualTo(3);
+    }
+
+    @Test
+    void sinAusenciasElContadorEsCero() {
+        assertThat(service.obtenerResumen(USUARIO, JUGADOR).partidos().ausenciasJustificadas()).isZero();
+    }
+
     // ---- temporada y seguridad -----------------------------------------------------------
 
     @Test

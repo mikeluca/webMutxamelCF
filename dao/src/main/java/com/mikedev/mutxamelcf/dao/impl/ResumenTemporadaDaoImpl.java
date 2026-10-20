@@ -85,7 +85,7 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 	}
 
 	@Override
-	public int ausenciasJustificadas(Long jugadorId, LocalDate desde, LocalDate hasta) {
+	public int ausenciasJustificadas(Long jugadorId, LocalDate desde, LocalDate hasta, LocalDate hoy) {
 
 		Integer total = jdbcTemplate.queryForObject("""
 				SELECT COUNT(*)
@@ -94,9 +94,10 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 				WHERE J.JUGADOR_ID = ?
 				  AND P.CANCELADO = 0
 				  AND P.DIA BETWEEN ? AND ?
+				  AND P.DIA <= ?
 				""",
 				Integer.class,
-				jugadorId, Date.valueOf(desde), Date.valueOf(hasta));
+				jugadorId, Date.valueOf(desde), Date.valueOf(hasta), Date.valueOf(hoy));
 
 		return total == null ? 0 : total;
 	}

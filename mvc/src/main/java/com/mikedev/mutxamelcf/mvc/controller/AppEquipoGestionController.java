@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
+import com.mikedev.mutxamelcf.dao.PartidoDao;
+import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaPartido;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
 import com.mikedev.mutxamelcf.model.JugadorEquipoAppDTO;
@@ -31,14 +33,17 @@ public class AppEquipoGestionController {
         private final JugadorService jugadorService;
         private final FamiliarService familiarService;
         private final JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
+        private final PartidoDao partidoDao;
 
         public AppEquipoGestionController(
                         EquipoGestionDao equipoGestionDao,
                         JugadorService jugadorService,
                         FamiliarService familiarService,
-                        JustificacionFaltaPartidoDao justificacionFaltaPartidoDao) {
+                        JustificacionFaltaPartidoDao justificacionFaltaPartidoDao,
+                        PartidoDao partidoDao) {
 
                 this.justificacionFaltaPartidoDao = justificacionFaltaPartidoDao;
+                this.partidoDao = partidoDao;
 
                 this.equipoGestionDao = equipoGestionDao;
                 this.jugadorService = jugadorService;
@@ -91,6 +96,17 @@ public class AppEquipoGestionController {
                                 return ResponseEntity
                                                 .status(HttpStatus.FORBIDDEN)
                                                 .body("No tienes permiso para consultar este equipo");
+                        }
+
+                        if (partidoId != null) {
+
+                                Partido partido = partidoDao.obtenerPorId(partidoId);
+
+                                if (partido == null || !equipoId.equals(partido.getEquipoId())) {
+                                        return ResponseEntity
+                                                        .badRequest()
+                                                        .body("El partido no pertenece al equipo");
+                                }
                         }
 
                         List<Long> jugadoresIds = equipoGestionDao.obtenerJugadoresPorEquipo(equipoId);
