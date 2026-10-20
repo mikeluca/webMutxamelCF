@@ -91,10 +91,9 @@ public class PartidoDaoImpl implements PartidoDao {
 				    TIPO,
 				    ORIGEN,
 				    JORNADA,
-				    ES_LOCAL,
-				    FECHA_ACTUALIZACION
+				    ES_LOCAL
 				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""";
 
 		KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -126,14 +125,6 @@ public class PartidoDaoImpl implements PartidoDao {
 			}
 
 			ps.setInt(10, partido.isLocal() ? 1 : 0);
-
-			// Un partido del importador deja constancia de cuándo se importó (el panel de
-			// coordinación muestra la última importación).
-			if (Partido.ORIGEN_FFCV.equals(partido.getOrigen())) {
-				ps.setTimestamp(11, Timestamp.valueOf(LocalDateTime.now(clock)));
-			} else {
-				ps.setNull(11, Types.TIMESTAMP);
-			}
 
 			return ps;
 		}, keyHolder);
@@ -449,18 +440,48 @@ public class PartidoDaoImpl implements PartidoDao {
 		 * resultado, los goles ni el resto de datos del partido.
 		 */
 		int filasAfectadas = jdbcTemplate.update(
-				"UPDATE PARTIDOS SET RIVAL = ?, HORA = ?, CAMPO = ?, JORNADA = ?, ES_LOCAL = ?,"
-						+ " FECHA_ACTUALIZACION = ? WHERE ID = ? AND ORIGEN = 'FFCV'",
+				"UPDATE PARTIDOS SET RIVAL = ?, HORA = ?, CAMPO = ?, JORNADA = ?, ES_LOCAL = ? WHERE ID = ? AND ORIGEN = 'FFCV'",
 				partido.getRival(),
 				partido.getHora(),
 				partido.getCampo(),
 				partido.getJornada(),
 				partido.isLocal() ? 1 : 0,
-				Timestamp.valueOf(LocalDateTime.now(clock)),
 				partido.getId());
 
 		logger.info("Partido FFCV actualizado: id={}, filasAfectadas={}", partido.getId(), filasAfectadas);
 		logger.debug("Fin actualizarDatosFfcv: id={}", partido.getId());
+	}
+
+	@Override
+	public void marcarFechaImportacion(java.util.Collection<Long> ids) {
+
+		if (ids == null || ids.isEmpty()) {
+			return;
+		}
+
+		Timestamp ahora = Timestamp.valueOf(LocalDateTime.now(clock));
+		List<Long> lista = new java.util.ArrayList<>(new java.util.LinkedHashSet<>(ids));
+
+		// En trozos: Oracle admite como mucho 1000 elementos en un IN.
+		for (int desde = 0; desde < lista.size(); desde += 500) {
+
+			List<Long> trozo = lista.subList(desde, Math.min(desde + 500, lista.size()));
+
+			String marcas = String.join(",", java.util.Collections.nCopies(trozo.size(), "?"));
+
+			Object[] parametros = new Object[trozo.size() + 1];
+			parametros[0] = ahora;
+
+			for (int i = 0; i < trozo.size(); i++) {
+				parametros[i + 1] = trozo.get(i);
+			}
+
+			jdbcTemplate.update(
+					"UPDATE PARTIDOS SET FECHA_IMPORTACION = ? WHERE ORIGEN = 'FFCV' AND ID IN (" + marcas + ")",
+					parametros);
+		}
+
+		logger.info("Fecha de importación marcada: partidos={}", lista.size());
 	}
 
 	@Override

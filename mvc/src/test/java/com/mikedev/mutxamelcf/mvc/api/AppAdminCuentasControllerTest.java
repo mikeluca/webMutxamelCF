@@ -45,6 +45,8 @@ class AppAdminCuentasControllerTest {
                 usuarioAppService, new ReenvioActivacion(usuarioAppService, comunicacionesService, limitador));
 
         // Los usuarios 3 (coordinador) y 4 (entrenador) no son ADMIN_APP: el servicio lo rechaza.
+        org.mockito.Mockito.doThrow(new SecurityException("no")).when(usuarioAppService).exigirAdminApp(3);
+        org.mockito.Mockito.doThrow(new SecurityException("no")).when(usuarioAppService).exigirAdminApp(4);
         when(usuarioAppService.listarUsuariosPendientes(3)).thenThrow(new SecurityException("no"));
         when(usuarioAppService.listarUsuariosPendientes(4)).thenThrow(new SecurityException("no"));
         when(usuarioAppService.reenviarActivacionPendiente(3, 5)).thenThrow(new SecurityException("no"));
@@ -78,6 +80,8 @@ class AppAdminCuentasControllerTest {
                     .isEqualTo(HttpStatus.FORBIDDEN);
         }
 
+        // La autorización es lo primero: ni se llegó a generar un código ni a reservar el límite.
+        verify(usuarioAppService, never()).reenviarActivacionPendiente(anyInt(), anyInt());
         verify(comunicacionesService, never()).enviarInvitacionApp(anyString(), anyString(), anyString());
         // Tras los rechazos el limite sigue libre: un admin puede reenviar.
         assertThat(limitador.reservar(5)).isZero();

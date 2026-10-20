@@ -61,6 +61,8 @@ class ImportacionFfcvServiceImplTest {
     private final List<EquipoFfcv> relaciones = new ArrayList<>();
     private final List<Partido> partidos = new ArrayList<>();
     private final List<DescansoEquipo> descansos = new ArrayList<>();
+    /** El id con el que llegó cada partido a crear(): el navegador no puede imponer ninguno. */
+    private final List<Long> idsRecibidosEnCrear = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
@@ -69,6 +71,15 @@ class ImportacionFfcvServiceImplTest {
         descansoEquipoDao = mock(DescansoEquipoDao.class);
         equipoDao = mock(EquipoDao.class);
         convocatoriaDao = mock(ConvocatoriaDao.class);
+
+        // Como el DAO real: crear devuelve el partido con su id.
+        long[] siguienteId = { 900L };
+        org.mockito.Mockito.when(partidoDao.crear(any(Partido.class))).thenAnswer(invocacion -> {
+            Partido nuevo = invocacion.getArgument(0);
+            idsRecibidosEnCrear.add(nuevo.getId());
+            nuevo.setId(siguienteId[0]++);
+            return nuevo;
+        });
 
         service = new ImportacionFfcvServiceImpl(
                 partidoDao, equipoFfcvDao, descansoEquipoDao, equipoDao, convocatoriaDao);
@@ -389,6 +400,51 @@ class ImportacionFfcvServiceImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void confirmarMarcaFechaImportacionEnNuevosActualizadosYSinCambios() {
+        // Partido del Filial idéntico al del CSV (sin cambios); el del Primer Equipo es nuevo.
+        partidos.add(partido(50L, FILIAL, SABADO, "FFCV", "C.F. Calpe", "19:30", "Camp Nou", 4));
+
+        ResultadoImportacionFfcv resultado = service.confirmar(
+                "coordinador", service.previsualizar(archivoBasico()), List.of());
+
+        assertThat(resultado.sinCambios() + resultado.actualizados() + resultado.creados()).isGreaterThanOrEqualTo(2);
+
+        ArgumentCaptor<java.util.Collection<Long>> ids = ArgumentCaptor.forClass(java.util.Collection.class);
+        verify(partidoDao).marcarFechaImportacion(ids.capture());
+
+        // Todos los partidos FFCV que procesó la confirmación, hayan cambiado o no.
+        assertThat(ids.getValue()).containsExactlyInAnyOrder(50L, 900L);
+        // FECHA_ACTUALIZACION no se escribe desde el importador.
+        verify(partidoDao, never()).actualizar(any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void confirmarMarcaTambienLosPartidosQueCrea() {
+        service.confirmar("coordinador", service.previsualizar(archivoBasico()), List.of());
+
+        ArgumentCaptor<java.util.Collection<Long>> ids = ArgumentCaptor.forClass(java.util.Collection.class);
+        verify(partidoDao).marcarFechaImportacion(ids.capture());
+
+        // Los dos partidos nuevos (ids 900 y 901 del stub de crear).
+        assertThat(ids.getValue()).containsExactlyInAnyOrder(900L, 901L);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void unPartidoManualEnConflictoNoSeMarcaComoImportado() {
+        partidos.add(partido(60L, FILIAL, SABADO, "MANUAL", "Otro rival", "10:00", "Campo", 4));
+
+        service.confirmar("coordinador", service.previsualizar(archivoBasico()), List.of());
+
+        ArgumentCaptor<java.util.Collection<Long>> ids = ArgumentCaptor.forClass(java.util.Collection.class);
+        verify(partidoDao).marcarFechaImportacion(ids.capture());
+
+        assertThat(ids.getValue()).doesNotContain(60L);
+    }
+
+    @Test
     void confirmarGuardaSiElMutxamelJuegaDeLocalOVisitante() {
         service.confirmar("coordinador", service.previsualizar(archivoBasico()), List.of());
 
@@ -579,7 +635,7 @@ class ImportacionFfcvServiceImplTest {
         verify(partidoDao, org.mockito.Mockito.times(2)).crear(captor.capture());
         assertThat(captor.getAllValues()).extracting(Partido::getEquipoId)
                 .containsExactlyInAnyOrder(FILIAL, PRIMER_EQUIPO);
-        assertThat(captor.getAllValues()).extracting(Partido::getId).containsOnlyNulls();
+        assertThat(idsRecibidosEnCrear).hasSize(2).containsOnlyNulls();
     }
 
     @Test

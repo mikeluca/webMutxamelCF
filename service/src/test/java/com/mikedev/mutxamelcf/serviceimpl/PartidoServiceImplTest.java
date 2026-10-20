@@ -956,6 +956,25 @@ class PartidoServiceImplTest {
     }
 
     @Test
+    void sinConvocatoriaIndicaSiElPartidoPedidoYaTieneConvocatoria() {
+        Partido libre = partidoDelSabado(false);
+        Partido convocado = partidoDelSabado(true);
+        convocado.setId(2L);
+
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(7L, 1L)).thenReturn(true);
+        when(partidoDao.obtenerPartidosSinConvocatoria(1L, 2L)).thenReturn(List.of(libre, convocado));
+        when(convocatoriaDao.existePorPartido(1L, null)).thenReturn(false);
+        when(convocatoriaDao.existePorPartido(2L, null)).thenReturn(true);
+
+        List<PartidoDTO> resultado = serviceConReloj(MIERCOLES).obtenerPartidosSinConvocatoria(7L, 1L, 2L);
+
+        assertThat(resultado).extracting(PartidoDTO::getTieneConvocatoria).containsExactly(false, true);
+        // También viaja si está cancelado, para que la app no lo preseleccione.
+        assertThat(resultado.get(1).isCancelado()).isTrue();
+    }
+
+    @Test
     void elCalendarioDelJugadorIncluyeSuAusenciaJustificadaYELPlazo() {
         com.mikedev.mutxamelcf.model.JustificacionFaltaPartido justificacion =
                 new com.mikedev.mutxamelcf.model.JustificacionFaltaPartido();

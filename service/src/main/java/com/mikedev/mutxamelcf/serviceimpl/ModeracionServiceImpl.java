@@ -152,7 +152,10 @@ public class ModeracionServiceImpl implements ModeracionService {
 				? reporteDao.listarResueltos(MAXIMO_RESUELTOS)
 				: reporteDao.listarPendientes();
 
-		return reportes.stream().map(this::aRespuesta).toList();
+		// Los administradores se obtienen UNA vez por listado y autorEsAdmin se calcula en memoria.
+		java.util.Set<Long> administradores = new java.util.HashSet<>(equipoGestionDao.obtenerAdministradoresApp());
+
+		return reportes.stream().map(r -> aRespuesta(r, administradores)).toList();
 	}
 
 	@Override
@@ -307,12 +310,12 @@ public class ModeracionServiceImpl implements ModeracionService {
 		}
 	}
 
-	private ReporteModeracionResponse aRespuesta(ReporteComunicacion r) {
+	private ReporteModeracionResponse aRespuesta(ReporteComunicacion r, java.util.Set<Long> administradores) {
 
 		Autor autor = r.autorId() == null
 				? new Autor(null, null, false, false)
 				: new Autor(r.autorId(), nombreDe(r.autorId()), estaActivo(r.autorId()),
-						usuarioAppService.tieneRol(r.autorId().intValue(), "ADMIN_APP"));
+						administradores.contains(r.autorId()));
 
 		return new ReporteModeracionResponse(
 				r.id(), r.comunicacionId(), r.fechaReporte(), r.motivo(),

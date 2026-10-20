@@ -716,6 +716,56 @@ class PartidoEnVivoServiceImplTest {
         assertThat(partido.getResultado()).isEqualTo("2-0");
     }
 
+    /*
+     * El final del directo y su deshacer dependen de que FECHA_ACTUALIZACION del partido
+     * sea la del evento FINAL (si no, "lo ha modificado otra persona"). Una importación de
+     * la FFCV escribe FECHA_IMPORTACION y no la toca, así que no rompe el deshacer. Con el
+     * DAO real sobre una tabla PARTIDOS de verdad.
+     */
+    @Test
+    void unaImportacionDeLaFfcvNoRompeElFinalNiSuDeshacer() {
+        jdbc.execute("""
+                CREATE TABLE PARTIDOS (
+                    ID NUMBER PRIMARY KEY, EQUIPO_ID NUMBER, RIVAL VARCHAR2(50), DIA DATE, HORA VARCHAR2(20),
+                    CAMPO VARCHAR2(50), RESULTADO VARCHAR2(20), TIPO VARCHAR2(20), USUARIO_ACTUALIZO_ID NUMBER,
+                    FECHA_ACTUALIZACION TIMESTAMP, CANCELADO NUMBER(1) DEFAULT 0, GOLES_FAVOR NUMBER,
+                    GOLES_CONTRA NUMBER, AVISO_RESULTADO_ENVIADO NUMBER(1) DEFAULT 0, ORIGEN VARCHAR2(10),
+                    JORNADA NUMBER, ES_LOCAL NUMBER(1) DEFAULT 1, FECHA_IMPORTACION TIMESTAMP)""");
+        jdbc.update("INSERT INTO PARTIDOS (ID, EQUIPO_ID, RIVAL, DIA, HORA, ORIGEN) VALUES (?, ?, 'Pego C.F.', ?,"
+                + " '11:00', 'FFCV')", PARTIDO, PRIMER_EQUIPO, Date.valueOf(HOY));
+
+        com.mikedev.mutxamelcf.dao.impl.PartidoDaoImpl real =
+                new com.mikedev.mutxamelcf.dao.impl.PartidoDaoImpl(jdbc, reloj);
+
+        when(partidoDao.obtenerPorId(PARTIDO)).thenAnswer(i -> real.obtenerPorId(PARTIDO));
+        doAnswer(i -> {
+            real.actualizar(i.getArgument(0));
+            return null;
+        }).when(partidoDao).actualizar(any(Partido.class));
+
+        EstadoPartidoEnVivoResponse fin = partidoConUnGolHastaElFinal();
+
+        assertThat(real.obtenerPorId(PARTIDO).getResultado()).isEqualTo("1-0");
+
+        // Llega la importación semanal: datos del partido FFCV y FECHA_IMPORTACION.
+        Partido delCsv = real.obtenerPorId(PARTIDO);
+        delCsv.setHora("12:30");
+        real.actualizarDatosFfcv(delCsv);
+        real.marcarFechaImportacion(List.of(PARTIDO));
+
+        assertThat(jdbc.queryForObject("SELECT FECHA_IMPORTACION FROM PARTIDOS WHERE ID = ?",
+                java.sql.Timestamp.class, PARTIDO)).isNotNull();
+
+        reloj.avanzar(Duration.ofSeconds(60));
+
+        EstadoPartidoEnVivoResponse estado = service.deshacer(USUARIO, PARTIDO, fin.ultimoEventoDeshacible().id());
+
+        // El deshacer reconoce el partido como intacto y lo devuelve a como estaba.
+        assertThat(estado.eventos()).extracting(e -> e.tipo()).doesNotContain("FINAL");
+        assertThat(real.obtenerPorId(PARTIDO).getResultado()).isNull();
+        assertThat(real.obtenerPorId(PARTIDO).getGolesFavor()).isNull();
+    }
+
     @Test
     void deshacerElFinalNoBorraEstadisticasQueElFinalNoCreo() {
         when(estadisticaDao.obtenerPorPartido(PARTIDO)).thenReturn(List.of(new PartidoEstadisticaJugador()));

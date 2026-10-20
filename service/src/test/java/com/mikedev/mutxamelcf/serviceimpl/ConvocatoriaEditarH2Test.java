@@ -76,9 +76,9 @@ class ConvocatoriaEditarH2Test {
                     FECHA_CREACION TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""");
         EsquemaH2.crear(jdbc);
 
-        jdbc.update("INSERT INTO PARTIDOS VALUES (30, ?, 'Pego', 'Municipal', '11:00')",
+        jdbc.update("INSERT INTO PARTIDOS (ID, DIA, RIVAL, CAMPO, HORA) VALUES (30, ?, 'Pego', 'Municipal', '11:00')",
                 Date.valueOf(LocalDate.of(2026, 10, 24)));
-        jdbc.update("INSERT INTO PARTIDOS VALUES (31, ?, 'Elx', 'Municipal', '12:00')",
+        jdbc.update("INSERT INTO PARTIDOS (ID, DIA, RIVAL, CAMPO, HORA) VALUES (31, ?, 'Elx', 'Municipal', '12:00')",
                 Date.valueOf(LocalDate.of(2026, 10, 25)));
 
         equipoGestionDao = mock(EquipoGestionDao.class);
@@ -104,7 +104,10 @@ class ConvocatoriaEditarH2Test {
                 equipoGestionDao,
                 partidoDao,
                 comunicacionService,
-                justificacionDao);
+                justificacionDao,
+                java.time.Clock.fixed(
+                        LocalDate.of(2026, 10, 21).atTime(12, 0).atZone(java.time.ZoneId.of("Europe/Madrid")).toInstant(),
+                        java.time.ZoneId.of("Europe/Madrid")));
     }
 
     private static Partido partido(Long id, LocalDate dia, String rival) {
@@ -245,6 +248,46 @@ class ConvocatoriaEditarH2Test {
                         org.assertj.core.groups.Tuple.tuple(100L, false, null),
                         org.assertj.core.groups.Tuple.tuple(101L, true, "Examen"),
                         org.assertj.core.groups.Tuple.tuple(102L, false, null));
+    }
+
+    private void partidoNoConvocable(long id, LocalDate dia, boolean cancelado) {
+        Partido partido = partido(id, dia, "Rival " + id);
+        partido.setCancelado(cancelado);
+        when(partidoDao.obtenerPorId(id)).thenReturn(partido);
+    }
+
+    @Test
+    void crearRechazaUnPartidoCanceladoOAnteriorAHoyYAceptaElDeHoy() {
+        partidoNoConvocable(40L, LocalDate.of(2026, 10, 24), true);   // cancelado
+        partidoNoConvocable(41L, LocalDate.of(2026, 10, 20), false);  // ayer
+        partidoNoConvocable(42L, LocalDate.of(2026, 10, 21), false);  // hoy: vale
+
+        assertThatThrownBy(() -> service.crear(ENTRENADOR, request(40L, "09:30", List.of(100L))))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("cancelado");
+        assertThatThrownBy(() -> service.crear(ENTRENADOR, request(41L, "09:30", List.of(100L))))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("ya se jugó");
+
+        assertThat(service.crear(ENTRENADOR, request(42L, "09:30", List.of(100L))).getId()).isNotNull();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM CONVOCATORIAS", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void actualizarRechazaCambiarAUnPartidoCanceladoOPasadoPeroNoEditarUnoPasado() {
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L)));
+
+        partidoNoConvocable(40L, LocalDate.of(2026, 10, 24), true);
+        partidoNoConvocable(41L, LocalDate.of(2026, 10, 20), false);
+
+        assertThatThrownBy(() -> service.actualizar(ENTRENADOR, creada.getId(), request(40L, "09:30", null)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("cancelado");
+        assertThatThrownBy(() -> service.actualizar(ENTRENADOR, creada.getId(), request(41L, "09:30", null)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("ya se jugó");
+
+        // Cambiar solo la hora de una convocatoria cuyo partido ya pasó (mismo partido) sigue permitido.
+        partidoNoConvocable(30L, LocalDate.of(2026, 10, 20), false);
+
+        assertThat(service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:15", null)).getId())
+                .isEqualTo(creada.getId());
     }
 
     @Test

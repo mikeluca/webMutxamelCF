@@ -73,6 +73,38 @@ class EsquemaH2Test {
     }
 
     @Test
+    void partidosGanaFechaImportacionSiLaTablaExisteYSinTablaNoFalla() {
+        // Sin PARTIDOS (la mayoría de los tests): el esquema se crea igual.
+        nuevaBase();
+
+        // Con una tabla PARTIDOS ya creada por el test: la columna aparece.
+        JdbcTemplate jdbc = new JdbcTemplate(new DriverManagerDataSource(
+                "jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=Oracle;DB_CLOSE_DELAY=-1", "sa", ""));
+        jdbc.execute("CREATE TABLE PARTIDOS (ID NUMBER PRIMARY KEY, ORIGEN VARCHAR2(10))");
+
+        EsquemaH2.crear(jdbc);
+
+        assertThat(columnas(jdbc, "PARTIDOS")).contains("FECHA_IMPORTACION");
+
+        // Y si el test ya la había declarado, tampoco choca.
+        JdbcTemplate conColumna = new JdbcTemplate(new DriverManagerDataSource(
+                "jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=Oracle;DB_CLOSE_DELAY=-1", "sa", ""));
+        conColumna.execute("CREATE TABLE PARTIDOS (ID NUMBER PRIMARY KEY, FECHA_IMPORTACION TIMESTAMP)");
+
+        EsquemaH2.crear(conColumna);
+    }
+
+    @Test
+    void elScriptDeFechaImportacionDeSqlEsElDeLosTestsSalvoElUpdateYElIfExists() throws Exception {
+        String original = Files.readString(Path.of("..", "sql", "2026-10-24_partidos_fecha_importacion.sql"));
+
+        assertThat(original).startsWith("-- NO EJECUTAR: ya aplicado")
+                .contains("ALTER TABLE PARTIDOS ADD (FECHA_IMPORTACION TIMESTAMP NULL);")
+                .contains("UPDATE PARTIDOS SET FECHA_IMPORTACION = FECHA_CREACION WHERE ORIGEN = 'FFCV'"
+                        + " AND FECHA_IMPORTACION IS NULL;");
+    }
+
+    @Test
     void laTablaDeReportesDeComunicacionTieneElEsquemaDelScript() {
         JdbcTemplate jdbc = nuevaBase();
 

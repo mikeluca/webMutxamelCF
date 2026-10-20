@@ -109,8 +109,7 @@ public class CoordinacionDaoImpl implements CoordinacionDao {
 	@Override
 	public LocalDateTime ultimaImportacionFfcv() {
 		Timestamp ultima = jdbcTemplate.queryForObject(
-				"SELECT MAX(GREATEST(FECHA_CREACION, NVL(FECHA_ACTUALIZACION, FECHA_CREACION)))"
-						+ " FROM PARTIDOS WHERE ORIGEN = 'FFCV'", Timestamp.class);
+				"SELECT MAX(FECHA_IMPORTACION) FROM PARTIDOS WHERE ORIGEN = 'FFCV'", Timestamp.class);
 
 		return ultima == null ? null : ultima.toLocalDateTime();
 	}

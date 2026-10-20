@@ -39,6 +39,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
         private final PartidoDao partidoDao;
         private final ComunicacionService comunicacionService;
         private final JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
+        private final java.time.Clock clock;
 
         public ConvocatoriaServiceImpl(
                         ConvocatoriaDao convocatoriaDao,
@@ -46,8 +47,10 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         EquipoGestionDao equipoGestionDao,
                         PartidoDao partidoDao,
                         ComunicacionService comunicacionService,
-                        JustificacionFaltaPartidoDao justificacionFaltaPartidoDao) {
+                        JustificacionFaltaPartidoDao justificacionFaltaPartidoDao,
+                        java.time.Clock clock) {
 
+                this.clock = clock;
                 this.justificacionFaltaPartidoDao = justificacionFaltaPartidoDao;
                 this.convocatoriaDao = convocatoriaDao;
                 this.convocatoriaJugadorDao = convocatoriaJugadorDao;
@@ -71,6 +74,8 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         throw new IllegalArgumentException(
                                         "El partido no existe");
                 }
+
+                validarPartidoConvocable(partido);
 
                 Long equipoId = partido.getEquipoId();
 
@@ -366,6 +371,11 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 }
 
                 boolean cambiaElPartido = !partido.getId().equals(convocatoria.getPartidoId());
+
+                // Re-apuntar la convocatoria a otro partido: el nuevo tiene que poder convocarse.
+                if (cambiaElPartido) {
+                        validarPartidoConvocable(partido);
+                }
 
                 /*
                  * Si el request trae la lista de jugadores, la convocatoria
@@ -813,6 +823,31 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
                                 throw new SecurityException(
                                                 "Uno de los jugadores no pertenece al equipo");
+                        }
+                }
+        }
+
+        /*
+         * Solo se convoca para un partido que se va a jugar: no cancelado y con fecha de
+         * hoy (hora de Madrid, por el Clock) o posterior.
+         */
+        private void validarPartidoConvocable(Partido partido) {
+
+                if (partido.isCancelado()) {
+                        throw new IllegalArgumentException(
+                                        "El partido está cancelado: no se puede crear una convocatoria para él");
+                }
+
+                if (partido.getDia() != null) {
+
+                        java.time.LocalDate dia = partido.getDia() instanceof java.sql.Date sqlDate
+                                        ? sqlDate.toLocalDate()
+                                        : partido.getDia().toInstant().atZone(clock.getZone()).toLocalDate();
+
+                        if (dia.isBefore(java.time.LocalDate.now(clock))) {
+                                throw new IllegalArgumentException(
+                                                "El partido ya se jugó (su fecha es anterior a hoy): "
+                                                                + "no se puede crear una convocatoria para él");
                         }
                 }
         }

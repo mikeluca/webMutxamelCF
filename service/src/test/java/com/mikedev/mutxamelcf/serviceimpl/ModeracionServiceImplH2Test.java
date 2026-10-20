@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.serviceimpl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -293,9 +294,25 @@ class ModeracionServiceImplH2Test {
     }
 
     @Test
+    void losAdministradoresSeObtienenUnaSolaVezPorListado() {
+        reportar(40, REPORTADOR);
+        reportar(41, REPORTADOR);
+        reportar(42, OTRO_REPORTADOR);
+
+        org.mockito.Mockito.clearInvocations(equipoGestionDao, usuarioAppService);
+
+        assertThat(service.listar(ADMIN, null)).hasSize(3);
+
+        // Una consulta de administradores para todo el listado, y ninguna tieneRol por reporte
+        // (salvo la del propio moderador que consulta).
+        verify(equipoGestionDao, org.mockito.Mockito.times(1)).obtenerAdministradoresApp();
+        verify(usuarioAppService, org.mockito.Mockito.times(1)).tieneRol(anyInt(), anyString());
+    }
+
+    @Test
     void cadaReporteIndicaSiElAutorEsAdmin() {
         reportar(40, REPORTADOR);
-        when(usuarioAppService.tieneRol(AUTOR.intValue(), "ADMIN_APP")).thenReturn(true);
+        when(equipoGestionDao.obtenerAdministradoresApp()).thenReturn(List.of(ADMIN, AUTOR));
 
         assertThat(service.listar(ADMIN, null).get(0).autor().esAdmin()).isTrue();
     }

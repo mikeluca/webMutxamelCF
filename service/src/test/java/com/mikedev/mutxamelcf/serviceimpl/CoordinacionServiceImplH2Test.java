@@ -245,11 +245,12 @@ class CoordinacionServiceImplH2Test {
         long otro = partido(1, VIERNES, "12:00", false, null, null);
         long manual = partido(1, VIERNES, "14:00", false, null, null);
 
-        jdbc.update("UPDATE PARTIDOS SET ORIGEN = 'FFCV', FECHA_ACTUALIZACION = ? WHERE ID = ?",
+        jdbc.update("UPDATE PARTIDOS SET ORIGEN = 'FFCV', FECHA_IMPORTACION = ? WHERE ID = ?",
                 java.sql.Timestamp.valueOf(LocalDateTime.of(2026, 10, 14, 9, 0)), ffcv);
-        jdbc.update("UPDATE PARTIDOS SET ORIGEN = 'FFCV', FECHA_ACTUALIZACION = ? WHERE ID = ?",
+        jdbc.update("UPDATE PARTIDOS SET ORIGEN = 'FFCV', FECHA_IMPORTACION = ? WHERE ID = ?",
                 java.sql.Timestamp.valueOf(LocalDateTime.of(2026, 10, 21, 8, 30)), otro);
-        jdbc.update("UPDATE PARTIDOS SET ORIGEN = 'MANUAL', FECHA_ACTUALIZACION = ? WHERE ID = ?",
+        // Un partido manual con una fecha más reciente no cuenta como importación.
+        jdbc.update("UPDATE PARTIDOS SET ORIGEN = 'MANUAL', FECHA_IMPORTACION = ? WHERE ID = ?",
                 java.sql.Timestamp.valueOf(LocalDateTime.of(2026, 10, 22, 8, 30)), manual);
 
         assertThat(service.obtenerFinDeSemana(COORDINADOR, null).resumen().ultimaImportacionFfcv())
@@ -257,18 +258,23 @@ class CoordinacionServiceImplH2Test {
     }
 
     @Test
-    void laUltimaImportacionTambienCuentaLaCreacionDeUnPartidoFfcvNuncaActualizado() {
+    void editarAManoUnPartidoFfcvNoCambiaLaUltimaImportacion() {
         long antiguo = partido(1, VIERNES, "10:00", false, null, null);
-        long nuevo = partido(1, VIERNES, "12:00", false, null, null);
 
-        // Uno actualizado el 14/10 y otro creado el 20/10 y todavía sin actualizar.
-        jdbc.update("UPDATE PARTIDOS SET ORIGEN = 'FFCV', FECHA_ACTUALIZACION = ? WHERE ID = ?",
-                java.sql.Timestamp.valueOf(LocalDateTime.of(2026, 10, 14, 9, 0)), antiguo);
-        jdbc.update("UPDATE PARTIDOS SET ORIGEN = 'FFCV', FECHA_CREACION = ? WHERE ID = ?",
-                java.sql.Timestamp.valueOf(LocalDateTime.of(2026, 10, 20, 7, 0)), nuevo);
+        jdbc.update("UPDATE PARTIDOS SET ORIGEN = 'FFCV', FECHA_IMPORTACION = ?, FECHA_ACTUALIZACION = ? WHERE ID = ?",
+                java.sql.Timestamp.valueOf(LocalDateTime.of(2026, 10, 14, 9, 0)),
+                java.sql.Timestamp.valueOf(LocalDateTime.of(2026, 10, 21, 11, 0)), antiguo);
 
+        // FECHA_ACTUALIZACION (edición manual) más reciente: la importación sigue siendo la del 14.
         assertThat(service.obtenerFinDeSemana(COORDINADOR, null).resumen().ultimaImportacionFfcv())
-                .isEqualTo(LocalDateTime.of(2026, 10, 20, 7, 0));
+                .isEqualTo(LocalDateTime.of(2026, 10, 14, 9, 0));
+    }
+
+    @Test
+    void sinNingunaImportacionLaUltimaImportacionEsNula() {
+        partido(1, VIERNES, "10:00", false, null, null);
+
+        assertThat(service.obtenerFinDeSemana(COORDINADOR, null).resumen().ultimaImportacionFfcv()).isNull();
     }
 
     @Test

@@ -181,6 +181,20 @@ public class PartidoDTO {
 		this.limiteJustificacion = limiteJustificacion;
 	}
 
+	/**
+	 * Solo en partidos-sin-convocatoria: si el partido ya tiene una convocatoria (puede
+	 * ocurrir con el partido pedido con incluirPartidoId). null en el resto de listados.
+	 */
+	private Boolean tieneConvocatoria;
+
+	public Boolean getTieneConvocatoria() {
+		return tieneConvocatoria;
+	}
+
+	public void setTieneConvocatoria(Boolean tieneConvocatoria) {
+		this.tieneConvocatoria = tieneConvocatoria;
+	}
+
 	public Boolean getConvocado() {
 		return convocado;
 	}

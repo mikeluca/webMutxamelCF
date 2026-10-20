@@ -377,6 +377,12 @@ public class PartidoServiceImpl implements PartidoService {
 
 		List<PartidoDTO> resultado = toDTOList(partidos);
 
+		// El partido pedido con incluirPartidoId puede tener ya convocatoria: se indica para que
+		// la app no lo ofrezca como si estuviera libre.
+		for (PartidoDTO dto : resultado) {
+			dto.setTieneConvocatoria(dto.getId() != null && convocatoriaDao.existePorPartido(dto.getId(), null));
+		}
+
 		logger.debug("Fin obtenerPartidosSinConvocatoria: equipoId={}, total={}", equipoId, resultado.size());
 
 		return resultado;

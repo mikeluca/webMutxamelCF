@@ -74,6 +74,10 @@ public class ReenvioActivacion {
 
     /** App: solo un ADMIN_APP y solo cuentas pendientes (lo comprueba UsuarioAppService). */
     public Resultado desdeApp(int solicitanteId, int usuarioAppId) {
+        // La autorización va ANTES de reservar el límite: quien no es administrador no
+        // puede bloquearle a otro el reenvío durante 10 minutos.
+        usuarioAppService.exigirAdminApp(solicitanteId);
+
         return reenviar(usuarioAppId, () -> usuarioAppService.reenviarActivacionPendiente(solicitanteId, usuarioAppId));
     }
 

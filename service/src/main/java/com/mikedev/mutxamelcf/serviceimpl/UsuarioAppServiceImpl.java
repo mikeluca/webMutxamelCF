@@ -759,7 +759,8 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
                 .toList();
     }
 
-    private void exigirAdminApp(int solicitanteId) {
+    @Override
+    public void exigirAdminApp(int solicitanteId) {
 
         if (solicitanteId <= 0 || !tieneRol(solicitanteId, "ADMIN_APP")) {
             throw new SecurityException("Solo un administrador puede gestionar las cuentas pendientes");

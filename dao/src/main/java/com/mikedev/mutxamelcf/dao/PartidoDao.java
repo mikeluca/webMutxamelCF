@@ -56,6 +56,13 @@ public interface PartidoDao {
      */
     void actualizarDatosFfcv(Partido partido);
 
+    /**
+     * Marca FECHA_IMPORTACION = ahora en esos partidos de origen FFCV (los que procesa
+     * la confirmación del importador, hayan cambiado o no). FECHA_ACTUALIZACION no se
+     * toca: significa solo "editado a mano".
+     */
+    void marcarFechaImportacion(java.util.Collection<Long> ids);
+
     void eliminar(Long id);
 
     /**

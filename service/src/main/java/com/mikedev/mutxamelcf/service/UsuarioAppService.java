@@ -80,6 +80,9 @@ public interface UsuarioAppService {
      */
     InvitacionUsuarioApp reenviarActivacionPendiente(int solicitanteId, int usuarioAppId);
 
+    /** SecurityException si el usuario no tiene el rol ADMIN_APP. */
+    void exigirAdminApp(int solicitanteId);
+
     void activarUsuarioAdmin(int usuarioAppId);
 
     void desactivarUsuarioAdmin(int usuarioAppId);

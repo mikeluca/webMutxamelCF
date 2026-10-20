@@ -125,6 +125,7 @@ public class ImportacionFfcvServiceImpl implements ImportacionFfcvService {
 
 		Map<EstadoFilaFfcv, Integer> contadores = new EnumMap<>(EstadoFilaFfcv.class);
 		Set<Long> equiposConPartido = new HashSet<>();
+		List<Long> procesados = new ArrayList<>();
 
 		for (FfcvFilaPrevisualizacion fila : resuelta.filas()) {
 
@@ -135,11 +136,18 @@ public class ImportacionFfcvServiceImpl implements ImportacionFfcvService {
 			}
 
 			if (fila.estado() == EstadoFilaFfcv.NUEVO) {
-				partidoDao.crear(construirPartido(fila));
+				procesados.add(partidoDao.crear(construirPartido(fila)).getId());
 			} else if (fila.estado() == EstadoFilaFfcv.ACTUALIZADO) {
 				partidoDao.actualizarDatosFfcv(construirPartido(fila));
+				procesados.add(fila.partidoId());
+			} else if (fila.estado() == EstadoFilaFfcv.SIN_CAMBIOS && fila.partidoId() != null) {
+				// También los que no cambian: la importación los ha comprobado.
+				procesados.add(fila.partidoId());
 			}
 		}
+
+		// FECHA_IMPORTACION (no FECHA_ACTUALIZACION, que es solo edición manual).
+		partidoDao.marcarFechaImportacion(procesados);
 
 		int[] descansos = sincronizarDescansos(resuelta, equiposConPartido);
 
