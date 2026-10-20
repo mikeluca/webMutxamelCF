@@ -52,6 +52,7 @@ class ModeracionServiceImplH2Test {
 
     private JdbcTemplate jdbc;
     private ComunicacionService comunicacionService;
+    private com.mikedev.mutxamelcf.dao.ComunicacionDao comunicacionDao;
     private UsuarioAppService usuarioAppService;
     private EquipoGestionDao equipoGestionDao;
     private DispositivoAppDao dispositivoAppDao;
@@ -65,6 +66,9 @@ class ModeracionServiceImplH2Test {
         EsquemaH2.crear(jdbc);
 
         comunicacionService = mock(ComunicacionService.class);
+        comunicacionDao = mock(com.mikedev.mutxamelcf.dao.ComunicacionDao.class);
+        // Por defecto los mensajes existen; un test concreto prueba el caso contrario.
+        when(comunicacionDao.obtenerPorId(anyLong())).thenReturn(new Comunicacion());
         usuarioAppService = mock(UsuarioAppService.class);
         equipoGestionDao = mock(EquipoGestionDao.class);
         dispositivoAppDao = mock(DispositivoAppDao.class);
@@ -84,7 +88,7 @@ class ModeracionServiceImplH2Test {
         }
 
         service = new ModeracionServiceImpl(
-                new ReporteComunicacionDaoImpl(jdbc), comunicacionService, usuarioAppService, equipoGestionDao,
+                new ReporteComunicacionDaoImpl(jdbc), comunicacionDao, comunicacionService, usuarioAppService, equipoGestionDao,
                 dispositivoAppDao, fcmPushService, Clock.fixed(AHORA.atZone(MADRID).toInstant(), MADRID));
     }
 
@@ -266,12 +270,34 @@ class ModeracionServiceImplH2Test {
     @Test
     void borrarMensajeSiYaNoExisteIgualResuelveElReporte() {
         Long id = reportar(40, REPORTADOR);
-        doThrow(new IllegalArgumentException("La comunicación no existe")).when(comunicacionService)
-                .eliminar(40L, ADMIN);
+        when(comunicacionDao.obtenerPorId(40L)).thenReturn(null);
 
         service.borrarMensaje(ADMIN, id, null);
 
+        // No se llama a eliminar(): su @Transactional dejaría la transacción en rollback-only.
+        verify(comunicacionService, never()).eliminar(anyLong(), anyLong());
         assertThat(estado(id)).isEqualTo("MENSAJE_BORRADO");
+    }
+
+    @Test
+    void otrosReportesDelAutorCuentaMensajesDistintosNoReportes() {
+        Long uno = reportar(40, REPORTADOR);
+        reportar(40, OTRO_REPORTADOR);   // mismo mensaje, otro reportador
+        reportar(41, REPORTADOR);        // otro mensaje del autor
+        service.registrarReporte(mensaje(42, OTRO_ADMIN), REPORTADOR, "x"); // de otro autor
+
+        ReporteModeracionResponse r = service.listar(ADMIN, null).stream()
+                .filter(x -> x.id().equals(uno)).findFirst().orElseThrow();
+
+        assertThat(r.otrosReportesDelAutor()).isEqualTo(1);
+    }
+
+    @Test
+    void cadaReporteIndicaSiElAutorEsAdmin() {
+        reportar(40, REPORTADOR);
+        when(usuarioAppService.tieneRol(AUTOR.intValue(), "ADMIN_APP")).thenReturn(true);
+
+        assertThat(service.listar(ADMIN, null).get(0).autor().esAdmin()).isTrue();
     }
 
     @Test

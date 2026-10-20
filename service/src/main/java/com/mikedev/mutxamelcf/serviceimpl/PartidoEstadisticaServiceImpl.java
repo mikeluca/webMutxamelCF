@@ -12,7 +12,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import java.time.Clock;
+
 import org.slf4j.Logger;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.stereotype.Service;
@@ -54,6 +61,8 @@ public class PartidoEstadisticaServiceImpl
     private final ResumenTemporadaDao resumenTemporadaDao;
     private final ComunicacionService comunicacionService;
     private final ReglaSancionAmarillas reglaSancion;
+    private final PlatformTransactionManager transactionManager;
+    private final Clock clock;
 
     public PartidoEstadisticaServiceImpl(
             PartidoDao partidoDao,
@@ -64,8 +73,12 @@ public class PartidoEstadisticaServiceImpl
             TemporadaDao temporadaDao,
             ResumenTemporadaDao resumenTemporadaDao,
             ComunicacionService comunicacionService,
-            ReglaSancionAmarillas reglaSancion) {
+            ReglaSancionAmarillas reglaSancion,
+            PlatformTransactionManager transactionManager,
+            Clock clock) {
 
+        this.transactionManager = transactionManager;
+        this.clock = clock;
         this.temporadaDao = temporadaDao;
         this.resumenTemporadaDao = resumenTemporadaDao;
         this.comunicacionService = comunicacionService;
@@ -124,7 +137,7 @@ public class PartidoEstadisticaServiceImpl
                 partido.getHora());
 
         if (fechaHoraPartido != null
-                && fechaHoraPartido.isAfter(LocalDateTime.now())) {
+                && fechaHoraPartido.isAfter(LocalDateTime.now(clock))) {
 
             throw new IllegalArgumentException(
                     "No se puede introducir el resultado de un partido que todavía no se ha jugado");
@@ -152,7 +165,7 @@ public class PartidoEstadisticaServiceImpl
                 request.getGolesFavor() + "-" + request.getGolesContra());
         partido.setUsuarioActualizoId(usuarioAppId);
         partido.setFechaActualizacion(
-                Timestamp.valueOf(LocalDateTime.now()));
+                Timestamp.valueOf(LocalDateTime.now(clock)));
 
         partidoDao.actualizar(partido);
 
@@ -205,7 +218,7 @@ public class PartidoEstadisticaServiceImpl
             return amarillas;
         }
 
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(clock);
         LocalDate desde = temporada.getFechaInicio() != null ? aLocalDate(temporada.getFechaInicio()) : LocalDate.of(1900, 1, 1);
         LocalDate hasta = temporada.getFechaFin() != null ? aLocalDate(temporada.getFechaFin()) : hoy.plusYears(1);
 
@@ -233,6 +246,13 @@ public class PartidoEstadisticaServiceImpl
      * o el jugador ve la roja en este partido (y no la tenía ya). Volver a guardar
      * sin nada nuevo no avisa. Si coinciden varias cosas, manda la más grave:
      * posible sanción por amarillas, roja, y por último "a una".
+     *
+     * Solo se avisa al llegar a un umbral MAYOR que el que ya había antes de este
+     * guardado (se compara el acumulado de antes y de después; si "después" no
+     * supera a "antes", no hay aviso), y la roja solo si en este partido pasa de 0
+     * a 1. Limitación: sin histórico de avisos no se puede saber qué umbrales se
+     * avisaron en guardados anteriores, así que bajar las amarillas en un guardado
+     * y volver a subirlas en otro puede avisar otra vez.
      */
     private void avisarTarjetas(
             Partido partido,
@@ -293,15 +313,51 @@ public class PartidoEstadisticaServiceImpl
             return;
         }
 
-        for (String aviso : avisos) {
+        // Una sola comunicación por guardado, con una línea por jugador.
+        Comunicacion comunicacion = new Comunicacion();
 
-            Comunicacion comunicacion = new Comunicacion();
+        comunicacion.setTitulo("Tarjetas");
+        comunicacion.setContenido(String.join("\n", avisos));
 
-            comunicacion.setTitulo("Tarjetas");
-            comunicacion.setContenido(aviso);
+        enviarTrasElCommit(comunicacion, destinatarios, usuarioAppId);
+    }
 
-            comunicacionService.crearPrivada(comunicacion, destinatarios, usuarioAppId);
+    /*
+     * El aviso se calcula dentro de la transacción del guardado pero se ENVÍA
+     * cuando esta ya se ha confirmado: un fallo al avisar nunca deshace el
+     * guardado. Crear la comunicación escribe en la base de datos, y en
+     * afterCommit la transacción ya está cerrada, así que se hace en una
+     * transacción nueva (REQUIRES_NEW).
+     */
+    private void enviarTrasElCommit(Comunicacion comunicacion, List<Long> destinatarios, Long usuarioAppId) {
+
+        Runnable envio = () -> {
+            try {
+
+                TransactionTemplate plantilla = new TransactionTemplate(transactionManager);
+                plantilla.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+
+                plantilla.executeWithoutResult(
+                        estado -> comunicacionService.crearPrivada(comunicacion, destinatarios, usuarioAppId));
+
+            } catch (Exception e) {
+
+                logger.error("No se ha podido enviar el aviso de tarjetas a {} destinatarios: {}",
+                        destinatarios.size(), e.getMessage(), e);
+            }
+        };
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    envio.run();
+                }
+            });
+            return;
         }
+
+        envio.run();
     }
 
     @Override

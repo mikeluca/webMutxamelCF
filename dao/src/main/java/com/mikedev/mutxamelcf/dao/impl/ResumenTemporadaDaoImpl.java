@@ -152,13 +152,15 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 				         WHERE CJ.JUGADOR_ID = J.ID
 				           AND P.CANCELADO = 0
 				           AND P.DIA BETWEEN ? AND ?
+				           AND P.EQUIPO_ID = ?
 				           AND (P.DIA < ? OR (P.DIA = ? AND NOT %s))) AS PARTIDOS
 				FROM JUGADORES J
 				JOIN EQUIPO E ON E.NOMBRE = J.EQUIPO
 				LEFT JOIN PARTIDO_ESTADISTICAS_JUGADOR EJ
 				       ON EJ.JUGADOR_ID = J.ID
 				      AND EJ.PARTIDO_ID IN (SELECT PP.ID FROM PARTIDOS PP
-				                             WHERE PP.CANCELADO = 0 AND PP.DIA BETWEEN ? AND ?)
+				                             WHERE PP.CANCELADO = 0 AND PP.EQUIPO_ID = ?
+				                               AND PP.DIA BETWEEN ? AND ?)
 				WHERE E.ID = ?
 				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, J.DORSAL
 				""".formatted(SIN_RESULTADO),
@@ -166,8 +168,10 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 						rs.getLong("ID"), nombreCompleto(rs), dorsal(rs),
 						rs.getInt("GOLES"), rs.getInt("ASISTENCIAS"), rs.getInt("AMARILLAS"), rs.getInt("ROJAS"),
 						rs.getInt("PARTIDOS")),
-				Date.valueOf(desde), Date.valueOf(hasta), Date.valueOf(hoy), Date.valueOf(hoy),
-				Date.valueOf(desde), Date.valueOf(hasta), equipoId);
+				// Los partidos se filtran por P.EQUIPO_ID = el equipo consultado (un jugador puede
+				// estar convocado en otro equipo y la sanción va por competición).
+				Date.valueOf(desde), Date.valueOf(hasta), equipoId, Date.valueOf(hoy), Date.valueOf(hoy),
+				equipoId, Date.valueOf(desde), Date.valueOf(hasta), equipoId);
 	}
 
 	@Override
@@ -184,7 +188,8 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 				LEFT JOIN ENTRENAMIENTO_ASISTENCIA A
 				       ON A.JUGADOR_ID = J.ID
 				      AND A.ENTRENAMIENTO_ID IN (SELECT EN.ID FROM ENTRENAMIENTOS EN
-				                                  WHERE EN.EQUIPO_ID = ? AND EN.FECHA BETWEEN ? AND ?)
+				                                  WHERE EN.EQUIPO_ID = ? AND EN.LISTA_REVISADA = 1
+				                                    AND EN.FECHA BETWEEN ? AND ?)
 				WHERE E.ID = ?
 				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, J.DORSAL
 				""",

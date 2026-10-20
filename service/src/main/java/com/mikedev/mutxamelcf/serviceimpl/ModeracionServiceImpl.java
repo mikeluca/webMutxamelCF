@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import com.mikedev.mutxamelcf.dao.ComunicacionDao;
 import com.mikedev.mutxamelcf.dao.DispositivoAppDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.ReporteComunicacionDao;
@@ -39,6 +40,7 @@ public class ModeracionServiceImpl implements ModeracionService {
 	static final int MAXIMO_TEXTO_COPIA = 300;
 
 	private final ReporteComunicacionDao reporteDao;
+	private final ComunicacionDao comunicacionDao;
 	private final ComunicacionService comunicacionService;
 	private final UsuarioAppService usuarioAppService;
 	private final EquipoGestionDao equipoGestionDao;
@@ -48,6 +50,7 @@ public class ModeracionServiceImpl implements ModeracionService {
 
 	public ModeracionServiceImpl(
 			ReporteComunicacionDao reporteDao,
+			ComunicacionDao comunicacionDao,
 			ComunicacionService comunicacionService,
 			UsuarioAppService usuarioAppService,
 			EquipoGestionDao equipoGestionDao,
@@ -56,6 +59,7 @@ public class ModeracionServiceImpl implements ModeracionService {
 			Clock clock) {
 
 		this.reporteDao = reporteDao;
+		this.comunicacionDao = comunicacionDao;
 		this.comunicacionService = comunicacionService;
 		this.usuarioAppService = usuarioAppService;
 		this.equipoGestionDao = equipoGestionDao;
@@ -237,15 +241,19 @@ public class ModeracionServiceImpl implements ModeracionService {
 
 	private void borrarComunicacion(ReporteComunicacion reporte, Long moderadorId) {
 
-		try {
-
-			comunicacionService.eliminar(reporte.comunicacionId(), moderadorId);
-
-		} catch (IllegalArgumentException e) {
+		/*
+		 * Se comprueba antes si existe en vez de capturar la excepción de eliminar():
+		 * su @Transactional marcaría esta transacción como rollback-only y el commit
+		 * acabaría en UnexpectedRollbackException.
+		 */
+		if (comunicacionDao.obtenerPorId(reporte.comunicacionId()) == null) {
 
 			// Ya estaba borrado (por su autor, por otro moderador...): el objetivo está cumplido.
-			logger.warn("El mensaje del reporte {} ya no existe: {}", reporte.id(), e.getMessage());
+			logger.warn("El mensaje del reporte {} ya no existe: no hay nada que borrar", reporte.id());
+			return;
 		}
+
+		comunicacionService.eliminar(reporte.comunicacionId(), moderadorId);
 	}
 
 	private void resolver(ReporteComunicacion reporte, String estado, Long moderadorId, String nota) {
@@ -302,15 +310,17 @@ public class ModeracionServiceImpl implements ModeracionService {
 	private ReporteModeracionResponse aRespuesta(ReporteComunicacion r) {
 
 		Autor autor = r.autorId() == null
-				? new Autor(null, null, false)
-				: new Autor(r.autorId(), nombreDe(r.autorId()), estaActivo(r.autorId()));
+				? new Autor(null, null, false, false)
+				: new Autor(r.autorId(), nombreDe(r.autorId()), estaActivo(r.autorId()),
+						usuarioAppService.tieneRol(r.autorId().intValue(), "ADMIN_APP"));
 
 		return new ReporteModeracionResponse(
 				r.id(), r.comunicacionId(), r.fechaReporte(), r.motivo(),
 				new Persona(r.reportadorId(), nombreDe(r.reportadorId())), autor,
 				r.tituloCopia(), r.contenidoCopia(), r.fechaMensaje(), r.estado(),
 				r.resueltoPorId() == null ? null : new Persona(r.resueltoPorId(), nombreDe(r.resueltoPorId())),
-				r.fechaResolucion(), r.notaResolucion(), reporteDao.contarDelAutor(r.autorId(), r.id()));
+				r.fechaResolucion(), r.notaResolucion(),
+				reporteDao.contarMensajesReportadosDelAutor(r.autorId(), r.comunicacionId()));
 	}
 
 	private String nombreDe(Long usuarioId) {

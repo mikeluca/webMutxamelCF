@@ -17,13 +17,14 @@ public record EstadisticasEquipoResponse(
     }
 
     /**
-     * sesiones: entrenamientos pasados contados; sesionesRevisadas: los que tienen
-     * la lista revisada; asistenciaMedia: % medio de asistencia del equipo (null
-     * si todavía no hay entrenamientos).
+     * sesiones: entrenamientos pasados; sesionesRevisadas: los que tienen la lista
+     * revisada; sesionesSinRevisar: el resto. asistenciaMedia y porJugador solo
+     * cuentan los de lista revisada (null si todavía no hay ninguno).
      */
     public record Entrenamientos(
             int sesiones,
             int sesionesRevisadas,
+            int sesionesSinRevisar,
             Integer asistenciaMedia,
             List<AsistenciaJugador> porJugador) {
     }

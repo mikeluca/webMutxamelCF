@@ -158,7 +158,7 @@ public class CoordinacionServiceImpl implements CoordinacionService {
 				.comparingInt((Jugador j) -> j.faltas() + j.malComportamiento()).reversed()
 				.thenComparing(Jugador::nombre, String.CASE_INSENSITIVE_ORDER));
 
-		return new SeguimientoJugadoresResponse(clave, rango[0], rango[1], jugadores);
+		return new SeguimientoJugadoresResponse(clave, dias, rango[0], rango[1], jugadores);
 	}
 
 	@Override
@@ -184,7 +184,7 @@ public class CoordinacionServiceImpl implements CoordinacionService {
 				.map(i -> new Incidencia(i.fecha(), i.estado()))
 				.toList();
 
-		return new Detalle(clave, rango[0], rango[1], aJugador(fila), incidencias);
+		return new Detalle(clave, dias, rango[0], rango[1], aJugador(fila), incidencias);
 	}
 
 	private Jugador aJugador(SeguimientoJugador fila) {

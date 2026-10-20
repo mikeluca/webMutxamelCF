@@ -26,6 +26,7 @@ import com.mikedev.mutxamelcf.model.UsuarioAppAdminResponse;
 import com.mikedev.mutxamelcf.model.VinculoSolicitado;
 import com.mikedev.mutxamelcf.mvc.communication.ComunicacionesService;
 import com.mikedev.mutxamelcf.mvc.communication.CuentaActivadaNotifier;
+import com.mikedev.mutxamelcf.mvc.communication.ReenvioActivacion;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
 import jakarta.validation.Valid;
@@ -44,11 +45,15 @@ public class AdminUsuariosAppController {
     private final ComunicacionesService comunicacionesService;
     private final CuentaActivadaNotifier cuentaActivadaNotifier;
 
+    private final ReenvioActivacion reenvioActivacion;
+
     public AdminUsuariosAppController(
             UsuarioAppService usuarioAppService,
             ComunicacionesService comunicacionesService,
-            CuentaActivadaNotifier cuentaActivadaNotifier) {
+            CuentaActivadaNotifier cuentaActivadaNotifier,
+            ReenvioActivacion reenvioActivacion) {
 
+        this.reenvioActivacion = reenvioActivacion;
         this.usuarioAppService = usuarioAppService;
         this.comunicacionesService = comunicacionesService;
         this.cuentaActivadaNotifier = cuentaActivadaNotifier;
@@ -202,17 +207,18 @@ public class AdminUsuariosAppController {
 
         try {
 
-            InvitacionUsuarioApp invitacion = usuarioAppService.reenviarInvitacion(id);
+            ReenvioActivacion.Resultado resultado = reenvioActivacion.desdePanel(id);
 
-            boolean enviado = comunicacionesService.enviarInvitacionApp(
-                    invitacion.getEmail(),
-                    invitacion.getNombrePersona(),
-                    invitacion.getTokenActivacion());
+            response.put("mensaje", "Invitación reenviada a " + resultado.email() + ".");
+            return ResponseEntity.ok(response);
 
-            if (enviado) {
-                response.put("mensaje", "Invitación reenviada a " + invitacion.getEmail() + ".");
-                return ResponseEntity.ok(response);
-            }
+        } catch (ReenvioActivacion.DemasiadoPronto e) {
+
+            response.put("error", "Ya se reenvió la activación a este usuario hace poco. "
+                    + "Inténtalo de nuevo en " + e.minutosRestantes() + " min.");
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(response);
+
+        } catch (ReenvioActivacion.EnvioFallido e) {
 
             response.put("error", "No se ha podido enviar el email. Inténtalo de nuevo en unos minutos.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);

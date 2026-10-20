@@ -22,7 +22,8 @@ public record ReporteModeracionResponse(
     public record Persona(Long id, String nombre) {
     }
 
-    public record Autor(Long id, String nombre, boolean activo) {
+    /** {@code esAdmin}: un ADMIN_APP no se puede desactivar desde la moderación. */
+    public record Autor(Long id, String nombre, boolean activo, boolean esAdmin) {
     }
 
     /** Cuerpo opcional de las acciones de moderación. */

@@ -58,7 +58,8 @@ class CoordinacionServiceImplH2Test {
                 CREATE TABLE PARTIDOS (
                     ID NUMBER PRIMARY KEY, EQUIPO_ID NUMBER, RIVAL VARCHAR2(50), DIA DATE, HORA VARCHAR2(20),
                     CANCELADO NUMBER(1) DEFAULT 0, RESULTADO VARCHAR2(20), GOLES_FAVOR NUMBER, GOLES_CONTRA NUMBER,
-                    ORIGEN VARCHAR2(10) DEFAULT 'MANUAL', ES_LOCAL NUMBER(1) DEFAULT 1, FECHA_ACTUALIZACION TIMESTAMP)""");
+                    ORIGEN VARCHAR2(10) DEFAULT 'MANUAL', ES_LOCAL NUMBER(1) DEFAULT 1, FECHA_ACTUALIZACION TIMESTAMP,
+                    FECHA_CREACION TIMESTAMP DEFAULT TIMESTAMP '2026-01-01 00:00:00' NOT NULL)""");
         jdbc.execute("CREATE TABLE CONVOCATORIAS (ID NUMBER PRIMARY KEY, PARTIDO_ID NUMBER)");
         jdbc.execute("""
                 CREATE TABLE DESCANSOS_EQUIPO (
@@ -256,6 +257,21 @@ class CoordinacionServiceImplH2Test {
     }
 
     @Test
+    void laUltimaImportacionTambienCuentaLaCreacionDeUnPartidoFfcvNuncaActualizado() {
+        long antiguo = partido(1, VIERNES, "10:00", false, null, null);
+        long nuevo = partido(1, VIERNES, "12:00", false, null, null);
+
+        // Uno actualizado el 14/10 y otro creado el 20/10 y todavía sin actualizar.
+        jdbc.update("UPDATE PARTIDOS SET ORIGEN = 'FFCV', FECHA_ACTUALIZACION = ? WHERE ID = ?",
+                java.sql.Timestamp.valueOf(LocalDateTime.of(2026, 10, 14, 9, 0)), antiguo);
+        jdbc.update("UPDATE PARTIDOS SET ORIGEN = 'FFCV', FECHA_CREACION = ? WHERE ID = ?",
+                java.sql.Timestamp.valueOf(LocalDateTime.of(2026, 10, 20, 7, 0)), nuevo);
+
+        assertThat(service.obtenerFinDeSemana(COORDINADOR, null).resumen().ultimaImportacionFfcv())
+                .isEqualTo(LocalDateTime.of(2026, 10, 20, 7, 0));
+    }
+
+    @Test
     void elResultadoPendienteUsaElMismoCriterioQueElRecordatorio() {
         // Mismo helper: mismas decisiones para resultado y para "terminado".
         assertThat(RecordatorioResultadoPartidoScheduler.HORAS_HASTA_EL_AVISO)
@@ -308,6 +324,7 @@ class CoordinacionServiceImplH2Test {
         SeguimientoJugadoresResponse r = service.obtenerSeguimientoJugadores(COORDINADOR, null);
 
         assertThat(r.periodo()).isEqualTo("30d");
+        assertThat(r.dias()).isEqualTo(30);
         assertThat(r.jugadores()).extracting(SeguimientoJugadoresResponse.Jugador::nombre,
                 SeguimientoJugadoresResponse.Jugador::motivo)
                 .containsExactly(

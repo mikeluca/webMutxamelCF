@@ -373,19 +373,61 @@ class EstadisticasEquipoServiceImplH2Test {
 
         assertThat(e.sesiones()).isEqualTo(4);
         assertThat(e.sesionesRevisadas()).isEqualTo(3);
+        assertThat(e.sesionesSinRevisar()).isEqualTo(1);
 
+        // El 4.º entrenamiento no tiene la lista revisada: no cuenta en los porcentajes
+        // (sus filas son las de por defecto, no asistencia real).
         assertThat(e.porJugador()).extracting(
                 EstadisticasEquipoResponse.AsistenciaJugador::nombre,
                 EstadisticasEquipoResponse.AsistenciaJugador::asistidos,
                 EstadisticasEquipoResponse.AsistenciaJugador::total,
                 EstadisticasEquipoResponse.AsistenciaJugador::porcentaje)
                 .containsExactly(
-                        org.assertj.core.groups.Tuple.tuple("Ana Ruiz", 1, 4, 25),
-                        org.assertj.core.groups.Tuple.tuple("Luis Lopez", 2, 4, 50),
-                        org.assertj.core.groups.Tuple.tuple("Pablo Garcia", 4, 4, 100));
+                        org.assertj.core.groups.Tuple.tuple("Ana Ruiz", 1, 3, 33),
+                        org.assertj.core.groups.Tuple.tuple("Luis Lopez", 2, 3, 67),
+                        org.assertj.core.groups.Tuple.tuple("Pablo Garcia", 3, 3, 100));
 
-        // (4 + 2 + 1) / 12 = 58,3 % -> 58
-        assertThat(e.asistenciaMedia()).isEqualTo(58);
+        // (3 + 2 + 1) / 9 = 66,7 % -> 67
+        assertThat(e.asistenciaMedia()).isEqualTo(67);
+    }
+
+    @Test
+    void sinNingunaListaRevisadaNoHayPorcentajesPeroSiSesionesSinRevisar() {
+        entrenamiento(INICIO.plusDays(3), "18:00", false, PABLO, "PRESENTE");
+        entrenamiento(INICIO.plusDays(5), "18:00", false, PABLO, "PRESENTE");
+
+        EstadisticasEquipoResponse.Entrenamientos e = service.obtenerEstadisticas(USUARIO, EQUIPO).entrenamientos();
+
+        assertThat(e.sesiones()).isEqualTo(2);
+        assertThat(e.sesionesSinRevisar()).isEqualTo(2);
+        assertThat(e.asistenciaMedia()).isNull();
+        assertThat(e.porJugador()).allSatisfy(j -> assertThat(j.porcentaje()).isNull());
+    }
+
+    @Test
+    void unJugadorConvocadoEnDosEquiposSoloSumaLosPartidosDelEquipoConsultado() {
+        // Pablo juega con el Cadete A (equipo 5) y es convocado también con el Cadete B (6).
+        long propio = partido(EQUIPO, INICIO.plusDays(5), false, 1, 0);
+        long ajeno = partido(OTRO_EQUIPO, INICIO.plusDays(6), false, 2, 0);
+
+        estadistica(propio, PABLO, 1, 0, 2, 0);
+        estadistica(ajeno, PABLO, 5, 3, 4, 1);
+
+        convocar(propio, PABLO);
+        convocar(ajeno, PABLO);
+
+        // Tarjetas: solo las del partido de este equipo (la sanción va por competición).
+        assertThat(tarjetasDe(PABLO).amarillas()).isEqualTo(2);
+        assertThat(tarjetasDe(PABLO).rojas()).isZero();
+        assertThat(tarjetasDe(PABLO).estado()).isEqualTo("OK");
+
+        EstadisticasEquipoResponse r = service.obtenerEstadisticas(USUARIO, EQUIPO);
+
+        EstadisticasEquipoResponse.Goleador pablo = r.goleadores().get(0);
+
+        assertThat(pablo.goles()).isEqualTo(1);
+        // Y los partidos jugados (subconsulta de convocatorias) también son solo los de este equipo.
+        assertThat(pablo.partidos()).isEqualTo(1);
     }
 
     @Test

@@ -23,8 +23,12 @@ public interface ReporteComunicacionDao {
 
     int contarPendientes();
 
-    /** Todos los reportes (pendientes y resueltos) del autor, salvo {@code excluirId}. */
-    int contarDelAutor(Long autorId, Long excluirId);
+    /**
+     * Mensajes distintos del autor que han sido reportados (con reportes pendientes o
+     * resueltos), sin contar el mensaje {@code excluirComunicacionId}: dos reportes de
+     * un mismo mensaje son un solo mensaje reportado.
+     */
+    int contarMensajesReportadosDelAutor(Long autorId, Long excluirComunicacionId);
 
     /**
      * Resuelve los reportes PENDIENTES de ese mensaje con el mismo estado; devuelve

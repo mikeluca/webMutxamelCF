@@ -110,14 +110,15 @@ public class ReporteComunicacionDaoImpl implements ReporteComunicacionDao {
 	}
 
 	@Override
-	public int contarDelAutor(Long autorId, Long excluirId) {
+	public int contarMensajesReportadosDelAutor(Long autorId, Long excluirComunicacionId) {
 		if (autorId == null) {
 			return 0;
 		}
 
 		Integer total = jdbcTemplate.queryForObject(
-				"SELECT COUNT(*) FROM REPORTES_COMUNICACION WHERE AUTOR_ID = ? AND ID <> ?",
-				Integer.class, autorId, excluirId == null ? -1L : excluirId);
+				"SELECT COUNT(DISTINCT COMUNICACION_ID) FROM REPORTES_COMUNICACION"
+						+ " WHERE AUTOR_ID = ? AND COMUNICACION_ID <> ?",
+				Integer.class, autorId, excluirComunicacionId == null ? -1L : excluirComunicacionId);
 
 		return total == null ? 0 : total;
 	}

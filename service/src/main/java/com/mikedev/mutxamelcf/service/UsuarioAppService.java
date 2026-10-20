@@ -69,15 +69,16 @@ public interface UsuarioAppService {
      * Cuentas con ACTIVO = 0, no eliminadas y nunca activadas (FECHA_ACTIVACION
      * null), de la más reciente a la más antigua.
      */
-    java.util.List<com.mikedev.mutxamelcf.model.UsuarioPendienteResponse> listarUsuariosPendientes();
+    java.util.List<com.mikedev.mutxamelcf.model.UsuarioPendienteResponse> listarUsuariosPendientes(int solicitanteId);
 
     /**
-     * Comprueba que la cuenta sigue pendiente de activar (IllegalStateException si
-     * ya está activa, la eliminó su titular o un administrador la desactivó) y
-     * reenvía la invitación con {@link #reenviarInvitacion(int)}: código nuevo,
-     * 48 h de validez y contador de intentos a cero.
+     * Comprueba que el solicitante es ADMIN_APP (SecurityException si no) y que la
+     * cuenta sigue pendiente de activar (IllegalStateException si ya está activa, la
+     * eliminó su titular o un administrador la desactivó) y reenvía la invitación con
+     * {@link #reenviarInvitacion(int)}: código nuevo, 48 h de validez y contador de
+     * intentos a cero.
      */
-    InvitacionUsuarioApp reenviarActivacionPendiente(int usuarioAppId);
+    InvitacionUsuarioApp reenviarActivacionPendiente(int solicitanteId, int usuarioAppId);
 
     void activarUsuarioAdmin(int usuarioAppId);
 

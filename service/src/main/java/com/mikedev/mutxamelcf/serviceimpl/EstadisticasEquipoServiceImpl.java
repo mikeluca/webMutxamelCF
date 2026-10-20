@@ -143,7 +143,7 @@ public class EstadisticasEquipoServiceImpl implements EstadisticasEquipoService 
 	private Entrenamientos entrenamientos(Long equipoId, Rango temporada, LocalDate hoy) {
 
 		if (temporada == null) {
-			return new Entrenamientos(0, 0, null, List.of());
+			return new Entrenamientos(0, 0, 0, null, List.of());
 		}
 
 		LocalDate ayer = hoy.minusDays(1);
@@ -183,9 +183,13 @@ public class EstadisticasEquipoServiceImpl implements EstadisticasEquipoService 
 
 				sesionesDeHoy.add(fila.entrenamientoId());
 
-				if (fila.listaRevisada()) {
-					revisadasDeHoy.add(fila.entrenamientoId());
+				// Sin la lista revisada las asistencias son las de por defecto (PRESENTE):
+				// cuenta como sesión, pero no en los porcentajes.
+				if (!fila.listaRevisada()) {
+					continue;
 				}
+
+				revisadasDeHoy.add(fila.entrenamientoId());
 
 				int[] total = totales.get(fila.jugadorId());
 
@@ -221,7 +225,8 @@ public class EstadisticasEquipoServiceImpl implements EstadisticasEquipoService 
 				.comparing(AsistenciaJugador::porcentaje, Comparator.nullsLast(Comparator.naturalOrder()))
 				.thenComparing(AsistenciaJugador::nombre, String.CASE_INSENSITIVE_ORDER));
 
-		return new Entrenamientos(sesiones, revisadas, porcentaje(sumaAsistidos, sumaTotal), porJugador);
+		return new Entrenamientos(sesiones, revisadas, sesiones - revisadas,
+				porcentaje(sumaAsistidos, sumaTotal), porJugador);
 	}
 
 	private static Integer porcentaje(int asistidos, int total) {

@@ -5,12 +5,15 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.stereotype.Component;
 
 /**
- * Como máximo un reenvío de activación por usuario cada 10 minutos. Vive en
- * memoria (no hay columna donde guardarlo): se pierde al reiniciar y no se
+ * Como máximo un reenvío de activación por usuario cada 10 minutos, tanto desde la
+ * app como desde el panel web. La marca se pone ANTES de enviar (de forma atómica,
+ * para que dos peticiones a la vez no pasen las dos) y se quita si el envío falla.
+ * Vive en memoria (no hay columna donde guardarlo): se pierde al reiniciar y no se
  * comparte entre instancias, lo que basta para frenar pulsaciones repetidas.
  */
 @Component
@@ -25,22 +28,36 @@ public class LimitadorReenvioActivacion {
         this.clock = clock;
     }
 
-    /** Cuánto falta para poder reenviar a ese usuario; {@link Duration#ZERO} si ya se puede. */
-    public Duration esperaRestante(int usuarioAppId) {
+    /**
+     * Intenta reservar el reenvío a ese usuario. Devuelve {@link Duration#ZERO} si
+     * se ha reservado (hay que enviar y, si falla, llamar a {@link #liberar(int)});
+     * si no, cuánto falta para poder volver a reenviar.
+     */
+    public Duration reservar(int usuarioAppId) {
 
-        Instant ultimo = ultimoReenvio.get(usuarioAppId);
+        AtomicReference<Duration> espera = new AtomicReference<>(Duration.ZERO);
+        Instant ahora = clock.instant();
 
-        if (ultimo == null) {
-            return Duration.ZERO;
-        }
+        ultimoReenvio.compute(usuarioAppId, (id, ultimo) -> {
 
-        Duration restante = INTERVALO.minus(Duration.between(ultimo, clock.instant()));
+            if (ultimo != null) {
 
-        return restante.isNegative() ? Duration.ZERO : restante;
+                Duration restante = INTERVALO.minus(Duration.between(ultimo, ahora));
+
+                if (!restante.isNegative() && !restante.isZero()) {
+                    espera.set(restante);
+                    return ultimo;
+                }
+            }
+
+            return ahora;
+        });
+
+        return espera.get();
     }
 
-    /** Anota un reenvío hecho ahora. */
-    public void registrar(int usuarioAppId) {
-        ultimoReenvio.put(usuarioAppId, clock.instant());
+    /** Quita la marca (el envío falló: se puede reintentar al momento). */
+    public void liberar(int usuarioAppId) {
+        ultimoReenvio.remove(usuarioAppId);
     }
 }

@@ -722,6 +722,28 @@ class UsuarioAppServiceImplTest {
                 .hasMessageContaining("ya está activa");
     }
 
+    /** El usuario 99 es ADMIN_APP. */
+    private void administrador() {
+        RolApp admin = new RolApp();
+        admin.setCodigo("ADMIN_APP");
+        when(rolAppDao.obtenerPorUsuario(99)).thenReturn(List.of(admin));
+    }
+
+    @Test
+    void soloUnAdminAppPuedeListarOReenviarCuentasPendientes() {
+        RolApp coordinador = new RolApp();
+        coordinador.setCodigo("COORDINADOR");
+        when(rolAppDao.obtenerPorUsuario(5)).thenReturn(List.of(coordinador));
+        when(rolAppDao.obtenerPorUsuario(6)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.listarUsuariosPendientes(5)).isInstanceOf(SecurityException.class);
+        assertThatThrownBy(() -> service.reenviarActivacionPendiente(5, 8)).isInstanceOf(SecurityException.class);
+        assertThatThrownBy(() -> service.reenviarActivacionPendiente(6, 8)).isInstanceOf(SecurityException.class);
+
+        verify(usuarioAppDao, never()).listarTodos();
+        verify(usuarioAppDao, never()).actualizarTokenActivacion(anyInt(), anyString(), any());
+    }
+
     private UsuarioApp pendiente(int id, String email, Instant alta, Instant caducidad) {
         UsuarioApp usuario = new UsuarioApp();
         usuario.setId(id);
@@ -756,11 +778,12 @@ class UsuarioAppServiceImplTest {
         RolApp rol = new RolApp();
         rol.setCodigo("JUGADOR");
         when(rolAppDao.obtenerPorUsuario(anyInt())).thenReturn(List.of(rol));
+        administrador();
         when(usuarioAppVinculoDao.obtenerVinculos(1))
                 .thenReturn(List.of(new VinculoUsuarioApp("JUGADOR", 7L, "Pablo Garcia")));
         when(usuarioAppVinculoDao.obtenerVinculos(2)).thenReturn(List.of());
 
-        var pendientes = service.listarUsuariosPendientes();
+        var pendientes = service.listarUsuariosPendientes(99);
 
         // Por fecha de alta descendente.
         assertThat(pendientes).extracting(p -> p.id()).containsExactly(1, 2);
@@ -774,12 +797,13 @@ class UsuarioAppServiceImplTest {
     @Test
     void reenviarActivacionPendienteCambiaElCodigoLaCaducidadYReiniciaIntentos() {
         Instant ahora = Instant.now();
+        administrador();
         UsuarioApp pendiente = pendiente(8, "nuevo@x.es", ahora.minus(3, ChronoUnit.DAYS), ahora.minus(1, ChronoUnit.DAYS));
 
         when(usuarioAppDao.obtenerPorId(8)).thenReturn(pendiente);
         when(usuarioAppVinculoDao.obtenerVinculos(8)).thenReturn(List.of());
 
-        InvitacionUsuarioApp invitacion = service.reenviarActivacionPendiente(8);
+        InvitacionUsuarioApp invitacion = service.reenviarActivacionPendiente(99, 8);
 
         assertThat(invitacion.getEmail()).isEqualTo("nuevo@x.es");
         assertThat(invitacion.getTokenActivacion()).isNotBlank();
@@ -798,6 +822,7 @@ class UsuarioAppServiceImplTest {
     void reenviarActivacionPendienteRechazaYaActivasYDesactivadasPorUnAdmin() {
         Instant ahora = Instant.now();
 
+        administrador();
         UsuarioApp activa = pendiente(9, "a@x.es", ahora, null);
         activa.setActivo(true);
 
@@ -808,11 +833,11 @@ class UsuarioAppServiceImplTest {
         when(usuarioAppDao.obtenerPorId(10)).thenReturn(desactivada);
         when(usuarioAppDao.obtenerPorId(11)).thenReturn(null);
 
-        assertThatThrownBy(() -> service.reenviarActivacionPendiente(9))
+        assertThatThrownBy(() -> service.reenviarActivacionPendiente(99, 9))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("ya está activa");
-        assertThatThrownBy(() -> service.reenviarActivacionPendiente(10))
+        assertThatThrownBy(() -> service.reenviarActivacionPendiente(99, 10))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("desactivada");
-        assertThatThrownBy(() -> service.reenviarActivacionPendiente(11))
+        assertThatThrownBy(() -> service.reenviarActivacionPendiente(99, 11))
                 .isInstanceOf(IllegalArgumentException.class);
 
         verify(usuarioAppDao, never()).actualizarTokenActivacion(anyInt(), anyString(), any());

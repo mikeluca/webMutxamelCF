@@ -75,7 +75,9 @@ class PartidoEstadisticaServiceImplTest {
     void setUp() {
         service = new PartidoEstadisticaServiceImpl(
                 partidoDao, estadisticaJugadorDao, equipoGestionDao, convocatoriaDao, convocatoriaJugadorDao,
-                temporadaDao, resumenTemporadaDao, comunicacionService, new ReglaSancionAmarillas(5, 1));
+                temporadaDao, resumenTemporadaDao, comunicacionService, new ReglaSancionAmarillas(5, 1),
+                org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class),
+                java.time.Clock.systemDefaultZone());
     }
 
     private static Date fechaHaceDias(long dias) {
@@ -339,6 +341,73 @@ class PartidoEstadisticaServiceImplTest {
         service.guardar(USUARIO_ID, PARTIDO_ID, conAmarillas(1, false));
 
         verify(comunicacionService).crearPrivada(any(Comunicacion.class), eq(List.of(3L)), eq(USUARIO_ID));
+    }
+
+    @Test
+    void unFalloAlEnviarElAvisoNoDeshaceElGuardado() {
+        prepararGuardado(4, 5, false);
+        when(comunicacionService.crearPrivada(any(Comunicacion.class), any(), any()))
+                .thenThrow(new RuntimeException("push caído"));
+
+        PartidoEstadisticasResponse respuesta = service.guardar(USUARIO_ID, PARTIDO_ID, conAmarillas(1, false));
+
+        // El guardado termina bien y devuelve su respuesta.
+        assertThat(respuesta.getPartidoId()).isEqualTo(PARTIDO_ID);
+        verify(estadisticaJugadorDao).guardar(any(PartidoEstadisticaJugador.class));
+    }
+
+    @Test
+    void conVariosJugadoresSeEnviaUnaSolaComunicacionConUnaLineaPorJugador() {
+        Long otro = 31L;
+
+        when(partidoDao.obtenerPorId(PARTIDO_ID)).thenReturn(partidoJugadoAyer());
+        when(equipoGestionDao.puedeGestionarEquipo(USUARIO_ID, EQUIPO_ID)).thenReturn(true);
+        when(convocatoriaDao.obtenerPorPartidoId(PARTIDO_ID)).thenReturn(null);
+        when(equipoGestionDao.obtenerJugadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of(JUGADOR_ID, otro));
+        when(estadisticaJugadorDao.obtenerPorPartido(PARTIDO_ID)).thenReturn(List.of());
+
+        Temporada temporada = new Temporada();
+        temporada.setFechaInicio(fechaHaceDias(200));
+        temporada.setFechaFin(fechaEnDias(100));
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporada);
+
+        when(resumenTemporadaDao.estadisticasJugadoresDelEquipo(any(), any(), any(), any())).thenReturn(
+                List.of(totales(3), new EstadisticasJugadorEquipo(otro, "Luis", 4, 0, 0, 4, 0, 1)),
+                List.of(totales(4), new EstadisticasJugadorEquipo(otro, "Luis", 4, 0, 0, 5, 0, 1)));
+
+        when(equipoGestionDao.obtenerNombreJugador(JUGADOR_ID)).thenReturn("Pablo");
+        when(equipoGestionDao.obtenerNombreJugador(otro)).thenReturn("Luis");
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of(USUARIO_ID, 2L));
+
+        service.guardar(USUARIO_ID, PARTIDO_ID, new PartidoEstadisticasGuardarRequest(0, 0, List.of(
+                new PartidoEstadisticaJugadorRequest(JUGADOR_ID, 0, 0, 1, false),
+                new PartidoEstadisticaJugadorRequest(otro, 0, 0, 1, false))));
+
+        // Una única comunicación, no una por jugador.
+        assertThat(avisoEnviado().getContenido()).isEqualTo(
+                "Pablo acumula 4 amarillas: a una de posible sanción.\n"
+                        + "Luis llega a 5 amarillas: posible sanción. Compruébalo en la FFCV.");
+    }
+
+    @Test
+    void noSeAvisaDeUnUmbralYaAlcanzadoNiAlBajarLasAmarillas() {
+        // Ya estaba en 5 (posible sanción) y sigue en 5: ningún umbral nuevo.
+        prepararGuardado(5, 5, false);
+
+        service.guardar(USUARIO_ID, PARTIDO_ID, conAmarillas(1, false));
+
+        verify(comunicacionService, never()).crearPrivada(any(), any(), any());
+    }
+
+    @Test
+    void alBajarLasAmarillasEnUnGuardadoNoSeAvisa() {
+        // Se edita a la baja (5 -> 4): no hay aviso. Limitación documentada: volver a subir
+        // a 5 en OTRO guardado avisaría de nuevo, porque no hay histórico de avisos.
+        prepararGuardado(5, 4, false);
+
+        service.guardar(USUARIO_ID, PARTIDO_ID, conAmarillas(0, false));
+
+        verify(comunicacionService, never()).crearPrivada(any(), any(), any());
     }
 
     // ---------- obtener ----------

@@ -735,7 +735,9 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
     }
 
     @Override
-    public List<com.mikedev.mutxamelcf.model.UsuarioPendienteResponse> listarUsuariosPendientes() {
+    public List<com.mikedev.mutxamelcf.model.UsuarioPendienteResponse> listarUsuariosPendientes(int solicitanteId) {
+
+        exigirAdminApp(solicitanteId);
 
         Timestamp ahora = Timestamp.from(Instant.now());
 
@@ -757,6 +759,13 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
                 .toList();
     }
 
+    private void exigirAdminApp(int solicitanteId) {
+
+        if (solicitanteId <= 0 || !tieneRol(solicitanteId, "ADMIN_APP")) {
+            throw new SecurityException("Solo un administrador puede gestionar las cuentas pendientes");
+        }
+    }
+
     private static int compararFechaAltaDescendente(UsuarioApp a, UsuarioApp b) {
 
         if (a.getFechaAlta() == null || b.getFechaAlta() == null) {
@@ -767,7 +776,9 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
     }
 
     @Override
-    public InvitacionUsuarioApp reenviarActivacionPendiente(int usuarioAppId) {
+    public InvitacionUsuarioApp reenviarActivacionPendiente(int solicitanteId, int usuarioAppId) {
+
+        exigirAdminApp(solicitanteId);
 
         UsuarioApp usuario = usuarioAppDao.obtenerPorId(usuarioAppId);
 

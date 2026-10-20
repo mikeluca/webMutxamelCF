@@ -41,7 +41,12 @@ class AdminUsuariosAppControllerTest {
         usuarioAppService = mock(UsuarioAppService.class);
         comunicacionesService = mock(ComunicacionesService.class);
         cuentaActivadaNotifier = mock(CuentaActivadaNotifier.class);
-        controller = new AdminUsuariosAppController(usuarioAppService, comunicacionesService, cuentaActivadaNotifier);
+        controller = new AdminUsuariosAppController(
+                usuarioAppService, comunicacionesService, cuentaActivadaNotifier,
+                new com.mikedev.mutxamelcf.mvc.communication.ReenvioActivacion(
+                        usuarioAppService, comunicacionesService,
+                        new com.mikedev.mutxamelcf.serviceimpl.LimitadorReenvioActivacion(
+                                java.time.Clock.systemUTC())));
     }
 
     private static InvitarUsuarioAppRequest request() {

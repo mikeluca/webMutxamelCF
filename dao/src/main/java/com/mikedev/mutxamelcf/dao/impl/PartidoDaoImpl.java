@@ -5,12 +5,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -60,8 +63,17 @@ public class PartidoDaoImpl implements PartidoDao {
 
 	private final JdbcTemplate jdbcTemplate;
 
-	public PartidoDaoImpl(JdbcTemplate jdbcTemplate) {
+	private final Clock clock;
+
+	@Autowired
+	public PartidoDaoImpl(JdbcTemplate jdbcTemplate, Clock clock) {
 		this.jdbcTemplate = jdbcTemplate;
+		this.clock = clock;
+	}
+
+	/** Con el reloj de Madrid (para los tests y usos sin Spring). */
+	public PartidoDaoImpl(JdbcTemplate jdbcTemplate) {
+		this(jdbcTemplate, Clock.system(ZoneId.of("Europe/Madrid")));
 	}
 
 	@Override
@@ -79,9 +91,10 @@ public class PartidoDaoImpl implements PartidoDao {
 				    TIPO,
 				    ORIGEN,
 				    JORNADA,
-				    ES_LOCAL
+				    ES_LOCAL,
+				    FECHA_ACTUALIZACION
 				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""";
 
 		KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -113,6 +126,14 @@ public class PartidoDaoImpl implements PartidoDao {
 			}
 
 			ps.setInt(10, partido.isLocal() ? 1 : 0);
+
+			// Un partido del importador deja constancia de cuándo se importó (el panel de
+			// coordinación muestra la última importación).
+			if (Partido.ORIGEN_FFCV.equals(partido.getOrigen())) {
+				ps.setTimestamp(11, Timestamp.valueOf(LocalDateTime.now(clock)));
+			} else {
+				ps.setNull(11, Types.TIMESTAMP);
+			}
 
 			return ps;
 		}, keyHolder);
@@ -428,12 +449,14 @@ public class PartidoDaoImpl implements PartidoDao {
 		 * resultado, los goles ni el resto de datos del partido.
 		 */
 		int filasAfectadas = jdbcTemplate.update(
-				"UPDATE PARTIDOS SET RIVAL = ?, HORA = ?, CAMPO = ?, JORNADA = ?, ES_LOCAL = ? WHERE ID = ? AND ORIGEN = 'FFCV'",
+				"UPDATE PARTIDOS SET RIVAL = ?, HORA = ?, CAMPO = ?, JORNADA = ?, ES_LOCAL = ?,"
+						+ " FECHA_ACTUALIZACION = ? WHERE ID = ? AND ORIGEN = 'FFCV'",
 				partido.getRival(),
 				partido.getHora(),
 				partido.getCampo(),
 				partido.getJornada(),
 				partido.isLocal() ? 1 : 0,
+				Timestamp.valueOf(LocalDateTime.now(clock)),
 				partido.getId());
 
 		logger.info("Partido FFCV actualizado: id={}, filasAfectadas={}", partido.getId(), filasAfectadas);
