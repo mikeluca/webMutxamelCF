@@ -722,6 +722,102 @@ class UsuarioAppServiceImplTest {
                 .hasMessageContaining("ya está activa");
     }
 
+    private UsuarioApp pendiente(int id, String email, Instant alta, Instant caducidad) {
+        UsuarioApp usuario = new UsuarioApp();
+        usuario.setId(id);
+        usuario.setEmail(email);
+        usuario.setActivo(false);
+        usuario.setFechaAlta(Timestamp.from(alta));
+        usuario.setFechaExpiracionToken(caducidad == null ? null : Timestamp.from(caducidad));
+        usuario.setIntentosActivacion(2);
+        return usuario;
+    }
+
+    @Test
+    void listarUsuariosPendientesSoloDevuelveLasNuncaActivadasNiEliminadasNiActivas() {
+        Instant ahora = Instant.now();
+
+        UsuarioApp reciente = pendiente(1, "reciente@x.es", ahora.minus(1, ChronoUnit.DAYS), ahora.plus(1, ChronoUnit.DAYS));
+        UsuarioApp antigua = pendiente(2, "antigua@x.es", ahora.minus(10, ChronoUnit.DAYS), ahora.minus(8, ChronoUnit.DAYS));
+
+        UsuarioApp activa = pendiente(3, "activa@x.es", ahora.minus(5, ChronoUnit.DAYS), null);
+        activa.setActivo(true);
+        activa.setFechaActivacion(Timestamp.from(ahora.minus(4, ChronoUnit.DAYS)));
+
+        // Se activó alguna vez y un admin la desactivó: no está pendiente.
+        UsuarioApp desactivada = pendiente(4, "baja@x.es", ahora.minus(5, ChronoUnit.DAYS), null);
+        desactivada.setFechaActivacion(Timestamp.from(ahora.minus(4, ChronoUnit.DAYS)));
+
+        UsuarioApp eliminada = pendiente(5, "eliminada@x.es", ahora.minus(5, ChronoUnit.DAYS), null);
+        eliminada.setFechaEliminacion(Timestamp.from(ahora.minus(1, ChronoUnit.DAYS)));
+
+        when(usuarioAppDao.listarTodos()).thenReturn(List.of(antigua, activa, desactivada, eliminada, reciente));
+
+        RolApp rol = new RolApp();
+        rol.setCodigo("JUGADOR");
+        when(rolAppDao.obtenerPorUsuario(anyInt())).thenReturn(List.of(rol));
+        when(usuarioAppVinculoDao.obtenerVinculos(1))
+                .thenReturn(List.of(new VinculoUsuarioApp("JUGADOR", 7L, "Pablo Garcia")));
+        when(usuarioAppVinculoDao.obtenerVinculos(2)).thenReturn(List.of());
+
+        var pendientes = service.listarUsuariosPendientes();
+
+        // Por fecha de alta descendente.
+        assertThat(pendientes).extracting(p -> p.id()).containsExactly(1, 2);
+        assertThat(pendientes.get(0).tokenCaducado()).isFalse();
+        assertThat(pendientes.get(1).tokenCaducado()).isTrue();
+        assertThat(pendientes.get(0).vinculos()).containsExactly("Pablo Garcia");
+        assertThat(pendientes.get(0).roles()).containsExactly("JUGADOR");
+        assertThat(pendientes.get(0).intentosActivacion()).isEqualTo(2);
+    }
+
+    @Test
+    void reenviarActivacionPendienteCambiaElCodigoLaCaducidadYReiniciaIntentos() {
+        Instant ahora = Instant.now();
+        UsuarioApp pendiente = pendiente(8, "nuevo@x.es", ahora.minus(3, ChronoUnit.DAYS), ahora.minus(1, ChronoUnit.DAYS));
+
+        when(usuarioAppDao.obtenerPorId(8)).thenReturn(pendiente);
+        when(usuarioAppVinculoDao.obtenerVinculos(8)).thenReturn(List.of());
+
+        InvitacionUsuarioApp invitacion = service.reenviarActivacionPendiente(8);
+
+        assertThat(invitacion.getEmail()).isEqualTo("nuevo@x.es");
+        assertThat(invitacion.getTokenActivacion()).isNotBlank();
+
+        org.mockito.ArgumentCaptor<Timestamp> caducidad = org.mockito.ArgumentCaptor.forClass(Timestamp.class);
+
+        // El código se guarda con hash (nunca en claro), con 48 h de validez; actualizarTokenActivacion
+        // también deja INTENTOS_ACTIVACION a cero.
+        verify(usuarioAppDao).actualizarTokenActivacion(
+                eq(8), eq(TokenUtils.hashToken(invitacion.getTokenActivacion())), caducidad.capture());
+        assertThat(caducidad.getValue().toInstant())
+                .isBetween(ahora.plus(47, ChronoUnit.HOURS), Instant.now().plus(48, ChronoUnit.HOURS));
+    }
+
+    @Test
+    void reenviarActivacionPendienteRechazaYaActivasYDesactivadasPorUnAdmin() {
+        Instant ahora = Instant.now();
+
+        UsuarioApp activa = pendiente(9, "a@x.es", ahora, null);
+        activa.setActivo(true);
+
+        UsuarioApp desactivada = pendiente(10, "b@x.es", ahora, null);
+        desactivada.setFechaActivacion(Timestamp.from(ahora.minus(2, ChronoUnit.DAYS)));
+
+        when(usuarioAppDao.obtenerPorId(9)).thenReturn(activa);
+        when(usuarioAppDao.obtenerPorId(10)).thenReturn(desactivada);
+        when(usuarioAppDao.obtenerPorId(11)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.reenviarActivacionPendiente(9))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("ya está activa");
+        assertThatThrownBy(() -> service.reenviarActivacionPendiente(10))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("desactivada");
+        assertThatThrownBy(() -> service.reenviarActivacionPendiente(11))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(usuarioAppDao, never()).actualizarTokenActivacion(anyInt(), anyString(), any());
+    }
+
     @Test
     void desactivarUsuarioAdminDeUnUsuarioInexistenteLanzaExcepcion() {
         when(usuarioAppDao.obtenerPorId(99)).thenReturn(null);

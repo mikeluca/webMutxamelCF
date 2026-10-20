@@ -1,6 +1,7 @@
 package com.mikedev.mutxamelcf.mvc.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
@@ -25,6 +26,7 @@ import com.mikedev.mutxamelcf.model.RolApp;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
 import com.mikedev.mutxamelcf.mvc.communication.ComunicacionesService;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
+import com.mikedev.mutxamelcf.service.ModeracionService;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
 class AppReporteComunicacionControllerTest {
@@ -39,9 +41,13 @@ class AppReporteComunicacionControllerTest {
         comunicacionService = mock(ComunicacionService.class);
         usuarioAppService = mock(UsuarioAppService.class);
         comunicacionesService = mock(ComunicacionesService.class);
+        moderacionService = mock(ModeracionService.class);
+        when(moderacionService.registrarReporte(any(Comunicacion.class), any(), any())).thenReturn(77L);
         controller = new AppReporteComunicacionController(
-                comunicacionService, usuarioAppService, comunicacionesService);
+                comunicacionService, usuarioAppService, comunicacionesService, moderacionService);
     }
+
+    private ModeracionService moderacionService;
 
     private static Authentication autenticado(String nombre) {
         Authentication auth = new TestingAuthenticationToken(nombre, null);
@@ -137,7 +143,7 @@ class AppReporteComunicacionControllerTest {
     }
 
     @Test
-    void devuelve503SiNoSePuedeEnviarElEmail() {
+    void siFallaElEmailResponde204PorqueElReporteYaEstaGuardado() {
         when(comunicacionService.obtenerPorId(40L, 5L)).thenReturn(mensaje(8L));
         when(usuarioAppService.obtenerPorId(5)).thenReturn(usuario(5, "reporta@x.es"));
         when(usuarioAppService.obtenerPorId(8)).thenReturn(usuario(8, "autor@x.es"));
@@ -145,6 +151,30 @@ class AppReporteComunicacionControllerTest {
                 .thenReturn(false);
 
         assertThat(controller.reportar(40L, request("x"), autenticado("5")).getStatusCode())
-                .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        verify(moderacionService).registrarReporte(any(Comunicacion.class), eq(5L), eq("x"));
+    }
+
+    @Test
+    void siElEmailLanzaUnaExcepcionTambienResponde204() {
+        when(comunicacionService.obtenerPorId(40L, 5L)).thenReturn(mensaje(8L));
+        when(usuarioAppService.obtenerPorId(5)).thenReturn(usuario(5, "reporta@x.es"));
+        when(usuarioAppService.obtenerPorId(8)).thenReturn(usuario(8, "autor@x.es"));
+        when(comunicacionesService.enviarReporteContenido(anyString(), anyString(), anyString()))
+                .thenThrow(new RuntimeException("smtp caído"));
+
+        assertThat(controller.reportar(40L, request("x"), autenticado("5")).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+    }
+
+    @Test
+    void siYaLoHabiaReportadoResponde204SinReenviarElEmail() {
+        when(comunicacionService.obtenerPorId(40L, 5L)).thenReturn(mensaje(8L));
+        when(usuarioAppService.obtenerPorId(5)).thenReturn(usuario(5, "reporta@x.es"));
+        when(moderacionService.registrarReporte(any(Comunicacion.class), eq(5L), anyString())).thenReturn(null);
+
+        assertThat(controller.reportar(40L, request("x"), autenticado("5")).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        verify(comunicacionesService, never()).enviarReporteContenido(anyString(), anyString(), anyString());
     }
 }

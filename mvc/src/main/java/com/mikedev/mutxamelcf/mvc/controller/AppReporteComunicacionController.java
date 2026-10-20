@@ -21,14 +21,16 @@ import com.mikedev.mutxamelcf.model.RolApp;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
 import com.mikedev.mutxamelcf.mvc.communication.ComunicacionesService;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
+import com.mikedev.mutxamelcf.service.ModeracionService;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
 import jakarta.validation.Valid;
 
 /**
  * Denuncia de un mensaje o comunicación por parte de un usuario de la
- * app (Apple Guideline 1.2). No se guarda nada: se avisa al club por
- * email con los datos relevantes para que lo revise.
+ * app (Apple Guideline 1.2). Se guarda en la cola de moderación (ADMIN_APP
+ * recibe un push) y además se avisa al club por email con los datos
+ * relevantes para que lo revise.
  */
 @RestController
 @RequestMapping("/api/app/comunicaciones")
@@ -42,11 +44,15 @@ public class AppReporteComunicacionController {
     private final UsuarioAppService usuarioAppService;
     private final ComunicacionesService comunicacionesService;
 
+    private final ModeracionService moderacionService;
+
     public AppReporteComunicacionController(
             ComunicacionService comunicacionService,
             UsuarioAppService usuarioAppService,
-            ComunicacionesService comunicacionesService) {
+            ComunicacionesService comunicacionesService,
+            ModeracionService moderacionService) {
 
+        this.moderacionService = moderacionService;
         this.comunicacionService = comunicacionService;
         this.usuarioAppService = usuarioAppService;
         this.comunicacionesService = comunicacionesService;
@@ -86,21 +92,37 @@ public class AppReporteComunicacionController {
                     ? request.getMotivo().trim()
                     : "(sin motivo indicado)";
 
-            String asunto = "REPORTE de contenido en la app (mensaje " + comunicacion.getId() + ")";
+            // Primero la cola de moderación (con el aviso push a ADMIN_APP): si el mismo
+            // usuario ya había reportado este mensaje, no se duplica nada ni se reenvía el email.
+            Long reporteId = moderacionService.registrarReporte(comunicacion, reportanteId, motivo);
 
-            boolean enviado = comunicacionesService.enviarReporteContenido(
-                    asunto,
-                    construirCuerpo(comunicacion, reportanteId, reportante, motivo),
-                    reportante != null ? reportante.getEmail() : null);
-
-            if (!enviado) {
-                return ResponseEntity
-                        .status(HttpStatus.SERVICE_UNAVAILABLE)
-                        .body("No se ha podido enviar el reporte. Inténtalo de nuevo más tarde.");
+            if (reporteId == null) {
+                return ResponseEntity.noContent().build();
             }
 
-            logger.info("Reporte de contenido enviado: comunicacionId={}, reportanteId={}",
-                    comunicacion.getId(), reportanteId);
+            String asunto = "REPORTE de contenido en la app (mensaje " + comunicacion.getId() + ")";
+
+            // El reporte ya está guardado: si el email falla se deja constancia y se responde igual.
+            try {
+
+                boolean enviado = comunicacionesService.enviarReporteContenido(
+                        asunto,
+                        construirCuerpo(comunicacion, reportanteId, reportante, motivo),
+                        reportante != null ? reportante.getEmail() : null);
+
+                if (!enviado) {
+                    logger.error("No se ha podido enviar el email del reporte {} (mensaje {})",
+                            reporteId, comunicacion.getId());
+                }
+
+            } catch (Exception e) {
+
+                logger.error("Fallo al enviar el email del reporte {} (mensaje {}): {}",
+                        reporteId, comunicacion.getId(), e.getMessage());
+            }
+
+            logger.info("Reporte de contenido registrado: reporteId={}, comunicacionId={}, reportanteId={}",
+                    reporteId, comunicacion.getId(), reportanteId);
 
             return ResponseEntity.noContent().build();
 

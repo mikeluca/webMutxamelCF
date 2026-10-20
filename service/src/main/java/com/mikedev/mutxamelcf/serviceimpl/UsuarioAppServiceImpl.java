@@ -735,6 +735,60 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
     }
 
     @Override
+    public List<com.mikedev.mutxamelcf.model.UsuarioPendienteResponse> listarUsuariosPendientes() {
+
+        Timestamp ahora = Timestamp.from(Instant.now());
+
+        return usuarioAppDao.listarTodos().stream()
+                .filter(u -> !u.isActivo() && !u.isEliminada() && u.getFechaActivacion() == null)
+                .sorted((a, b) -> compararFechaAltaDescendente(a, b))
+                .map(u -> new com.mikedev.mutxamelcf.model.UsuarioPendienteResponse(
+                        u.getId(),
+                        u.getEmail(),
+                        u.getNombre(),
+                        u.getApellidos(),
+                        obtenerRoles(u.getId()).stream().map(RolApp::getCodigo).distinct().toList(),
+                        usuarioAppVinculoDao.obtenerVinculos(u.getId()).stream()
+                                .map(VinculoUsuarioApp::getNombreCompleto)
+                                .toList(),
+                        u.getFechaAlta(),
+                        u.getFechaExpiracionToken() != null && u.getFechaExpiracionToken().before(ahora),
+                        u.getIntentosActivacion()))
+                .toList();
+    }
+
+    private static int compararFechaAltaDescendente(UsuarioApp a, UsuarioApp b) {
+
+        if (a.getFechaAlta() == null || b.getFechaAlta() == null) {
+            return a.getFechaAlta() == null ? (b.getFechaAlta() == null ? 0 : 1) : -1;
+        }
+
+        return b.getFechaAlta().compareTo(a.getFechaAlta());
+    }
+
+    @Override
+    public InvitacionUsuarioApp reenviarActivacionPendiente(int usuarioAppId) {
+
+        UsuarioApp usuario = usuarioAppDao.obtenerPorId(usuarioAppId);
+
+        if (usuario == null) {
+            throw new IllegalArgumentException("El usuario no existe");
+        }
+
+        if (usuario.isActivo()) {
+            throw new IllegalStateException("La cuenta ya está activa");
+        }
+
+        // Ya se activó alguna vez: está desactivada por un administrador, no pendiente.
+        if (usuario.getFechaActivacion() != null) {
+            throw new IllegalStateException(
+                    "La cuenta fue desactivada por un administrador: no se puede reenviar la activación");
+        }
+
+        return reenviarInvitacion(usuarioAppId);
+    }
+
+    @Override
     public void actualizarNombre(int usuarioAppId, String nombre, String apellidos) {
 
         UsuarioApp usuario = usuarioAppDao.obtenerPorId(usuarioAppId);
