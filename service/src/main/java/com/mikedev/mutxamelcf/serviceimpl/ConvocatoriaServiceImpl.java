@@ -352,6 +352,11 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         "No se puede cambiar el equipo de la convocatoria");
                 }
 
+                // Se bloquea el partido ANTES de comprobar si ya tiene convocatoria
+                // (como en crear): serializa con otras altas o ediciones sobre el mismo
+                // partido y con quien justifica su ausencia a él.
+                partidoDao.bloquearPorId(partido.getId());
+
                 if (convocatoriaDao.existePorPartido(
                                 partido.getId(),
                                 convocatoriaId)) {
@@ -360,8 +365,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         "Ya existe una convocatoria para este partido");
                 }
 
-                // Serializa con quien justifica su ausencia a este partido.
-                partidoDao.bloquearPorId(partido.getId());
+                boolean cambiaElPartido = !partido.getId().equals(convocatoria.getPartidoId());
 
                 /*
                  * Si el request trae la lista de jugadores, la convocatoria
@@ -395,8 +399,6 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         // Mantener a uno que ya estaba se permite aunque haya justificado su
                         // ausencia, pero solo si el partido no cambia: sus justificaciones eran
                         // de otro partido, y con el nuevo se rechaza a quien esté justificado.
-                        boolean cambiaElPartido = !partido.getId().equals(convocatoria.getPartidoId());
-
                         rechazarJustificados(
                                         partido.getId(),
                                         nuevosIds,
@@ -416,6 +418,16 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 limpiar(request.getLugarConvocatoria()));
 
                 convocatoriaDao.actualizar(convocatoria);
+
+                /*
+                 * Sin lista de jugadores y con otro partido, los convocados actuales
+                 * se revisan contra las justificaciones del partido NUEVO: quien esté
+                 * justificado se quita de la convocatoria (haya o no disponibles) y se
+                 * avisa al cuerpo técnico.
+                 */
+                if (nuevosIds == null && cambiaElPartido) {
+                        quitarJustificadosDelPartidoNuevo(convocatoria, partido.getId(), actuales, usuarioAppId);
+                }
 
                 if (nuevosIds != null) {
 
@@ -625,6 +637,62 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 response.setJugadores(jugadoresResponse);
 
                 return response;
+        }
+
+        private void quitarJustificadosDelPartidoNuevo(
+                        Convocatoria convocatoria,
+                        Long partidoNuevoId,
+                        List<ConvocatoriaJugador> actuales,
+                        Long usuarioAppId) {
+
+                Set<Long> justificados = new HashSet<>();
+
+                for (JustificacionFaltaPartido justificacion : justificacionFaltaPartidoDao
+                                .obtenerPorPartido(partidoNuevoId)) {
+
+                        justificados.add(justificacion.getJugadorId());
+                }
+
+                List<String> nombres = new ArrayList<>();
+
+                for (ConvocatoriaJugador actual : actuales) {
+
+                        if (justificados.contains(actual.getJugadorId())) {
+
+                                convocatoriaJugadorDao.eliminarPorConvocatoriaYJugador(
+                                                convocatoria.getId(),
+                                                actual.getJugadorId());
+
+                                nombres.add(equipoGestionDao.obtenerNombreJugador(actual.getJugadorId()));
+                        }
+                }
+
+                if (nombres.isEmpty()) {
+                        return;
+                }
+
+                List<Long> destinatarios = new ArrayList<>(
+                                equipoGestionDao.obtenerEntrenadoresPorEquipo(convocatoria.getEquipoId()));
+
+                if (destinatarios.isEmpty()) {
+                        destinatarios.addAll(equipoGestionDao.obtenerCoordinadores());
+                }
+
+                // Quien edita ya lo sabe: no se avisa a sí mismo.
+                destinatarios.remove(usuarioAppId);
+
+                if (destinatarios.isEmpty()) {
+                        return;
+                }
+
+                Comunicacion comunicacion = new Comunicacion();
+
+                comunicacion.setTitulo("Convocatoria actualizada");
+                comunicacion.setContenido(
+                                "Se han quitado de la convocatoria por ausencia justificada: "
+                                                + String.join(", ", nombres));
+
+                comunicacionService.crearPrivada(comunicacion, destinatarios, usuarioAppId);
         }
 
         /*

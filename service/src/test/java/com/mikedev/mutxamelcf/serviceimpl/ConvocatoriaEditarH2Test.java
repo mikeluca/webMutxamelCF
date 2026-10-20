@@ -55,6 +55,7 @@ class ConvocatoriaEditarH2Test {
     private EquipoGestionDao equipoGestionDao;
     private ComunicacionService comunicacionService;
     private PartidoDao partidoDao;
+    private ConvocatoriaDaoImpl convocatoriaDao;
 
     @BeforeEach
     void setUp() {
@@ -93,11 +94,12 @@ class ConvocatoriaEditarH2Test {
         when(partidoDao.obtenerPorId(30L)).thenReturn(partido(30L, LocalDate.of(2026, 10, 24), "Pego"));
         when(partidoDao.obtenerPorId(31L)).thenReturn(partido(31L, LocalDate.of(2026, 10, 25), "Elx"));
 
+        convocatoriaDao = org.mockito.Mockito.spy(new ConvocatoriaDaoImpl(jdbc));
         convocatoriaJugadorDao = new ConvocatoriaJugadorDaoImpl(jdbc);
         justificacionDao = new JustificacionFaltaPartidoDaoImpl(jdbc);
 
         service = new ConvocatoriaServiceImpl(
-                new ConvocatoriaDaoImpl(jdbc),
+                convocatoriaDao,
                 convocatoriaJugadorDao,
                 equipoGestionDao,
                 partidoDao,
@@ -264,6 +266,105 @@ class ConvocatoriaEditarH2Test {
 
         service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L, 101L)));
 
+        assertThat(convocados(creada.getId())).containsExactly(100L, 101L);
+    }
+
+    @Test
+    void elPutBloqueaElPartidoAntesDeComprobarSiYaTieneConvocatoria() {
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L)));
+        org.mockito.Mockito.clearInvocations(partidoDao, convocatoriaDao);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(31L, "09:30", null));
+
+        var orden = org.mockito.Mockito.inOrder(partidoDao, convocatoriaDao);
+        orden.verify(partidoDao).bloquearPorId(31L);
+        orden.verify(convocatoriaDao).existePorPartido(eq(31L), eq(creada.getId()));
+    }
+
+    @Test
+    void elPutDeOtroPartidoSinListaQuitaALosConvocadosJustificadosEnElNuevoYAvisa() {
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO)).thenReturn(List.of(ENTRENADOR, 60L));
+
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L, 101L, 102L)));
+
+        // En el partido nuevo han justificado el 101 (convocado) y el 103 (no convocado).
+        justificar(31, 101, "Examen");
+        justificar(31, 103, "Viaje");
+        org.mockito.Mockito.clearInvocations(comunicacionService);
+
+        // Sin lista de jugadores: los convocados no se tocan... salvo los justificados del partido nuevo.
+        ConvocatoriaResponse editada = service.actualizar(
+                ENTRENADOR, creada.getId(), request(31L, "10:00", null));
+
+        assertThat(convocados(creada.getId())).containsExactly(100L, 102L);
+        assertThat(editada.getRival()).isEqualTo("Elx");
+        assertThat(editada.getJugadores()).extracting(ConvocatoriaJugadorResponse::getJugadorId)
+                .containsExactly(100L, 102L);
+
+        // Aviso al cuerpo técnico (menos a quien edita), con el nombre y sin push especial.
+        ArgumentCaptor<Comunicacion> aviso = ArgumentCaptor.forClass(Comunicacion.class);
+        verify(comunicacionService).crearPrivada(aviso.capture(), eq(List.of(60L)), eq(ENTRENADOR));
+
+        assertThat(aviso.getValue().getContenido())
+                .isEqualTo("Se han quitado de la convocatoria por ausencia justificada: Jugador 101");
+    }
+
+    @Test
+    void elAvisoDeQuitadosListaTodosLosNombres() {
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO)).thenReturn(List.of(60L));
+
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L, 101L, 102L)));
+        justificar(31, 100, "Examen");
+        justificar(31, 102, "Viaje");
+        org.mockito.Mockito.clearInvocations(comunicacionService);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(31L, "10:00", null));
+
+        assertThat(convocados(creada.getId())).containsExactly(101L);
+
+        ArgumentCaptor<Comunicacion> aviso = ArgumentCaptor.forClass(Comunicacion.class);
+        verify(comunicacionService).crearPrivada(aviso.capture(), eq(List.of(60L)), eq(ENTRENADOR));
+
+        assertThat(aviso.getValue().getContenido()).endsWith("Jugador 100, Jugador 102");
+    }
+
+    @Test
+    void sinCoordinadoresNiEntrenadoresDistintosDeQuienEditaNoHayAvisoPeroSiSeQuita() {
+        // El único entrenador es quien edita: no se avisa a sí mismo.
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO)).thenReturn(List.of(ENTRENADOR));
+
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L, 101L)));
+        justificar(31, 101, "Examen");
+        org.mockito.Mockito.clearInvocations(comunicacionService);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(31L, "10:00", null));
+
+        assertThat(convocados(creada.getId())).containsExactly(100L);
+        verify(comunicacionService, never()).crearPrivada(any(Comunicacion.class), any(), eq(ENTRENADOR));
+    }
+
+    @Test
+    void elPutDeOtroPartidoSinJustificadosNoQuitaNiAvisa() {
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO)).thenReturn(List.of(60L));
+
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L, 101L)));
+        justificar(30, 101, "Examen");        // justificado en el partido ANTIGUO: no cuenta para el nuevo
+        org.mockito.Mockito.clearInvocations(comunicacionService);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(31L, "10:00", null));
+
+        assertThat(convocados(creada.getId())).containsExactly(100L, 101L);
+        verify(comunicacionService, never()).crearPrivada(any(Comunicacion.class), eq(List.of(60L)), eq(ENTRENADOR));
+    }
+
+    @Test
+    void elPutDelMismoPartidoSinListaNoTocaALosConvocadosAunqueHayanJustificado() {
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L, 101L)));
+        justificar(30, 101, "Examen");
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", null));
+
+        // Sigue marcado como ausente hasta que el entrenador lo sustituya.
         assertThat(convocados(creada.getId())).containsExactly(100L, 101L);
     }
 
