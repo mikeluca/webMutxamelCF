@@ -16,6 +16,9 @@ public interface EquipoGestionDao {
 
     List<Long> obtenerCoordinadores();
 
+    /** true si el usuario app tiene el rol COORDINADOR o ADMIN_APP. */
+    boolean esCoordinadorOAdmin(Long usuarioAppId);
+
     /** Usuarios app activos con rol ADMIN_APP, por ID. */
     List<Long> obtenerAdministradoresApp();
 

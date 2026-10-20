@@ -39,7 +39,7 @@ public class RecordatorioResultadoPartidoScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(RecordatorioResultadoPartidoScheduler.class);
 
-    static final int HORAS_HASTA_EL_AVISO = 2;
+    static final int HORAS_HASTA_EL_AVISO = CriterioResultadoPartido.HORAS_HASTA_EL_FINAL;
     static final int DIAS_MAXIMOS_DE_ANTIGUEDAD = 3;
 
     private final PartidoDao partidoDao;
@@ -176,14 +176,7 @@ public class RecordatorioResultadoPartidoScheduler {
 
     /** Resultado puesto por cualquier vía; " - " o "-" cuentan como vacío. */
     private static boolean tieneResultado(Partido partido) {
-
-        if (partido.getGolesFavor() != null) {
-            return true;
-        }
-
-        String resultado = partido.getResultado();
-
-        return resultado != null && !resultado.replace("-", "").isBlank();
+        return CriterioResultadoPartido.tieneResultado(partido);
     }
 
     private static String formatearFecha(Partido partido) {
