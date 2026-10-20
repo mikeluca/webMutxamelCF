@@ -4,12 +4,13 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +28,7 @@ import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.Jugador;
 import com.mikedev.mutxamelcf.model.MiConvocatoriaResponse;
+import com.mikedev.mutxamelcf.model.OpcionesPushComunicacion;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.RespuestaConvocatoriaRequest;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
@@ -43,7 +45,11 @@ public class RespuestaConvocatoriaServiceImpl implements RespuestaConvocatoriaSe
 	static final int MOTIVO_MINIMO = 3;
 	static final int MOTIVO_MAXIMO = 500;
 
-	private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("H:mm");
+	/** Mínimo entre dos avisos al entrenador del mismo jugador y la misma convocatoria. */
+	static final Duration INTERVALO_AVISOS = Duration.ofMinutes(10);
+
+	/** Último aviso enviado por (convocatoria, jugador). */
+	private final Map<String, LocalDateTime> ultimosAvisos = new ConcurrentHashMap<>();
 
 	private final ConvocatoriaDao convocatoriaDao;
 	private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
@@ -235,20 +241,39 @@ public class RespuestaConvocatoriaServiceImpl implements RespuestaConvocatoriaSe
 			return;
 		}
 
+		// Quien cambia de idea varias veces seguidas no llena de avisos al entrenador.
+		LocalDateTime ahora = LocalDateTime.now(clock);
+		String clave = convocatoria.getId() + ":" + jugadorId;
+		LocalDateTime anteriorAviso = ultimosAvisos.get(clave);
+
+		if (anteriorAviso != null && ahora.isBefore(anteriorAviso.plus(INTERVALO_AVISOS))) {
+			logger.debug("Aviso de respuesta omitido (hay otro reciente): convocatoriaId={}, jugadorId={}",
+					convocatoria.getId(), jugadorId);
+			return;
+		}
+
+		ultimosAvisos.values().removeIf(fecha -> !ahora.isBefore(fecha.plus(INTERVALO_AVISOS)));
+		ultimosAvisos.put(clave, ahora);
+
 		String jugador = equipoGestionDao.obtenerNombreJugador(jugadorId);
 		String rival = convocatoria.getRival();
 
 		Comunicacion comunicacion = new Comunicacion();
+		OpcionesPushComunicacion opcionesPush = null;
 
 		if (aNoPuede) {
 			comunicacion.setTitulo("Convocatoria: no puede ir");
+			// El motivo se lee dentro de la app (aquí y en el detalle de la
+			// convocatoria); el push, que se ve en la pantalla bloqueada, no lo lleva.
 			comunicacion.setContenido(jugador + " no puede ir al partido contra " + rival + ": " + motivo);
+			opcionesPush = new OpcionesPushComunicacion(
+					jugador + " no puede ir al partido contra " + rival, Map.of());
 		} else {
 			comunicacion.setTitulo("Convocatoria: ahora sí puede ir");
 			comunicacion.setContenido(jugador + " finalmente sí puede ir al partido contra " + rival);
 		}
 
-		comunicacionService.crearPrivada(comunicacion, entrenadores, usuarioAppId);
+		comunicacionService.crearPrivada(comunicacion, entrenadores, usuarioAppId, opcionesPush);
 	}
 
 	private MiConvocatoriaResponse construir(
@@ -302,26 +327,32 @@ public class RespuestaConvocatoriaServiceImpl implements RespuestaConvocatoriaSe
 			return null;
 		}
 
-		LocalTime hora = leerHora(convocatoria.getHoraConvocatoria());
+		LocalTime hora = leerHora(convocatoria.getHoraConvocatoria(), convocatoria);
 
 		if (hora == null) {
-			hora = leerHora(convocatoria.getHoraPartido());
+			hora = leerHora(convocatoria.getHoraPartido(), convocatoria);
 		}
 
 		return dia.atTime(hora != null ? hora : LocalTime.MIDNIGHT);
 	}
 
-	private static LocalTime leerHora(String texto) {
+	/** {@code null} si no hay hora o no se puede leer (en ese caso, con un aviso en el log). */
+	static LocalTime leerHora(String texto, Convocatoria convocatoria) {
 
 		if (texto == null || texto.isBlank()) {
 			return null;
 		}
 
-		try {
-			return LocalTime.parse(texto.trim(), HORA);
-		} catch (DateTimeParseException e) {
-			return null;
+		LocalTime hora = HoraTexto.leer(texto);
+
+		if (hora != null) {
+			return hora;
 		}
+
+		logger.warn("No se puede leer la hora '{}' de la convocatoria id={}: se usa otra hora o las 00:00",
+				texto, convocatoria.getId());
+
+		return null;
 	}
 
 	private String nombreCompleto(Jugador jugador) {

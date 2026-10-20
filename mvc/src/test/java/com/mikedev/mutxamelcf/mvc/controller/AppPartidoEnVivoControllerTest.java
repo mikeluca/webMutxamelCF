@@ -36,7 +36,7 @@ class AppPartidoEnVivoControllerTest {
 
     private static EstadoPartidoEnVivoResponse estado() {
         return new EstadoPartidoEnVivoResponse(30L, "Pego C.F.", true, "PRIMERA_PARTE", 1, 0, List.of("Pablo"),
-                List.of(), new UltimoEventoDeshacible(5L, LocalDateTime.of(2026, 10, 24, 11, 2)));
+                List.of(), new UltimoEventoDeshacible(5L, LocalDateTime.of(2026, 10, 24, 11, 2), 87));
     }
 
     @Test

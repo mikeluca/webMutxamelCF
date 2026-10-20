@@ -34,7 +34,8 @@ public record EstadoPartidoEnVivoResponse(
     public record EventoEnVivo(Long id, String tipo, Long jugadorId, String autor, LocalDateTime fecha) {
     }
 
-    public record UltimoEventoDeshacible(Long id, LocalDateTime expira) {
+    /** segundosRestantesDeshacer: lo que queda según el reloj del servidor. */
+    public record UltimoEventoDeshacible(Long id, LocalDateTime expira, int segundosRestantesDeshacer) {
     }
 
     /** Un partido de hoy del Primer Equipo que se puede retransmitir. */

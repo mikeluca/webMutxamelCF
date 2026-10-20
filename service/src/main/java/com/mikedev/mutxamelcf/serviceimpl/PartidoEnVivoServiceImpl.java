@@ -200,50 +200,53 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
     @Override
     @Transactional
-    public synchronized EstadoPartidoEnVivoResponse enviarInicioPartido(Long usuarioId, Long partidoId) {
+    public EstadoPartidoEnVivoResponse enviarInicioPartido(Long usuarioId, Long partidoId) {
         return registrar(usuarioId, partidoId, PartidoLiveEvento.INICIO, null, null);
     }
 
     @Override
     @Transactional
-    public synchronized EstadoPartidoEnVivoResponse enviarGolFavor(
+    public EstadoPartidoEnVivoResponse enviarGolFavor(
             Long usuarioId, Long partidoId, Long jugadorId, String autorTexto) {
         return registrar(usuarioId, partidoId, PartidoLiveEvento.GOL_FAVOR, jugadorId, autorTexto);
     }
 
     @Override
     @Transactional
-    public synchronized EstadoPartidoEnVivoResponse enviarGolContra(Long usuarioId, Long partidoId) {
+    public EstadoPartidoEnVivoResponse enviarGolContra(Long usuarioId, Long partidoId) {
         return registrar(usuarioId, partidoId, PartidoLiveEvento.GOL_CONTRA, null, null);
     }
 
     @Override
     @Transactional
-    public synchronized EstadoPartidoEnVivoResponse enviarDescanso(Long usuarioId, Long partidoId) {
+    public EstadoPartidoEnVivoResponse enviarDescanso(Long usuarioId, Long partidoId) {
         return registrar(usuarioId, partidoId, PartidoLiveEvento.DESCANSO, null, null);
     }
 
     @Override
     @Transactional
-    public synchronized EstadoPartidoEnVivoResponse enviarSegundaParte(Long usuarioId, Long partidoId) {
+    public EstadoPartidoEnVivoResponse enviarSegundaParte(Long usuarioId, Long partidoId) {
         return registrar(usuarioId, partidoId, PartidoLiveEvento.SEGUNDA_PARTE, null, null);
     }
 
     @Override
     @Transactional
-    public synchronized EstadoPartidoEnVivoResponse enviarFinalPartido(Long usuarioId, Long partidoId) {
+    public EstadoPartidoEnVivoResponse enviarFinalPartido(Long usuarioId, Long partidoId) {
         return registrar(usuarioId, partidoId, PartidoLiveEvento.FINAL, null, null);
     }
 
     /*
-     * Valida y registra un evento y lo difunde. Es synchronized (un único
-     * retransmisor a la vez, sin contención real) para que comprobar el orden
-     * y el duplicado y crear el evento sea una operación atómica.
+     * Valida y registra un evento y lo difunde. Se bloquea la fila del partido
+     * (FOR UPDATE) antes de leer los eventos, para que comprobar el orden y el
+     * duplicado y crear el evento sea atómico también entre peticiones e
+     * instancias distintas.
      */
     private EstadoPartidoEnVivoResponse registrar(
             Long usuarioId, Long partidoId, String tipo, Long jugadorId, String autorTexto) {
 
         validarRolRetransmision(usuarioId);
+
+        bloquearPartido(partidoId);
 
         Partido partido = validarPartido(partidoId, true);
 
@@ -451,9 +454,11 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
     @Override
     @Transactional
-    public synchronized EstadoPartidoEnVivoResponse deshacer(Long usuarioId, Long partidoId, Long eventoId) {
+    public EstadoPartidoEnVivoResponse deshacer(Long usuarioId, Long partidoId, Long eventoId) {
 
         validarRolRetransmision(usuarioId);
+
+        bloquearPartido(partidoId);
 
         Partido partido = validarPartido(partidoId, false);
 
@@ -577,9 +582,12 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         if (ultimo != null && !PartidoLiveEvento.INICIO.equals(ultimo.getTipo())) {
 
             LocalDateTime expira = ultimo.getFecha().plus(VENTANA_DESHACER);
+            LocalDateTime ahora = ahora();
 
-            if (!ahora().isAfter(expira)) {
-                deshacible = new UltimoEventoDeshacible(ultimo.getId(), expira);
+            if (!ahora.isAfter(expira)) {
+                // Con el reloj del servidor: el del móvil puede ir adelantado o atrasado.
+                int segundos = (int) Math.ceil(Duration.between(ahora, expira).toMillis() / 1000.0);
+                deshacible = new UltimoEventoDeshacible(ultimo.getId(), expira, Math.max(0, segundos));
             }
         }
 
@@ -723,6 +731,13 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
             throw new SecurityException(
                     "No tienes permiso para enviar avisos del partido en directo");
+        }
+    }
+
+    private void bloquearPartido(Long partidoId) {
+
+        if (partidoId != null) {
+            partidoDao.bloquearPorId(partidoId);
         }
     }
 

@@ -278,4 +278,20 @@ public class ConvocatoriaJugadorDaoImpl
 
         return count != null && count > 0;
     }
+
+    @Override
+    public int limpiarRespuestasPorConvocatoria(
+            Long convocatoriaId) {
+
+        return jdbcTemplate.update(
+                """
+                        UPDATE CONVOCATORIA_JUGADOR
+                        SET RESPUESTA = NULL,
+                            MOTIVO = NULL,
+                            FECHA_RESPUESTA = NULL,
+                            USUARIO_APP_RESPUESTA_ID = NULL
+                        WHERE CONVOCATORIA_ID = ?
+                        """,
+                convocatoriaId);
+    }
 }

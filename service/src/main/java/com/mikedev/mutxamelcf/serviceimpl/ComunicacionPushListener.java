@@ -1,5 +1,6 @@
 package com.mikedev.mutxamelcf.serviceimpl;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.stereotype.Component;
@@ -17,6 +18,8 @@ import com.mikedev.mutxamelcf.service.FcmPushService;
 @Component
 public class ComunicacionPushListener {
 
+    private static final String TIPO_COMUNICACION = "COMUNICACION";
+
     private final FcmPushService fcmPushService;
 
     public ComunicacionPushListener(FcmPushService fcmPushService) {
@@ -26,28 +29,40 @@ public class ComunicacionPushListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onComunicacionCreada(ComunicacionPushEvent event) {
 
+        // Un "tipo" en los datos extra sustituye al de comunicación (la app
+        // navega por él); el resto va en el payload de datos.
+        Map<String, String> datos = new HashMap<>(event.getDatosExtra());
+        String tipo = datos.remove("tipo");
+
+        if (tipo == null || tipo.isBlank()) {
+            tipo = TIPO_COMUNICACION;
+        }
+
+        if (event.getAutorIdParaChatPrivado() != null) {
+            datos.put("esPrivada", "true");
+            datos.put("autorId", event.getAutorIdParaChatPrivado().toString());
+        }
+
         for (Long usuarioId : event.getUsuarioIds()) {
 
-            if (event.getAutorIdParaChatPrivado() != null) {
+            if (datos.isEmpty()) {
 
                 fcmPushService.enviarNotificacionAUsuario(
                         usuarioId,
-                        "COMUNICACION",
+                        tipo,
                         event.getTitulo(),
-                        event.getContenido(),
-                        event.getComunicacionId(),
-                        Map.of(
-                                "esPrivada", "true",
-                                "autorId", event.getAutorIdParaChatPrivado().toString()));
+                        event.getContenidoPush(),
+                        event.getComunicacionId());
 
             } else {
 
                 fcmPushService.enviarNotificacionAUsuario(
                         usuarioId,
-                        "COMUNICACION",
+                        tipo,
                         event.getTitulo(),
-                        event.getContenido(),
-                        event.getComunicacionId());
+                        event.getContenidoPush(),
+                        event.getComunicacionId(),
+                        Map.copyOf(datos));
             }
         }
     }

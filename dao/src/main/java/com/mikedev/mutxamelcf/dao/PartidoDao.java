@@ -95,4 +95,11 @@ public interface PartidoDao {
      */
     void actualizarAvisoResultadoEnviado(Long id, boolean enviado);
 
+    /**
+     * Bloquea la fila del partido (SELECT ... FOR UPDATE) hasta el fin de la
+     * transacción actual, para serializar los eventos del directo de un mismo
+     * partido. Debe llamarse dentro de una transacción.
+     */
+    void bloquearPorId(Long id);
+
 }

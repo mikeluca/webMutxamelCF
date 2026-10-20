@@ -91,6 +91,15 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Esquema H2 compartido con los tests de dao (EsquemaH2) -->
+		<dependency>
+			<groupId>com.mikedev.mutxamelcf</groupId>
+			<artifactId>dao</artifactId>
+			<version>1.0</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 </project>

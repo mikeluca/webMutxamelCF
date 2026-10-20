@@ -43,4 +43,20 @@
 		    <scope>test</scope>
 		</dependency>
   </dependencies>
+  <build>
+    <plugins>
+      <!-- Publica las clases de test (EsquemaH2) para los tests de service -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
+import com.mikedev.mutxamelcf.dao.EsquemaH2;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
 import com.mikedev.mutxamelcf.dao.impl.ResumenTemporadaDaoImpl;
@@ -54,7 +55,8 @@ class ResumenTemporadaServiceImplH2Test {
         jdbc.execute("""
                 CREATE TABLE TEMPORADAS (
                     ID NUMBER PRIMARY KEY, NOMBRE VARCHAR2(50), FECHA_INICIO DATE, FECHA_FIN DATE, ACTIVA NUMBER(1))""");
-        jdbc.execute("CREATE TABLE ENTRENAMIENTOS (ID NUMBER PRIMARY KEY, FECHA DATE)");
+        jdbc.execute("CREATE TABLE SESIONES_ENTRENAMIENTO (ID NUMBER PRIMARY KEY, HORA VARCHAR2(20))");
+        jdbc.execute("CREATE TABLE ENTRENAMIENTOS (ID NUMBER PRIMARY KEY, FECHA DATE, SESION_ENTRENAMIENTO_ID NUMBER)");
         jdbc.execute("""
                 CREATE TABLE ENTRENAMIENTO_ASISTENCIA (
                     ENTRENAMIENTO_ID NUMBER, JUGADOR_ID NUMBER, ESTADO VARCHAR2(30))""");
@@ -63,9 +65,7 @@ class ResumenTemporadaServiceImplH2Test {
                     ID NUMBER PRIMARY KEY, DIA DATE, CANCELADO NUMBER(1) DEFAULT 0,
                     RESULTADO VARCHAR2(20), GOLES_FAVOR NUMBER)""");
         jdbc.execute("CREATE TABLE CONVOCATORIAS (ID NUMBER PRIMARY KEY, PARTIDO_ID NUMBER)");
-        jdbc.execute("""
-                CREATE TABLE CONVOCATORIA_JUGADOR (
-                    CONVOCATORIA_ID NUMBER, JUGADOR_ID NUMBER, RESPUESTA VARCHAR2(10))""");
+        EsquemaH2.crear(jdbc);
         jdbc.execute("""
                 CREATE TABLE PARTIDO_ESTADISTICAS_JUGADOR (
                     PARTIDO_ID NUMBER, JUGADOR_ID NUMBER, GOLES NUMBER, ASISTENCIAS NUMBER,
@@ -88,7 +88,7 @@ class ResumenTemporadaServiceImplH2Test {
 
     private void entrenamiento(LocalDate fecha, String estado) {
         long id = siguienteId++;
-        jdbc.update("INSERT INTO ENTRENAMIENTOS VALUES (?, ?)", id, Date.valueOf(fecha));
+        jdbc.update("INSERT INTO ENTRENAMIENTOS (ID, FECHA) VALUES (?, ?)", id, Date.valueOf(fecha));
         jdbc.update("INSERT INTO ENTRENAMIENTO_ASISTENCIA VALUES (?, ?, ?)", id, JUGADOR, estado);
     }
 
@@ -102,7 +102,8 @@ class ResumenTemporadaServiceImplH2Test {
     private void convocar(long partidoId, String respuesta) {
         long convocatoria = siguienteId++;
         jdbc.update("INSERT INTO CONVOCATORIAS VALUES (?, ?)", convocatoria, partidoId);
-        jdbc.update("INSERT INTO CONVOCATORIA_JUGADOR VALUES (?, ?, ?)", convocatoria, JUGADOR, respuesta);
+        jdbc.update("INSERT INTO CONVOCATORIA_JUGADOR (CONVOCATORIA_ID, JUGADOR_ID, RESPUESTA) VALUES (?, ?, ?)",
+                convocatoria, JUGADOR, respuesta);
     }
 
     private void estadistica(long partidoId, int goles, int asistencias, int amarillas, int roja) {
@@ -158,10 +159,11 @@ class ResumenTemporadaServiceImplH2Test {
     }
 
     @Test
-    void soloCuentanLosEntrenamientosDentroDeLaTemporadaYHastaHoy() {
+    void soloCuentanLosEntrenamientosDentroDeLaTemporadaYHastaAyer() {
         entrenamiento(INICIO.minusDays(1), "FALTA");        // antes de la temporada
         entrenamiento(INICIO, "PRESENTE");                  // primer día: cuenta
-        entrenamiento(HOY, "PRESENTE");                     // hoy: cuenta
+        entrenamiento(HOY.minusDays(1), "PRESENTE");        // ayer: cuenta
+        entrenamiento(HOY, "PRESENTE");                     // hoy sin hora conocida: todavía no
         entrenamiento(HOY.plusDays(1), "PRESENTE");         // futuro (PRESENTE por defecto): no cuenta
         entrenamiento(FIN.plusDays(1), "PRESENTE");         // después de la temporada
 
@@ -172,10 +174,55 @@ class ResumenTemporadaServiceImplH2Test {
         assertThat(e.porcentaje()).isEqualTo(100);
     }
 
+    /** Entrenamiento con sesión (la hora puede ser null o cualquier texto). */
+    private void entrenamientoConHora(LocalDate fecha, String estado, String hora) {
+        long sesion = siguienteId++;
+        long id = siguienteId++;
+        jdbc.update("INSERT INTO SESIONES_ENTRENAMIENTO (ID, HORA) VALUES (?, ?)", sesion, hora);
+        jdbc.update("INSERT INTO ENTRENAMIENTOS (ID, FECHA, SESION_ENTRENAMIENTO_ID) VALUES (?, ?, ?)",
+                id, Date.valueOf(fecha), sesion);
+        jdbc.update("INSERT INTO ENTRENAMIENTO_ASISTENCIA VALUES (?, ?, ?)", id, JUGADOR, estado);
+    }
+
+    @Test
+    void elEntrenamientoDeHoyCuentaSoloSiSuHoraYaHaPasado() {
+        // Son las 10:00 en Madrid.
+        entrenamientoConHora(HOY, "PRESENTE", "09:00");     // ya ha pasado: cuenta
+        entrenamientoConHora(HOY, "FALTA", "10:00");        // es justo ahora: cuenta
+        entrenamientoConHora(HOY, "PRESENTE", "18:30");     // todavía no
+        entrenamientoConHora(HOY, "PRESENTE", "9:30");      // formato H:mm: cuenta
+
+        ResumenTemporadaResponse.EntrenamientosResumen e = service.obtenerResumen(USUARIO, JUGADOR).entrenamientos();
+
+        assertThat(e.total()).isEqualTo(3);
+        assertThat(e.asistidos()).isEqualTo(2);
+        assertThat(e.faltas()).isEqualTo(1);
+    }
+
+    @Test
+    void siNoSeSabeLaHoraDeHoySeCuentaHastaAyer() {
+        entrenamientoConHora(HOY, "PRESENTE", null);
+        entrenamientoConHora(HOY, "PRESENTE", "por la tarde");
+        entrenamientoConHora(HOY.minusDays(1), "FALTA", null);   // ayer cuenta sea cual sea la hora
+
+        ResumenTemporadaResponse.EntrenamientosResumen e = service.obtenerResumen(USUARIO, JUGADOR).entrenamientos();
+
+        assertThat(e.total()).isEqualTo(1);
+        assertThat(e.faltas()).isEqualTo(1);
+    }
+
+    @Test
+    void elEntrenamientoDeHoyNoCuentaSiLaTemporadaYaHaTerminado() {
+        jdbc.update("UPDATE TEMPORADAS SET FECHA_FIN = ?", Date.valueOf(HOY.minusDays(5)));
+        entrenamientoConHora(HOY, "PRESENTE", "09:00");
+        entrenamiento(HOY.minusDays(4), "PRESENTE");        // después del fin: no cuenta
+
+        assertThat(service.obtenerResumen(USUARIO, JUGADOR).entrenamientos().total()).isZero();
+    }
     @Test
     void laAsistenciaDeOtroJugadorNoCuenta() {
         long id = siguienteId++;
-        jdbc.update("INSERT INTO ENTRENAMIENTOS VALUES (?, ?)", id, Date.valueOf(INICIO.plusDays(2)));
+        jdbc.update("INSERT INTO ENTRENAMIENTOS (ID, FECHA) VALUES (?, ?)", id, Date.valueOf(INICIO.plusDays(2)));
         jdbc.update("INSERT INTO ENTRENAMIENTO_ASISTENCIA VALUES (?, 999, 'PRESENTE')", id);
 
         assertThat(service.obtenerResumen(USUARIO, JUGADOR).entrenamientos().total()).isZero();

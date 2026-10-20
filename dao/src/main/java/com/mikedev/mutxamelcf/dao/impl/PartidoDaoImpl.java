@@ -562,4 +562,12 @@ public class PartidoDaoImpl implements PartidoDao {
 				filasAfectadas);
 	}
 
+	@Override
+	public void bloquearPorId(Long id) {
+
+		jdbcTemplate.queryForList("SELECT ID FROM PARTIDOS WHERE ID = ? FOR UPDATE", id);
+
+		logger.debug("Partido bloqueado: id={}", id);
+	}
+
 }

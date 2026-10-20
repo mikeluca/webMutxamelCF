@@ -1,8 +1,10 @@
 package com.mikedev.mutxamelcf.dao;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import com.mikedev.mutxamelcf.model.AsistenciaEntrenamientosJugador;
+import com.mikedev.mutxamelcf.model.EntrenamientoDelDia;
 import com.mikedev.mutxamelcf.model.EstadisticasPartidosJugador;
 import com.mikedev.mutxamelcf.model.RespuestasConvocatoriaJugador;
 
@@ -24,4 +26,10 @@ public interface ResumenTemporadaDao {
 
     /** Respuestas a las convocatorias de partidos no cancelados del rango. */
     RespuestasConvocatoriaJugador respuestasConvocatoria(Long jugadorId, LocalDate desde, LocalDate hasta);
+
+    /**
+     * Asistencia del jugador a los entrenamientos de un día concreto, cada uno
+     * con la hora de su sesión.
+     */
+    List<EntrenamientoDelDia> entrenamientosDelDia(Long jugadorId, LocalDate fecha);
 }

@@ -2,7 +2,9 @@ package com.mikedev.mutxamelcf.serviceimpl;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Date;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +16,7 @@ import com.mikedev.mutxamelcf.dao.ResumenTemporadaDao;
 import com.mikedev.mutxamelcf.dao.TemporadaDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
 import com.mikedev.mutxamelcf.model.AsistenciaEntrenamientosJugador;
+import com.mikedev.mutxamelcf.model.EntrenamientoDelDia;
 import com.mikedev.mutxamelcf.model.EstadisticasPartidosJugador;
 import com.mikedev.mutxamelcf.model.RespuestasConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.ResumenRespuestasConvocatoria;
@@ -79,14 +82,21 @@ public class ResumenTemporadaServiceImpl implements ResumenTemporadaService {
 		/*
 		 * Los entrenamientos futuros ya tienen su fila de asistencia (todos
 		 * PRESENTE por defecto desde que se crea la sesión): contarlos haría
-		 * subir el porcentaje antes de que se celebren. Solo cuentan hasta hoy.
+		 * subir el porcentaje antes de que se celebren. Los días anteriores a
+		 * hoy cuentan enteros; el de hoy, solo los entrenamientos cuya hora ya
+		 * ha pasado (ver entrenamientosDeHoy).
 		 */
-		LocalDate hastaEntrenamientos = finTemporada != null && finTemporada.isBefore(hoy) ? finTemporada : hoy;
+		LocalDate ayer = hoy.minusDays(1);
+		LocalDate hastaEntrenamientos = finTemporada != null && finTemporada.isBefore(ayer) ? finTemporada : ayer;
 		LocalDate hasta = finTemporada != null ? finTemporada : hoy.plusYears(1);
 
 		EstadisticasPartidosJugador partidos = resumenTemporadaDao.estadisticasPartidos(jugadorId, desde, hasta, hoy);
 		AsistenciaEntrenamientosJugador asistencia = resumenTemporadaDao.asistenciaEntrenamientos(
 				jugadorId, desde, hastaEntrenamientos);
+
+		if (!hoy.isBefore(desde) && (finTemporada == null || !hoy.isAfter(finTemporada))) {
+			asistencia = sumar(asistencia, entrenamientosDeHoy(jugadorId, hoy));
+		}
 		RespuestasConvocatoriaJugador respuestas = resumenTemporadaDao.respuestasConvocatoria(jugadorId, desde, hasta);
 
 		logger.debug("Fin obtenerResumen: jugadorId={}", jugadorId);
@@ -98,6 +108,51 @@ public class ResumenTemporadaServiceImpl implements ResumenTemporadaService {
 						partidos.amarillas(), partidos.rojas()),
 				entrenamientos(asistencia),
 				new ResumenRespuestasConvocatoria(respuestas.va(), respuestas.noPuede(), respuestas.sinResponder()));
+	}
+
+	/*
+	 * Los entrenamientos de hoy cuya hora ya ha pasado (hora de Madrid). Si no
+	 * se sabe la hora (sin sesión, sin hora o ilegible), no se cuenta: ese
+	 * entrenamiento entra cuando acabe el día, como el resto hasta ayer.
+	 */
+	private List<EntrenamientoDelDia> entrenamientosDeHoy(Long jugadorId, LocalDate hoy) {
+
+		LocalTime ahora = LocalTime.now(clock);
+
+		return resumenTemporadaDao.entrenamientosDelDia(jugadorId, hoy).stream()
+				.filter(entrenamiento -> {
+					LocalTime hora = HoraTexto.leer(entrenamiento.hora());
+					return hora != null && !hora.isAfter(ahora);
+				})
+				.toList();
+	}
+
+	private static AsistenciaEntrenamientosJugador sumar(
+			AsistenciaEntrenamientosJugador base, List<EntrenamientoDelDia> hoy) {
+
+		int presentes = base.presentes();
+		int retrasos = base.retrasos();
+		int malComportamiento = base.malComportamiento();
+		int faltas = base.faltas();
+		int justificadas = base.justificadas();
+
+		for (EntrenamientoDelDia entrenamiento : hoy) {
+			String estado = entrenamiento.estado() == null ? "" : entrenamiento.estado();
+
+			switch (estado) {
+				case "PRESENTE" -> presentes++;
+				case "RETRASO" -> retrasos++;
+				case "MAL_COMPORTAMIENTO" -> malComportamiento++;
+				case "FALTA" -> faltas++;
+				case "FALTA_JUSTIFICADA" -> justificadas++;
+				default -> {
+					// estado desconocido: cuenta en el total pero en ningún grupo
+				}
+			}
+		}
+
+		return new AsistenciaEntrenamientosJugador(
+				base.total() + hoy.size(), presentes, retrasos, malComportamiento, faltas, justificadas);
 	}
 
 	/*

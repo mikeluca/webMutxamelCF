@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -19,6 +20,12 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
@@ -31,6 +38,7 @@ import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.Jugador;
 import com.mikedev.mutxamelcf.model.MiConvocatoriaResponse;
+import com.mikedev.mutxamelcf.model.OpcionesPushComunicacion;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.RespuestaConvocatoriaRequest;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
@@ -202,7 +210,7 @@ class RespuestaConvocatoriaServiceImplTest {
                 .isInstanceOf(SecurityException.class);
 
         verify(convocatoriaJugadorDao, never()).guardarRespuesta(any(), any(), any(), any(), any(), any());
-        verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong());
+        verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong(), any());
     }
 
     @Test
@@ -284,7 +292,7 @@ class RespuestaConvocatoriaServiceImplTest {
         respondeCon(null, noPuede("Enfermo"));
 
         ArgumentCaptor<Comunicacion> comunicacion = ArgumentCaptor.forClass(Comunicacion.class);
-        verify(comunicacionService).crearPrivada(comunicacion.capture(), eq(List.of(ENTRENADOR)), eq(USUARIO));
+        verify(comunicacionService).crearPrivada(comunicacion.capture(), eq(List.of(ENTRENADOR)), eq(USUARIO), any());
 
         assertThat(comunicacion.getValue().getContenido())
                 .isEqualTo("Pablo Garcia no puede ir al partido contra Pego C.F.: Enfermo");
@@ -294,7 +302,7 @@ class RespuestaConvocatoriaServiceImplTest {
     void deVaANoPuedeAvisa() {
         respondeCon("VA", noPuede("Enfermo"));
 
-        verify(comunicacionService).crearPrivada(any(), eq(List.of(ENTRENADOR)), eq(USUARIO));
+        verify(comunicacionService).crearPrivada(any(), eq(List.of(ENTRENADOR)), eq(USUARIO), any());
     }
 
     @Test
@@ -302,7 +310,7 @@ class RespuestaConvocatoriaServiceImplTest {
         respondeCon("NO_PUEDE", va());
 
         ArgumentCaptor<Comunicacion> comunicacion = ArgumentCaptor.forClass(Comunicacion.class);
-        verify(comunicacionService).crearPrivada(comunicacion.capture(), eq(List.of(ENTRENADOR)), eq(USUARIO));
+        verify(comunicacionService).crearPrivada(comunicacion.capture(), eq(List.of(ENTRENADOR)), eq(USUARIO), any());
 
         assertThat(comunicacion.getValue().getContenido())
                 .isEqualTo("Pablo Garcia finalmente sí puede ir al partido contra Pego C.F.");
@@ -312,21 +320,21 @@ class RespuestaConvocatoriaServiceImplTest {
     void sinResponderAVaNoAvisa() {
         respondeCon(null, va());
 
-        verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong());
+        verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong(), any());
     }
 
     @Test
     void cambiarElMotivoDentroDeNoPuedeNoVuelveAAvisar() {
         respondeCon("NO_PUEDE", noPuede("Otro motivo distinto"));
 
-        verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong());
+        verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong(), any());
     }
 
     @Test
     void repetirVaNoAvisa() {
         respondeCon("VA", va());
 
-        verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong());
+        verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong(), any());
     }
 
     @Test
@@ -335,7 +343,7 @@ class RespuestaConvocatoriaServiceImplTest {
 
         respondeCon(null, noPuede("Enfermo"));
 
-        verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong());
+        verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong(), any());
     }
 
     @Test
@@ -344,7 +352,196 @@ class RespuestaConvocatoriaServiceImplTest {
 
         respondeCon(null, noPuede("Enfermo"));
 
-        verify(comunicacionService).crearPrivada(any(), eq(List.of(ENTRENADOR)), eq(USUARIO));
+        verify(comunicacionService).crearPrivada(any(), eq(List.of(ENTRENADOR)), eq(USUARIO), any());
+    }
+
+    @Test
+    void elPushAlEntrenadorNoLlevaElMotivoPeroLaComunicacionSi() {
+        respondeCon(null, noPuede("Tengo fiebre"));
+
+        ArgumentCaptor<Comunicacion> comunicacion = ArgumentCaptor.forClass(Comunicacion.class);
+        ArgumentCaptor<OpcionesPushComunicacion> push = ArgumentCaptor.forClass(OpcionesPushComunicacion.class);
+        verify(comunicacionService).crearPrivada(comunicacion.capture(), eq(List.of(ENTRENADOR)), eq(USUARIO),
+                push.capture());
+
+        // Dentro de la app (comunicación y notificación) se lee el motivo...
+        assertThat(comunicacion.getValue().getContenido())
+                .isEqualTo("Pablo Garcia no puede ir al partido contra Pego C.F.: Tengo fiebre");
+        // ...en el push, que sale en la pantalla bloqueada, no.
+        assertThat(push.getValue().contenidoPush())
+                .isEqualTo("Pablo Garcia no puede ir al partido contra Pego C.F.")
+                .doesNotContain("fiebre");
+    }
+
+    /** Reloj que se adelanta a mano. */
+    private static final class RelojManual extends Clock {
+        private java.time.Instant ahora;
+
+        RelojManual(LocalDateTime inicio) {
+            this.ahora = inicio.atZone(MADRID).toInstant();
+        }
+
+        void avanzar(java.time.Duration duracion) {
+            ahora = ahora.plus(duracion);
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return MADRID;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public java.time.Instant instant() {
+            return ahora;
+        }
+    }
+
+    private RespuestaConvocatoriaServiceImpl servicioConReloj(RelojManual reloj) {
+        return new RespuestaConvocatoriaServiceImpl(
+                convocatoriaDao, convocatoriaJugadorDao, partidoDao, equipoGestionDao,
+                usuarioAppVinculoDao, perfilAppDao, comunicacionService, reloj);
+    }
+
+    @Test
+    void noSeReenviaAvisoDelMismoJugadorYConvocatoriaAntesDe10Minutos() {
+        RelojManual reloj = new RelojManual(LocalDateTime.of(2026, 10, 21, 10, 0));
+        RespuestaConvocatoriaServiceImpl servicio = servicioConReloj(reloj);
+
+        // No puede -> Va -> No puede: tres respuestas, y solo el primer aviso.
+        servicio.responder(USUARIO, CONVOCATORIA, JUGADOR, noPuede("Enfermo"));
+        convocado.setRespuesta("NO_PUEDE");
+        reloj.avanzar(java.time.Duration.ofMinutes(2));
+        servicio.responder(USUARIO, CONVOCATORIA, JUGADOR, va());
+        convocado.setRespuesta("VA");
+        reloj.avanzar(java.time.Duration.ofMinutes(2));
+        servicio.responder(USUARIO, CONVOCATORIA, JUGADOR, noPuede("Mejor, sí que no"));
+
+        verify(comunicacionService, times(1)).crearPrivada(any(), any(), anyLong(), any());
+        // La respuesta sí se guarda siempre.
+        verify(convocatoriaJugadorDao, times(3)).guardarRespuesta(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void pasadosLos10MinutosSeVuelveAAvisar() {
+        RelojManual reloj = new RelojManual(LocalDateTime.of(2026, 10, 21, 10, 0));
+        RespuestaConvocatoriaServiceImpl servicio = servicioConReloj(reloj);
+
+        servicio.responder(USUARIO, CONVOCATORIA, JUGADOR, noPuede("Enfermo"));
+        convocado.setRespuesta("NO_PUEDE");
+
+        reloj.avanzar(java.time.Duration.ofMinutes(9).plusSeconds(59));
+        servicio.responder(USUARIO, CONVOCATORIA, JUGADOR, va());
+        verify(comunicacionService, times(1)).crearPrivada(any(), any(), anyLong(), any());
+
+        reloj.avanzar(java.time.Duration.ofSeconds(1));
+        convocado.setRespuesta("NO_PUEDE");
+        servicio.responder(USUARIO, CONVOCATORIA, JUGADOR, va());
+        verify(comunicacionService, times(2)).crearPrivada(any(), any(), anyLong(), any());
+    }
+
+    @Test
+    void elLimiteDeAvisosEsPorJugadorYPorConvocatoria() {
+        Long otroJugador = 101L;
+        ConvocatoriaJugador otroConvocado = new ConvocatoriaJugador(2L, CONVOCATORIA, otroJugador);
+        when(convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(CONVOCATORIA, otroJugador))
+                .thenReturn(otroConvocado);
+        when(usuarioAppVinculoDao.tieneVinculoConJugador(USUARIO.intValue(), otroJugador)).thenReturn(true);
+        when(equipoGestionDao.obtenerNombreJugador(otroJugador)).thenReturn("Luis Lopez");
+
+        Convocatoria otraConvocatoria = new Convocatoria();
+        otraConvocatoria.setId(21L);
+        otraConvocatoria.setEquipoId(EQUIPO);
+        otraConvocatoria.setPartidoId(PARTIDO);
+        otraConvocatoria.setRival("Elx");
+        otraConvocatoria.setFechaPartido(SABADO);
+        otraConvocatoria.setHoraConvocatoria("09:30");
+        when(convocatoriaDao.obtenerPorId(21L)).thenReturn(otraConvocatoria);
+        when(convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(21L, JUGADOR))
+                .thenReturn(new ConvocatoriaJugador(3L, 21L, JUGADOR));
+
+        RespuestaConvocatoriaServiceImpl servicio = servicioConReloj(
+                new RelojManual(LocalDateTime.of(2026, 10, 21, 10, 0)));
+
+        servicio.responder(USUARIO, CONVOCATORIA, JUGADOR, noPuede("Enfermo"));
+        servicio.responder(USUARIO, CONVOCATORIA, otroJugador, noPuede("Examen"));
+        servicio.responder(USUARIO, 21L, JUGADOR, noPuede("Enfermo"));
+
+        verify(comunicacionService, times(3)).crearPrivada(any(), any(), anyLong(), any());
+    }
+
+    @Test
+    void unAvisoOmitidoNoReiniciaLaCuentaDeLos10Minutos() {
+        RelojManual reloj = new RelojManual(LocalDateTime.of(2026, 10, 21, 10, 0));
+        RespuestaConvocatoriaServiceImpl servicio = servicioConReloj(reloj);
+
+        servicio.responder(USUARIO, CONVOCATORIA, JUGADOR, noPuede("Enfermo"));     // aviso a las 10:00
+        convocado.setRespuesta("NO_PUEDE");
+        reloj.avanzar(java.time.Duration.ofMinutes(6));
+        servicio.responder(USUARIO, CONVOCATORIA, JUGADOR, va());                  // omitido (10:06)
+        convocado.setRespuesta("VA");
+        reloj.avanzar(java.time.Duration.ofMinutes(5));
+        servicio.responder(USUARIO, CONVOCATORIA, JUGADOR, noPuede("Otra vez"));   // 10:11: ya cuenta
+
+        verify(comunicacionService, times(2)).crearPrivada(any(), any(), anyLong(), any());
+    }
+
+    // ---- lectura de la hora ------------------------------------------------------------
+
+    @Test
+    void laHoraDeConvocatoriaAdmiteLosFormatosHabituales() {
+        for (String texto : List.of("9:30", "09:30", "09:30:00", "09.30", "9.30", " 09:30 ")) {
+            convocatoria.setHoraConvocatoria(texto);
+
+            assertThat(RespuestaConvocatoriaServiceImpl.limite(convocatoria))
+                    .as("hora '%s'", texto)
+                    .isEqualTo(LocalDateTime.of(2026, 10, 24, 9, 30));
+        }
+
+        convocatoria.setHoraConvocatoria("17:05:40");
+
+        assertThat(RespuestaConvocatoriaServiceImpl.limite(convocatoria))
+                .isEqualTo(LocalDateTime.of(2026, 10, 24, 17, 5, 40));
+    }
+
+    @Test
+    void unaHoraIlegibleDejaUnWarnConElIdDeLaConvocatoria() {
+        Logger logger = (Logger) LoggerFactory.getLogger(RespuestaConvocatoriaServiceImpl.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            for (String ilegible : List.of("pronto", "25:00", "09:60", "9h30", "09.30.15")) {
+                convocatoria.setHoraConvocatoria(ilegible);
+
+                // Cae a la hora del partido (11:00).
+                assertThat(RespuestaConvocatoriaServiceImpl.limite(convocatoria))
+                        .isEqualTo(LocalDateTime.of(2026, 10, 24, 11, 0));
+            }
+
+            assertThat(appender.list)
+                    .filteredOn(evento -> evento.getLevel() == Level.WARN)
+                    .hasSize(5)
+                    .allSatisfy(evento -> assertThat(evento.getFormattedMessage())
+                            .contains("id=" + CONVOCATORIA));
+
+            // Sin hora (nula o vacía) no es un error: no hay nada que avisar.
+            appender.list.clear();
+            convocatoria.setHoraConvocatoria(null);
+            RespuestaConvocatoriaServiceImpl.limite(convocatoria);
+            convocatoria.setHoraConvocatoria("  ");
+            RespuestaConvocatoriaServiceImpl.limite(convocatoria);
+
+            assertThat(appender.list).isEmpty();
+
+        } finally {
+            logger.detachAppender(appender);
+        }
     }
 
     // ---- mis convocatorias --------------------------------------------------------------

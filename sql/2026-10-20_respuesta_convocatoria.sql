@@ -1,3 +1,4 @@
+-- NO EJECUTAR: ya aplicado; ver 2026-10-21_ajustes_post_revision.sql
 -- ============================================================================
 -- Respuesta de jugadores y familias a la convocatoria ("Va" / "No puede").
 --

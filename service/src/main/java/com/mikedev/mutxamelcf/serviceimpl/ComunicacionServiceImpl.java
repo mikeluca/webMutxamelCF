@@ -25,6 +25,7 @@ import com.mikedev.mutxamelcf.model.DestinatarioComunicacion;
 import com.mikedev.mutxamelcf.model.DestinatarioComunicacionResponse;
 import com.mikedev.mutxamelcf.model.MensajeConversacionResponse;
 import com.mikedev.mutxamelcf.model.NotificacionAppResponse;
+import com.mikedev.mutxamelcf.model.OpcionesPushComunicacion;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
 import com.mikedev.mutxamelcf.model.VinculoUsuarioApp;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
@@ -1126,6 +1127,17 @@ public class ComunicacionServiceImpl
                         List<Long> usuariosDestino,
                         Long usuarioId) {
 
+                return crearPrivada(comunicacion, usuariosDestino, usuarioId, null);
+        }
+
+        @Override
+        @Transactional
+        public Comunicacion crearPrivada(
+                        Comunicacion comunicacion,
+                        List<Long> usuariosDestino,
+                        Long usuarioId,
+                        OpcionesPushComunicacion opcionesPush) {
+
                 validarDatosBasicos(comunicacion);
 
                 if (usuarioId == null) {
@@ -1217,7 +1229,8 @@ public class ComunicacionServiceImpl
                                                         comunicacion.getTitulo(),
                                                         comunicacion.getContenido(),
                                                         usuariosParaPush,
-                                                        null));
+                                                        null,
+                                                        opcionesPush));
                 }
 
                 comunicacion.setId(comunicacionId);

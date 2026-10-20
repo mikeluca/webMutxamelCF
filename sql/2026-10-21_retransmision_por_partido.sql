@@ -1,3 +1,4 @@
+-- NO EJECUTAR: ya aplicado; ver 2026-10-21_ajustes_post_revision.sql
 -- ============================================================================
 -- Retransmisión en directo por partido, con eventos que se pueden deshacer.
 --

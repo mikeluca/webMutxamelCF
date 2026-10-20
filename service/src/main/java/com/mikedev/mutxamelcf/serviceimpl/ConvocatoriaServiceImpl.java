@@ -9,6 +9,7 @@ import com.mikedev.mutxamelcf.model.ConvocatoriaJugadorResponse;
 import com.mikedev.mutxamelcf.model.ConvocatoriaResponse;
 import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.Convocatoria;
+import com.mikedev.mutxamelcf.model.OpcionesPushComunicacion;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.ResumenRespuestasConvocatoria;
@@ -21,10 +22,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
 public class ConvocatoriaServiceImpl implements ConvocatoriaService {
+
+        /** Valor de "tipo" en el data del push de una convocatoria (nueva o actualizada). */
+        static final String TIPO_PUSH_CONVOCATORIA = "CONVOCATORIA";
 
         private final ConvocatoriaDao convocatoriaDao;
         private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
@@ -242,10 +247,16 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 comunicacion.setTitulo(titulo);
                                 comunicacion.setContenido(mensaje);
 
+                                // La app abre "Mis convocatorias" según este tipo,
+                                // no según el título del aviso.
                                 comunicacionService.crearPrivada(
                                                 comunicacion,
                                                 List.of(usuarioId),
-                                                convocatoria.getUsuarioEntrenadorId());
+                                                convocatoria.getUsuarioEntrenadorId(),
+                                                new OpcionesPushComunicacion(null, Map.of(
+                                                                "tipo", TIPO_PUSH_CONVOCATORIA,
+                                                                "convocatoriaId",
+                                                                String.valueOf(convocatoria.getId()))));
                         }
                 }
         }
@@ -320,6 +331,8 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                  * Actualizamos únicamente el partido vinculado y los
                  * datos propios de la convocatoria.
                  */
+                boolean cambiaElPartido = !partido.getId().equals(convocatoria.getPartidoId());
+
                 convocatoria.setPartidoId(partido.getId());
 
                 convocatoria.setHoraConvocatoria(
@@ -329,6 +342,17 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 limpiar(request.getLugarConvocatoria()));
 
                 convocatoriaDao.actualizar(convocatoria);
+
+                /*
+                 * Un "Va" o un "No puede" era para otro partido: si la
+                 * convocatoria pasa a otro, todos vuelven a "sin responder".
+                 * Con el mismo partido (solo cambia la hora o el lugar)
+                 * se conservan.
+                 */
+                if (cambiaElPartido) {
+                        convocatoriaJugadorDao.limpiarRespuestasPorConvocatoria(
+                                        convocatoriaId);
+                }
 
                 aplicarDatosPartido(convocatoria, partido);
 

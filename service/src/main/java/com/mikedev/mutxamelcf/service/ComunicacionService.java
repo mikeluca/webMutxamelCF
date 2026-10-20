@@ -6,6 +6,7 @@ import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.ComunicacionResponse;
 import com.mikedev.mutxamelcf.model.DestinatarioComunicacionResponse;
 import com.mikedev.mutxamelcf.model.MensajeConversacionResponse;
+import com.mikedev.mutxamelcf.model.OpcionesPushComunicacion;
 
 public interface ComunicacionService {
 
@@ -37,6 +38,17 @@ public interface ComunicacionService {
                         Comunicacion comunicacion,
                         List<Long> usuariosDestino,
                         Long usuarioId);
+
+        /**
+         * Igual que {@link #crearPrivada(Comunicacion, List, Long)}, con
+         * ajustes del push (texto distinto del de la comunicación y datos
+         * extra del payload).
+         */
+        Comunicacion crearPrivada(
+                        Comunicacion comunicacion,
+                        List<Long> usuariosDestino,
+                        Long usuarioId,
+                        OpcionesPushComunicacion opcionesPush);
 
         List<Comunicacion> obtenerEnviadasPorUsuario(
                         Long usuarioId);

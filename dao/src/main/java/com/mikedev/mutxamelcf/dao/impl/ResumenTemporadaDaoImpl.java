@@ -2,12 +2,14 @@ package com.mikedev.mutxamelcf.dao.impl;
 
 import java.sql.Date;
 import java.time.LocalDate;
+import java.util.List;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.mikedev.mutxamelcf.dao.ResumenTemporadaDao;
 import com.mikedev.mutxamelcf.model.AsistenciaEntrenamientosJugador;
+import com.mikedev.mutxamelcf.model.EntrenamientoDelDia;
 import com.mikedev.mutxamelcf.model.EstadisticasPartidosJugador;
 import com.mikedev.mutxamelcf.model.RespuestasConvocatoriaJugador;
 
@@ -99,6 +101,21 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 				""",
 				(rs, n) -> new RespuestasConvocatoriaJugador(rs.getInt(1), rs.getInt(2), rs.getInt(3)),
 				jugadorId, Date.valueOf(desde), Date.valueOf(hasta));
+	}
+
+	@Override
+	public List<EntrenamientoDelDia> entrenamientosDelDia(Long jugadorId, LocalDate fecha) {
+
+		return jdbcTemplate.query("""
+				SELECT S.HORA, A.ESTADO
+				FROM ENTRENAMIENTO_ASISTENCIA A
+				JOIN ENTRENAMIENTOS E ON E.ID = A.ENTRENAMIENTO_ID
+				LEFT JOIN SESIONES_ENTRENAMIENTO S ON S.ID = E.SESION_ENTRENAMIENTO_ID
+				WHERE A.JUGADOR_ID = ?
+				  AND E.FECHA = ?
+				""",
+				(rs, n) -> new EntrenamientoDelDia(rs.getString(1), rs.getString(2)),
+				jugadorId, Date.valueOf(fecha));
 	}
 
 }

@@ -44,4 +44,11 @@ public interface ConvocatoriaJugadorDao {
             Long jugadorId,
             LocalDate desde,
             LocalDate hasta);
+
+    /**
+     * Pone a NULL la respuesta (RESPUESTA, MOTIVO, FECHA_RESPUESTA y
+     * USUARIO_APP_RESPUESTA_ID) de todos los jugadores de la convocatoria.
+     * Devuelve las filas modificadas.
+     */
+    int limpiarRespuestasPorConvocatoria(Long convocatoriaId);
 }
