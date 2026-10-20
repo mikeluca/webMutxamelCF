@@ -6,9 +6,14 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +23,12 @@ import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoEstadisticaJugadorDao;
+import com.mikedev.mutxamelcf.dao.ResumenTemporadaDao;
+import com.mikedev.mutxamelcf.dao.TemporadaDao;
+import com.mikedev.mutxamelcf.model.Comunicacion;
+import com.mikedev.mutxamelcf.model.EstadisticasJugadorEquipo;
+import com.mikedev.mutxamelcf.model.Temporada;
+import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.Partido;
@@ -32,19 +43,33 @@ import com.mikedev.mutxamelcf.service.PartidoEstadisticaService;
 public class PartidoEstadisticaServiceImpl
         implements PartidoEstadisticaService {
 
+    private static final Logger logger = LoggerFactory.getLogger(PartidoEstadisticaServiceImpl.class);
+
     private final PartidoDao partidoDao;
     private final PartidoEstadisticaJugadorDao estadisticaJugadorDao;
     private final EquipoGestionDao equipoGestionDao;
     private final ConvocatoriaDao convocatoriaDao;
     private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
+    private final TemporadaDao temporadaDao;
+    private final ResumenTemporadaDao resumenTemporadaDao;
+    private final ComunicacionService comunicacionService;
+    private final ReglaSancionAmarillas reglaSancion;
 
     public PartidoEstadisticaServiceImpl(
             PartidoDao partidoDao,
             PartidoEstadisticaJugadorDao estadisticaJugadorDao,
             EquipoGestionDao equipoGestionDao,
             ConvocatoriaDao convocatoriaDao,
-            ConvocatoriaJugadorDao convocatoriaJugadorDao) {
+            ConvocatoriaJugadorDao convocatoriaJugadorDao,
+            TemporadaDao temporadaDao,
+            ResumenTemporadaDao resumenTemporadaDao,
+            ComunicacionService comunicacionService,
+            ReglaSancionAmarillas reglaSancion) {
 
+        this.temporadaDao = temporadaDao;
+        this.resumenTemporadaDao = resumenTemporadaDao;
+        this.comunicacionService = comunicacionService;
+        this.reglaSancion = reglaSancion;
         this.partidoDao = partidoDao;
         this.estadisticaJugadorDao = estadisticaJugadorDao;
         this.equipoGestionDao = equipoGestionDao;
@@ -131,6 +156,15 @@ public class PartidoEstadisticaServiceImpl
 
         partidoDao.actualizar(partido);
 
+        // Lo que había antes de guardar, para avisar solo de lo que cambia.
+        Map<Long, Integer> amarillasAntes = amarillasAcumuladas(partido);
+
+        Map<Long, Boolean> rojaAntes = new HashMap<>();
+
+        for (PartidoEstadisticaJugador anterior : estadisticaJugadorDao.obtenerPorPartido(partidoId)) {
+            rojaAntes.put(anterior.getJugadorId(), anterior.isTarjetaRoja());
+        }
+
         /*
          * Reemplazo completo de las estadísticas por jugador, igual que
          * EntrenamientoServiceImpl.actualizar hace con las asistencias.
@@ -151,7 +185,123 @@ public class PartidoEstadisticaServiceImpl
             estadisticaJugadorDao.guardar(estadistica);
         }
 
+        avisarTarjetas(partido, request.getJugadores(), amarillasAntes, amarillasAcumuladas(partido), rojaAntes,
+                usuarioAppId);
+
         return construirResponse(partido);
+    }
+
+    /*
+     * Amarillas acumuladas por jugador del equipo en la temporada activa (partidos
+     * no cancelados). Sin temporada activa, nadie acumula nada.
+     */
+    private Map<Long, Integer> amarillasAcumuladas(Partido partido) {
+
+        Temporada temporada = temporadaDao.obtenerTemporadaActiva();
+
+        Map<Long, Integer> amarillas = new HashMap<>();
+
+        if (temporada == null) {
+            return amarillas;
+        }
+
+        LocalDate hoy = LocalDate.now();
+        LocalDate desde = temporada.getFechaInicio() != null ? aLocalDate(temporada.getFechaInicio()) : LocalDate.of(1900, 1, 1);
+        LocalDate hasta = temporada.getFechaFin() != null ? aLocalDate(temporada.getFechaFin()) : hoy.plusYears(1);
+
+        for (EstadisticasJugadorEquipo jugador : resumenTemporadaDao
+                .estadisticasJugadoresDelEquipo(partido.getEquipoId(), desde, hasta, hoy)) {
+
+            amarillas.put(jugador.jugadorId(), jugador.amarillas());
+        }
+
+        return amarillas;
+    }
+
+    private static LocalDate aLocalDate(Date fecha) {
+
+        if (fecha instanceof java.sql.Date sqlDate) {
+            return sqlDate.toLocalDate();
+        }
+
+        return fecha.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+    }
+
+    /*
+     * Un único aviso por jugador y guardado, al cuerpo técnico del equipo, si el
+     * guardado hace cruzar un umbral (posible sanción, o una amarilla antes de ella)
+     * o el jugador ve la roja en este partido (y no la tenía ya). Volver a guardar
+     * sin nada nuevo no avisa. Si coinciden varias cosas, manda la más grave:
+     * posible sanción por amarillas, roja, y por último "a una".
+     */
+    private void avisarTarjetas(
+            Partido partido,
+            List<PartidoEstadisticaJugadorRequest> jugadores,
+            Map<Long, Integer> antes,
+            Map<Long, Integer> despues,
+            Map<Long, Boolean> rojaAntes,
+            Long usuarioAppId) {
+
+        List<String> avisos = new ArrayList<>();
+
+        for (PartidoEstadisticaJugadorRequest jugador : jugadores) {
+
+            Long id = jugador.getJugadorId();
+
+            int amarillasAntes = antes.getOrDefault(id, 0);
+            int amarillasDespues = despues.getOrDefault(id, 0);
+
+            int umbralSancion = reglaSancion.umbralSancionCruzado(amarillasAntes, amarillasDespues);
+            boolean rojaNueva = jugador.isTarjetaRoja() && !rojaAntes.getOrDefault(id, false);
+            boolean aUna = reglaSancion.cruzaAvisoPrevio(amarillasAntes, amarillasDespues);
+
+            if (umbralSancion == 0 && !rojaNueva && !aUna) {
+                continue;
+            }
+
+            String nombre = equipoGestionDao.obtenerNombreJugador(id);
+
+            if (umbralSancion > 0) {
+                avisos.add(nombre + " llega a " + umbralSancion + " amarillas: posible sanción."
+                        + " Compruébalo en la FFCV.");
+            } else if (rojaNueva) {
+                avisos.add(nombre + " ha visto la roja en el partido contra " + partido.getRival()
+                        + ": posible sanción.");
+            } else {
+                avisos.add(nombre + " acumula " + amarillasDespues + " amarillas: a una de posible sanción.");
+            }
+        }
+
+        if (avisos.isEmpty()) {
+            return;
+        }
+
+        List<Long> destinatarios = new ArrayList<>(
+                equipoGestionDao.obtenerEntrenadoresPorEquipo(partido.getEquipoId()));
+
+        // Sin ningún entrenador con cuenta, los coordinadores.
+        if (destinatarios.isEmpty()) {
+            destinatarios.addAll(equipoGestionDao.obtenerCoordinadores());
+        }
+
+        // Quien guarda ya lo sabe: no se avisa a sí mismo.
+        destinatarios.remove(usuarioAppId);
+
+        if (destinatarios.isEmpty()) {
+            logger.warn("Aviso de tarjetas sin destinatarios: el equipo {} no tiene entrenadores"
+                    + " (ni coordinadores distintos de quien guarda)", partido.getEquipoId());
+            return;
+        }
+
+        for (String aviso : avisos) {
+
+            Comunicacion comunicacion = new Comunicacion();
+
+            comunicacion.setTitulo("Tarjetas");
+            comunicacion.setContenido(aviso);
+
+            comunicacionService.crearPrivada(comunicacion, destinatarios, usuarioAppId);
+        }
     }
 
     @Override

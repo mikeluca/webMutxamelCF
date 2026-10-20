@@ -12,6 +12,46 @@ public class Entrenamiento {
     private Long sesionEntrenamientoId;
     private LocalDateTime fechaCreacion;
 
+    /** El staff ha guardado la asistencia (aunque no cambiara ningún estado). */
+    private boolean listaRevisada;
+    private LocalDateTime fechaRevision;
+    private Long usuarioRevisionId;
+
+    /** Ya se envió (o se descartó) el recordatorio de pasar lista. */
+    private boolean avisoListaEnviado;
+
+    public boolean isListaRevisada() {
+        return listaRevisada;
+    }
+
+    public void setListaRevisada(boolean listaRevisada) {
+        this.listaRevisada = listaRevisada;
+    }
+
+    public LocalDateTime getFechaRevision() {
+        return fechaRevision;
+    }
+
+    public void setFechaRevision(LocalDateTime fechaRevision) {
+        this.fechaRevision = fechaRevision;
+    }
+
+    public Long getUsuarioRevisionId() {
+        return usuarioRevisionId;
+    }
+
+    public void setUsuarioRevisionId(Long usuarioRevisionId) {
+        this.usuarioRevisionId = usuarioRevisionId;
+    }
+
+    public boolean isAvisoListaEnviado() {
+        return avisoListaEnviado;
+    }
+
+    public void setAvisoListaEnviado(boolean avisoListaEnviado) {
+        this.avisoListaEnviado = avisoListaEnviado;
+    }
+
     public Entrenamiento() {
     }
 

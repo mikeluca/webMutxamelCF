@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -54,7 +55,9 @@ class EntrenamientoServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new EntrenamientoServiceImpl(entrenamientoDao, asistenciaDao, equipoGestionDao,
-                comunicacionService, temporadaService);
+                comunicacionService, temporadaService,
+                java.time.Clock.fixed(java.time.Instant.parse("2026-10-21T08:00:00Z"),
+                        java.time.ZoneId.of("Europe/Madrid")));
     }
 
     private static EntrenamientoGuardarRequest requestValido() {
@@ -263,6 +266,7 @@ class EntrenamientoServiceImplTest {
         verify(asistenciaDao).eliminarPorEntrenamiento(5L);
         verify(asistenciaDao).guardar(any(EntrenamientoAsistencia.class));
         verify(entrenamientoDao).actualizar(existente);
+        verify(entrenamientoDao).marcarListaRevisada(eq(5L), eq(1L), any(java.time.LocalDateTime.class));
     }
 
     @Test

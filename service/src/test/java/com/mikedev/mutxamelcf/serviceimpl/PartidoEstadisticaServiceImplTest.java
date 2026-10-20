@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.serviceimpl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -16,6 +17,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -24,13 +26,16 @@ import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoEstadisticaJugadorDao;
+import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
+import com.mikedev.mutxamelcf.model.EstadisticasJugadorEquipo;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.PartidoEstadisticaJugador;
 import com.mikedev.mutxamelcf.model.PartidoEstadisticaJugadorRequest;
 import com.mikedev.mutxamelcf.model.PartidoEstadisticasGuardarRequest;
 import com.mikedev.mutxamelcf.model.PartidoEstadisticasResponse;
+import com.mikedev.mutxamelcf.model.Temporada;
 
 @ExtendWith(MockitoExtension.class)
 class PartidoEstadisticaServiceImplTest {
@@ -50,6 +55,15 @@ class PartidoEstadisticaServiceImplTest {
     @Mock
     private ConvocatoriaJugadorDao convocatoriaJugadorDao;
 
+    @Mock
+    private com.mikedev.mutxamelcf.dao.TemporadaDao temporadaDao;
+
+    @Mock
+    private com.mikedev.mutxamelcf.dao.ResumenTemporadaDao resumenTemporadaDao;
+
+    @Mock
+    private com.mikedev.mutxamelcf.service.ComunicacionService comunicacionService;
+
     private PartidoEstadisticaServiceImpl service;
 
     private static final Long USUARIO_ID = 1L;
@@ -60,7 +74,8 @@ class PartidoEstadisticaServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new PartidoEstadisticaServiceImpl(
-                partidoDao, estadisticaJugadorDao, equipoGestionDao, convocatoriaDao, convocatoriaJugadorDao);
+                partidoDao, estadisticaJugadorDao, equipoGestionDao, convocatoriaDao, convocatoriaJugadorDao,
+                temporadaDao, resumenTemporadaDao, comunicacionService, new ReglaSancionAmarillas(5, 1));
     }
 
     private static Date fechaHaceDias(long dias) {
@@ -204,6 +219,126 @@ class PartidoEstadisticaServiceImplTest {
 
         verify(estadisticaJugadorDao, times(1)).eliminarPorPartido(PARTIDO_ID);
         verify(estadisticaJugadorDao, times(1)).guardar(any(PartidoEstadisticaJugador.class));
+    }
+
+    // ---------- aviso de tarjetas ----------
+
+    private void prepararGuardado(int amarillasAntes, int amarillasDespues, boolean rojaAntes) {
+        when(partidoDao.obtenerPorId(PARTIDO_ID)).thenReturn(partidoJugadoAyer());
+        when(equipoGestionDao.puedeGestionarEquipo(USUARIO_ID, EQUIPO_ID)).thenReturn(true);
+        when(convocatoriaDao.obtenerPorPartidoId(PARTIDO_ID)).thenReturn(null);
+        when(equipoGestionDao.obtenerJugadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of(JUGADOR_ID));
+
+        PartidoEstadisticaJugador previa = new PartidoEstadisticaJugador();
+        previa.setJugadorId(JUGADOR_ID);
+        previa.setTarjetaRoja(rojaAntes);
+        when(estadisticaJugadorDao.obtenerPorPartido(PARTIDO_ID)).thenReturn(List.of(previa));
+
+        Temporada temporada = new Temporada();
+        temporada.setFechaInicio(fechaHaceDias(200));
+        temporada.setFechaFin(fechaEnDias(100));
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporada);
+
+        when(resumenTemporadaDao.estadisticasJugadoresDelEquipo(any(), any(), any(), any())).thenReturn(
+                List.of(totales(amarillasAntes)), List.of(totales(amarillasDespues)));
+
+        org.mockito.Mockito.lenient().when(equipoGestionDao.obtenerNombreJugador(JUGADOR_ID)).thenReturn("Pablo");
+        org.mockito.Mockito.lenient().when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO_ID))
+                .thenReturn(List.of(USUARIO_ID, 2L));
+    }
+
+    private static EstadisticasJugadorEquipo totales(int amarillas) {
+        return new EstadisticasJugadorEquipo(JUGADOR_ID, "Pablo", 9, 0, 0, amarillas, 0, 1);
+    }
+
+    private static PartidoEstadisticasGuardarRequest conAmarillas(int amarillas, boolean roja) {
+        return new PartidoEstadisticasGuardarRequest(
+                0, 0, List.of(new PartidoEstadisticaJugadorRequest(JUGADOR_ID, 0, 0, amarillas, roja)));
+    }
+
+    private Comunicacion avisoEnviado() {
+        ArgumentCaptor<Comunicacion> captor = ArgumentCaptor.forClass(Comunicacion.class);
+        verify(comunicacionService).crearPrivada(captor.capture(), eq(List.of(2L)), eq(USUARIO_ID));
+        return captor.getValue();
+    }
+
+    @Test
+    void guardarAvisaCuandoElJugadorLlegaAUnaAmarillaDeLaSancion() {
+        prepararGuardado(3, 4, false);
+
+        service.guardar(USUARIO_ID, PARTIDO_ID, conAmarillas(1, false));
+
+        assertThat(avisoEnviado().getContenido())
+                .isEqualTo("Pablo acumula 4 amarillas: a una de posible sanción.");
+    }
+
+    @Test
+    void guardarAvisaCuandoElJugadorLlegaALaPosibleSancion() {
+        prepararGuardado(4, 5, false);
+
+        service.guardar(USUARIO_ID, PARTIDO_ID, conAmarillas(1, false));
+
+        assertThat(avisoEnviado().getContenido())
+                .isEqualTo("Pablo llega a 5 amarillas: posible sanción. Compruébalo en la FFCV.");
+    }
+
+    @Test
+    void guardarNoAvisaSiNoSeCruzaNingunUmbral() {
+        prepararGuardado(1, 2, false);
+
+        service.guardar(USUARIO_ID, PARTIDO_ID, conAmarillas(1, false));
+
+        verify(comunicacionService, never()).crearPrivada(any(), any(), any());
+    }
+
+    @Test
+    void volverAGuardarSinCruzarUnUmbralNuevoNoAvisa() {
+        // Ya estaba en 4 y sigue en 4: el umbral se cruzó en un guardado anterior.
+        prepararGuardado(4, 4, false);
+
+        service.guardar(USUARIO_ID, PARTIDO_ID, conAmarillas(1, false));
+
+        verify(comunicacionService, never()).crearPrivada(any(), any(), any());
+    }
+
+    @Test
+    void guardarAvisaDeLaRojaYNoSeRepiteAlVolverAGuardar() {
+        prepararGuardado(0, 0, false);
+
+        service.guardar(USUARIO_ID, PARTIDO_ID, conAmarillas(0, true));
+
+        assertThat(avisoEnviado().getContenido())
+                .isEqualTo("Pablo ha visto la roja en el partido contra Rival CF: posible sanción.");
+    }
+
+    @Test
+    void laRojaQueYaEstabaGuardadaNoVuelveAAvisar() {
+        prepararGuardado(0, 0, true);
+
+        service.guardar(USUARIO_ID, PARTIDO_ID, conAmarillas(0, true));
+
+        verify(comunicacionService, never()).crearPrivada(any(), any(), any());
+    }
+
+    @Test
+    void conVariosUmbralesALaVezSoloSeEnviaUnAvisoPorJugador() {
+        // Cruza la sanción y además ve la roja: un único aviso, el de la sanción.
+        prepararGuardado(4, 5, false);
+
+        service.guardar(USUARIO_ID, PARTIDO_ID, conAmarillas(1, true));
+
+        verify(comunicacionService, times(1)).crearPrivada(any(), any(), any());
+    }
+
+    @Test
+    void sinEntrenadoresAvisaALosCoordinadoresSinIncluirAQuienGuarda() {
+        prepararGuardado(4, 5, false);
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of());
+        when(equipoGestionDao.obtenerCoordinadores()).thenReturn(List.of(USUARIO_ID, 3L));
+
+        service.guardar(USUARIO_ID, PARTIDO_ID, conAmarillas(1, false));
+
+        verify(comunicacionService).crearPrivada(any(Comunicacion.class), eq(List.of(3L)), eq(USUARIO_ID));
     }
 
     // ---------- obtener ----------

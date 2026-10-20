@@ -54,6 +54,49 @@ class EsquemaH2Test {
     }
 
     @Test
+    void entrenamientosTieneLasColumnasDePasarLista() {
+        JdbcTemplate jdbc = nuevaBase();
+
+        assertThat(columnas(jdbc, "ENTRENAMIENTOS")).contains(
+                "LISTA_REVISADA", "FECHA_REVISION", "USUARIO_REVISION_ID", "AVISO_LISTA_ENVIADO");
+
+        jdbc.update("INSERT INTO ENTRENAMIENTOS (EQUIPO_ID, FECHA, USUARIO_ENTRENADOR_ID)"
+                + " VALUES (5, CURRENT_DATE, 1)");
+
+        // Por defecto, sin revisar y sin avisar.
+        assertThat(jdbc.queryForObject(
+                "SELECT LISTA_REVISADA * 10 + AVISO_LISTA_ENVIADO FROM ENTRENAMIENTOS", Integer.class)).isZero();
+
+        // CHECK (LISTA_REVISADA IN (0, 1)) y CHECK (AVISO_LISTA_ENVIADO IN (0, 1))
+        assertThatThrownBy(() -> jdbc.update("UPDATE ENTRENAMIENTOS SET LISTA_REVISADA = 2")).isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update("UPDATE ENTRENAMIENTOS SET AVISO_LISTA_ENVIADO = 2")).isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void laTablaDeReportesDeComunicacionTieneElEsquemaDelScript() {
+        JdbcTemplate jdbc = nuevaBase();
+
+        assertThat(columnas(jdbc, "REPORTES_COMUNICACION")).containsExactly(
+                "ID", "COMUNICACION_ID", "AUTOR_ID", "REPORTADOR_ID", "MOTIVO", "TITULO_COPIA", "CONTENIDO_COPIA",
+                "FECHA_MENSAJE", "FECHA_REPORTE", "ESTADO", "RESUELTO_POR_ID", "FECHA_RESOLUCION", "NOTA_RESOLUCION");
+
+        String insert = "INSERT INTO REPORTES_COMUNICACION (COMUNICACION_ID, REPORTADOR_ID, FECHA_REPORTE)"
+                + " VALUES (1, 2, CURRENT_TIMESTAMP)";
+
+        jdbc.update(insert);
+
+        // UNIQUE (COMUNICACION_ID, REPORTADOR_ID)
+        assertThatThrownBy(() -> jdbc.update(insert)).isInstanceOf(Exception.class);
+
+        // CHECK de ESTADO
+        assertThatThrownBy(() -> jdbc.update("UPDATE REPORTES_COMUNICACION SET ESTADO = 'OTRO'"))
+                .isInstanceOf(Exception.class);
+
+        assertThat(jdbc.queryForObject("SELECT ESTADO FROM REPORTES_COMUNICACION", String.class))
+                .isEqualTo("PENDIENTE");
+    }
+
+    @Test
     void laTablaDeJustificacionesDePartidoTieneElEsquemaDelScript() {
         JdbcTemplate jdbc = nuevaBase();
 

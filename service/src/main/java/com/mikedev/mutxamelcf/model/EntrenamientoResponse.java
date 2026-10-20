@@ -1,6 +1,7 @@
 package com.mikedev.mutxamelcf.model;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class EntrenamientoResponse {
@@ -11,6 +12,26 @@ public class EntrenamientoResponse {
     private LocalDate fecha;
     private Long usuarioEntrenadorId;
     private List<EntrenamientoAsistenciaResponse> asistencias;
+
+    /** El staff ya ha guardado la asistencia de este entrenamiento, y cuándo. */
+    private boolean listaRevisada;
+    private LocalDateTime fechaRevision;
+
+    public boolean isListaRevisada() {
+        return listaRevisada;
+    }
+
+    public void setListaRevisada(boolean listaRevisada) {
+        this.listaRevisada = listaRevisada;
+    }
+
+    public LocalDateTime getFechaRevision() {
+        return fechaRevision;
+    }
+
+    public void setFechaRevision(LocalDateTime fechaRevision) {
+        this.fechaRevision = fechaRevision;
+    }
 
     public EntrenamientoResponse() {
     }

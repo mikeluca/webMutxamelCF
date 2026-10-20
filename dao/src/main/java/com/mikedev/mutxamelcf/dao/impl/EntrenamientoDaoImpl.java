@@ -6,6 +6,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Date;
 import java.sql.Types;
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Repository;
 
 import com.mikedev.mutxamelcf.dao.EntrenamientoDao;
 import com.mikedev.mutxamelcf.model.Entrenamiento;
+import com.mikedev.mutxamelcf.model.EntrenamientoPendienteDeLista;
 
 @Repository
 public class EntrenamientoDaoImpl implements EntrenamientoDao {
@@ -61,6 +63,21 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
                                                 rs.getTimestamp("FECHA_CREACION")
                                                                 .toLocalDateTime());
                         }
+
+                        entrenamiento.setListaRevisada(rs.getInt("LISTA_REVISADA") == 1);
+
+                        if (rs.getTimestamp("FECHA_REVISION") != null) {
+                                entrenamiento.setFechaRevision(
+                                                rs.getTimestamp("FECHA_REVISION")
+                                                                .toLocalDateTime());
+                        }
+
+                        long usuarioRevisionId = rs.getLong("USUARIO_REVISION_ID");
+
+                        entrenamiento.setUsuarioRevisionId(
+                                        rs.wasNull() ? null : usuarioRevisionId);
+
+                        entrenamiento.setAvisoListaEnviado(rs.getInt("AVISO_LISTA_ENVIADO") == 1);
 
                         return entrenamiento;
                 }
@@ -139,7 +156,11 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
                                     FECHA,
                                     USUARIO_ENTRENADOR_ID,
                                     SESION_ENTRENAMIENTO_ID,
-                                    FECHA_CREACION
+                                    FECHA_CREACION,
+                                    LISTA_REVISADA,
+                                    FECHA_REVISION,
+                                    USUARIO_REVISION_ID,
+                                    AVISO_LISTA_ENVIADO
                                 FROM ENTRENAMIENTOS
                                 WHERE ID = ?
                                 """;
@@ -174,7 +195,11 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
                                     FECHA,
                                     USUARIO_ENTRENADOR_ID,
                                     SESION_ENTRENAMIENTO_ID,
-                                    FECHA_CREACION
+                                    FECHA_CREACION,
+                                    LISTA_REVISADA,
+                                    FECHA_REVISION,
+                                    USUARIO_REVISION_ID,
+                                    AVISO_LISTA_ENVIADO
                                 FROM ENTRENAMIENTOS
                                 WHERE EQUIPO_ID = ?
                                 ORDER BY ABS(FECHA - TRUNC(SYSDATE)), FECHA DESC, ID DESC
@@ -204,7 +229,11 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
                                     FECHA,
                                     USUARIO_ENTRENADOR_ID,
                                     SESION_ENTRENAMIENTO_ID,
-                                    FECHA_CREACION
+                                    FECHA_CREACION,
+                                    LISTA_REVISADA,
+                                    FECHA_REVISION,
+                                    USUARIO_REVISION_ID,
+                                    AVISO_LISTA_ENVIADO
                                 FROM ENTRENAMIENTOS
                                 WHERE EQUIPO_ID = ?
                                 """);
@@ -241,7 +270,11 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
                                     FECHA,
                                     USUARIO_ENTRENADOR_ID,
                                     SESION_ENTRENAMIENTO_ID,
-                                    FECHA_CREACION
+                                    FECHA_CREACION,
+                                    LISTA_REVISADA,
+                                    FECHA_REVISION,
+                                    USUARIO_REVISION_ID,
+                                    AVISO_LISTA_ENVIADO
                                 FROM ENTRENAMIENTOS
                                 WHERE SESION_ENTRENAMIENTO_ID = ?
                                 """;
@@ -271,6 +304,53 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
                                 id);
 
                 return count != null && count > 0;
+        }
+
+        @Override
+        public void marcarListaRevisada(Long id, Long usuarioId, java.time.LocalDateTime fecha) {
+
+                jdbcTemplate.update(
+                                """
+                                                UPDATE ENTRENAMIENTOS
+                                                SET LISTA_REVISADA = 1,
+                                                    FECHA_REVISION = ?,
+                                                    USUARIO_REVISION_ID = ?
+                                                WHERE ID = ?
+                                                """,
+                                java.sql.Timestamp.valueOf(fecha),
+                                usuarioId,
+                                id);
+        }
+
+        @Override
+        public List<EntrenamientoPendienteDeLista> obtenerPendientesDeAvisoLista(LocalDate hasta) {
+
+                return jdbcTemplate.query(
+                                """
+                                                SELECT E.ID, E.EQUIPO_ID, E.FECHA, S.HORA, S.ESTADO
+                                                FROM ENTRENAMIENTOS E
+                                                LEFT JOIN SESIONES_ENTRENAMIENTO S
+                                                    ON S.ID = E.SESION_ENTRENAMIENTO_ID
+                                                WHERE E.LISTA_REVISADA = 0
+                                                  AND E.AVISO_LISTA_ENVIADO = 0
+                                                  AND E.FECHA <= ?
+                                                ORDER BY E.FECHA, E.ID
+                                                """,
+                                (rs, n) -> new EntrenamientoPendienteDeLista(
+                                                rs.getLong("ID"),
+                                                rs.getLong("EQUIPO_ID"),
+                                                rs.getDate("FECHA").toLocalDate(),
+                                                rs.getString("HORA"),
+                                                rs.getString("ESTADO")),
+                                java.sql.Date.valueOf(hasta));
+        }
+
+        @Override
+        public void marcarAvisoListaEnviado(Long id) {
+
+                jdbcTemplate.update(
+                                "UPDATE ENTRENAMIENTOS SET AVISO_LISTA_ENVIADO = 1 WHERE ID = ?",
+                                id);
         }
 
         @Override

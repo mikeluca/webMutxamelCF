@@ -9,6 +9,10 @@ import org.springframework.stereotype.Repository;
 
 import com.mikedev.mutxamelcf.dao.ResumenTemporadaDao;
 import com.mikedev.mutxamelcf.model.AsistenciaEntrenamientosJugador;
+import com.mikedev.mutxamelcf.model.AsistenciaJugadorEquipo;
+import com.mikedev.mutxamelcf.model.EntrenamientoDelDiaDeJugador;
+import com.mikedev.mutxamelcf.model.EstadisticasJugadorEquipo;
+import com.mikedev.mutxamelcf.model.PartidosEquipo;
 import com.mikedev.mutxamelcf.model.EntrenamientoDelDia;
 import com.mikedev.mutxamelcf.model.EstadisticasPartidosJugador;
 
@@ -117,4 +121,127 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 				jugadorId, Date.valueOf(fecha));
 	}
 
+
+	private static String nombreCompleto(java.sql.ResultSet rs) throws java.sql.SQLException {
+		String nombre = rs.getString("NOMBRE") == null ? "" : rs.getString("NOMBRE");
+		String apellidos = rs.getString("APELLIDOS") == null ? "" : rs.getString("APELLIDOS");
+
+		return (nombre + " " + apellidos).trim();
+	}
+
+	private static Integer dorsal(java.sql.ResultSet rs) throws java.sql.SQLException {
+		int dorsal = rs.getInt("DORSAL");
+
+		return rs.wasNull() ? null : dorsal;
+	}
+
+	@Override
+	public List<EstadisticasJugadorEquipo> estadisticasJugadoresDelEquipo(
+			Long equipoId, LocalDate desde, LocalDate hasta, LocalDate hoy) {
+
+		return jdbcTemplate.query("""
+				SELECT J.ID, J.NOMBRE, J.APELLIDOS, J.DORSAL,
+				       COALESCE(SUM(EJ.GOLES), 0) AS GOLES,
+				       COALESCE(SUM(EJ.ASISTENCIAS), 0) AS ASISTENCIAS,
+				       COALESCE(SUM(EJ.TARJETAS_AMARILLAS), 0) AS AMARILLAS,
+				       COALESCE(SUM(EJ.TARJETA_ROJA), 0) AS ROJAS,
+				       (SELECT COUNT(*)
+				          FROM CONVOCATORIA_JUGADOR CJ
+				          JOIN CONVOCATORIAS C ON C.ID = CJ.CONVOCATORIA_ID
+				          JOIN PARTIDOS P ON P.ID = C.PARTIDO_ID
+				         WHERE CJ.JUGADOR_ID = J.ID
+				           AND P.CANCELADO = 0
+				           AND P.DIA BETWEEN ? AND ?
+				           AND (P.DIA < ? OR (P.DIA = ? AND NOT %s))) AS PARTIDOS
+				FROM JUGADORES J
+				JOIN EQUIPO E ON E.NOMBRE = J.EQUIPO
+				LEFT JOIN PARTIDO_ESTADISTICAS_JUGADOR EJ
+				       ON EJ.JUGADOR_ID = J.ID
+				      AND EJ.PARTIDO_ID IN (SELECT PP.ID FROM PARTIDOS PP
+				                             WHERE PP.CANCELADO = 0 AND PP.DIA BETWEEN ? AND ?)
+				WHERE E.ID = ?
+				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, J.DORSAL
+				""".formatted(SIN_RESULTADO),
+				(rs, n) -> new EstadisticasJugadorEquipo(
+						rs.getLong("ID"), nombreCompleto(rs), dorsal(rs),
+						rs.getInt("GOLES"), rs.getInt("ASISTENCIAS"), rs.getInt("AMARILLAS"), rs.getInt("ROJAS"),
+						rs.getInt("PARTIDOS")),
+				Date.valueOf(desde), Date.valueOf(hasta), Date.valueOf(hoy), Date.valueOf(hoy),
+				Date.valueOf(desde), Date.valueOf(hasta), equipoId);
+	}
+
+	@Override
+	public List<AsistenciaJugadorEquipo> asistenciaEntrenamientosDelEquipo(
+			Long equipoId, LocalDate desde, LocalDate hasta) {
+
+		return jdbcTemplate.query("""
+				SELECT J.ID, J.NOMBRE, J.APELLIDOS, J.DORSAL,
+				       COUNT(A.ENTRENAMIENTO_ID) AS TOTAL,
+				       COALESCE(SUM(CASE WHEN A.ESTADO IN ('PRESENTE', 'RETRASO', 'MAL_COMPORTAMIENTO')
+				                         THEN 1 ELSE 0 END), 0) AS ASISTIDOS
+				FROM JUGADORES J
+				JOIN EQUIPO E ON E.NOMBRE = J.EQUIPO
+				LEFT JOIN ENTRENAMIENTO_ASISTENCIA A
+				       ON A.JUGADOR_ID = J.ID
+				      AND A.ENTRENAMIENTO_ID IN (SELECT EN.ID FROM ENTRENAMIENTOS EN
+				                                  WHERE EN.EQUIPO_ID = ? AND EN.FECHA BETWEEN ? AND ?)
+				WHERE E.ID = ?
+				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, J.DORSAL
+				""",
+				(rs, n) -> new AsistenciaJugadorEquipo(
+						rs.getLong("ID"), nombreCompleto(rs), dorsal(rs), rs.getInt("TOTAL"), rs.getInt("ASISTIDOS")),
+				equipoId, Date.valueOf(desde), Date.valueOf(hasta), equipoId);
+	}
+
+	@Override
+	public int contarEntrenamientosDelEquipo(Long equipoId, LocalDate desde, LocalDate hasta, boolean soloRevisados) {
+
+		Integer total = jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM ENTRENAMIENTOS WHERE EQUIPO_ID = ? AND FECHA BETWEEN ? AND ?"
+						+ (soloRevisados ? " AND LISTA_REVISADA = 1" : ""),
+				Integer.class,
+				equipoId, Date.valueOf(desde), Date.valueOf(hasta));
+
+		return total == null ? 0 : total;
+	}
+
+	@Override
+	public List<EntrenamientoDelDiaDeJugador> entrenamientosDelDiaDelEquipo(Long equipoId, LocalDate fecha) {
+
+		return jdbcTemplate.query("""
+				SELECT E.ID AS ENTRENAMIENTO_ID, A.JUGADOR_ID, S.HORA, A.ESTADO, E.LISTA_REVISADA
+				FROM ENTRENAMIENTOS E
+				JOIN ENTRENAMIENTO_ASISTENCIA A ON A.ENTRENAMIENTO_ID = E.ID
+				JOIN JUGADORES J ON J.ID = A.JUGADOR_ID
+				LEFT JOIN SESIONES_ENTRENAMIENTO S ON S.ID = E.SESION_ENTRENAMIENTO_ID
+				WHERE E.EQUIPO_ID = ?
+				  AND E.FECHA = ?
+				""",
+				(rs, n) -> new EntrenamientoDelDiaDeJugador(
+						rs.getLong("ENTRENAMIENTO_ID"), rs.getLong("JUGADOR_ID"), rs.getString("HORA"),
+						rs.getString("ESTADO"), rs.getInt("LISTA_REVISADA") == 1),
+				equipoId, Date.valueOf(fecha));
+	}
+
+	@Override
+	public PartidosEquipo partidosDelEquipo(Long equipoId, LocalDate desde, LocalDate hasta) {
+
+		return jdbcTemplate.queryForObject("""
+				SELECT COUNT(*),
+				       COALESCE(SUM(CASE WHEN GOLES_FAVOR > GOLES_CONTRA THEN 1 ELSE 0 END), 0),
+				       COALESCE(SUM(CASE WHEN GOLES_FAVOR = GOLES_CONTRA THEN 1 ELSE 0 END), 0),
+				       COALESCE(SUM(CASE WHEN GOLES_FAVOR < GOLES_CONTRA THEN 1 ELSE 0 END), 0),
+				       COALESCE(SUM(GOLES_FAVOR), 0),
+				       COALESCE(SUM(GOLES_CONTRA), 0)
+				FROM PARTIDOS
+				WHERE EQUIPO_ID = ?
+				  AND CANCELADO = 0
+				  AND GOLES_FAVOR IS NOT NULL
+				  AND GOLES_CONTRA IS NOT NULL
+				  AND DIA BETWEEN ? AND ?
+				""",
+				(rs, n) -> new PartidosEquipo(
+						rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getInt(5), rs.getInt(6)),
+				equipoId, Date.valueOf(desde), Date.valueOf(hasta));
+	}
 }

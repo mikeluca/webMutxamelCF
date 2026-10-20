@@ -1,6 +1,8 @@
 package com.mikedev.mutxamelcf.serviceimpl;
 
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -48,14 +50,17 @@ public class EntrenamientoServiceImpl
         private final EquipoGestionDao equipoGestionDao;
         private final ComunicacionService comunicacionService;
         private final TemporadaService temporadaService;
+        private final Clock clock;
 
         public EntrenamientoServiceImpl(
                         EntrenamientoDao entrenamientoDao,
                         EntrenamientoAsistenciaDao asistenciaDao,
                         EquipoGestionDao equipoGestionDao,
                         ComunicacionService comunicacionService,
-                        TemporadaService temporadaService) {
+                        TemporadaService temporadaService,
+                        Clock clock) {
 
+                this.clock = clock;
                 this.entrenamientoDao = entrenamientoDao;
                 this.asistenciaDao = asistenciaDao;
                 this.equipoGestionDao = equipoGestionDao;
@@ -118,6 +123,9 @@ public class EntrenamientoServiceImpl
                 entrenamiento.setUsuarioEntrenadorId(usuarioAppId);
 
                 entrenamiento = entrenamientoDao.guardar(entrenamiento);
+
+                // Quien crea el entrenamiento con su lista ya la ha pasado.
+                marcarListaRevisada(entrenamiento, usuarioAppId);
 
                 /*
                  * Guardamos todas las asistencias.
@@ -217,6 +225,10 @@ public class EntrenamientoServiceImpl
 
                 entrenamientoDao.actualizar(entrenamiento);
 
+                // Guardar la asistencia cuenta como pasar lista, aunque no cambie
+                // ningún estado: es la confirmación de que todo está bien.
+                marcarListaRevisada(entrenamiento, usuarioAppId);
+
                 /*
                  * Reemplazamos las asistencias actuales por
                  * las nuevas.
@@ -279,6 +291,22 @@ public class EntrenamientoServiceImpl
                 }
 
                 return construirResponse(entrenamiento);
+        }
+
+        private void marcarListaRevisada(
+                        Entrenamiento entrenamiento,
+                        Long usuarioAppId) {
+
+                LocalDateTime ahora = LocalDateTime.now(clock);
+
+                entrenamientoDao.marcarListaRevisada(
+                                entrenamiento.getId(),
+                                usuarioAppId,
+                                ahora);
+
+                entrenamiento.setListaRevisada(true);
+                entrenamiento.setFechaRevision(ahora);
+                entrenamiento.setUsuarioRevisionId(usuarioAppId);
         }
 
         private void validarRequest(
@@ -540,7 +568,7 @@ public class EntrenamientoServiceImpl
                                                         asistencia.getEstado()));
                 }
 
-                return new EntrenamientoResponse(
+                EntrenamientoResponse response = new EntrenamientoResponse(
                                 entrenamiento.getId(),
                                 entrenamiento.getEquipoId(),
                                 equipoGestionDao.obtenerNombreEquipo(
@@ -548,6 +576,11 @@ public class EntrenamientoServiceImpl
                                 entrenamiento.getFecha(),
                                 entrenamiento.getUsuarioEntrenadorId(),
                                 respuestas);
+
+                response.setListaRevisada(entrenamiento.isListaRevisada());
+                response.setFechaRevision(entrenamiento.getFechaRevision());
+
+                return response;
         }
 
         @Override

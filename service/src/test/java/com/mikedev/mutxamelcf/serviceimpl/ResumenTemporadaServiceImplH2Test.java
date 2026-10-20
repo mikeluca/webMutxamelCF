@@ -56,7 +56,6 @@ class ResumenTemporadaServiceImplH2Test {
                 CREATE TABLE TEMPORADAS (
                     ID NUMBER PRIMARY KEY, NOMBRE VARCHAR2(50), FECHA_INICIO DATE, FECHA_FIN DATE, ACTIVA NUMBER(1))""");
         jdbc.execute("CREATE TABLE SESIONES_ENTRENAMIENTO (ID NUMBER PRIMARY KEY, HORA VARCHAR2(20))");
-        jdbc.execute("CREATE TABLE ENTRENAMIENTOS (ID NUMBER PRIMARY KEY, FECHA DATE, SESION_ENTRENAMIENTO_ID NUMBER)");
         jdbc.execute("""
                 CREATE TABLE ENTRENAMIENTO_ASISTENCIA (
                     ENTRENAMIENTO_ID NUMBER, JUGADOR_ID NUMBER, ESTADO VARCHAR2(30))""");
@@ -88,7 +87,7 @@ class ResumenTemporadaServiceImplH2Test {
 
     private void entrenamiento(LocalDate fecha, String estado) {
         long id = siguienteId++;
-        jdbc.update("INSERT INTO ENTRENAMIENTOS (ID, FECHA) VALUES (?, ?)", id, Date.valueOf(fecha));
+        jdbc.update("INSERT INTO ENTRENAMIENTOS (ID, EQUIPO_ID, FECHA, USUARIO_ENTRENADOR_ID) VALUES (?, 5, ?, 1)", id, Date.valueOf(fecha));
         jdbc.update("INSERT INTO ENTRENAMIENTO_ASISTENCIA VALUES (?, ?, ?)", id, JUGADOR, estado);
     }
 
@@ -185,7 +184,7 @@ class ResumenTemporadaServiceImplH2Test {
         long sesion = siguienteId++;
         long id = siguienteId++;
         jdbc.update("INSERT INTO SESIONES_ENTRENAMIENTO (ID, HORA) VALUES (?, ?)", sesion, hora);
-        jdbc.update("INSERT INTO ENTRENAMIENTOS (ID, FECHA, SESION_ENTRENAMIENTO_ID) VALUES (?, ?, ?)",
+        jdbc.update("INSERT INTO ENTRENAMIENTOS (ID, EQUIPO_ID, FECHA, SESION_ENTRENAMIENTO_ID, USUARIO_ENTRENADOR_ID) VALUES (?, 5, ?, ?, 1)",
                 id, Date.valueOf(fecha), sesion);
         jdbc.update("INSERT INTO ENTRENAMIENTO_ASISTENCIA VALUES (?, ?, ?)", id, JUGADOR, estado);
     }
@@ -228,7 +227,7 @@ class ResumenTemporadaServiceImplH2Test {
     @Test
     void laAsistenciaDeOtroJugadorNoCuenta() {
         long id = siguienteId++;
-        jdbc.update("INSERT INTO ENTRENAMIENTOS (ID, FECHA) VALUES (?, ?)", id, Date.valueOf(INICIO.plusDays(2)));
+        jdbc.update("INSERT INTO ENTRENAMIENTOS (ID, EQUIPO_ID, FECHA, USUARIO_ENTRENADOR_ID) VALUES (?, 5, ?, 1)", id, Date.valueOf(INICIO.plusDays(2)));
         jdbc.update("INSERT INTO ENTRENAMIENTO_ASISTENCIA VALUES (?, 999, 'PRESENTE')", id);
 
         assertThat(service.obtenerResumen(USUARIO, JUGADOR).entrenamientos().total()).isZero();
