@@ -141,6 +141,22 @@ public class JustificacionFaltaEntrenamientoDaoImpl implements JustificacionFalt
         }
     }
 
+    @Override
+    public boolean existePorJugador(Long jugadorId) {
+
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM JUSTIFICACIONES_FALTA_ENTRENAMIENTO WHERE JUGADOR_ID = ?",
+                Integer.class, jugadorId);
+
+        return count != null && count > 0;
+    }
+
+    @Override
+    public int eliminarPorJugador(Long jugadorId) {
+
+        return jdbcTemplate.update("DELETE FROM JUSTIFICACIONES_FALTA_ENTRENAMIENTO WHERE JUGADOR_ID = ?", jugadorId);
+    }
+
     private static JustificacionFaltaEntrenamiento mapRow(ResultSet rs, int rowNum) throws SQLException {
 
         JustificacionFaltaEntrenamiento justificacion = new JustificacionFaltaEntrenamiento();

@@ -3,15 +3,23 @@ package com.mikedev.mutxamelcf.serviceimpl;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.mikedev.mutxamelcf.util.ImageUtils;
 
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.EntrenamientoAsistenciaDao;
 import com.mikedev.mutxamelcf.dao.JugadorDao;
+import com.mikedev.mutxamelcf.dao.JustificacionFaltaEntrenamientoDao;
+import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
+import com.mikedev.mutxamelcf.dao.PartidoEstadisticaJugadorDao;
+import com.mikedev.mutxamelcf.dao.PartidoLiveEventoDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
 import com.mikedev.mutxamelcf.model.Jugador;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
@@ -25,22 +33,36 @@ public class JugadorServiceImpl implements JugadorService {
 
 	private static final Logger logger = LoggerFactory.getLogger(JugadorServiceImpl.class);
 
+	// ORA-02292: "... (ESQUEMA.NOMBRE_CONSTRAINT) violada ..."
+	private static final Pattern CONSTRAINT = Pattern.compile("\\(([^()]+)\\)");
+
 	private final JugadorDao jugadorDao;
 	private final FamiliarJugadorService familiarJugadorService;
 	private final UsuarioAppVinculoDao usuarioAppVinculoDao;
 	private final CuotaJugadorService cuotaJugadorService;
 	private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
 	private final EntrenamientoAsistenciaDao entrenamientoAsistenciaDao;
+	private final PartidoEstadisticaJugadorDao partidoEstadisticaJugadorDao;
+	private final PartidoLiveEventoDao partidoLiveEventoDao;
+	private final JustificacionFaltaEntrenamientoDao justificacionFaltaEntrenamientoDao;
+	private final JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
 
 	public JugadorServiceImpl(JugadorDao jugadorDao, FamiliarJugadorService familiarJugadorService,
 			UsuarioAppVinculoDao usuarioAppVinculoDao, CuotaJugadorService cuotaJugadorService,
-			ConvocatoriaJugadorDao convocatoriaJugadorDao, EntrenamientoAsistenciaDao entrenamientoAsistenciaDao) {
+			ConvocatoriaJugadorDao convocatoriaJugadorDao, EntrenamientoAsistenciaDao entrenamientoAsistenciaDao,
+			PartidoEstadisticaJugadorDao partidoEstadisticaJugadorDao, PartidoLiveEventoDao partidoLiveEventoDao,
+			JustificacionFaltaEntrenamientoDao justificacionFaltaEntrenamientoDao,
+			JustificacionFaltaPartidoDao justificacionFaltaPartidoDao) {
 		this.jugadorDao = jugadorDao;
 		this.familiarJugadorService = familiarJugadorService;
 		this.usuarioAppVinculoDao = usuarioAppVinculoDao;
 		this.cuotaJugadorService = cuotaJugadorService;
 		this.convocatoriaJugadorDao = convocatoriaJugadorDao;
 		this.entrenamientoAsistenciaDao = entrenamientoAsistenciaDao;
+		this.partidoEstadisticaJugadorDao = partidoEstadisticaJugadorDao;
+		this.partidoLiveEventoDao = partidoLiveEventoDao;
+		this.justificacionFaltaEntrenamientoDao = justificacionFaltaEntrenamientoDao;
+		this.justificacionFaltaPartidoDao = justificacionFaltaPartidoDao;
 	}
 
 	@Override
@@ -60,6 +82,7 @@ public class JugadorServiceImpl implements JugadorService {
 	}
 
 	@Override
+	@Transactional
 	public void eliminarJugador(Long id) {
 		logger.debug("Inicio eliminarJugador: id={}", id);
 
@@ -80,6 +103,12 @@ public class JugadorServiceImpl implements JugadorService {
 		if (entrenamientoAsistenciaDao.existePorJugador(id)) {
 			motivos.add("tiene asistencias a entrenamientos registradas");
 		}
+		if (partidoEstadisticaJugadorDao.existePorJugador(id)) {
+			motivos.add("tiene estadísticas de partidos registradas");
+		}
+		if (partidoLiveEventoDao.existePorJugador(id)) {
+			motivos.add("tiene goles en retransmisiones");
+		}
 
 		if (!motivos.isEmpty()) {
 			logger.warn("No se puede eliminar el jugador id={}: {}", id, motivos);
@@ -88,8 +117,33 @@ public class JugadorServiceImpl implements JugadorService {
 							+ ". Quita antes esas relaciones (desasigna familiares, cuenta de app, cuotas...).");
 		}
 
-		jugadorDao.eliminar(id);
+		// Las justificaciones no bloquean: se borran en esta misma transacción justo antes del jugador.
+		int justificacionesEntrenamiento = justificacionFaltaEntrenamientoDao.eliminarPorJugador(id);
+		int justificacionesPartido = justificacionFaltaPartidoDao.eliminarPorJugador(id);
+		logger.info("Justificaciones borradas junto al jugador id={}: entrenamientos={}, partidos={}", id,
+				justificacionesEntrenamiento, justificacionesPartido);
+
+		try {
+			jugadorDao.eliminar(id);
+		} catch (DataIntegrityViolationException e) {
+			logger.warn("No se puede eliminar el jugador id={} por una restricción de integridad: constraint={}", id,
+					nombreConstraint(e), e);
+			throw new IllegalStateException("No se puede eliminar el jugador porque tiene datos relacionados en el club "
+					+ "(historial). Revisa sus relaciones.", e);
+		}
 		logger.debug("Fin eliminarJugador: id={}", id);
+	}
+
+	/** Nombre de la constraint violada, p. ej. "ORA-02292: restricción de integridad (ESQ.FK_X) violada - ..." → "ESQ.FK_X". */
+	private static String nombreConstraint(DataIntegrityViolationException e) {
+		String mensaje = e.getMostSpecificCause().getMessage();
+		if (mensaje != null) {
+			Matcher m = CONSTRAINT.matcher(mensaje);
+			if (m.find()) {
+				return m.group(1);
+			}
+		}
+		return "desconocida (" + mensaje + ")";
 	}
 
 	@Override

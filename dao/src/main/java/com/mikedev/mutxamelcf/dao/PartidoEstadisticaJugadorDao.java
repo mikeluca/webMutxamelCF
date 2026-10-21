@@ -14,4 +14,7 @@ public interface PartidoEstadisticaJugadorDao {
 
     void eliminarPorPartido(
             Long partidoId);
+
+    /** Si el jugador tiene alguna estadística de partido registrada. */
+    boolean existePorJugador(Long jugadorId);
 }

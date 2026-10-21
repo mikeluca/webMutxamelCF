@@ -126,6 +126,15 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 				jugadorIds.toArray());
 	}
 
+	@Override
+	public boolean existePorJugador(Long jugadorId) {
+
+		Integer count = jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM PARTIDO_LIVE_EVENTOS WHERE JUGADOR_ID = ?", Integer.class, jugadorId);
+
+		return count != null && count > 0;
+	}
+
 	private static PartidoLiveEvento mapRow(ResultSet rs, int rowNum) throws SQLException {
 
 		PartidoLiveEvento evento = new PartidoLiveEvento();

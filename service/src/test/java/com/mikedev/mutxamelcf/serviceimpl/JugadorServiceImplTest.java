@@ -19,6 +19,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.EntrenamientoAsistenciaDao;
 import com.mikedev.mutxamelcf.dao.JugadorDao;
+import com.mikedev.mutxamelcf.dao.JustificacionFaltaEntrenamientoDao;
+import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
+import com.mikedev.mutxamelcf.dao.PartidoEstadisticaJugadorDao;
+import com.mikedev.mutxamelcf.dao.PartidoLiveEventoDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
 import com.mikedev.mutxamelcf.model.FamiliarJugadorDTO;
 import com.mikedev.mutxamelcf.model.Jugador;
@@ -48,12 +52,26 @@ class JugadorServiceImplTest {
     @Mock
     private EntrenamientoAsistenciaDao entrenamientoAsistenciaDao;
 
+    @Mock
+    private PartidoEstadisticaJugadorDao partidoEstadisticaJugadorDao;
+
+    @Mock
+    private PartidoLiveEventoDao partidoLiveEventoDao;
+
+    @Mock
+    private JustificacionFaltaEntrenamientoDao justificacionFaltaEntrenamientoDao;
+
+    @Mock
+    private JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
+
     private JugadorServiceImpl jugadorService;
 
     @BeforeEach
     void setUp() {
         jugadorService = new JugadorServiceImpl(jugadorDao, familiarJugadorService, usuarioAppVinculoDao,
-                cuotaJugadorService, convocatoriaJugadorDao, entrenamientoAsistenciaDao);
+                cuotaJugadorService, convocatoriaJugadorDao, entrenamientoAsistenciaDao,
+                partidoEstadisticaJugadorDao, partidoLiveEventoDao, justificacionFaltaEntrenamientoDao,
+                justificacionFaltaPartidoDao);
     }
 
     @Test

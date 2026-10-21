@@ -22,4 +22,7 @@ public interface PartidoLiveEventoDao {
 
     /** Jugadores (sin foto) con esos ids. */
     List<JugadorBasico> obtenerJugadoresBasicos(Collection<Long> jugadorIds);
+
+    /** Si el jugador figura como goleador en algún evento (anulado o no). */
+    boolean existePorJugador(Long jugadorId);
 }
