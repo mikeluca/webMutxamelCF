@@ -153,14 +153,14 @@ class RecuperacionContrasenaTest {
     }
 
     @Test
-    void unaIpSoloPuedePedirDiezRecuperacionesPorHora() {
-        for (int i = 0; i < 12; i++) {
+    void unaIpSoloPuedePedirCienRecuperacionesPorHora() {
+        for (int i = 0; i < 102; i++) {
             ResponseEntity<Void> respuesta = recuperar("u" + i + "@example.com", "9.9.9.9");
             assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         }
 
-        // Las 10 primeras llegan a consultar la cuenta; las 2 siguientes se descartan.
-        verify(usuarioAppService, org.mockito.Mockito.times(10)).obtenerPorEmail(anyString());
+        // Las 100 primeras llegan a consultar la cuenta; las 2 siguientes se descartan.
+        verify(usuarioAppService, org.mockito.Mockito.times(100)).obtenerPorEmail(anyString());
     }
 
     @Test
@@ -203,6 +203,72 @@ class RecuperacionContrasenaTest {
         assertThat(respuesta.getBody()).isEqualTo("Código incorrecto o caducado");
         verify(comunicaciones, never()).enviarContrasenaCambiada(anyString(), any());
         verify(usuarioAppService, never()).login(anyString(), anyString());
+    }
+
+    @Test
+    void unEmailSoloRecibeCincoCodigosAlDiaPeroSigueRespondiendo204() {
+        MutableClock reloj = new MutableClock();
+        RecuperacionContrasena recuperacion = new RecuperacionContrasena(
+                usuarioAppService, comunicaciones, reenvio, new LimitadorRecuperacionContrasena(reloj), Runnable::run);
+        controller = new AppAuthController(
+                usuarioAppService, new LoginRateLimiter(), mock(CuentaActivadaNotifier.class), recuperacion);
+        when(usuarioAppService.obtenerPorEmail("ana@example.com"))
+                .thenReturn(cuenta(3, "ana@example.com", true, true));
+        when(usuarioAppService.generarCodigoRecuperacion(3)).thenReturn("123456");
+
+        for (int i = 0; i < 7; i++) {
+            assertThat(recuperar("ana@example.com", "1.1.1." + i).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+            reloj.avanzar(Duration.ofMinutes(3));
+        }
+
+        verify(usuarioAppService, org.mockito.Mockito.times(5)).generarCodigoRecuperacion(3);
+        verify(comunicaciones, org.mockito.Mockito.times(5)).enviarCodigoRecuperacion(
+                anyString(), any(), anyString(), anyInt());
+    }
+
+    @Test
+    void elBloqueoDeRestablecerDevuelve429ConCodigoEstable() {
+        LoginRateLimiter limitador = mock(LoginRateLimiter.class);
+        when(limitador.clave(anyString(), anyString(), anyString())).thenReturn("k");
+        when(limitador.estaBloqueado("k")).thenReturn(true);
+        AppAuthController bloqueado = new AppAuthController(
+                usuarioAppService, limitador, mock(CuentaActivadaNotifier.class), mock(RecuperacionContrasena.class));
+
+        RestablecerPasswordRequest request = new RestablecerPasswordRequest();
+        request.setEmail("ana@example.com");
+        request.setCodigo("123456");
+        request.setPassword("nueva-clave-1");
+
+        ResponseEntity<?> respuesta = bloqueado.restablecer(request, http("1.1.1.1"));
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        assertThat(respuesta.getBody()).isInstanceOf(java.util.Map.class);
+        assertThat(((java.util.Map<?, ?>) respuesta.getBody()).get("codigo")).isEqualTo("DEMASIADOS_INTENTOS");
+        verify(usuarioAppService, never()).restablecerPassword(anyString(), anyString(), anyString());
+    }
+
+    private static class MutableClock extends Clock {
+
+        private Instant ahora = AHORA;
+
+        void avanzar(Duration d) {
+            ahora = ahora.plus(d);
+        }
+
+        @Override
+        public ZoneOffset getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(java.time.ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return ahora;
+        }
     }
 
     @Test

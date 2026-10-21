@@ -30,10 +30,11 @@ import java.util.concurrent.ConcurrentMap;
  * bloquear la activación de la app para el mismo email.
  *
  * Nota: si en producción hay un proxy inverso delante y todas las
- * peticiones comparten IP (server.forward-headers-strategy sin configurar
- * o proxy que no reenvía la IP real), la clave IP+cuenta pierde su
- * utilidad práctica -- eso depende de la configuración del proxy y no se
- * puede cerrar solo desde el código.
+ * peticiones comparten IP (proxy que no reenvía la IP real), la clave
+ * IP+cuenta pierde su utilidad práctica. En producción
+ * server.forward-headers-strategy=native hace que getRemoteAddr() devuelva
+ * la IP del cliente, siempre que nginx sobrescriba X-Forwarded-For (ver
+ * application-prod.properties).
  *
  * En memoria y por instancia: válido para el despliegue actual
  * (un único contenedor). Si algún día se despliega en varias

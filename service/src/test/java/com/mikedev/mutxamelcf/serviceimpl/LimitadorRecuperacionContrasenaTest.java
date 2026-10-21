@@ -58,22 +58,39 @@ class LimitadorRecuperacionContrasenaTest {
     }
 
     @Test
-    void diezPeticionesPorIpCadaHora() {
-        for (int i = 0; i < 10; i++) {
+    void lasPeticionesPorIpEstanLimitadasCadaHora() {
+        for (int i = 0; i < LimitadorRecuperacionContrasena.MAX_POR_IP; i++) {
             assertThat(limitador.permitir("u" + i + "@example.com", "2.2.2.2")).isTrue();
         }
 
-        assertThat(limitador.permitir("u10@example.com", "2.2.2.2")).isFalse();
+        assertThat(limitador.permitir("extra@example.com", "2.2.2.2")).isFalse();
         // Otra IP no se ve afectada.
-        assertThat(limitador.permitir("u10@example.com", "3.3.3.3")).isTrue();
+        assertThat(limitador.permitir("extra@example.com", "3.3.3.3")).isTrue();
 
         reloj.avanzar(Duration.ofHours(1));
         assertThat(limitador.permitir("u11@example.com", "2.2.2.2")).isTrue();
     }
 
     @Test
+    void comoMaximoCincoCodigosPorEmailCada24Horas() {
+        for (int i = 0; i < 5; i++) {
+            assertThat(limitador.permitir("ana@example.com", "1.1.1." + i)).isTrue();
+            reloj.avanzar(Duration.ofMinutes(3));
+        }
+
+        // Pasados los 2 minutos de cada una, la sexta ya choca con el tope diario.
+        assertThat(limitador.permitir("ana@example.com", "1.1.1.9")).isFalse();
+        // Otro email no se ve afectado.
+        assertThat(limitador.permitir("luis@example.com", "1.1.1.9")).isTrue();
+
+        // A las 24 h de la primera se libera un hueco.
+        reloj.avanzar(Duration.ofHours(24));
+        assertThat(limitador.permitir("ana@example.com", "1.1.1.9")).isTrue();
+    }
+
+    @Test
     void unaPeticionRechazadaPorIpNoConsumeElTurnoDelEmail() {
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < LimitadorRecuperacionContrasena.MAX_POR_IP; i++) {
             limitador.permitir("u" + i + "@example.com", "2.2.2.2");
         }
 

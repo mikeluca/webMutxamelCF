@@ -18,6 +18,7 @@ import com.mikedev.mutxamelcf.model.UsuarioApp;
 import com.mikedev.mutxamelcf.model.UsuarioAppMeResponse;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.security.core.Authentication;
 
@@ -27,6 +28,8 @@ import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/api/app/auth")
 public class AppAuthController {
+
+    static final String CODIGO_DEMASIADOS_INTENTOS = "DEMASIADOS_INTENTOS";
 
     private final UsuarioAppService usuarioAppService;
     private final LoginRateLimiter rateLimiter;
@@ -178,9 +181,12 @@ public class AppAuthController {
 
         if (rateLimiter.estaBloqueado(clave)) {
 
+            // "codigo" es estable: la app lo traduce a su idioma.
             return ResponseEntity
                     .status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body("Demasiados intentos fallidos. Inténtalo de nuevo en unos minutos.");
+                    .body(Map.of(
+                            "codigo", CODIGO_DEMASIADOS_INTENTOS,
+                            "mensaje", "Demasiados intentos fallidos. Inténtalo de nuevo en unos minutos."));
         }
 
         try {
