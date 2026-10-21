@@ -229,6 +229,81 @@ public class ComunicacionesService {
     }
 
     /**
+     * Código para cambiar la contraseña desde la app. El correo va en castellano y,
+     * tras una línea de separación, en valenciano.
+     */
+    public boolean enviarCodigoRecuperacion(String email, String nombrePersona, String codigo, int minutosValidez) {
+        logger.debug("Inicio enviarCodigoRecuperacion");
+
+        boolean enviado = enviarEmail(REMITENTE, email, null,
+                "Código para cambiar tu contraseña / Codi per a canviar la teua contrasenya",
+                construirCodigoRecuperacion(nombrePersona, codigo, minutosValidez));
+
+        logger.debug("Fin enviarCodigoRecuperacion: enviado={}", enviado);
+        return enviado;
+    }
+
+    static String construirCodigoRecuperacion(String nombrePersona, String codigo, int minutosValidez) {
+
+        String saludo = saludo(nombrePersona);
+
+        String es = saludo + "\n\n"
+                + "Has pedido cambiar la contraseña de tu cuenta de la app del Mutxamel CF. "
+                + "Abre la app, entra en \"Área Club - ¿Has olvidado tu contraseña?\" e introduce "
+                + "este código junto con la contraseña nueva:\n\n"
+                + codigo + "\n\n"
+                + "El código caduca en " + minutosValidez + " minutos y solo se puede probar 5 veces.\n\n"
+                + "Si no lo has pedido tú, ignora este mensaje: tu contraseña no cambiará.\n\n"
+                + "Mutxamel CF";
+
+        String ca = saludo + "\n\n"
+                + "Has demanat canviar la contrasenya del teu compte de l'app del Mutxamel CF. "
+                + "Obri l'app, entra a \"Àrea Club - Has oblidat la teua contrasenya?\" i introdueix "
+                + "aquest codi junt amb la contrasenya nova:\n\n"
+                + codigo + "\n\n"
+                + "El codi caduca en " + minutosValidez + " minuts i només es pot provar 5 vegades.\n\n"
+                + "Si no ho has demanat tu, ignora aquest missatge: la teua contrasenya no canviarà.\n\n"
+                + "Mutxamel CF";
+
+        return es + SEPARADOR_IDIOMAS + ca;
+    }
+
+    /** Confirma que la contraseña de la cuenta se acaba de cambiar. */
+    public boolean enviarContrasenaCambiada(String email, String nombrePersona) {
+        logger.debug("Inicio enviarContrasenaCambiada");
+
+        boolean enviado = enviarEmail(REMITENTE, email, null,
+                "Tu contraseña se ha cambiado / La teua contrasenya s'ha canviat",
+                construirContrasenaCambiada(nombrePersona));
+
+        logger.debug("Fin enviarContrasenaCambiada: enviado={}", enviado);
+        return enviado;
+    }
+
+    static String construirContrasenaCambiada(String nombrePersona) {
+
+        String saludo = saludo(nombrePersona);
+
+        String es = saludo + "\n\n"
+                + "Tu contraseña se ha cambiado. Las sesiones abiertas en otros dispositivos se "
+                + "cerrarán y tendrás que entrar con la contraseña nueva.\n\n"
+                + "Si no has sido tú, escríbenos cuanto antes a mutxamelcf.gestion@gmail.com.\n\n"
+                + "Mutxamel CF";
+
+        String ca = saludo + "\n\n"
+                + "La teua contrasenya s'ha canviat. Les sessions obertes en altres dispositius es "
+                + "tancaran i hauràs d'entrar amb la contrasenya nova.\n\n"
+                + "Si no has sigut tu, escriu-nos com més prompte millor a mutxamelcf.gestion@gmail.com.\n\n"
+                + "Mutxamel CF";
+
+        return es + SEPARADOR_IDIOMAS + ca;
+    }
+
+    private static String saludo(String nombrePersona) {
+        return nombrePersona == null || nombrePersona.isBlank() ? "Hola:" : "Hola " + nombrePersona.trim() + ":";
+    }
+
+    /**
      * Avisa al club de que un usuario de la app ha denunciado un
      * mensaje o comunicación (Apple Guideline 1.2).
      */

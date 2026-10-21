@@ -108,11 +108,13 @@ public class SecurityConfig {
                                                 /*
                                                  * AUTENTICACIÓN DE LA APP
                                                  *
-                                                 * Login y activación no requieren JWT.
+                                                 * Login, activación y recuperación de contraseña no requieren JWT.
                                                  */
                                                 .requestMatchers(
                                                                 "/api/app/auth/login",
-                                                                "/api/app/auth/activar")
+                                                                "/api/app/auth/activar",
+                                                                "/api/app/auth/recuperar",
+                                                                "/api/app/auth/restablecer")
                                                 .permitAll()
 
                                                 /*

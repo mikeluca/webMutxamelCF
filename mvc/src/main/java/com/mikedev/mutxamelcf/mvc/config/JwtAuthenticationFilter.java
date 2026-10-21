@@ -106,6 +106,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
 
                 /*
+                 * Un token emitido antes del último cambio de contraseña ya no vale
+                 * (se compara en segundos: iat no lleva fracción).
+                 */
+                if (usuario.getFechaCambioPassword() != null
+                        && jwtService.extraerEmisionSegundos(token) < usuario.getFechaCambioPassword()
+                                .toInstant().getEpochSecond()) {
+                    SecurityContextHolder.clearContext();
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
+                /*
                  * Recuperamos los roles actuales desde Oracle.
                  */
                 List<RolApp> roles = usuarioAppService.obtenerRoles(

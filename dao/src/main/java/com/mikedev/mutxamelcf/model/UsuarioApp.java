@@ -26,6 +26,16 @@ public class UsuarioApp {
 
     private Timestamp fechaEliminacion;
 
+    /** Hash del código de recuperación de contraseña; null si no hay ninguno vigente. */
+    private String tokenRecuperacion;
+
+    private Timestamp fechaExpiracionRecuperacion;
+
+    private int intentosRecuperacion;
+
+    /** Último cambio de contraseña por recuperación; los JWT emitidos antes dejan de valer. */
+    private Timestamp fechaCambioPassword;
+
     /**
      * Nombre propio de la cuenta. Solo se rellena en las que no tienen
      * ficha vinculada (coordinador, retransmisión, admin); si hay ficha,
@@ -124,6 +134,38 @@ public class UsuarioApp {
 
     public void setFechaEliminacion(Timestamp fechaEliminacion) {
         this.fechaEliminacion = fechaEliminacion;
+    }
+
+    public String getTokenRecuperacion() {
+        return tokenRecuperacion;
+    }
+
+    public void setTokenRecuperacion(String tokenRecuperacion) {
+        this.tokenRecuperacion = tokenRecuperacion;
+    }
+
+    public Timestamp getFechaExpiracionRecuperacion() {
+        return fechaExpiracionRecuperacion;
+    }
+
+    public void setFechaExpiracionRecuperacion(Timestamp fechaExpiracionRecuperacion) {
+        this.fechaExpiracionRecuperacion = fechaExpiracionRecuperacion;
+    }
+
+    public int getIntentosRecuperacion() {
+        return intentosRecuperacion;
+    }
+
+    public void setIntentosRecuperacion(int intentosRecuperacion) {
+        this.intentosRecuperacion = intentosRecuperacion;
+    }
+
+    public Timestamp getFechaCambioPassword() {
+        return fechaCambioPassword;
+    }
+
+    public void setFechaCambioPassword(Timestamp fechaCambioPassword) {
+        this.fechaCambioPassword = fechaCambioPassword;
     }
 
     public String getNombre() {

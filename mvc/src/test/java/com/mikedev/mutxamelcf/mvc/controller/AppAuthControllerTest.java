@@ -37,7 +37,8 @@ class AppAuthControllerTest {
         usuarioAppService = mock(UsuarioAppService.class);
         rateLimiter = mock(LoginRateLimiter.class);
         cuentaActivadaNotifier = mock(CuentaActivadaNotifier.class);
-        controller = new AppAuthController(usuarioAppService, rateLimiter, cuentaActivadaNotifier);
+        controller = new AppAuthController(usuarioAppService, rateLimiter, cuentaActivadaNotifier,
+                mock(com.mikedev.mutxamelcf.mvc.communication.RecuperacionContrasena.class));
         when(rateLimiter.clave(LoginRateLimiter.CONTEXTO_APP_LOGIN, "127.0.0.1", "ana@example.com"))
                 .thenReturn("clave");
         when(rateLimiter.clave(LoginRateLimiter.CONTEXTO_APP_ACTIVAR, "127.0.0.1", "ana@example.com"))

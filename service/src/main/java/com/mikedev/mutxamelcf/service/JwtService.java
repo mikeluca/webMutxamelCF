@@ -76,6 +76,17 @@ public class JwtService {
     }
 
     /**
+     * Momento de emisión del token en segundos (0 si no lo lleva). Los JWT se emiten
+     * con precisión de segundos: es lo que hay que comparar con un cambio de contraseña.
+     */
+    public long extraerEmisionSegundos(String token) {
+
+        Date emision = extraerClaims(token).getIssuedAt();
+
+        return emision == null ? 0 : emision.getTime() / 1000;
+    }
+
+    /**
      * Comprueba que el token sea válido y no esté caducado.
      */
     public boolean esValido(String token) {

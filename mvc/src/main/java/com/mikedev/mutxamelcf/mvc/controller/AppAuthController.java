@@ -3,6 +3,9 @@ package com.mikedev.mutxamelcf.mvc.controller;
 import com.mikedev.mutxamelcf.model.LoginAppResponse;
 import com.mikedev.mutxamelcf.mvc.config.LoginRateLimiter;
 import com.mikedev.mutxamelcf.mvc.communication.CuentaActivadaNotifier;
+import com.mikedev.mutxamelcf.mvc.communication.RecuperacionContrasena;
+import com.mikedev.mutxamelcf.model.RecuperarPasswordRequest;
+import com.mikedev.mutxamelcf.model.RestablecerPasswordRequest;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 import com.mikedev.mutxamelcf.model.ActivarCuentaAppRequest;
 import com.mikedev.mutxamelcf.model.LoginAppRequest;
@@ -28,15 +31,18 @@ public class AppAuthController {
     private final UsuarioAppService usuarioAppService;
     private final LoginRateLimiter rateLimiter;
     private final CuentaActivadaNotifier cuentaActivadaNotifier;
+    private final RecuperacionContrasena recuperacionContrasena;
 
     public AppAuthController(
             UsuarioAppService usuarioAppService,
             LoginRateLimiter rateLimiter,
-            CuentaActivadaNotifier cuentaActivadaNotifier) {
+            CuentaActivadaNotifier cuentaActivadaNotifier,
+            RecuperacionContrasena recuperacionContrasena) {
 
         this.usuarioAppService = usuarioAppService;
         this.rateLimiter = rateLimiter;
         this.cuentaActivadaNotifier = cuentaActivadaNotifier;
+        this.recuperacionContrasena = recuperacionContrasena;
     }
 
     /**
@@ -129,6 +135,71 @@ public class AppAuthController {
             return ResponseEntity
                     .status(HttpStatus.CONFLICT)
                     .body(e.getMessage());
+
+        } catch (IllegalArgumentException e) {
+
+            rateLimiter.registrarFallo(clave);
+
+            return ResponseEntity
+                    .badRequest()
+                    .body(e.getMessage());
+        }
+    }
+
+    /**
+     * "¿Has olvidado tu contraseña?". Responde SIEMPRE 204, exista o no el email, esté
+     * la cuenta activa o no y se superen o no los límites: no revela qué emails tienen
+     * cuenta (ver {@link RecuperacionContrasena}).
+     */
+    @PostMapping("/recuperar")
+    public ResponseEntity<Void> recuperar(
+            @Valid @RequestBody RecuperarPasswordRequest request,
+            HttpServletRequest httpRequest) {
+
+        recuperacionContrasena.solicitar(request.getEmail(), httpRequest.getRemoteAddr());
+
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Cambia la contraseña con el código recibido por email y, en el mismo paso, inicia
+     * sesión: la respuesta es un LoginAppResponse igual que el de /login. Los JWT
+     * emitidos antes del cambio dejan de valer (JwtAuthenticationFilter).
+     */
+    @PostMapping("/restablecer")
+    public ResponseEntity<?> restablecer(
+            @Valid @RequestBody RestablecerPasswordRequest request,
+            HttpServletRequest httpRequest) {
+
+        String clave = rateLimiter.clave(
+                LoginRateLimiter.CONTEXTO_APP_RESTABLECER,
+                httpRequest.getRemoteAddr(),
+                request.getEmail());
+
+        if (rateLimiter.estaBloqueado(clave)) {
+
+            return ResponseEntity
+                    .status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body("Demasiados intentos fallidos. Inténtalo de nuevo en unos minutos.");
+        }
+
+        try {
+
+            // La transacción se confirma al volver de este método.
+            UsuarioApp usuario = usuarioAppService.restablecerPassword(
+                    request.getEmail(),
+                    request.getCodigo(),
+                    request.getPassword());
+
+            rateLimiter.registrarExito(clave);
+
+            recuperacionContrasena.avisarContrasenaCambiada(usuario.getId());
+
+            LoginAppResponse loginResponse = usuarioAppService.login(
+                    usuario.getEmail(),
+                    request.getPassword());
+
+            return ResponseEntity.ok(loginResponse);
 
         } catch (IllegalArgumentException e) {
 

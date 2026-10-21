@@ -1,0 +1,9 @@
+-- Versión para H2 de sql/2026-10-25_recuperar_contrasena.sql (ya aplicado en DEV y PRO).
+-- La tabla USUARIOS_APP no forma parte del esquema compartido: cada test que la necesita
+-- crea la suya antes de llamar a EsquemaH2.crear, así que las columnas se añaden solo si
+-- la tabla existe (y si no las tenía ya).
+
+ALTER TABLE IF EXISTS USUARIOS_APP ADD COLUMN IF NOT EXISTS TOKEN_RECUPERACION VARCHAR(255) NULL;
+ALTER TABLE IF EXISTS USUARIOS_APP ADD COLUMN IF NOT EXISTS TOKEN_RECUPERACION_EXPIRA TIMESTAMP NULL;
+ALTER TABLE IF EXISTS USUARIOS_APP ADD COLUMN IF NOT EXISTS INTENTOS_RECUPERACION NUMBER(2) DEFAULT 0 NOT NULL;
+ALTER TABLE IF EXISTS USUARIOS_APP ADD COLUMN IF NOT EXISTS FECHA_CAMBIO_PASSWORD TIMESTAMP NULL;

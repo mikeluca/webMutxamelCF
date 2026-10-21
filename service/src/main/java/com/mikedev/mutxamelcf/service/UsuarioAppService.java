@@ -14,6 +14,9 @@ import java.util.List;
 
 public interface UsuarioAppService {
 
+    /** Validez del código de recuperación de contraseña. */
+    int MINUTOS_VALIDEZ_RECUPERACION = 30;
+
     UsuarioApp obtenerPorEmail(String email);
 
     UsuarioApp obtenerPorId(int id);
@@ -25,6 +28,22 @@ public interface UsuarioAppService {
     String generarTokenActivacion(int usuarioId);
 
     UsuarioApp activarCuenta(String email, String codigo, String password);
+
+    /**
+     * Genera un código de recuperación de contraseña de 6 dígitos para una cuenta activa
+     * y no eliminada (IllegalStateException si no lo es): guarda su hash con 30 minutos
+     * de validez e intentos a 0, y devuelve el código en claro para enviarlo por email.
+     */
+    String generarCodigoRecuperacion(int usuarioId);
+
+    /**
+     * Cambia la contraseña con un código de recuperación. Valida la contraseña con las
+     * mismas reglas que {@link #activarCuenta}; un código incorrecto, caducado o ausente
+     * lanza IllegalArgumentException con el mismo mensaje (el incorrecto gasta un intento
+     * y a los 5 el código se borra). Si todo va bien guarda el hash, borra los códigos
+     * de recuperación y de activación y fija FECHA_CAMBIO_PASSWORD; devuelve la cuenta.
+     */
+    UsuarioApp restablecerPassword(String email, String codigo, String password);
 
     LoginAppResponse login(String email, String password);
 

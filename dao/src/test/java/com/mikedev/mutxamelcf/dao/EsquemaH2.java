@@ -16,7 +16,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * solo con ID, CONVOCATORIA_ID y JUGADOR_ID) y
  * sql/2026-10-23_entrenador_coordinador_admin.sql y
  * sql/2026-10-24_partidos_fecha_importacion.sql (PARTIDOS no se crea aquí: la columna
- * se añade a la tabla PARTIDOS de cada test, si la tiene). Los tests no deben definir su
+ * se añade a la tabla PARTIDOS de cada test, si la tiene) y
+ * sql/2026-10-25_recuperar_contrasena.sql (igual con USUARIOS_APP). Los tests no deben definir su
  * propia versión de estas tablas.
  *
  * <p>Los scripts viven en src/test/resources/h2; el de ajustes es una copia
@@ -34,6 +35,7 @@ public final class EsquemaH2 {
         ejecutar(jdbc, "/h2/justificacion_falta_partido.sql");
         ejecutar(jdbc, "/h2/entrenador_coordinador_admin.sql");
         ejecutar(jdbc, "/h2/partidos_fecha_importacion.sql");
+        ejecutar(jdbc, "/h2/recuperar_contrasena.sql");
     }
 
     /** El script de ajustes tal cual, para compararlo con el de sql/. */

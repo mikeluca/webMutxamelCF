@@ -32,6 +32,10 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        TOKEN_ACTIVACION_EXPIRA,
                        INTENTOS_ACTIVACION,
                        FECHA_ELIMINACION,
+                       TOKEN_RECUPERACION,
+                       TOKEN_RECUPERACION_EXPIRA,
+                       INTENTOS_RECUPERACION,
+                       FECHA_CAMBIO_PASSWORD,
                        NOMBRE,
                        APELLIDOS
                 FROM USUARIOS_APP
@@ -67,6 +71,10 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        TOKEN_ACTIVACION_EXPIRA,
                        INTENTOS_ACTIVACION,
                        FECHA_ELIMINACION,
+                       TOKEN_RECUPERACION,
+                       TOKEN_RECUPERACION_EXPIRA,
+                       INTENTOS_RECUPERACION,
+                       FECHA_CAMBIO_PASSWORD,
                        NOMBRE,
                        APELLIDOS
                 FROM USUARIOS_APP
@@ -103,6 +111,10 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        TOKEN_ACTIVACION_EXPIRA,
                        INTENTOS_ACTIVACION,
                        FECHA_ELIMINACION,
+                       TOKEN_RECUPERACION,
+                       TOKEN_RECUPERACION_EXPIRA,
+                       INTENTOS_RECUPERACION,
+                       FECHA_CAMBIO_PASSWORD,
                        NOMBRE,
                        APELLIDOS
                 FROM USUARIOS_APP
@@ -138,6 +150,10 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                        TOKEN_ACTIVACION_EXPIRA,
                        INTENTOS_ACTIVACION,
                        FECHA_ELIMINACION,
+                       TOKEN_RECUPERACION,
+                       TOKEN_RECUPERACION_EXPIRA,
+                       INTENTOS_RECUPERACION,
+                       FECHA_CAMBIO_PASSWORD,
                        NOMBRE,
                        APELLIDOS
                 FROM USUARIOS_APP
@@ -251,6 +267,8 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                     ACTIVO = 0,
                     TOKEN_ACTIVACION = NULL,
                     TOKEN_ACTIVACION_EXPIRA = NULL,
+                    TOKEN_RECUPERACION = NULL,
+                    TOKEN_RECUPERACION_EXPIRA = NULL,
                     NOMBRE = NULL,
                     APELLIDOS = NULL,
                     FECHA_ELIMINACION = SYSTIMESTAMP
@@ -331,6 +349,73 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
         return jdbcTemplate.update(sql, id, maxIntentos);
     }
 
+    @Override
+    public void actualizarTokenRecuperacion(
+            int id,
+            String tokenHash,
+            Timestamp expiracion) {
+
+        String sql = """
+                UPDATE USUARIOS_APP
+                SET TOKEN_RECUPERACION = ?,
+                    TOKEN_RECUPERACION_EXPIRA = ?,
+                    INTENTOS_RECUPERACION = 0
+                WHERE ID = ?
+                """;
+
+        jdbcTemplate.update(sql, tokenHash, expiracion, id);
+    }
+
+    @Override
+    public int consumirIntentoRecuperacion(int id, int maxIntentos, Timestamp ahora) {
+
+        String sql = """
+                UPDATE USUARIOS_APP
+                SET INTENTOS_RECUPERACION = INTENTOS_RECUPERACION + 1
+                WHERE ID = ?
+                  AND ACTIVO = 1
+                  AND FECHA_ELIMINACION IS NULL
+                  AND TOKEN_RECUPERACION IS NOT NULL
+                  AND INTENTOS_RECUPERACION < ?
+                  AND TOKEN_RECUPERACION_EXPIRA IS NOT NULL
+                  AND TOKEN_RECUPERACION_EXPIRA > ?
+                """;
+
+        return jdbcTemplate.update(sql, id, maxIntentos, ahora);
+    }
+
+    @Override
+    public void invalidarRecuperacionSiAgotada(int id, int maxIntentos) {
+
+        String sql = """
+                UPDATE USUARIOS_APP
+                SET TOKEN_RECUPERACION = NULL,
+                    TOKEN_RECUPERACION_EXPIRA = NULL
+                WHERE ID = ?
+                  AND INTENTOS_RECUPERACION >= ?
+                """;
+
+        jdbcTemplate.update(sql, id, maxIntentos);
+    }
+
+    @Override
+    public void restablecerPassword(int id, String passwordHash, Timestamp ahora) {
+
+        String sql = """
+                UPDATE USUARIOS_APP
+                SET PASSWORD_HASH = ?,
+                    TOKEN_RECUPERACION = NULL,
+                    TOKEN_RECUPERACION_EXPIRA = NULL,
+                    INTENTOS_RECUPERACION = 0,
+                    FECHA_CAMBIO_PASSWORD = ?,
+                    TOKEN_ACTIVACION = NULL,
+                    TOKEN_ACTIVACION_EXPIRA = NULL
+                WHERE ID = ?
+                """;
+
+        jdbcTemplate.update(sql, passwordHash, ahora, id);
+    }
+
     private UsuarioApp mapearUsuario(
             java.sql.ResultSet rs)
             throws java.sql.SQLException {
@@ -365,6 +450,18 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
         );
         usuario.setFechaEliminacion(
                 rs.getTimestamp("FECHA_ELIMINACION")
+        );
+        usuario.setTokenRecuperacion(
+                rs.getString("TOKEN_RECUPERACION")
+        );
+        usuario.setFechaExpiracionRecuperacion(
+                rs.getTimestamp("TOKEN_RECUPERACION_EXPIRA")
+        );
+        usuario.setIntentosRecuperacion(
+                rs.getInt("INTENTOS_RECUPERACION")
+        );
+        usuario.setFechaCambioPassword(
+                rs.getTimestamp("FECHA_CAMBIO_PASSWORD")
         );
         usuario.setNombre(
                 rs.getString("NOMBRE")

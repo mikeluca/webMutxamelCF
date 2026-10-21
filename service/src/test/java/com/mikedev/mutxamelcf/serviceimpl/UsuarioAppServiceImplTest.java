@@ -55,12 +55,15 @@ class UsuarioAppServiceImplTest {
     @Mock
     private JwtService jwtService;
 
+    private static final java.time.Clock CLOCK = java.time.Clock.fixed(
+            Instant.parse("2026-10-25T10:00:00Z"), java.time.ZoneOffset.UTC);
+
     private UsuarioAppServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new UsuarioAppServiceImpl(
-                usuarioAppDao, usuarioAppVinculoDao, rolAppDao, passwordEncoder, jwtService);
+                usuarioAppDao, usuarioAppVinculoDao, rolAppDao, passwordEncoder, jwtService, CLOCK);
     }
 
     private UsuarioApp usuarioActivo() {

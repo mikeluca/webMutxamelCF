@@ -15,6 +15,7 @@ import com.mikedev.mutxamelcf.service.JwtService;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
 import com.mikedev.mutxamelcf.model.UsuarioAppAdminResponse;
 import com.mikedev.mutxamelcf.util.TokenUtils;
+import com.mikedev.mutxamelcf.util.ValidadorPassword;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ import com.mikedev.mutxamelcf.service.UsuarioAppService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -41,6 +43,10 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
     private static final long HORAS_VALIDEZ_TOKEN = 48;
 
     private static final int MAX_INTENTOS_ACTIVACION = 5;
+
+    private static final int MAX_INTENTOS_RECUPERACION = 5;
+
+    private static final String MENSAJE_RECUPERACION_INVALIDA = "Código incorrecto o caducado";
 
     // Tamaño de las columnas USUARIOS_APP.NOMBRE / APELLIDOS.
     private static final int MAX_LONGITUD_NOMBRE = 100;
@@ -90,19 +96,22 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
     private final RolAppDao rolAppDao;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final Clock clock;
 
     public UsuarioAppServiceImpl(
             UsuarioAppDao usuarioAppDao,
             UsuarioAppVinculoDao usuarioAppVinculoDao,
             RolAppDao rolAppDao,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService) {
+            JwtService jwtService,
+            Clock clock) {
 
         this.usuarioAppDao = usuarioAppDao;
         this.usuarioAppVinculoDao = usuarioAppVinculoDao;
         this.rolAppDao = rolAppDao;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.clock = clock;
     }
 
     @Override
@@ -225,10 +234,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
                     "El código es obligatorio");
         }
 
-        if (password == null || password.length() < 8) {
-            throw new IllegalArgumentException(
-                    "La contraseña debe tener al menos 8 caracteres");
-        }
+        ValidadorPassword.validar(password);
 
         UsuarioApp usuario = obtenerPorEmail(email);
 
@@ -283,6 +289,100 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
 
         usuarioAppDao.activarUsuario(
                 usuario.getId());
+
+        return usuario;
+    }
+
+    @Override
+    public String generarCodigoRecuperacion(int usuarioId) {
+
+        UsuarioApp usuario = usuarioAppDao.obtenerPorId(usuarioId);
+
+        if (usuario == null || !usuario.isActivo() || usuario.isEliminada()) {
+            throw new IllegalStateException(
+                    "Solo se puede recuperar la contraseña de una cuenta activa");
+        }
+
+        String codigo = TokenUtils.generarCodigoActivacion();
+
+        usuarioAppDao.actualizarTokenRecuperacion(
+                usuarioId,
+                TokenUtils.hashToken(codigo),
+                Timestamp.from(clock.instant().plus(MINUTOS_VALIDEZ_RECUPERACION, ChronoUnit.MINUTES)));
+
+        return codigo;
+    }
+
+    @Override
+    @Transactional(noRollbackFor = { IllegalArgumentException.class, IllegalStateException.class })
+    public UsuarioApp restablecerPassword(
+            String email,
+            String codigo,
+            String password) {
+
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException(
+                    "El email es obligatorio");
+        }
+
+        if (codigo == null || codigo.isBlank()) {
+            throw new IllegalArgumentException(
+                    MENSAJE_RECUPERACION_INVALIDA);
+        }
+
+        ValidadorPassword.validar(password);
+
+        UsuarioApp usuario = obtenerPorEmail(email);
+
+        if (usuario == null
+                || !usuario.isActivo()
+                || usuario.isEliminada()
+                || usuario.getTokenRecuperacion() == null) {
+
+            throw new IllegalArgumentException(
+                    MENSAJE_RECUPERACION_INVALIDA);
+        }
+
+        Timestamp ahora = Timestamp.from(clock.instant());
+
+        /*
+         * Igual que en la activación: el intento se consume de forma atómica y
+         * condicionada (vigencia, máximo de intentos...) y se conserva aunque el
+         * método termine lanzando la excepción (noRollbackFor).
+         */
+        int filas = usuarioAppDao.consumirIntentoRecuperacion(
+                usuario.getId(),
+                MAX_INTENTOS_RECUPERACION,
+                ahora);
+
+        if (filas == 0) {
+            throw new IllegalArgumentException(
+                    MENSAJE_RECUPERACION_INVALIDA);
+        }
+
+        String codigoHash = TokenUtils.hashToken(codigo.trim());
+
+        boolean coincide = MessageDigest.isEqual(
+                codigoHash.getBytes(StandardCharsets.UTF_8),
+                usuario.getTokenRecuperacion().getBytes(StandardCharsets.UTF_8));
+
+        if (!coincide) {
+
+            // Con el último intento gastado el código deja de existir.
+            usuarioAppDao.invalidarRecuperacionSiAgotada(
+                    usuario.getId(),
+                    MAX_INTENTOS_RECUPERACION);
+
+            throw new IllegalArgumentException(
+                    MENSAJE_RECUPERACION_INVALIDA);
+        }
+
+        usuarioAppDao.restablecerPassword(
+                usuario.getId(),
+                passwordEncoder.encode(password),
+                ahora);
+
+        logger.info("Contraseña restablecida por recuperación: usuarioAppId={}", usuario.getId());
 
         return usuario;
     }

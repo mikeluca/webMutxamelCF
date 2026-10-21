@@ -47,6 +47,7 @@ public class LoginRateLimiter {
     public static final String CONTEXTO_APP_LOGIN = "app-login";
     public static final String CONTEXTO_APP_ACTIVAR = "app-activar";
     public static final String CONTEXTO_APP_BORRAR_CUENTA = "app-borrar-cuenta";
+    public static final String CONTEXTO_APP_RESTABLECER = "app-restablecer";
 
     private static final int MAX_INTENTOS = 5;
     private static final Duration DURACION_BLOQUEO = Duration.ofMinutes(15);

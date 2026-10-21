@@ -72,6 +72,14 @@ public class ReenvioActivacion {
         return reenviar(usuarioAppId, () -> usuarioAppService.reenviarInvitacion(usuarioAppId));
     }
 
+    /**
+     * Recuperación de contraseña de una cuenta pendiente de activar: la petición no
+     * viene de un administrador sino del propio titular, y se aplica el mismo límite.
+     */
+    public Resultado desdeRecuperacion(int usuarioAppId) {
+        return reenviar(usuarioAppId, () -> usuarioAppService.reenviarInvitacion(usuarioAppId));
+    }
+
     /** App: solo un ADMIN_APP y solo cuentas pendientes (lo comprueba UsuarioAppService). */
     public Resultado desdeApp(int solicitanteId, int usuarioAppId) {
         // La autorización va ANTES de reservar el límite: quien no es administrador no
