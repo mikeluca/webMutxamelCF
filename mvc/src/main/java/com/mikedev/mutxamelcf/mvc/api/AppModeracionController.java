@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mikedev.mutxamelcf.model.ReporteModeracionResponse;
+import com.mikedev.mutxamelcf.mvc.communication.CuentaActivadaNotifier;
 import com.mikedev.mutxamelcf.service.ModeracionService;
 
 /** Cola de moderación de mensajes reportados: solo ADMIN_APP (lo comprueba el servicio). */
@@ -28,9 +29,14 @@ public class AppModeracionController {
     private static final Logger logger = LoggerFactory.getLogger(AppModeracionController.class);
 
     private final ModeracionService moderacionService;
+    private final CuentaActivadaNotifier cuentaActivadaNotifier;
 
-    public AppModeracionController(ModeracionService moderacionService) {
+    public AppModeracionController(
+            ModeracionService moderacionService,
+            CuentaActivadaNotifier cuentaActivadaNotifier) {
+
         this.moderacionService = moderacionService;
+        this.cuentaActivadaNotifier = cuentaActivadaNotifier;
     }
 
     /** GET /api/app/moderacion/reportes?estado=PENDIENTE|RESUELTOS */
@@ -84,6 +90,25 @@ public class AppModeracionController {
 
         return responder(authentication, usuarioId -> {
             moderacionService.desactivarAutor(usuarioId, id, nota(accion), borrarMensaje);
+            return null;
+        });
+    }
+
+    /**
+     * POST /api/app/moderacion/reportes/{id}/reactivar-autor {nota?}
+     *
+     * Solo ADMIN_APP, con el reporte en AUTOR_DESACTIVADO y el autor aún desactivado (409 si no).
+     * Igual que activar desde el panel web, avisa por email a la cuenta reactivada.
+     */
+    @PostMapping("/reportes/{id}/reactivar-autor")
+    public ResponseEntity<?> reactivarAutor(
+            @PathVariable Long id,
+            @RequestBody(required = false) ReporteModeracionResponse.Accion accion,
+            Authentication authentication) {
+
+        return responder(authentication, usuarioId -> {
+            Long autorId = moderacionService.reactivarAutor(usuarioId, id, nota(accion));
+            cuentaActivadaNotifier.notificar(autorId.intValue());
             return null;
         });
     }

@@ -24,7 +24,9 @@ import com.mikedev.mutxamelcf.service.ModeracionService;
 class AppModeracionControllerTest {
 
     private final ModeracionService servicio = mock(ModeracionService.class);
-    private final AppModeracionController controller = new AppModeracionController(servicio);
+    private final com.mikedev.mutxamelcf.mvc.communication.CuentaActivadaNotifier notificador =
+            mock(com.mikedev.mutxamelcf.mvc.communication.CuentaActivadaNotifier.class);
+    private final AppModeracionController controller = new AppModeracionController(servicio, notificador);
 
     private static Authentication autenticado(String nombre) {
         Authentication auth = new TestingAuthenticationToken(nombre, null);

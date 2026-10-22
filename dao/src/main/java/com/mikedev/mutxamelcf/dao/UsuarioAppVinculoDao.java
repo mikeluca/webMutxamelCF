@@ -18,6 +18,9 @@ public interface UsuarioAppVinculoDao {
 
     List<PersonaVinculable> obtenerCuerpoTecnicoSinCuenta();
 
+    /** Por familiar, los nombres de los jugadores de los que es familiar (los que no tienen, ausentes). */
+    java.util.Map<Long, List<String>> obtenerJugadoresDeFamiliares();
+
     boolean jugadorTieneCuenta(Long jugadorId);
 
     boolean familiarTieneCuenta(Long familiarId);

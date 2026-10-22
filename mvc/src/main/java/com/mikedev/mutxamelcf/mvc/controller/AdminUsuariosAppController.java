@@ -19,12 +19,11 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.mikedev.mutxamelcf.model.ActualizarNombreUsuarioAppRequest;
 import com.mikedev.mutxamelcf.model.AnadirVinculosRequest;
-import com.mikedev.mutxamelcf.model.InvitacionUsuarioApp;
 import com.mikedev.mutxamelcf.model.InvitarUsuarioAppRequest;
 import com.mikedev.mutxamelcf.model.PersonasVinculablesResponse;
 import com.mikedev.mutxamelcf.model.UsuarioAppAdminResponse;
 import com.mikedev.mutxamelcf.model.VinculoSolicitado;
-import com.mikedev.mutxamelcf.mvc.communication.ComunicacionesService;
+import com.mikedev.mutxamelcf.mvc.communication.InvitacionUsuario;
 import com.mikedev.mutxamelcf.mvc.communication.CuentaActivadaNotifier;
 import com.mikedev.mutxamelcf.mvc.communication.ReenvioActivacion;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
@@ -42,20 +41,20 @@ public class AdminUsuariosAppController {
     private static final Logger logger = LoggerFactory.getLogger(AdminUsuariosAppController.class);
 
     private final UsuarioAppService usuarioAppService;
-    private final ComunicacionesService comunicacionesService;
+    private final InvitacionUsuario invitacionUsuario;
     private final CuentaActivadaNotifier cuentaActivadaNotifier;
 
     private final ReenvioActivacion reenvioActivacion;
 
     public AdminUsuariosAppController(
             UsuarioAppService usuarioAppService,
-            ComunicacionesService comunicacionesService,
+            InvitacionUsuario invitacionUsuario,
             CuentaActivadaNotifier cuentaActivadaNotifier,
             ReenvioActivacion reenvioActivacion) {
 
         this.reenvioActivacion = reenvioActivacion;
         this.usuarioAppService = usuarioAppService;
-        this.comunicacionesService = comunicacionesService;
+        this.invitacionUsuario = invitacionUsuario;
         this.cuentaActivadaNotifier = cuentaActivadaNotifier;
     }
 
@@ -84,15 +83,11 @@ public class AdminUsuariosAppController {
 
         try {
 
-            InvitacionUsuarioApp invitacion = usuarioAppService.invitarUsuario(request);
+            // La misma invitación (cuenta + email) que usa la app: InvitacionUsuario.
+            InvitacionUsuario.Resultado invitacion = invitacionUsuario.desdePanel(request);
 
-            boolean enviado = comunicacionesService.enviarInvitacionApp(
-                    invitacion.getEmail(),
-                    invitacion.getNombrePersona(),
-                    invitacion.getTokenActivacion());
-
-            if (enviado) {
-                response.put("mensaje", "Invitación enviada correctamente a " + invitacion.getEmail() + ".");
+            if (invitacion.enviado()) {
+                response.put("mensaje", "Invitación enviada correctamente a " + invitacion.email() + ".");
             } else {
                 response.put("mensaje",
                         "El usuario se ha creado, pero no se ha podido enviar el email de invitación. "

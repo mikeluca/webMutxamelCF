@@ -22,7 +22,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.mikedev.mutxamelcf.service.EmailYaRegistradoException;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
+import com.mikedev.mutxamelcf.model.InvitacionAppRequest;
+import com.mikedev.mutxamelcf.model.VinculosDisponiblesResponse;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -89,6 +92,10 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
      * jugador/familiar/entrenador, que sí atan la cuenta a una ficha).
      */
     private static final Set<String> TIPOS_VINCULO_SIN_PERSONA = Set.of(
+            "COORDINADOR", "RETRANSMISION");
+
+    /** Los mismos, en el orden en que se ofrecen. */
+    private static final List<String> ROLES_SIN_PERSONA_ORDENADOS = List.of(
             "COORDINADOR", "RETRANSMISION");
 
     private final UsuarioAppDao usuarioAppDao;
@@ -165,8 +172,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
         UsuarioApp existente = usuarioAppDao.obtenerPorEmail(email);
 
         if (existente != null) {
-            throw new IllegalArgumentException(
-                    "Ya existe un usuario con ese email");
+            throw new EmailYaRegistradoException();
         }
 
         usuario.setEmail(email);
@@ -537,6 +543,91 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
                 usuarioAppVinculoDao.obtenerJugadoresSinCuenta(),
                 usuarioAppVinculoDao.obtenerFamiliaresSinCuenta(),
                 usuarioAppVinculoDao.obtenerCuerpoTecnicoSinCuenta());
+    }
+
+    @Override
+    public VinculosDisponiblesResponse obtenerVinculosDisponibles(int solicitanteId) {
+
+        exigirAdminApp(solicitanteId);
+
+        PersonasVinculablesResponse personas = obtenerPersonasVinculables();
+
+        java.util.Map<Long, List<String>> jugadoresDeFamiliares =
+                usuarioAppVinculoDao.obtenerJugadoresDeFamiliares();
+
+        // Los mismos roles sin persona que ofrece el panel web, solo si están configurados.
+        List<VinculosDisponiblesResponse.Rol> roles = new ArrayList<>();
+
+        for (String codigo : ROLES_SIN_PERSONA_ORDENADOS) {
+
+            RolApp rol = obtenerRolPorCodigo(codigo);
+
+            if (rol != null) {
+                roles.add(new VinculosDisponiblesResponse.Rol(rol.getCodigo(), rol.getNombre()));
+            }
+        }
+
+        return new VinculosDisponiblesResponse(
+                personas.getJugadores().stream()
+                        .map(p -> new VinculosDisponiblesResponse.Jugador(
+                                p.getId(), p.getNombreCompleto(), p.getEquipo()))
+                        .toList(),
+                personas.getFamiliares().stream()
+                        .map(p -> new VinculosDisponiblesResponse.Familiar(
+                                p.getId(), p.getNombreCompleto(),
+                                jugadoresDeFamiliares.getOrDefault(p.getId(), List.of())))
+                        .toList(),
+                personas.getCuerpoTecnico().stream()
+                        .map(p -> new VinculosDisponiblesResponse.CuerpoTecnico(
+                                p.getId(), p.getNombreCompleto(), p.getEquipo()))
+                        .toList(),
+                roles);
+    }
+
+    @Override
+    @Transactional
+    public InvitacionUsuarioApp invitarUsuarioDesdeApp(int solicitanteId, InvitacionAppRequest request) {
+
+        exigirAdminApp(solicitanteId);
+
+        if (request == null) {
+            throw new IllegalArgumentException("La petición no puede ser nula");
+        }
+
+        List<VinculoSolicitado> vinculos = new ArrayList<>();
+
+        if (request.getVinculos() != null) {
+            vinculos.addAll(request.getVinculos());
+        }
+
+        if (request.getRoles() != null) {
+
+            for (String rol : request.getRoles()) {
+
+                if (rol != null && !rol.isBlank()) {
+                    vinculos.add(new VinculoSolicitado(rol.trim(), null));
+                }
+            }
+        }
+
+        // ADMIN_APP solo se concede desde el panel web (SUPER), nunca desde la app.
+        for (VinculoSolicitado vinculo : vinculos) {
+
+            if (vinculo != null && vinculo.getTipo() != null
+                    && "ADMIN_APP".equalsIgnoreCase(vinculo.getTipo().trim())) {
+
+                throw new IllegalArgumentException(
+                        "El rol ADMIN_APP solo se puede asignar desde el panel web");
+            }
+        }
+
+        InvitarUsuarioAppRequest peticion = new InvitarUsuarioAppRequest();
+        peticion.setEmail(request.getEmail());
+        peticion.setNombre(request.getNombre());
+        peticion.setApellidos(request.getApellidos());
+        peticion.setVinculos(vinculos);
+
+        return invitarUsuario(peticion);
     }
 
     @Override

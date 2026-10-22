@@ -37,6 +37,9 @@ public interface ReporteComunicacionDao {
     int resolverPendientesDeComunicacion(
             Long comunicacionId, String estado, Long resueltoPorId, LocalDateTime fecha, String nota);
 
+    /** Sustituye la nota de resolución de un reporte (sin cambiar su estado); devuelve las filas cambiadas. */
+    int actualizarNotaResolucion(Long id, String nota);
+
     /** Resuelve solo ese reporte si sigue pendiente; devuelve las filas cambiadas (0 o 1). */
     int resolver(Long id, String estado, Long resueltoPorId, LocalDateTime fecha, String nota);
 }

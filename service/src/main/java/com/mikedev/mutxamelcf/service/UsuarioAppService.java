@@ -70,6 +70,21 @@ public interface UsuarioAppService {
     InvitacionUsuarioApp invitarUsuario(InvitarUsuarioAppRequest request);
 
     /**
+     * Lo que ofrece el formulario de invitar de la app: personas sin cuenta y roles sin
+     * persona. SecurityException si el solicitante no es ADMIN_APP.
+     */
+    com.mikedev.mutxamelcf.model.VinculosDisponiblesResponse obtenerVinculosDisponibles(int solicitanteId);
+
+    /**
+     * Invitar desde la app: comprueba que el solicitante es ADMIN_APP (SecurityException si no),
+     * que no se asigna el rol ADMIN_APP (IllegalArgumentException) y delega en
+     * {@link #invitarUsuario}, la misma lógica del panel web. Un email ya registrado lanza
+     * {@link EmailYaRegistradoException}.
+     */
+    InvitacionUsuarioApp invitarUsuarioDesdeApp(
+            int solicitanteId, com.mikedev.mutxamelcf.model.InvitacionAppRequest request);
+
+    /**
      * Añade uno o varios vínculos/roles nuevos a una cuenta ya
      * existente (p. ej. a un jugador se le añade también el rol de
      * entrenador). El email de la cuenta no se toca.

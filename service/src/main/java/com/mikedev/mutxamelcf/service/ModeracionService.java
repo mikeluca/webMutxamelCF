@@ -29,4 +29,15 @@ public interface ModeracionService {
     void borrarMensaje(Long moderadorId, Long reporteId, String nota);
 
     void desactivarAutor(Long moderadorId, Long reporteId, String nota, boolean borrarMensaje);
+
+    /**
+     * Reactiva la cuenta del autor de un reporte en AUTOR_DESACTIVADO cuyo autor sigue desactivado
+     * (con la misma lógica que activar desde el panel web). El reporte sigue en AUTOR_DESACTIVADO,
+     * pero se anota en su nota de resolución quién la reactivó y cuándo. Sus dispositivos no se
+     * reactivan: se registran al volver a entrar. Devuelve el id del autor.
+     *
+     * {@link IllegalStateException} (409) si el reporte está en otro estado o el autor ya está
+     * activo; {@link java.util.NoSuchElementException} si el reporte no existe.
+     */
+    Long reactivarAutor(Long moderadorId, Long reporteId, String nota);
 }

@@ -400,4 +400,104 @@ class ModeracionServiceImplH2Test {
         assertThatThrownBy(() -> service.descartar(ADMIN, id, "x".repeat(501)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    // ---- reactivar al autor -----------------------------------------------------------------------
+
+    private void autorDesactivado() {
+        UsuarioApp autor = new UsuarioApp();
+        autor.setId(AUTOR.intValue());
+        autor.setActivo(false);
+        when(usuarioAppService.obtenerPorId(AUTOR.intValue())).thenReturn(autor);
+    }
+
+    private String nota(Long reporteId) {
+        return jdbc.queryForObject("SELECT NOTA_RESOLUCION FROM REPORTES_COMUNICACION WHERE ID = ?",
+                String.class, reporteId);
+    }
+
+    @Test
+    void reactivarAutorLoActivaYAnotaQuienYCuandoSinCambiarElEstadoDelReporte() {
+        Long id = reportar(40, REPORTADOR);
+        service.desactivarAutor(ADMIN, id, "Reincidente", false);
+        autorDesactivado();
+
+        Long autor = service.reactivarAutor(OTRO_ADMIN, id, "Ya se ha disculpado");
+
+        assertThat(autor).isEqualTo(AUTOR);
+        // La misma lógica que activar desde el panel web.
+        verify(usuarioAppService).activarUsuarioAdmin(AUTOR.intValue());
+        // Los dispositivos no se reactivan: no se tocan.
+        verify(dispositivoAppDao, org.mockito.Mockito.times(1)).eliminarTodosDeUsuario(AUTOR);
+        verify(dispositivoAppDao, never()).registrar(any());
+
+        assertThat(estado(id)).isEqualTo("AUTOR_DESACTIVADO");
+        assertThat(nota(id)).isEqualTo(
+                "Reincidente\nReactivada por Usuario 2 el 21/10/2026 12:00: Ya se ha disculpado");
+    }
+
+    @Test
+    void reactivarSinNotaNiNotaPrevia() {
+        Long id = reportar(40, REPORTADOR);
+        service.desactivarAutor(ADMIN, id, null, false);
+        autorDesactivado();
+
+        service.reactivarAutor(ADMIN, id, "  ");
+
+        assertThat(nota(id)).isEqualTo("Reactivada por Usuario 1 el 21/10/2026 12:00");
+    }
+
+    @Test
+    void laNotaSeRecortaA500Caracteres() {
+        Long id = reportar(40, REPORTADOR);
+        service.desactivarAutor(ADMIN, id, "x".repeat(500), false);
+        autorDesactivado();
+
+        service.reactivarAutor(ADMIN, id, "y".repeat(100));
+
+        assertThat(nota(id)).hasSize(500);
+    }
+
+    @Test
+    void reactivarUnReporteEnOtroEstadoEs409() {
+        Long pendiente = reportar(40, REPORTADOR);
+        Long descartado = reportar(41, REPORTADOR);
+        service.descartar(ADMIN, descartado, null);
+        autorDesactivado();
+
+        assertThatThrownBy(() -> service.reactivarAutor(ADMIN, pendiente, null))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> service.reactivarAutor(ADMIN, descartado, null))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(usuarioAppService, never()).activarUsuarioAdmin(anyInt());
+    }
+
+    @Test
+    void reactivarUnAutorQueYaEstaActivoEs409() {
+        Long id = reportar(40, REPORTADOR);
+        service.desactivarAutor(ADMIN, id, null, false);
+        // El autor sigue activo en el mock por defecto (otro administrador ya lo activó).
+
+        assertThatThrownBy(() -> service.reactivarAutor(ADMIN, id, null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ya está activa");
+
+        verify(usuarioAppService, never()).activarUsuarioAdmin(anyInt());
+    }
+
+    @Test
+    void reactivarExigeAdminAppYUnReporteExistente() {
+        Long id = reportar(40, REPORTADOR);
+        service.desactivarAutor(ADMIN, id, null, false);
+        autorDesactivado();
+
+        assertThatThrownBy(() -> service.reactivarAutor(COORDINADOR, id, null))
+                .isInstanceOf(SecurityException.class);
+        assertThatThrownBy(() -> service.reactivarAutor(null, id, null))
+                .isInstanceOf(SecurityException.class);
+        assertThatThrownBy(() -> service.reactivarAutor(ADMIN, 9999L, null))
+                .isInstanceOf(java.util.NoSuchElementException.class);
+
+        verify(usuarioAppService, never()).activarUsuarioAdmin(anyInt());
+    }
 }

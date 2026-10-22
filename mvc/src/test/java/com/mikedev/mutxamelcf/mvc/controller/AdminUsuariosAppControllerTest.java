@@ -42,7 +42,9 @@ class AdminUsuariosAppControllerTest {
         comunicacionesService = mock(ComunicacionesService.class);
         cuentaActivadaNotifier = mock(CuentaActivadaNotifier.class);
         controller = new AdminUsuariosAppController(
-                usuarioAppService, comunicacionesService, cuentaActivadaNotifier,
+                usuarioAppService,
+                new com.mikedev.mutxamelcf.mvc.communication.InvitacionUsuario(usuarioAppService, comunicacionesService),
+                cuentaActivadaNotifier,
                 new com.mikedev.mutxamelcf.mvc.communication.ReenvioActivacion(
                         usuarioAppService, comunicacionesService,
                         new com.mikedev.mutxamelcf.serviceimpl.LimitadorReenvioActivacion(

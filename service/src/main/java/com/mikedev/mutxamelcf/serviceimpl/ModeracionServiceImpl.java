@@ -240,6 +240,65 @@ public class ModeracionServiceImpl implements ModeracionService {
 		auditar(reporteId, borrarMensaje ? "DESACTIVAR_AUTOR_Y_BORRAR_MENSAJE" : "DESACTIVAR_AUTOR", moderadorId);
 	}
 
+	@Override
+	@Transactional
+	public Long reactivarAutor(Long moderadorId, Long reporteId, String nota) {
+
+		validarAdmin(moderadorId);
+
+		if (reporteId == null) {
+			throw new IllegalArgumentException("El reporte no es válido");
+		}
+
+		ReporteComunicacion reporte = reporteDao.obtenerPorId(reporteId);
+
+		if (reporte == null) {
+			throw new NoSuchElementException("El reporte no existe");
+		}
+
+		if (!ReporteComunicacion.AUTOR_DESACTIVADO.equals(reporte.estado())) {
+			throw new IllegalStateException("El autor de este reporte no fue desactivado");
+		}
+
+		Long autorId = reporte.autorId();
+
+		UsuarioApp autor = autorId == null ? null : usuarioAppService.obtenerPorId(autorId.intValue());
+
+		if (autor == null) {
+			throw new IllegalStateException("El autor ya no existe");
+		}
+
+		if (autor.isActivo()) {
+			throw new IllegalStateException("La cuenta del autor ya está activa");
+		}
+
+		String notaLimpia = limpiarNota(nota);
+
+		// La misma lógica que /admin/usuarios-app/{id}/activar del panel web. Los dispositivos no
+		// se reactivan solos: se registran al volver a entrar.
+		usuarioAppService.activarUsuarioAdmin(autorId.intValue());
+
+		LocalDateTime ahora = LocalDateTime.now(clock);
+
+		String nombreModerador = nombreDe(moderadorId);
+
+		String anotacion = "Reactivada por "
+				+ (nombreModerador == null || nombreModerador.isBlank() ? "el administrador " + moderadorId
+						: nombreModerador)
+				+ " el " + ahora.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+				+ (notaLimpia == null ? "" : ": " + notaLimpia);
+
+		String existente = reporte.notaResolucion();
+
+		String completa = existente == null || existente.isBlank() ? anotacion : existente + "\n" + anotacion;
+
+		reporteDao.actualizarNotaResolucion(reporteId, recortar(completa, MAXIMO_NOTA));
+
+		auditar(reporteId, "REACTIVAR_AUTOR", moderadorId);
+
+		return autorId;
+	}
+
 	// ---- apoyo ------------------------------------------------------------------------------
 
 	private void borrarComunicacion(ReporteComunicacion reporte, Long moderadorId) {

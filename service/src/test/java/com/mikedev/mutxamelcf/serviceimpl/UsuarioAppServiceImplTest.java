@@ -924,4 +924,141 @@ class UsuarioAppServiceImplTest {
 
         assertThat(service.obtenerNombreDePila(5)).isNull();
     }
+
+    // ---- invitar desde la app (ADMIN_APP) ---------------------------------------------------
+
+    private void comoAdminApp(int id) {
+        when(rolAppDao.obtenerPorUsuario(id)).thenReturn(List.of(rol(1, "ADMIN_APP")));
+    }
+
+    private static com.mikedev.mutxamelcf.model.InvitacionAppRequest invitacionApp(
+            String email, String nombre, List<VinculoSolicitado> vinculos, List<String> roles) {
+
+        com.mikedev.mutxamelcf.model.InvitacionAppRequest request = new com.mikedev.mutxamelcf.model.InvitacionAppRequest();
+        request.setEmail(email);
+        request.setNombre(nombre);
+        request.setVinculos(vinculos);
+        request.setRoles(roles);
+        return request;
+    }
+
+    @Test
+    void invitarDesdeLaAppSinSerAdminAppEs403YNoCreaNada() {
+        when(rolAppDao.obtenerPorUsuario(7)).thenReturn(List.of(rol(2, "COORDINADOR")));
+
+        assertThatThrownBy(() -> service.invitarUsuarioDesdeApp(7,
+                invitacionApp("a@b.es", "Ana", List.of(), List.of("COORDINADOR"))))
+                .isInstanceOf(SecurityException.class);
+
+        verify(usuarioAppDao, never()).guardar(any());
+    }
+
+    @Test
+    void unAdminAppNoPuedeAsignarElRolAdminApp() {
+        comoAdminApp(7);
+
+        assertThatThrownBy(() -> service.invitarUsuarioDesdeApp(7,
+                invitacionApp("a@b.es", "Ana", List.of(), List.of("ADMIN_APP"))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ADMIN_APP");
+
+        assertThatThrownBy(() -> service.invitarUsuarioDesdeApp(7,
+                invitacionApp("a@b.es", "Ana", List.of(new VinculoSolicitado("admin_app", null)), List.of())))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(usuarioAppDao, never()).guardar(any());
+    }
+
+    @Test
+    void invitarDesdeLaAppConVinculosYRolesUsaLaMismaLogicaDelPanel() {
+        comoAdminApp(7);
+
+        when(usuarioAppVinculoDao.cuerpoTecnicoTieneCuenta(9L)).thenReturn(false);
+        when(usuarioAppVinculoDao.obtenerNombrePersona("ENTRENADOR", 9L)).thenReturn("Luis Mas");
+        when(rolAppDao.obtenerPorCodigo("ENTRENADOR")).thenReturn(rol(3, "ENTRENADOR"));
+        when(rolAppDao.obtenerPorCodigo("COORDINADOR")).thenReturn(rol(4, "COORDINADOR"));
+        when(usuarioAppDao.obtenerPorEmail("luis@mutxamelcf.es")).thenReturn(null);
+        when(usuarioAppDao.guardar(any())).thenReturn(43);
+
+        UsuarioApp creado = new UsuarioApp();
+        creado.setId(43);
+        when(usuarioAppDao.obtenerPorId(43)).thenReturn(creado);
+        when(rolAppDao.obtenerPorUsuario(43)).thenReturn(List.of());
+
+        InvitacionUsuarioApp invitacion = service.invitarUsuarioDesdeApp(7, invitacionApp(
+                "Luis@Mutxamelcf.es", null,
+                List.of(new VinculoSolicitado("ENTRENADOR", 9L)), List.of("COORDINADOR")));
+
+        assertThat(invitacion.getUsuarioAppId()).isEqualTo(43);
+        assertThat(invitacion.getEmail()).isEqualTo("luis@mutxamelcf.es");
+        assertThat(invitacion.getNombrePersona()).isEqualTo("Luis Mas");
+        assertThat(invitacion.getTokenActivacion()).isNotBlank();
+
+        verify(usuarioAppVinculoDao).vincularCuerpoTecnico(43, 9L);
+        verify(rolAppDao).asignarRol(43, 3);
+        verify(rolAppDao).asignarRol(43, 4);
+    }
+
+    @Test
+    void invitarDesdeLaAppConUnRolSinPersonaExigeNombre() {
+        comoAdminApp(7);
+        when(rolAppDao.obtenerPorCodigo("RETRANSMISION")).thenReturn(rol(5, "RETRANSMISION"));
+
+        assertThatThrownBy(() -> service.invitarUsuarioDesdeApp(7,
+                invitacionApp("r@b.es", "  ", List.of(), List.of("RETRANSMISION"))))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(usuarioAppDao, never()).guardar(any());
+    }
+
+    @Test
+    void invitarDesdeLaAppConUnEmailYaRegistradoLanzaEmailYaRegistrado() {
+        comoAdminApp(7);
+        when(rolAppDao.obtenerPorCodigo("COORDINADOR")).thenReturn(rol(4, "COORDINADOR"));
+        when(usuarioAppDao.obtenerPorEmail("ya@b.es")).thenReturn(usuarioActivo());
+
+        assertThatThrownBy(() -> service.invitarUsuarioDesdeApp(7,
+                invitacionApp("ya@b.es", "Ana", List.of(), List.of("COORDINADOR"))))
+                .isInstanceOf(com.mikedev.mutxamelcf.service.EmailYaRegistradoException.class)
+                .hasMessage("Ya existe un usuario con ese email");
+
+        verify(usuarioAppDao, never()).guardar(any());
+    }
+
+    @Test
+    void losVinculosDisponiblesSoloSeVenSiEsAdminApp() {
+        when(rolAppDao.obtenerPorUsuario(7)).thenReturn(List.of(rol(2, "FAMILIAR")));
+
+        assertThatThrownBy(() -> service.obtenerVinculosDisponibles(7)).isInstanceOf(SecurityException.class);
+    }
+
+    @Test
+    void losVinculosDisponiblesListanPersonasSinCuentaFamiliaresConSusJugadoresYRolesConfigurados() {
+        comoAdminApp(7);
+
+        when(usuarioAppVinculoDao.obtenerJugadoresSinCuenta()).thenReturn(List.of(
+                new com.mikedev.mutxamelcf.model.PersonaVinculable(1L, "Pablo Garcia", "Cadete A", null)));
+        when(usuarioAppVinculoDao.obtenerFamiliaresSinCuenta()).thenReturn(List.of(
+                new com.mikedev.mutxamelcf.model.PersonaVinculable(2L, "Marta Gil", null, "m@b.es")));
+        when(usuarioAppVinculoDao.obtenerCuerpoTecnicoSinCuenta()).thenReturn(List.of(
+                new com.mikedev.mutxamelcf.model.PersonaVinculable(3L, "Luis Mas", "Alevin", null)));
+        when(usuarioAppVinculoDao.obtenerJugadoresDeFamiliares())
+                .thenReturn(java.util.Map.of(2L, List.of("Pablo Garcia")));
+
+        RolApp coordinador = rol(4, "COORDINADOR");
+        coordinador.setNombre("Coordinador");
+        when(rolAppDao.obtenerPorCodigo("COORDINADOR")).thenReturn(coordinador);
+        when(rolAppDao.obtenerPorCodigo("RETRANSMISION")).thenReturn(null);
+
+        com.mikedev.mutxamelcf.model.VinculosDisponiblesResponse respuesta = service.obtenerVinculosDisponibles(7);
+
+        assertThat(respuesta.jugadores()).extracting("id", "nombre", "equipo")
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(1L, "Pablo Garcia", "Cadete A"));
+        assertThat(respuesta.familiares()).extracting("id", "nombre", "jugadores")
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(2L, "Marta Gil", List.of("Pablo Garcia")));
+        assertThat(respuesta.cuerpoTecnico()).extracting("id", "nombre", "equipo")
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(3L, "Luis Mas", "Alevin"));
+        // Solo los roles sin persona que existen en ROLES_APP; nunca ADMIN_APP.
+        assertThat(respuesta.rolesAdicionales()).extracting("codigo").containsExactly("COORDINADOR");
+    }
 }

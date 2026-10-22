@@ -84,6 +84,26 @@ public class UsuarioAppVinculoDaoImpl implements UsuarioAppVinculoDao {
     }
 
     @Override
+    public java.util.Map<Long, List<String>> obtenerJugadoresDeFamiliares() {
+
+        String sql = """
+                SELECT FJ.FAMILIAR_ID, J.NOMBRE, J.APELLIDOS
+                FROM FAMILIARES_JUGADOR FJ
+                INNER JOIN JUGADORES J ON J.ID = FJ.JUGADOR_ID
+                ORDER BY J.APELLIDOS, J.NOMBRE
+                """;
+
+        java.util.Map<Long, List<String>> resultado = new java.util.HashMap<>();
+
+        jdbcTemplate.query(sql, rs -> {
+            resultado.computeIfAbsent(rs.getLong("FAMILIAR_ID"), id -> new ArrayList<>())
+                    .add(nombreCompleto(rs.getString("NOMBRE"), rs.getString("APELLIDOS")));
+        });
+
+        return resultado;
+    }
+
+    @Override
     public boolean jugadorTieneCuenta(Long jugadorId) {
 
         String sql = """

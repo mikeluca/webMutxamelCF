@@ -135,6 +135,13 @@ public class ReporteComunicacionDaoImpl implements ReporteComunicacionDao {
 	}
 
 	@Override
+	public int actualizarNotaResolucion(Long id, String nota) {
+
+		return jdbcTemplate.update(
+				"UPDATE REPORTES_COMUNICACION SET NOTA_RESOLUCION = ? WHERE ID = ?", nota, id);
+	}
+
+	@Override
 	public int resolver(Long id, String estado, Long resueltoPorId, LocalDateTime fecha, String nota) {
 
 		return jdbcTemplate.update("""
