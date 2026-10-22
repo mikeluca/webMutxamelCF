@@ -51,6 +51,20 @@ final class CriterioResultadoPartido {
 		return dia.atTime(LocalTime.of(Integer.parseInt(partes[0]), Integer.parseInt(partes[1])));
 	}
 
+	/**
+	 * Pendiente de resultado: no cancelado, sin resultado por ninguna vía y ya terminado. Es lo que
+	 * muestra el panel de fin de semana y a lo que se puede recordar el resultado.
+	 */
+	static boolean estaPendiente(Partido partido, LocalDateTime ahora) {
+
+		LocalDate dia = PlazoJustificacionPartido.dia(partido);
+
+		return dia != null
+				&& !partido.isCancelado()
+				&& !tieneResultado(partido)
+				&& haTerminado(dia, partido.getHora(), ahora);
+	}
+
 	/** true si ya han pasado {@link #HORAS_HASTA_EL_FINAL} horas desde el inicio. */
 	static boolean haTerminado(LocalDate dia, String hora, LocalDateTime ahora) {
 		return !inicio(dia, hora).plusHours(HORAS_HASTA_EL_FINAL).isAfter(ahora);

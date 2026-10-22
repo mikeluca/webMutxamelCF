@@ -21,6 +21,7 @@ import com.mikedev.mutxamelcf.model.AlineacionRequest;
 import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse;
 import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse.UltimoEventoDeshacible;
 import com.mikedev.mutxamelcf.model.GolFavorRequest;
+import com.mikedev.mutxamelcf.model.MinutoRequest;
 import com.mikedev.mutxamelcf.service.PartidoEnVivoService;
 
 class AppPartidoEnVivoControllerTest {
@@ -36,7 +37,7 @@ class AppPartidoEnVivoControllerTest {
 
     private static EstadoPartidoEnVivoResponse estado() {
         return new EstadoPartidoEnVivoResponse(30L, "Pego C.F.", true, "PRIMERA_PARTE", 1, 0, List.of("Pablo"),
-                List.of(), new UltimoEventoDeshacible(5L, LocalDateTime.of(2026, 10, 24, 11, 2), 87));
+                List.of(), new UltimoEventoDeshacible(5L, LocalDateTime.of(2026, 10, 24, 11, 2), 87), 12);
     }
 
     @Test
@@ -45,7 +46,7 @@ class AppPartidoEnVivoControllerTest {
         assertThat(controller.estado(30L, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(controller.convocados(30L, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(controller.inicio(30L, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(controller.golContra(30L, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(controller.golContra(30L, null, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(controller.deshacer(30L, 5L, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
@@ -72,7 +73,7 @@ class AppPartidoEnVivoControllerTest {
     @Test
     void cadaEventoLlevaElPartidoIdYDevuelveElEstado() {
         when(servicio.enviarInicioPartido(7L, 30L)).thenReturn(estado());
-        when(servicio.enviarGolContra(7L, 30L)).thenReturn(estado());
+        when(servicio.enviarGolContra(7L, 30L, null)).thenReturn(estado());
         when(servicio.enviarDescanso(7L, 30L)).thenReturn(estado());
         when(servicio.enviarSegundaParte(7L, 30L)).thenReturn(estado());
         when(servicio.enviarFinalPartido(7L, 30L)).thenReturn(estado());
@@ -80,7 +81,7 @@ class AppPartidoEnVivoControllerTest {
         Authentication auth = autenticado("7");
 
         assertThat(controller.inicio(30L, auth).getBody()).isEqualTo(estado());
-        assertThat(controller.golContra(30L, auth).getBody()).isEqualTo(estado());
+        assertThat(controller.golContra(30L, null, auth).getBody()).isEqualTo(estado());
         assertThat(controller.descanso(30L, auth).getBody()).isEqualTo(estado());
         assertThat(controller.segundaParte(30L, auth).getBody()).isEqualTo(estado());
         assertThat(controller.finalPartido(30L, auth).getBody()).isEqualTo(estado());
@@ -94,13 +95,13 @@ class AppPartidoEnVivoControllerTest {
         GolFavorRequest conTexto = new GolFavorRequest();
         conTexto.setAutorTexto("p.p.");
 
-        when(servicio.enviarGolFavor(any(), anyLong(), any(), any())).thenReturn(estado());
+        when(servicio.enviarGolFavor(any(), anyLong(), any(), any(), any())).thenReturn(estado());
 
         controller.golFavor(30L, conJugador, autenticado("7"));
         controller.golFavor(30L, conTexto, autenticado("7"));
 
-        verify(servicio).enviarGolFavor(7L, 30L, 10L, null);
-        verify(servicio).enviarGolFavor(7L, 30L, null, "p.p.");
+        verify(servicio).enviarGolFavor(7L, 30L, 10L, null, null);
+        verify(servicio).enviarGolFavor(7L, 30L, null, "p.p.", null);
     }
 
     @Test
@@ -122,10 +123,10 @@ class AppPartidoEnVivoControllerTest {
 
     @Test
     void unPartidoOUnOrdenNoValidosDevuelven400ConElMensaje() {
-        when(servicio.enviarGolContra(any(), any()))
+        when(servicio.enviarGolContra(any(), any(), any()))
                 .thenThrow(new IllegalArgumentException("El partido todavía no ha empezado"));
 
-        ResponseEntity<?> respuesta = controller.golContra(30L, autenticado("7"));
+        ResponseEntity<?> respuesta = controller.golContra(30L, null, autenticado("7"));
 
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(respuesta.getBody()).isEqualTo("El partido todavía no ha empezado");
@@ -158,6 +159,42 @@ class AppPartidoEnVivoControllerTest {
         doThrow(new SecurityException("sin permiso")).when(servicio).enviarAlineacion(any(), any(), any());
 
         assertThat(controller.alineacion(new AlineacionRequest(), autenticado("7")).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void golFavorYGolContraPasanElMinuto() {
+        GolFavorRequest golFavor = new GolFavorRequest();
+        golFavor.setJugadorId(10L);
+        golFavor.setMinuto(23);
+
+        MinutoRequest golContra = new MinutoRequest();
+        golContra.setMinuto(31);
+
+        when(servicio.enviarGolFavor(7L, 30L, 10L, null, 23)).thenReturn(estado());
+        when(servicio.enviarGolContra(7L, 30L, 31)).thenReturn(estado());
+
+        assertThat(controller.golFavor(30L, golFavor, autenticado("7")).getBody()).isEqualTo(estado());
+        assertThat(controller.golContra(30L, golContra, autenticado("7")).getBody()).isEqualTo(estado());
+    }
+
+    @Test
+    void corregirElMinutoDevuelveElEstadoYMapeaLosErrores() {
+        MinutoRequest peticion = new MinutoRequest();
+        peticion.setMinuto(12);
+
+        when(servicio.corregirMinuto(7L, 30L, 5L, 12)).thenReturn(estado());
+
+        assertThat(controller.corregirMinuto(30L, 5L, peticion, null).getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(controller.corregirMinuto(30L, 5L, peticion, autenticado("7")).getBody()).isEqualTo(estado());
+
+        when(servicio.corregirMinuto(7L, 30L, 6L, 12)).thenThrow(new IllegalArgumentException("anulado"));
+        assertThat(controller.corregirMinuto(30L, 6L, peticion, autenticado("7")).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+
+        when(servicio.corregirMinuto(7L, 30L, 7L, 12)).thenThrow(new SecurityException("sin rol"));
+        assertThat(controller.corregirMinuto(30L, 7L, peticion, autenticado("7")).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
     }
 }

@@ -27,7 +27,7 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 
 	private static final String CAMPOS = """
 			ID, PARTIDO_ID, TIPO, JUGADOR_ID, AUTOR_TEXTO, USUARIO_APP_ID, FECHA, ANULADO, FECHA_ANULACION,
-			RESULTADO_ANTERIOR, GOLES_FAVOR_ANTERIOR, GOLES_CONTRA_ANTERIOR, AVISO_ANTERIOR, ESTADISTICAS_GUARDADAS
+			RESULTADO_ANTERIOR, GOLES_FAVOR_ANTERIOR, GOLES_CONTRA_ANTERIOR, AVISO_ANTERIOR, ESTADISTICAS_GUARDADAS, MINUTO
 			""";
 
 	private final JdbcTemplate jdbcTemplate;
@@ -46,8 +46,8 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 					INSERT INTO PARTIDO_LIVE_EVENTOS (
 					    PARTIDO_ID, TIPO, JUGADOR_ID, AUTOR_TEXTO, USUARIO_APP_ID, FECHA,
 					    RESULTADO_ANTERIOR, GOLES_FAVOR_ANTERIOR, GOLES_CONTRA_ANTERIOR, AVISO_ANTERIOR,
-					    ESTADISTICAS_GUARDADAS)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					    ESTADISTICAS_GUARDADAS, MINUTO)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					""", new String[] { "ID" });
 
 			ps.setLong(1, evento.getPartidoId());
@@ -61,6 +61,7 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 			ponerInteger(ps, 9, evento.getGolesContraAnterior());
 			ponerInteger(ps, 10, evento.getAvisoAnterior() == null ? null : (evento.getAvisoAnterior() ? 1 : 0));
 			ps.setInt(11, evento.isEstadisticasGuardadas() ? 1 : 0);
+			ponerInteger(ps, 12, evento.getMinuto());
 
 			return ps;
 		}, keyHolder);
@@ -100,6 +101,13 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 		return jdbcTemplate.update(
 				"UPDATE PARTIDO_LIVE_EVENTOS SET ANULADO = 1, FECHA_ANULACION = ? WHERE ID = ? AND ANULADO = 0",
 				Timestamp.valueOf(fechaAnulacion), id);
+	}
+
+	@Override
+	public int actualizarMinuto(Long id, Integer minuto) {
+
+		return jdbcTemplate.update(
+				"UPDATE PARTIDO_LIVE_EVENTOS SET MINUTO = ? WHERE ID = ? AND ANULADO = 0", minuto, id);
 	}
 
 	@Override
@@ -166,6 +174,9 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 		evento.setAvisoAnterior(rs.wasNull() ? null : aviso == 1);
 
 		evento.setEstadisticasGuardadas(rs.getInt("ESTADISTICAS_GUARDADAS") == 1);
+
+		int minuto = rs.getInt("MINUTO");
+		evento.setMinuto(rs.wasNull() ? null : minuto);
 
 		return evento;
 	}

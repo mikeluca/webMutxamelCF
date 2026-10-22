@@ -20,6 +20,9 @@ public interface PartidoLiveEventoDao {
     /** Marca el evento como anulado; devuelve las filas modificadas (0 si ya lo estaba). */
     int anular(Long id, LocalDateTime fechaAnulacion);
 
+    /** Corrige el minuto de un evento no anulado; devuelve las filas modificadas. */
+    int actualizarMinuto(Long id, Integer minuto);
+
     /** Jugadores (sin foto) con esos ids. */
     List<JugadorBasico> obtenerJugadoresBasicos(Collection<Long> jugadorIds);
 

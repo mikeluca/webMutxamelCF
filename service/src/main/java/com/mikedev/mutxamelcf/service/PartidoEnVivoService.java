@@ -32,10 +32,30 @@ public interface PartidoEnVivoService {
 
     EstadoPartidoEnVivoResponse enviarInicioPartido(Long usuarioId, Long partidoId);
 
-    /** Se indica jugadorId (convocado) o autorTexto ("Otro" o "p.p."), nunca los dos. */
-    EstadoPartidoEnVivoResponse enviarGolFavor(Long usuarioId, Long partidoId, Long jugadorId, String autorTexto);
+    /**
+     * Se indica jugadorId (convocado) o autorTexto ("Otro" o "p.p."), nunca los dos. El minuto
+     * (0-150) es opcional: sin él lo calcula el servidor.
+     */
+    EstadoPartidoEnVivoResponse enviarGolFavor(
+            Long usuarioId, Long partidoId, Long jugadorId, String autorTexto, Integer minuto);
 
-    EstadoPartidoEnVivoResponse enviarGolContra(Long usuarioId, Long partidoId);
+    default EstadoPartidoEnVivoResponse enviarGolFavor(
+            Long usuarioId, Long partidoId, Long jugadorId, String autorTexto) {
+        return enviarGolFavor(usuarioId, partidoId, jugadorId, autorTexto, null);
+    }
+
+    /** El minuto (0-150) es opcional: sin él lo calcula el servidor. */
+    EstadoPartidoEnVivoResponse enviarGolContra(Long usuarioId, Long partidoId, Integer minuto);
+
+    default EstadoPartidoEnVivoResponse enviarGolContra(Long usuarioId, Long partidoId) {
+        return enviarGolContra(usuarioId, partidoId, null);
+    }
+
+    /**
+     * Corrige el minuto (0-150) de un gol no anulado de un partido de hoy, sea cual sea su orden
+     * y sin límite de tiempo. No se reenvía ningún push.
+     */
+    EstadoPartidoEnVivoResponse corregirMinuto(Long usuarioId, Long partidoId, Long eventoId, Integer minuto);
 
     EstadoPartidoEnVivoResponse enviarDescanso(Long usuarioId, Long partidoId);
 

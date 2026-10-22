@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -102,6 +103,16 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     private final UsuarioAppService usuarioAppService;
     private final FcmPushService fcmPushService;
     private final Clock clock;
+
+    /** Duración de cada parte según la modalidad del equipo (retransmision.minutos-parte.*). */
+    @Value("${retransmision.minutos-parte.F11:45}")
+    private int minutosParteF11 = 45;
+
+    @Value("${retransmision.minutos-parte.F8:25}")
+    private int minutosParteF8 = 25;
+
+    @Value("${retransmision.minutos-parte.F5:20}")
+    private int minutosParteF5 = 20;
 
     public PartidoEnVivoServiceImpl(
             PartidoLiveEventoDao eventoDao,
@@ -201,38 +212,38 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     @Override
     @Transactional
     public EstadoPartidoEnVivoResponse enviarInicioPartido(Long usuarioId, Long partidoId) {
-        return registrar(usuarioId, partidoId, PartidoLiveEvento.INICIO, null, null);
+        return registrar(usuarioId, partidoId, PartidoLiveEvento.INICIO, null, null, null);
     }
 
     @Override
     @Transactional
     public EstadoPartidoEnVivoResponse enviarGolFavor(
-            Long usuarioId, Long partidoId, Long jugadorId, String autorTexto) {
-        return registrar(usuarioId, partidoId, PartidoLiveEvento.GOL_FAVOR, jugadorId, autorTexto);
+            Long usuarioId, Long partidoId, Long jugadorId, String autorTexto, Integer minuto) {
+        return registrar(usuarioId, partidoId, PartidoLiveEvento.GOL_FAVOR, jugadorId, autorTexto, minuto);
     }
 
     @Override
     @Transactional
-    public EstadoPartidoEnVivoResponse enviarGolContra(Long usuarioId, Long partidoId) {
-        return registrar(usuarioId, partidoId, PartidoLiveEvento.GOL_CONTRA, null, null);
+    public EstadoPartidoEnVivoResponse enviarGolContra(Long usuarioId, Long partidoId, Integer minuto) {
+        return registrar(usuarioId, partidoId, PartidoLiveEvento.GOL_CONTRA, null, null, minuto);
     }
 
     @Override
     @Transactional
     public EstadoPartidoEnVivoResponse enviarDescanso(Long usuarioId, Long partidoId) {
-        return registrar(usuarioId, partidoId, PartidoLiveEvento.DESCANSO, null, null);
+        return registrar(usuarioId, partidoId, PartidoLiveEvento.DESCANSO, null, null, null);
     }
 
     @Override
     @Transactional
     public EstadoPartidoEnVivoResponse enviarSegundaParte(Long usuarioId, Long partidoId) {
-        return registrar(usuarioId, partidoId, PartidoLiveEvento.SEGUNDA_PARTE, null, null);
+        return registrar(usuarioId, partidoId, PartidoLiveEvento.SEGUNDA_PARTE, null, null, null);
     }
 
     @Override
     @Transactional
     public EstadoPartidoEnVivoResponse enviarFinalPartido(Long usuarioId, Long partidoId) {
-        return registrar(usuarioId, partidoId, PartidoLiveEvento.FINAL, null, null);
+        return registrar(usuarioId, partidoId, PartidoLiveEvento.FINAL, null, null, null);
     }
 
     /*
@@ -242,7 +253,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
      * instancias distintas.
      */
     private EstadoPartidoEnVivoResponse registrar(
-            Long usuarioId, Long partidoId, String tipo, Long jugadorId, String autorTexto) {
+            Long usuarioId, Long partidoId, String tipo, Long jugadorId, String autorTexto, Integer minuto) {
 
         validarRolRetransmision(usuarioId);
 
@@ -261,6 +272,10 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         evento.setTipo(tipo);
         evento.setUsuarioAppId(usuarioId);
         evento.setFecha(ahora);
+
+        if (PartidoLiveEvento.GOL_FAVOR.equals(tipo) || PartidoLiveEvento.GOL_CONTRA.equals(tipo)) {
+            evento.setMinuto(minuto != null ? validarMinuto(minuto) : calcularMinuto(partido, eventos, ahora));
+        }
 
         if (PartidoLiveEvento.GOL_FAVOR.equals(tipo)) {
 
@@ -288,6 +303,106 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
                 partidoId, tipo, estado.golesFavor(), estado.golesContra());
 
         return estado;
+    }
+
+    // ------------------------------------------------------------------
+    // Minuto del gol
+    // ------------------------------------------------------------------
+
+    static final int MINUTO_MAXIMO = 150;
+
+    private static int validarMinuto(Integer minuto) {
+
+        if (minuto == null || minuto < 0 || minuto > MINUTO_MAXIMO) {
+            throw new IllegalArgumentException("El minuto debe estar entre 0 y " + MINUTO_MAXIMO);
+        }
+
+        return minuto;
+    }
+
+    /** Duración de una parte según la modalidad del equipo (F11 por defecto). */
+    private int minutosDeParte(Partido partido) {
+
+        Equipo equipo = equipoDao.obtenerEquipoPorId(partido.getEquipoId());
+        String modalidad = equipo == null ? null : equipo.getModalidad();
+
+        if ("F8".equals(modalidad)) {
+            return minutosParteF8;
+        }
+
+        if ("F5".equals(modalidad)) {
+            return minutosParteF5;
+        }
+
+        return minutosParteF11;
+    }
+
+    /**
+     * El minuto del partido en {@code ahora}: en la 1.ª parte, los minutos cumplidos desde el INICIO
+     * + 1; en la 2.ª, la duración de la parte + los cumplidos desde SEGUNDA_PARTE + 1. Si pasa de
+     * la duración de la parte (añadido) se devuelve tal cual. Null antes del inicio, en el descanso
+     * y tras el final.
+     */
+    private Integer calcularMinuto(Partido partido, List<PartidoLiveEvento> eventos, LocalDateTime ahora) {
+
+        String fase = fase(eventos);
+
+        boolean segunda = EstadoPartidoEnVivoResponse.SEGUNDA_PARTE.equals(fase);
+
+        if (!segunda && !EstadoPartidoEnVivoResponse.PRIMERA_PARTE.equals(fase)) {
+            return null;
+        }
+
+        String tipoInicio = segunda ? PartidoLiveEvento.SEGUNDA_PARTE : PartidoLiveEvento.INICIO;
+
+        LocalDateTime inicio = eventos.stream()
+                .filter(e -> tipoInicio.equals(e.getTipo()))
+                .map(PartidoLiveEvento::getFecha)
+                .reduce((primero, segundo) -> segundo)
+                .orElse(null);
+
+        if (inicio == null) {
+            return null;
+        }
+
+        int cumplidos = (int) Math.max(0, Duration.between(inicio, ahora).toMinutes());
+
+        return (segunda ? minutosDeParte(partido) : 0) + cumplidos + 1;
+    }
+
+    @Override
+    @Transactional
+    public EstadoPartidoEnVivoResponse corregirMinuto(Long usuarioId, Long partidoId, Long eventoId, Integer minuto) {
+
+        validarRolRetransmision(usuarioId);
+
+        bloquearPartido(partidoId);
+
+        Partido partido = validarPartido(partidoId, true);
+
+        validarMinuto(minuto);
+
+        PartidoLiveEvento evento = eventoId == null ? null : eventoDao.obtenerPorId(eventoId);
+
+        if (evento == null || !partidoId.equals(evento.getPartidoId())) {
+            throw new IllegalArgumentException("El evento no existe en este partido");
+        }
+
+        if (evento.isAnulado()) {
+            throw new IllegalArgumentException("El gol está anulado: no se puede corregir su minuto");
+        }
+
+        if (!PartidoLiveEvento.GOL_FAVOR.equals(evento.getTipo())
+                && !PartidoLiveEvento.GOL_CONTRA.equals(evento.getTipo())) {
+            throw new IllegalArgumentException("Solo se puede corregir el minuto de un gol");
+        }
+
+        eventoDao.actualizarMinuto(eventoId, minuto);
+
+        logger.info("Minuto de gol corregido: partidoId={}, eventoId={}", partidoId, eventoId);
+
+        // Sin push: la corrección solo afecta a la retransmisión.
+        return construirEstado(partido, eventoDao.obtenerNoAnuladosPorPartido(partidoId));
     }
 
     private static void validarOrden(String tipo, String fase) {
@@ -570,7 +685,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             String autor = autor(evento, nombres);
 
             respuesta.add(new EventoEnVivo(evento.getId(), evento.getTipo(), evento.getJugadorId(), autor,
-                    evento.getFecha()));
+                    evento.getFecha(), evento.getMinuto()));
 
             if (PartidoLiveEvento.GOL_FAVOR.equals(evento.getTipo()) && autor != null) {
                 goleadores.add(autor);
@@ -602,7 +717,8 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
                 contar(eventos, PartidoLiveEvento.GOL_CONTRA),
                 goleadores,
                 respuesta,
-                deshacible);
+                deshacible,
+                calcularMinuto(partido, eventos, ahora()));
     }
 
     private static String autor(PartidoLiveEvento evento, Map<Long, String> nombres) {
@@ -656,7 +772,9 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
                         .findFirst()
                         .orElse(null);
 
-                difundirTrasCommit("⚽ ¡GOOOL del Mutxamel CF!", textoAutor(autor) + "\n\n" + marcador);
+                String minuto = evento.getMinuto() == null ? "" : " (" + evento.getMinuto() + "')";
+
+                difundirTrasCommit("⚽ ¡GOL del Mutxamel!" + minuto, textoAutor(autor) + " · " + marcador);
             }
             case PartidoLiveEvento.GOL_CONTRA -> difundirTrasCommit("Gol en contra", marcador);
             case PartidoLiveEvento.DESCANSO -> difundirTrasCommit("⏸️ Descanso", marcador);

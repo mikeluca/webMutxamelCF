@@ -2,6 +2,7 @@ package com.mikedev.mutxamelcf.mvc.controller;
 
 import com.mikedev.mutxamelcf.model.AlineacionRequest;
 import com.mikedev.mutxamelcf.model.GolFavorRequest;
+import com.mikedev.mutxamelcf.model.MinutoRequest;
 import com.mikedev.mutxamelcf.service.PartidoEnVivoService;
 
 import org.springframework.http.HttpStatus;
@@ -72,13 +73,20 @@ public class AppPartidoEnVivoController {
             Authentication authentication) {
 
         return ejecutar(authentication, usuarioId -> partidoEnVivoService.enviarGolFavor(
-                usuarioId, partidoId, request.getJugadorId(), request.getAutorTexto()));
+                usuarioId, partidoId, request.getJugadorId(), request.getAutorTexto(), request.getMinuto()));
     }
 
+    /** El cuerpo es opcional: {"minuto": 0-150}; sin él el servidor calcula el minuto. */
     @PostMapping("/{partidoId}/gol-contra")
-    public ResponseEntity<?> golContra(@PathVariable Long partidoId, Authentication authentication) {
+    public ResponseEntity<?> golContra(
+            @PathVariable Long partidoId,
+            @RequestBody(required = false) MinutoRequest request,
+            Authentication authentication) {
 
-        return ejecutar(authentication, usuarioId -> partidoEnVivoService.enviarGolContra(usuarioId, partidoId));
+        Integer minuto = request == null ? null : request.getMinuto();
+
+        return ejecutar(authentication,
+                usuarioId -> partidoEnVivoService.enviarGolContra(usuarioId, partidoId, minuto));
     }
 
     @PostMapping("/{partidoId}/descanso")
@@ -107,6 +115,18 @@ public class AppPartidoEnVivoController {
             Authentication authentication) {
 
         return ejecutar(authentication, usuarioId -> partidoEnVivoService.deshacer(usuarioId, partidoId, eventoId));
+    }
+
+    /** Corrige el minuto de un gol no anulado del partido de hoy (sin push). */
+    @PatchMapping("/{partidoId}/eventos/{eventoId}/minuto")
+    public ResponseEntity<?> corregirMinuto(
+            @PathVariable Long partidoId,
+            @PathVariable Long eventoId,
+            @RequestBody MinutoRequest request,
+            Authentication authentication) {
+
+        return ejecutar(authentication, usuarioId -> partidoEnVivoService.corregirMinuto(
+                usuarioId, partidoId, eventoId, request.getMinuto()));
     }
 
     private ResponseEntity<?> ejecutar(Authentication authentication, Function<Long, Object> accion) {

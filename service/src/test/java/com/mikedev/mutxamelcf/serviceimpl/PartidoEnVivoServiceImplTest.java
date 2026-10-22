@@ -404,7 +404,7 @@ class PartidoEnVivoServiceImplTest {
 
         assertThat(estado.golesFavor()).isEqualTo(1);
         // Y solo se difundió una vez.
-        verify(notificacionAppService, times(1)).difundirATodos(eq("RESULTADO"), eq("⚽ ¡GOOOL del Mutxamel CF!"),
+        verify(notificacionAppService, times(1)).difundirATodos(eq("RESULTADO"), org.mockito.ArgumentMatchers.startsWith("⚽ ¡GOL del Mutxamel!"),
                 any(), isNull());
     }
 
@@ -556,10 +556,10 @@ class PartidoEnVivoServiceImplTest {
 
         verify(notificacionAppService).difundirATodos(eq("RESULTADO"), eq("⚽ ¡Comienza el partido!"),
                 eq("Mutxamel CF - Pego C.F."), isNull());
-        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), eq("⚽ ¡GOOOL del Mutxamel CF!"),
-                eq("Pablo Garcia\n\nMutxamel CF 1 - 0 Pego C.F."), isNull());
-        verify(fcmPushService).enviarATopic(eq("resultados"), eq("⚽ ¡GOOOL del Mutxamel CF!"),
-                eq("Pablo Garcia\n\nMutxamel CF 1 - 0 Pego C.F."));
+        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), org.mockito.ArgumentMatchers.startsWith("⚽ ¡GOL del Mutxamel!"),
+                eq("Pablo Garcia · Mutxamel CF 1 - 0 Pego C.F."), isNull());
+        verify(fcmPushService).enviarATopic(eq("resultados"), org.mockito.ArgumentMatchers.startsWith("⚽ ¡GOL del Mutxamel!"),
+                eq("Pablo Garcia · Mutxamel CF 1 - 0 Pego C.F."));
     }
 
     @Test
@@ -1000,4 +1000,196 @@ class PartidoEnVivoServiceImplTest {
         assertThat(service.obtenerEstado(USUARIO, PARTIDO).ultimoEventoDeshacible()).isNull();
     }
 
+
+    // ---- minuto del gol -----------------------------------------------------------------
+
+    private static Integer minutoDelUltimoGol(EstadoPartidoEnVivoResponse estado) {
+        List<EstadoPartidoEnVivoResponse.EventoEnVivo> eventos = estado.eventos();
+        return eventos.get(eventos.size() - 1).minuto();
+    }
+
+    private void equipoConModalidad(String modalidad) {
+        Equipo equipo = new Equipo();
+        equipo.setId(PRIMER_EQUIPO);
+        equipo.setModalidad(modalidad);
+        when(equipoDao.obtenerEquipoPorId(PRIMER_EQUIPO)).thenReturn(equipo);
+    }
+
+    @Test
+    void sinMinutoEnLaPrimeraParteSeCalculaDesdeElInicioMasUno() {
+        empezarPartido();
+
+        reloj.avanzar(Duration.ofMinutes(22).plusSeconds(30));
+        EstadoPartidoEnVivoResponse estado = service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
+
+        assertThat(minutoDelUltimoGol(estado)).isEqualTo(23);
+    }
+
+    @Test
+    void justoAlEmpezarElMinutoEsElUno() {
+        empezarPartido();
+
+        assertThat(minutoDelUltimoGol(service.enviarGolContra(USUARIO, PARTIDO))).isEqualTo(1);
+    }
+
+    @Test
+    void enLaSegundaParteSeSumanLos45MinutosDeLaPrimera() {
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(47));
+        service.enviarDescanso(USUARIO, PARTIDO);
+        reloj.avanzar(Duration.ofMinutes(15));
+        service.enviarSegundaParte(USUARIO, PARTIDO);
+
+        reloj.avanzar(Duration.ofMinutes(10).plusSeconds(5));
+
+        assertThat(minutoDelUltimoGol(service.enviarGolFavor(USUARIO, PARTIDO, 10L, null))).isEqualTo(56);
+    }
+
+    @Test
+    void enF8LaParteDura25MinutosYElMinutoSeCalculaConEsaDuracion() {
+        equipoConModalidad("F8");
+
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(26));
+        service.enviarDescanso(USUARIO, PARTIDO);
+        service.enviarSegundaParte(USUARIO, PARTIDO);
+        reloj.avanzar(Duration.ofMinutes(3));
+
+        assertThat(minutoDelUltimoGol(service.enviarGolContra(USUARIO, PARTIDO))).isEqualTo(25 + 3 + 1);
+    }
+
+    @Test
+    void siPasaDeLaDuracionDeLaParteSeGuardaTalCualSinRecortar() {
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(50));
+
+        assertThat(minutoDelUltimoGol(service.enviarGolContra(USUARIO, PARTIDO))).isEqualTo(51);
+    }
+
+    @Test
+    void unMinutoManualTienePrioridadSobreElCalculado() {
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(30));
+
+        assertThat(minutoDelUltimoGol(service.enviarGolFavor(USUARIO, PARTIDO, 10L, null, 7))).isEqualTo(7);
+        reloj.avanzar(Duration.ofMinutes(1));
+        assertThat(minutoDelUltimoGol(service.enviarGolContra(USUARIO, PARTIDO, 0))).isEqualTo(0);
+        reloj.avanzar(Duration.ofMinutes(1));
+        assertThat(minutoDelUltimoGol(service.enviarGolContra(USUARIO, PARTIDO, 150))).isEqualTo(150);
+    }
+
+    @Test
+    void unMinutoManualFueraDeRangoEsError() {
+        empezarPartido();
+
+        assertThatThrownBy(() -> service.enviarGolFavor(USUARIO, PARTIDO, 10L, null, 151))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.enviarGolContra(USUARIO, PARTIDO, -1))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(service.obtenerEstado(USUARIO, PARTIDO).golesFavor()).isZero();
+        assertThat(service.obtenerEstado(USUARIO, PARTIDO).golesContra()).isZero();
+    }
+
+    @Test
+    void elEstadoDaElMinutoActualSoloMientrasSeJuega() {
+        assertThat(service.obtenerEstado(USUARIO, PARTIDO).minutoActual()).isNull();
+
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(9));
+        assertThat(service.obtenerEstado(USUARIO, PARTIDO).minutoActual()).isEqualTo(10);
+
+        service.enviarDescanso(USUARIO, PARTIDO);
+        assertThat(service.obtenerEstado(USUARIO, PARTIDO).minutoActual()).isNull();
+
+        service.enviarSegundaParte(USUARIO, PARTIDO);
+        assertThat(service.obtenerEstado(USUARIO, PARTIDO).minutoActual()).isEqualTo(46);
+
+        service.enviarFinalPartido(USUARIO, PARTIDO);
+        assertThat(service.obtenerEstado(USUARIO, PARTIDO).minutoActual()).isNull();
+    }
+
+    @Test
+    void elPushDelGolIncluyeElMinuto() {
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(22));
+
+        service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
+
+        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), eq("⚽ ¡GOL del Mutxamel! (23')"),
+                eq("Pablo Garcia · Mutxamel CF 1 - 0 Pego C.F."), isNull());
+    }
+
+    // ---- corregir el minuto -------------------------------------------------------------
+
+    @Test
+    void corregirElMinutoDeCualquierGolSinPushNiLimiteDeTiempo() {
+        empezarPartido();
+        EstadoPartidoEnVivoResponse primero = service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
+        Long idPrimero = primero.ultimoEventoDeshacible().id();
+        reloj.avanzar(Duration.ofMinutes(20));
+        service.enviarGolContra(USUARIO, PARTIDO);
+        org.mockito.Mockito.clearInvocations(notificacionAppService, fcmPushService);
+
+        // No es el último gol y han pasado más de 2 minutos.
+        EstadoPartidoEnVivoResponse estado = service.corregirMinuto(USUARIO, PARTIDO, idPrimero, 12);
+
+        assertThat(estado.eventos()).filteredOn(e -> e.id().equals(idPrimero)).singleElement()
+                .satisfies(e -> assertThat(e.minuto()).isEqualTo(12));
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+        verify(fcmPushService, never()).enviarATopic(any(), any(), any());
+    }
+
+    @Test
+    void corregirElMinutoFueraDeRangoOSinMinutoEsError() {
+        empezarPartido();
+        Long id = service.enviarGolFavor(USUARIO, PARTIDO, 10L, null).ultimoEventoDeshacible().id();
+
+        assertThatThrownBy(() -> service.corregirMinuto(USUARIO, PARTIDO, id, 151))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.corregirMinuto(USUARIO, PARTIDO, id, -1))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.corregirMinuto(USUARIO, PARTIDO, id, null))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(minutoDelUltimoGol(service.obtenerEstado(USUARIO, PARTIDO))).isEqualTo(1);
+    }
+
+    @Test
+    void noSePuedeCorregirElMinutoDeUnGolAnulado() {
+        empezarPartido();
+        Long id = service.enviarGolFavor(USUARIO, PARTIDO, 10L, null).ultimoEventoDeshacible().id();
+        service.deshacer(USUARIO, PARTIDO, id);
+
+        assertThatThrownBy(() -> service.corregirMinuto(USUARIO, PARTIDO, id, 5))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("anulado");
+    }
+
+    @Test
+    void soloSeCorrigeElMinutoDeUnGol() {
+        EstadoPartidoEnVivoResponse estado = empezarPartido();
+        Long idInicio = estado.eventos().get(0).id();
+
+        assertThatThrownBy(() -> service.corregirMinuto(USUARIO, PARTIDO, idInicio, 5))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.corregirMinuto(USUARIO, PARTIDO, 9999L, 5))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void corregirElMinutoExigeElRolYQueElPartidoSeaDeHoy() {
+        empezarPartido();
+        Long id = service.enviarGolFavor(USUARIO, PARTIDO, 10L, null).ultimoEventoDeshacible().id();
+
+        when(usuarioAppService.tieneRol(USUARIO.intValue(), "RETRANSMISION")).thenReturn(false);
+        assertThatThrownBy(() -> service.corregirMinuto(USUARIO, PARTIDO, id, 5))
+                .isInstanceOf(SecurityException.class);
+
+        when(usuarioAppService.tieneRol(USUARIO.intValue(), "RETRANSMISION")).thenReturn(true);
+        reloj.avanzar(Duration.ofDays(1));
+        assertThatThrownBy(() -> service.corregirMinuto(USUARIO, PARTIDO, id, 5))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("hoy");
+    }
 }

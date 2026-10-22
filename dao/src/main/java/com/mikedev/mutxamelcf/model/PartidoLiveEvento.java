@@ -20,6 +20,9 @@ public class PartidoLiveEvento {
     private String tipo;
     private Long jugadorId;
     private String autorTexto;
+
+    /** Minuto del partido en que se marcó el gol (solo goles); null si no consta. */
+    private Integer minuto;
     private Long usuarioAppId;
     private LocalDateTime fecha;
     private boolean anulado;
@@ -74,6 +77,14 @@ public class PartidoLiveEvento {
 
     public void setAutorTexto(String autorTexto) {
         this.autorTexto = autorTexto;
+    }
+
+    public Integer getMinuto() {
+        return minuto;
+    }
+
+    public void setMinuto(Integer minuto) {
+        this.minuto = minuto;
     }
 
     public Long getUsuarioAppId() {

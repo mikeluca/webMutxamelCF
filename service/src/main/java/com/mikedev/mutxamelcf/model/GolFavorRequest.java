@@ -15,7 +15,18 @@ public class GolFavorRequest {
     @Size(max = 60, message = "El nombre del autor del gol es demasiado largo (máximo 60 caracteres)")
     private String autorTexto;
 
+    /** Minuto del gol (0-150); opcional: sin él lo calcula el servidor. */
+    private Integer minuto;
+
     public GolFavorRequest() {
+    }
+
+    public Integer getMinuto() {
+        return minuto;
+    }
+
+    public void setMinuto(Integer minuto) {
+        this.minuto = minuto;
     }
 
     public Long getJugadorId() {
