@@ -74,7 +74,7 @@ public class EquipoAdminController {
 			equipo.setNombre(nombre);
 			equipo.setGrupo(grupo);
 			equipo.setDeporte(deporte);
-			equipo.setModalidad(modalidadNormalizada);
+			equipo.setModalidad(modalidadAGuardar(id, modalidad, modalidadNormalizada));
 
 			if (equiposService.guardar(equipo)) {
 				response.put("mensaje", "Equipo guardado correctamente.");
@@ -92,6 +92,14 @@ public class EquipoAdminController {
 			logger.debug("Fin guardarEquipo: resultado=ERROR");
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
+	}
+
+	// Sin parámetro (null) al editar se conserva la modalidad actual; "" es "Sin modalidad".
+	private String modalidadAGuardar(Long id, String modalidad, String normalizada) {
+		if (modalidad == null && id != null) {
+			return equiposService.obtenerEquipoPorId(id).getModalidad();
+		}
+		return normalizada;
 	}
 
 	// Método para borrar un equipo por su ID

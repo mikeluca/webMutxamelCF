@@ -84,6 +84,13 @@ class EquipoModalidadH2Test {
         assertThat(gestionDao.equipoAdmiteEstadisticas(9999L)).isFalse();
     }
 
+    @Test
+    void elEsquemaH2RechazaUnaModalidadFueraDeF11F8F5() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> jdbc.update("INSERT INTO EQUIPO (CATEGORIA, GRUPO, NOMBRE, MODALIDAD) VALUES ('X', 'A', 'X A', 'F7')"))
+                .isInstanceOf(Exception.class);
+    }
+
     private boolean admite(String nombre) {
         Equipo equipo = equipoDao.obtenerEquipoPorNombre(nombre);
         assertThat(equipo.admiteEstadisticas()).isEqualTo(gestionDao.equipoAdmiteEstadisticas(equipo.getId()));

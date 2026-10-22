@@ -109,12 +109,26 @@ class EquipoAdminControllerTest {
 
         controller.guardarEquipo(null, "Benjamín", "Benjamín A", "A", "F", "F8");
         controller.guardarEquipo(7L, "Benjamín", "Benjamín A", "A", "F", "");
-        controller.guardarEquipo(7L, "Benjamín", "Benjamín A", "A", "F", null);
+        controller.guardarEquipo(null, "Benjamín", "Benjamín A", "A", "F", null);
 
         org.mockito.Mockito.verify(equiposService, org.mockito.Mockito.times(3)).guardar(captor.capture());
         assertEquals("F8", captor.getAllValues().get(0).getModalidad());
         assertEquals(null, captor.getAllValues().get(1).getModalidad());
         assertEquals(null, captor.getAllValues().get(2).getModalidad());
+    }
+
+    @Test
+    void editarSinParametroModalidadConservaLaActual() {
+        EquipoDTO existente = new EquipoDTO();
+        existente.setModalidad("F8");
+        when(equiposService.obtenerEquipoPorId(7L)).thenReturn(existente);
+        when(equiposService.guardar(org.mockito.ArgumentMatchers.any())).thenReturn(true);
+        org.mockito.ArgumentCaptor<EquipoDTO> captor = org.mockito.ArgumentCaptor.forClass(EquipoDTO.class);
+
+        controller.guardarEquipo(7L, "Benjamín", "Benjamín A", "A", "F", null);
+
+        org.mockito.Mockito.verify(equiposService).guardar(captor.capture());
+        assertEquals("F8", captor.getValue().getModalidad());
     }
 
     @Test
