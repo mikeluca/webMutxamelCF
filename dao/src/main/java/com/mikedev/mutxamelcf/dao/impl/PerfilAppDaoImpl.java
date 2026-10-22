@@ -232,7 +232,8 @@ public class PerfilAppDaoImpl implements PerfilAppDao {
                     e.GRUPO,
                     e.ORDEN,
                     e.NOMBRE,
-                    e.DEPORTE
+                    e.DEPORTE,
+                    e.MODALIDAD
                 FROM USUARIOS_APP_CUERPO_TECNICO uact
                 INNER JOIN CUERPO_TECNICO ct
                     ON ct.ID = uact.CUERPO_TECNICO_ID
@@ -335,6 +336,7 @@ public class PerfilAppDaoImpl implements PerfilAppDao {
         equipo.setOrden(rs.getString("ORDEN"));
         equipo.setNombre(rs.getString("NOMBRE"));
         equipo.setDeporte(rs.getString("DEPORTE"));
+        equipo.setModalidad(rs.getString("MODALIDAD"));
 
         return equipo;
     }

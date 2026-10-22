@@ -7,6 +7,7 @@ public class PerfilEquipoAppResponse {
     private String categoria;
     private String grupo;
     private String deporte;
+    private String modalidad;
 
     public PerfilEquipoAppResponse() {
     }
@@ -49,5 +50,13 @@ public class PerfilEquipoAppResponse {
 
     public void setDeporte(String deporte) {
         this.deporte = deporte;
+    }
+
+    public String getModalidad() {
+        return modalidad;
+    }
+
+    public void setModalidad(String modalidad) {
+        this.modalidad = modalidad;
     }
 }
