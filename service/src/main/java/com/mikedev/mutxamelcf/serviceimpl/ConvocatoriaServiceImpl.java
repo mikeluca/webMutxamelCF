@@ -284,6 +284,10 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
                                 if (conConvocatoriaId) {
                                         datosPush.put("convocatoriaId", String.valueOf(convocatoria.getId()));
+
+                                        if (convocatoria.getPartidoId() != null) {
+                                                datosPush.put("partidoId", String.valueOf(convocatoria.getPartidoId()));
+                                        }
                                 }
 
                                 if (convocatoria.getFechaPartido() != null) {
