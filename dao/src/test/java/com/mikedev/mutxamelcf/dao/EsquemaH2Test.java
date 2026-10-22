@@ -105,6 +105,22 @@ class EsquemaH2Test {
     }
 
     @Test
+    void elScriptDeModalidadDeSqlEsElDeLosTestsSalvoElIfExists() throws Exception {
+        String original = Files.readString(Path.of("..", "sql", "2026-10-26_equipo_modalidad.sql"));
+
+        assertThat(original).startsWith("-- NO EJECUTAR: ya aplicado")
+                .contains("ALTER TABLE EQUIPO ADD (MODALIDAD VARCHAR2(3) NULL);")
+                .contains("CHECK (MODALIDAD IN ('F11', 'F8', 'F5'));");
+
+        JdbcTemplate jdbc = new JdbcTemplate(new DriverManagerDataSource(
+                "jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=Oracle;DB_CLOSE_DELAY=-1", "sa", ""));
+        jdbc.execute("CREATE TABLE EQUIPO (ID NUMBER PRIMARY KEY)");
+        EsquemaH2.crear(jdbc);
+
+        assertThat(columnas(jdbc, "EQUIPO")).contains("MODALIDAD");
+    }
+
+    @Test
     void laTablaDeReportesDeComunicacionTieneElEsquemaDelScript() {
         JdbcTemplate jdbc = nuevaBase();
 

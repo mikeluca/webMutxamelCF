@@ -22,6 +22,7 @@ import com.mikedev.mutxamelcf.dao.EsquemaH2;
 import com.mikedev.mutxamelcf.dao.impl.ResumenTemporadaDaoImpl;
 import com.mikedev.mutxamelcf.dao.impl.TemporadaDaoImpl;
 import com.mikedev.mutxamelcf.model.EstadisticasEquipoResponse;
+import com.mikedev.mutxamelcf.model.TarjetasEquipoResponse;
 import com.mikedev.mutxamelcf.model.TarjetasJugadorResponse;
 
 /**
@@ -86,8 +87,8 @@ class EstadisticasEquipoServiceImplH2Test {
                 Date.valueOf(LocalDate.of(2025, 9, 1)), Date.valueOf(LocalDate.of(2026, 6, 30)));
         jdbc.update("INSERT INTO TEMPORADAS VALUES (2, '2026/2027', ?, ?, 1)", Date.valueOf(INICIO), Date.valueOf(FIN));
 
-        jdbc.update("INSERT INTO EQUIPO VALUES (?, 'Cadete A')", EQUIPO);
-        jdbc.update("INSERT INTO EQUIPO VALUES (?, 'Cadete B')", OTRO_EQUIPO);
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE) VALUES (?, 'Cadete A')", EQUIPO);
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE) VALUES (?, 'Cadete B')", OTRO_EQUIPO);
 
         jugador(PABLO, "Pablo", "Garcia", 9, "Cadete A");
         jugador(LUIS, "Luis", "Lopez", 1, "Cadete A");
@@ -97,6 +98,7 @@ class EstadisticasEquipoServiceImplH2Test {
         equipoGestionDao = mock(EquipoGestionDao.class);
         when(equipoGestionDao.existeEquipo(EQUIPO)).thenReturn(true);
         when(equipoGestionDao.puedeGestionarEquipo(USUARIO, EQUIPO)).thenReturn(true);
+        when(equipoGestionDao.equipoAdmiteEstadisticas(EQUIPO)).thenReturn(true);
 
         service = new EstadisticasEquipoServiceImpl(
                 new ResumenTemporadaDaoImpl(jdbc),
@@ -156,7 +158,7 @@ class EstadisticasEquipoServiceImplH2Test {
     }
 
     private List<TarjetasJugadorResponse> tarjetas() {
-        return service.obtenerTarjetas(USUARIO, EQUIPO);
+        return service.obtenerTarjetas(USUARIO, EQUIPO).jugadores();
     }
 
     private TarjetasJugadorResponse tarjetasDe(long jugador) {
@@ -250,6 +252,44 @@ class EstadisticasEquipoServiceImplH2Test {
         assertThatThrownBy(() -> service.obtenerTarjetas(null, EQUIPO)).isInstanceOf(SecurityException.class);
         assertThatThrownBy(() -> service.obtenerTarjetas(USUARIO, 99L)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.obtenerTarjetas(USUARIO, null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void unEquipoSinEstadisticasDeJugadorDevuelveTarjetasVaciasYAdmiteEstadisticasFalse() {
+        when(equipoGestionDao.equipoAdmiteEstadisticas(EQUIPO)).thenReturn(false);
+        estadistica(partido(EQUIPO, INICIO.plusDays(9), false, 1, 0), PABLO, 1, 1, 4, 1);
+
+        TarjetasEquipoResponse respuesta = service.obtenerTarjetas(USUARIO, EQUIPO);
+
+        assertThat(respuesta.admiteEstadisticas()).isFalse();
+        assertThat(respuesta.jugadores()).isEmpty();
+    }
+
+    @Test
+    void unEquipoF11DevuelveTarjetasConAdmiteEstadisticasTrue() {
+        estadistica(partido(EQUIPO, INICIO.plusDays(9), false, 1, 0), PABLO, 1, 1, 4, 1);
+
+        TarjetasEquipoResponse respuesta = service.obtenerTarjetas(USUARIO, EQUIPO);
+
+        assertThat(respuesta.admiteEstadisticas()).isTrue();
+        assertThat(respuesta.jugadores()).hasSize(3);
+    }
+
+    @Test
+    void sinEstadisticasDeJugadorNoHayGoleadoresNiAsistentesPeroSiPartidosYEntrenamientos() {
+        when(equipoGestionDao.equipoAdmiteEstadisticas(EQUIPO)).thenReturn(false);
+        long jugado = partido(EQUIPO, INICIO.plusDays(5), false, 3, 1);
+        estadistica(jugado, PABLO, 3, 1, 0, 0);
+        entrenamiento(HOY.minusDays(1), "18:00", true, PABLO, "PRESENTE", LUIS, "FALTA");
+
+        EstadisticasEquipoResponse respuesta = service.obtenerEstadisticas(USUARIO, EQUIPO);
+
+        assertThat(respuesta.admiteEstadisticas()).isFalse();
+        assertThat(respuesta.goleadores()).isEmpty();
+        assertThat(respuesta.asistentes()).isEmpty();
+        assertThat(respuesta.partidos().jugados()).isEqualTo(1);
+        assertThat(respuesta.partidos().golesFavor()).isEqualTo(3);
+        assertThat(respuesta.entrenamientos().sesiones()).isEqualTo(1);
     }
 
     // ---- goleadores y asistentes ---------------------------------------------------------------

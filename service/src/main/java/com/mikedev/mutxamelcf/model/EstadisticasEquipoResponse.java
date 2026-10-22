@@ -7,7 +7,8 @@ public record EstadisticasEquipoResponse(
         List<Goleador> goleadores,
         List<Asistente> asistentes,
         Entrenamientos entrenamientos,
-        Partidos partidos) {
+        Partidos partidos,
+        boolean admiteEstadisticas) {
 
     /** partidos: en cuántos partidos ya jugados estuvo convocado. */
     public record Goleador(Long jugadorId, String nombre, Integer dorsal, int goles, int asistencias, int partidos) {

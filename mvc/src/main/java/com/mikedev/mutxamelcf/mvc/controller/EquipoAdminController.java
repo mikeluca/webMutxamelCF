@@ -26,6 +26,8 @@ public class EquipoAdminController {
 
 	private static final Logger logger = LoggerFactory.getLogger(EquipoAdminController.class);
 
+	private static final java.util.Set<String> MODALIDADES = java.util.Set.of("F11", "F8", "F5");
+
 	private final EquipoService equiposService;
 
 	public EquipoAdminController(EquipoService equiposService) {
@@ -56,10 +58,15 @@ public class EquipoAdminController {
 	@ResponseBody
 	public ResponseEntity<Map<String, String>> guardarEquipo(@RequestParam(required = false) Long id,
 			@RequestParam String categoria, @RequestParam String nombre, @RequestParam String grupo,
-			@RequestParam String deporte) {
+			@RequestParam String deporte, @RequestParam(required = false) String modalidad) {
 		logger.debug("Inicio guardarEquipo: id={}, categoria={}, nombre={}, grupo={}, deporte={}", id, categoria,
 				nombre, grupo, deporte);
 		Map<String, String> response = new HashMap<>();
+		String modalidadNormalizada = modalidad == null || modalidad.isBlank() ? null : modalidad.trim();
+		if (modalidadNormalizada != null && !MODALIDADES.contains(modalidadNormalizada)) {
+			response.put("error", "Modalidad no válida.");
+			return ResponseEntity.badRequest().body(response);
+		}
 		try {
 			EquipoDTO equipo = new EquipoDTO();
 			equipo.setId(id);
@@ -67,6 +74,7 @@ public class EquipoAdminController {
 			equipo.setNombre(nombre);
 			equipo.setGrupo(grupo);
 			equipo.setDeporte(deporte);
+			equipo.setModalidad(modalidadNormalizada);
 
 			if (equiposService.guardar(equipo)) {
 				response.put("mensaje", "Equipo guardado correctamente.");

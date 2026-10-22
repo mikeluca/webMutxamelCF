@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
+import com.mikedev.mutxamelcf.model.Equipo;
 
 @Repository
 public class EquipoGestionDaoImpl implements EquipoGestionDao {
@@ -285,4 +286,22 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
         return ids.isEmpty() ? null : ids.get(0);
     }
 
+
+    @Override
+    public boolean equipoAdmiteEstadisticas(Long equipoId) {
+
+        List<String> modalidades = jdbcTemplate.query(
+                "SELECT MODALIDAD FROM EQUIPO WHERE ID = ?",
+                (rs, fila) -> rs.getString(1),
+                equipoId);
+
+        if (modalidades.isEmpty()) {
+            return false;
+        }
+
+        Equipo equipo = new Equipo();
+        equipo.setModalidad(modalidades.get(0));
+
+        return equipo.admiteEstadisticas();
+    }
 }

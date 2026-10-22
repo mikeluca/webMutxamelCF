@@ -41,4 +41,11 @@ public interface EquipoGestionDao {
      * o {@code null} si no tiene o no coincide con ninguno.
      */
     Long obtenerEquipoIdDeJugador(Long jugadorId);
+
+    /**
+     * true si el equipo registra estadísticas individuales de jugador
+     * ({@link com.mikedev.mutxamelcf.model.Equipo#admiteEstadisticas()}: solo F11).
+     * Un equipo inexistente no las admite.
+     */
+    boolean equipoAdmiteEstadisticas(Long equipoId);
 }

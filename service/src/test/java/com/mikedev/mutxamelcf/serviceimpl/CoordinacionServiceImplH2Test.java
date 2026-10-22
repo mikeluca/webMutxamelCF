@@ -95,7 +95,7 @@ class CoordinacionServiceImplH2Test {
     // ---- datos ----------------------------------------------------------------------------
 
     private void equipo(long id, String nombre, String orden) {
-        jdbc.update("INSERT INTO EQUIPO VALUES (?, ?, ?)", id, nombre, orden);
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE, ORDEN) VALUES (?, ?, ?)", id, nombre, orden);
     }
 
     private long partido(long equipo, LocalDate dia, String hora, boolean cancelado, Integer goles, String resultado) {

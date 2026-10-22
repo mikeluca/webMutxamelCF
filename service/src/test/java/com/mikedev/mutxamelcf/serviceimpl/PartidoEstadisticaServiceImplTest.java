@@ -73,6 +73,7 @@ class PartidoEstadisticaServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(equipoGestionDao.equipoAdmiteEstadisticas(EQUIPO_ID)).thenReturn(true);
         service = new PartidoEstadisticaServiceImpl(
                 partidoDao, estadisticaJugadorDao, equipoGestionDao, convocatoriaDao, convocatoriaJugadorDao,
                 temporadaDao, resumenTemporadaDao, comunicacionService, new ReglaSancionAmarillas(5, 1),
@@ -105,6 +106,90 @@ class PartidoEstadisticaServiceImplTest {
     }
 
     // ---------- guardar ----------
+
+    // Equipos F8 / F5 / sin modalidad: solo el marcador.
+
+    private void equipoSinEstadisticas() {
+        when(partidoDao.obtenerPorId(PARTIDO_ID)).thenReturn(partidoJugadoAyer());
+        when(equipoGestionDao.puedeGestionarEquipo(USUARIO_ID, EQUIPO_ID)).thenReturn(true);
+        when(equipoGestionDao.equipoAdmiteEstadisticas(EQUIPO_ID)).thenReturn(false);
+    }
+
+    @Test
+    void unEquipoSinEstadisticasGuardaElMarcadorSinJugadoresNiAvisos() {
+        equipoSinEstadisticas();
+        when(estadisticaJugadorDao.obtenerPorPartido(PARTIDO_ID)).thenReturn(List.of());
+
+        PartidoEstadisticasResponse respuesta = service.guardar(USUARIO_ID, PARTIDO_ID,
+                new PartidoEstadisticasGuardarRequest(4, 2, List.of()));
+
+        org.mockito.ArgumentCaptor<Partido> guardado = org.mockito.ArgumentCaptor.forClass(Partido.class);
+        verify(partidoDao).actualizar(guardado.capture());
+        assertThat(guardado.getValue().getGolesFavor()).isEqualTo(4);
+        assertThat(guardado.getValue().getGolesContra()).isEqualTo(2);
+        assertThat(guardado.getValue().getResultado()).isEqualTo("4-2");
+        assertThat(respuesta.isAdmiteEstadisticas()).isFalse();
+        verify(estadisticaJugadorDao, never()).eliminarPorPartido(any());
+        verify(estadisticaJugadorDao, never()).guardar(any());
+        verify(comunicacionService, never()).crearPrivada(any(), any(), any());
+        verify(equipoGestionDao, never()).obtenerJugadoresPorEquipo(any());
+    }
+
+    @Test
+    void unEquipoSinEstadisticasAceptaJugadoresTodoACeroYNoInsertaNada() {
+        equipoSinEstadisticas();
+        when(estadisticaJugadorDao.obtenerPorPartido(PARTIDO_ID)).thenReturn(List.of());
+
+        service.guardar(USUARIO_ID, PARTIDO_ID, new PartidoEstadisticasGuardarRequest(1, 0,
+                List.of(new PartidoEstadisticaJugadorRequest(JUGADOR_ID, 0, 0, 0, false))));
+
+        verify(partidoDao).actualizar(any(Partido.class));
+        verify(estadisticaJugadorDao, never()).guardar(any());
+        verify(estadisticaJugadorDao, never()).eliminarPorPartido(any());
+    }
+
+    @Test
+    void unEquipoSinEstadisticasAceptaLaListaDeJugadoresAusente() {
+        equipoSinEstadisticas();
+        when(estadisticaJugadorDao.obtenerPorPartido(PARTIDO_ID)).thenReturn(List.of());
+
+        service.guardar(USUARIO_ID, PARTIDO_ID, new PartidoEstadisticasGuardarRequest(1, 0, null));
+
+        verify(partidoDao).actualizar(any(Partido.class));
+        verify(estadisticaJugadorDao, never()).guardar(any());
+    }
+
+    @Test
+    void unEquipoSinEstadisticasRechazaEstadisticasDeJugadorConValor() {
+        equipoSinEstadisticas();
+
+        for (PartidoEstadisticaJugadorRequest conValor : List.of(
+                new PartidoEstadisticaJugadorRequest(JUGADOR_ID, 1, 0, 0, false),
+                new PartidoEstadisticaJugadorRequest(JUGADOR_ID, 0, 1, 0, false),
+                new PartidoEstadisticaJugadorRequest(JUGADOR_ID, 0, 0, 1, false),
+                new PartidoEstadisticaJugadorRequest(JUGADOR_ID, 0, 0, 0, true))) {
+
+            assertThatThrownBy(() -> service.guardar(USUARIO_ID, PARTIDO_ID,
+                    new PartidoEstadisticasGuardarRequest(1, 0, List.of(conValor))))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Este equipo (fútbol 8/5) solo registra el resultado del partido");
+        }
+
+        verify(partidoDao, never()).actualizar(any(Partido.class));
+        verify(estadisticaJugadorDao, never()).guardar(any());
+    }
+
+    @Test
+    void obtenerIndicaSiElEquipoAdmiteEstadisticas() {
+        equipoSinEstadisticas();
+        when(estadisticaJugadorDao.obtenerPorPartido(PARTIDO_ID)).thenReturn(List.of());
+
+        assertThat(service.obtener(USUARIO_ID, PARTIDO_ID).isAdmiteEstadisticas()).isFalse();
+
+        when(equipoGestionDao.equipoAdmiteEstadisticas(EQUIPO_ID)).thenReturn(true);
+
+        assertThat(service.obtener(USUARIO_ID, PARTIDO_ID).isAdmiteEstadisticas()).isTrue();
+    }
 
     @Test
     void guardarLanzaExcepcionSiUsuarioNoEstaAutenticado() {

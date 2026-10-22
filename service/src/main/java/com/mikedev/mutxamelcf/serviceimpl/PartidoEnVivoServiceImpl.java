@@ -419,7 +419,8 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         /*
          * Goles por jugador, solo si el partido no tiene ninguna estadística:
          * nunca se sobrescribe lo que haya metido el entrenador. Los goles de
-         * "Otro" y "p.p." cuentan en el marcador pero no aquí.
+         * "Otro" y "p.p." cuentan en el marcador pero no aquí. Solo los equipos que
+         * admiten estadísticas de jugador (F11) las registran.
          */
         Map<Long, Integer> golesPorJugador = new LinkedHashMap<>();
 
@@ -429,7 +430,8 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             }
         }
 
-        if (!golesPorJugador.isEmpty() && estadisticaJugadorDao.obtenerPorPartido(partido.getId()).isEmpty()) {
+        if (!golesPorJugador.isEmpty() && equipoGestionDao.equipoAdmiteEstadisticas(partido.getEquipoId())
+                && estadisticaJugadorDao.obtenerPorPartido(partido.getId()).isEmpty()) {
 
             for (Map.Entry<Long, Integer> entrada : golesPorJugador.entrySet()) {
 

@@ -9,6 +9,7 @@ public class PartidoEstadisticasResponse {
     private Integer golesContra;
     private String resultado;
     private List<PartidoEstadisticaJugadorResponse> jugadores;
+    private boolean admiteEstadisticas;
 
     public PartidoEstadisticasResponse() {
     }
@@ -18,13 +19,15 @@ public class PartidoEstadisticasResponse {
             Integer golesFavor,
             Integer golesContra,
             String resultado,
-            List<PartidoEstadisticaJugadorResponse> jugadores) {
+            List<PartidoEstadisticaJugadorResponse> jugadores,
+            boolean admiteEstadisticas) {
 
         this.partidoId = partidoId;
         this.golesFavor = golesFavor;
         this.golesContra = golesContra;
         this.resultado = resultado;
         this.jugadores = jugadores;
+        this.admiteEstadisticas = admiteEstadisticas;
     }
 
     public Long getPartidoId() {
@@ -65,5 +68,13 @@ public class PartidoEstadisticasResponse {
 
     public void setJugadores(List<PartidoEstadisticaJugadorResponse> jugadores) {
         this.jugadores = jugadores;
+    }
+
+    public boolean isAdmiteEstadisticas() {
+        return admiteEstadisticas;
+    }
+
+    public void setAdmiteEstadisticas(boolean admiteEstadisticas) {
+        this.admiteEstadisticas = admiteEstadisticas;
     }
 }

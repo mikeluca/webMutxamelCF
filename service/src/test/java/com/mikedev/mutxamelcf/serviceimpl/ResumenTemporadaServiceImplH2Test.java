@@ -76,6 +76,7 @@ class ResumenTemporadaServiceImplH2Test {
         equipoGestionDao = mock(EquipoGestionDao.class);
         when(vinculoDao.tieneVinculoConJugador(USUARIO.intValue(), JUGADOR)).thenReturn(true);
         when(equipoGestionDao.obtenerEquipoIdDeJugador(JUGADOR)).thenReturn(EQUIPO);
+        when(equipoGestionDao.equipoAdmiteEstadisticas(EQUIPO)).thenReturn(true);
 
         service = new ResumenTemporadaServiceImpl(
                 new ResumenTemporadaDaoImpl(jdbc),
@@ -254,6 +255,28 @@ class ResumenTemporadaServiceImplH2Test {
         assertThat(p.asistencias()).isEqualTo(1);
         assertThat(p.amarillas()).isEqualTo(2);
         assertThat(p.rojas()).isEqualTo(1);
+    }
+
+    @Test
+    void conUnEquipoQueNoAdmiteEstadisticasGolesYTarjetasVanA0PeroNoLasConvocatorias() {
+        when(equipoGestionDao.equipoAdmiteEstadisticas(EQUIPO)).thenReturn(false);
+        long uno = partido(INICIO.plusDays(10), false, "2-1");
+        convocar(uno);
+        estadistica(uno, 2, 1, 1, 1);
+
+        ResumenTemporadaResponse resumen = service.obtenerResumen(USUARIO, JUGADOR);
+
+        assertThat(resumen.admiteEstadisticas()).isFalse();
+        assertThat(resumen.partidos().convocado()).isEqualTo(1);
+        assertThat(resumen.partidos().goles()).isZero();
+        assertThat(resumen.partidos().asistencias()).isZero();
+        assertThat(resumen.partidos().amarillas()).isZero();
+        assertThat(resumen.partidos().rojas()).isZero();
+    }
+
+    @Test
+    void conUnEquipoQueAdmiteEstadisticasElResumenLoIndica() {
+        assertThat(service.obtenerResumen(USUARIO, JUGADOR).admiteEstadisticas()).isTrue();
     }
 
     @Test

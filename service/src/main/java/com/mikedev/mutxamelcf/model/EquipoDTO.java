@@ -8,6 +8,7 @@ public class EquipoDTO {
 	private String orden;
 	private String nombre;
 	private String deporte;
+	private String modalidad;
 
 	public EquipoDTO() {
 		super();
@@ -69,6 +70,19 @@ public class EquipoDTO {
 
 	public void setDeporte(String deporte) {
 		this.deporte = deporte;
+	}
+
+	public String getModalidad() {
+		return modalidad;
+	}
+
+	public void setModalidad(String modalidad) {
+		this.modalidad = modalidad;
+	}
+
+	/** Solo los equipos de fútbol 11 registran estadísticas individuales de jugador. */
+	public boolean admiteEstadisticas() {
+		return "F11".equals(modalidad);
 	}
 
 }

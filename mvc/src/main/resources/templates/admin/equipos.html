@@ -58,10 +58,11 @@
 			<table class="table table-striped w-100" id="tablaEquipos">
 				<thead>
 					<tr>
-						<th style="width: 20%;">Deporte</th>
-						<th style="width: 30%;">Nombre</th>
-						<th style="width: 20%;">Categoría</th>
-						<th style="width: 20%;">Grupo</th>
+						<th style="width: 15%;">Deporte</th>
+						<th style="width: 25%;">Nombre</th>
+						<th style="width: 15%;">Categoría</th>
+						<th style="width: 15%;">Grupo</th>
+						<th style="width: 20%;">Modalidad</th>
 						<th style="width: 10%;"></th>
 					</tr>
 				</thead>
@@ -73,13 +74,17 @@
 						<td class="align-middle" th:text="${equipo.nombre}"></td>
 						<td class="align-middle" th:text="${equipo.categoria}"></td>
 						<td class="align-middle" th:text="${equipo.grupo}"></td>
+						<td class="align-middle"
+							th:text="${equipo.modalidad} == 'F11' ? 'Fútbol 11' : (${equipo.modalidad} == 'F8' ? 'Fútbol 8' : (${equipo.modalidad} == 'F5' ? 'Fútbol 5' : 'Sin modalidad'))">
+						</td>
 						<td class="align-middle">
 							<div class="d-flex justify-content-center align-items-center gap-2">
 								<button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
 									data-bs-target="#equipoModal" th:attr="data-id=${equipo.id},
 										                     data-deporte=${equipo.deporte},
 										                     data-categoria=${equipo.categoria},
-										                     data-grupo=${equipo.grupo}" title="Editar equipo"
+										                     data-grupo=${equipo.grupo},
+										                     data-modalidad=${equipo.modalidad}" title="Editar equipo"
 									onclick="abrirModalEditar(this)">
 									<i class="bi bi-pencil"></i>
 								</button>
@@ -138,6 +143,15 @@
 								<option value="Fem">Fem</option>
 								<!--								<option value="FS">FS</option>-->
 								<option value="Esc">Escuelita</option>
+							</select>
+						</div>
+						<div class="form-group">
+							<label for="modalidad">Modalidad:</label>
+							<select id="modalidad" name="modalidad" class="form-control">
+								<option value="F11">Fútbol 11</option>
+								<option value="F8">Fútbol 8</option>
+								<option value="F5">Fútbol 5</option>
+								<option value="">Sin modalidad</option>
 							</select>
 						</div>
 						<div class="form-group">
@@ -200,6 +214,7 @@
 			document.getElementById('nombre').value = '';
 			document.getElementById('grupo').value = '';
 			document.getElementById('deporte').value = '';
+			document.getElementById('modalidad').value = '';
 			document.getElementById('equipoModalLabel').textContent = 'Nuevo Equipo';
 			document.getElementById('mensajeModal').style.display = 'none'; // Limpiar mensaje
 		}
@@ -213,6 +228,7 @@
 			document.getElementById('deporte').value = data.deporte || '';
 			document.getElementById('cate').value = data.categoria || '';
 			document.getElementById('grupo').value = data.grupo || '';
+			document.getElementById('modalidad').value = data.modalidad || '';
 			actualizarNombre();
 		}
 

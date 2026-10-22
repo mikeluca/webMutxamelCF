@@ -67,10 +67,13 @@ public class ResumenTemporadaServiceImpl implements ResumenTemporadaService {
 
 		validarAcceso(usuarioAppId, jugadorId);
 
+		Long equipoId = equipoGestionDao.obtenerEquipoIdDeJugador(jugadorId);
+		boolean admiteEstadisticas = equipoId != null && equipoGestionDao.equipoAdmiteEstadisticas(equipoId);
+
 		Temporada temporada = temporadaDao.obtenerTemporadaActiva();
 
 		if (temporada == null) {
-			return vacio();
+			return vacio(admiteEstadisticas);
 		}
 
 		LocalDate hoy = LocalDate.now(clock);
@@ -102,9 +105,12 @@ public class ResumenTemporadaServiceImpl implements ResumenTemporadaService {
 		return new ResumenTemporadaResponse(
 				new TemporadaResumen(temporada.getNombre(),
 						temporada.getFechaInicio() != null ? desde : null, finTemporada),
-				new PartidosResumen(partidos.convocado(), partidos.goles(), partidos.asistencias(),
-						partidos.amarillas(), partidos.rojas(), ausencias),
-				entrenamientos(asistencia));
+				admiteEstadisticas
+						? new PartidosResumen(partidos.convocado(), partidos.goles(), partidos.asistencias(),
+								partidos.amarillas(), partidos.rojas(), ausencias)
+						: new PartidosResumen(partidos.convocado(), 0, 0, 0, 0, ausencias),
+				entrenamientos(asistencia),
+				admiteEstadisticas);
 	}
 
 	/*
@@ -183,11 +189,12 @@ public class ResumenTemporadaServiceImpl implements ResumenTemporadaService {
 				asistencia.total(), asistidos, asistencia.faltas(), asistencia.justificadas(), porcentaje);
 	}
 
-	private static ResumenTemporadaResponse vacio() {
+	private static ResumenTemporadaResponse vacio(boolean admiteEstadisticas) {
 		return new ResumenTemporadaResponse(
 				null,
 				new PartidosResumen(0, 0, 0, 0, 0, 0),
-				new EntrenamientosResumen(0, 0, 0, 0, null));
+				new EntrenamientosResumen(0, 0, 0, 0, null),
+				admiteEstadisticas);
 	}
 
 	private static LocalDate aLocalDate(Date fecha) {

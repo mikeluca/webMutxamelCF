@@ -147,6 +147,7 @@ public class EquipoServiceImpl implements EquipoService {
 		equipo.setOrden(EnumEquipos.getOrdenByCategoria(equipoDTO.getCategoria()));
 		equipo.setNombre(equipoDTO.getNombre().trim());
 		equipo.setDeporte(equipoDTO.getDeporte().trim());
+		equipo.setModalidad(equipoDTO.getModalidad());
 
 		return equipo;
 	}
@@ -164,6 +165,7 @@ public class EquipoServiceImpl implements EquipoService {
 		equipoDTO.setOrden(equipo.getOrden());
 		equipoDTO.setNombre(equipo.getNombre().trim());
 		equipoDTO.setDeporte(equipo.getDeporte().trim());
+		equipoDTO.setModalidad(equipo.getModalidad());
 
 		return equipoDTO;
 	}

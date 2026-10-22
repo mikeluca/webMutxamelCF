@@ -36,8 +36,8 @@ class PerfilAppDaoJugadoresH2Test {
         jdbc.execute("CREATE TABLE FAMILIARES_JUGADOR (FAMILIAR_ID NUMBER, JUGADOR_ID NUMBER)");
         jdbc.execute("CREATE TABLE USUARIOS_APP_FAMILIARES (USUARIO_APP_ID NUMBER, FAMILIAR_ID NUMBER)");
 
-        jdbc.update("INSERT INTO EQUIPO VALUES (5, 'Cadete A')");
-        jdbc.update("INSERT INTO EQUIPO VALUES (8, 'Alevín B')");
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE) VALUES (5, 'Cadete A')");
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE) VALUES (8, 'Alevín B')");
 
         // Un familiar (FAMILIAR_ID 100) del usuario 1 con dos hijos en equipos distintos.
         jdbc.update("INSERT INTO USUARIOS_APP_FAMILIARES VALUES (1, 100)");

@@ -147,11 +147,26 @@ public class PartidoEstadisticaServiceImpl
          * El roster a validar es el de la convocatoria del partido si
          * existe (es opcional); si no, el roster completo del equipo.
          */
-        List<Long> roster = obtenerRoster(partido);
+        boolean admiteEstadisticas = equipoGestionDao.equipoAdmiteEstadisticas(partido.getEquipoId());
 
-        validarEstadisticas(
-                roster,
-                request.getJugadores());
+        if (admiteEstadisticas) {
+
+            if (request.getJugadores() == null) {
+                throw new IllegalArgumentException(
+                        "Debe indicarse la estadística de los jugadores");
+            }
+
+            List<Long> roster = obtenerRoster(partido);
+
+            validarEstadisticas(
+                    roster,
+                    request.getJugadores());
+
+        } else if (hayEstadisticasDeJugador(request.getJugadores())) {
+
+            throw new IllegalArgumentException(
+                    "Este equipo (fútbol 8/5) solo registra el resultado del partido");
+        }
 
         /*
          * RESULTADO (texto libre) se sigue calculando y sobreescribiendo
@@ -168,6 +183,14 @@ public class PartidoEstadisticaServiceImpl
                 Timestamp.valueOf(LocalDateTime.now(clock)));
 
         partidoDao.actualizar(partido);
+
+        /*
+         * Sin estadísticas de jugador (no F11) solo se guarda el marcador: no se tocan las
+         * que ya existieran, ni se calculan avisos de tarjetas.
+         */
+        if (!admiteEstadisticas) {
+            return construirResponse(partido, false);
+        }
 
         // Lo que había antes de guardar, para avisar solo de lo que cambia.
         Map<Long, Integer> amarillasAntes = amarillasAcumuladas(partido);
@@ -201,7 +224,7 @@ public class PartidoEstadisticaServiceImpl
         avisarTarjetas(partido, request.getJugadores(), amarillasAntes, amarillasAcumuladas(partido), rojaAntes,
                 usuarioAppId);
 
-        return construirResponse(partido);
+        return construirResponse(partido, true);
     }
 
     /*
@@ -391,7 +414,7 @@ public class PartidoEstadisticaServiceImpl
                     "El usuario no puede consultar este partido");
         }
 
-        return construirResponse(partido);
+        return construirResponse(partido, equipoGestionDao.equipoAdmiteEstadisticas(partido.getEquipoId()));
     }
 
     private List<Long> obtenerRoster(Partido partido) {
@@ -417,6 +440,32 @@ public class PartidoEstadisticaServiceImpl
                 partido.getEquipoId());
     }
 
+    // true si algún jugador trae un valor distinto de 0 (goles, asistencias, amarillas o roja).
+    private static boolean hayEstadisticasDeJugador(List<PartidoEstadisticaJugadorRequest> jugadores) {
+
+        if (jugadores == null) {
+            return false;
+        }
+
+        for (PartidoEstadisticaJugadorRequest jugador : jugadores) {
+
+            if (jugador == null) {
+                continue;
+            }
+
+            if (valor(jugador.getGoles()) != 0 || valor(jugador.getAsistencias()) != 0
+                    || valor(jugador.getTarjetasAmarillas()) != 0 || jugador.isTarjetaRoja()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static int valor(Integer numero) {
+        return numero == null ? 0 : numero;
+    }
+
     private void validarRequest(
             PartidoEstadisticasGuardarRequest request) {
 
@@ -439,10 +488,6 @@ public class PartidoEstadisticaServiceImpl
                     "Los goles en contra son obligatorios y no pueden ser negativos");
         }
 
-        if (request.getJugadores() == null) {
-            throw new IllegalArgumentException(
-                    "Debe indicarse la estadística de los jugadores");
-        }
     }
 
     private void validarEstadisticas(
@@ -508,7 +553,8 @@ public class PartidoEstadisticaServiceImpl
     }
 
     private PartidoEstadisticasResponse construirResponse(
-            Partido partido) {
+            Partido partido,
+            boolean admiteEstadisticas) {
 
         List<PartidoEstadisticaJugador> estadisticas = estadisticaJugadorDao.obtenerPorPartido(
                 partido.getId());
@@ -535,7 +581,8 @@ public class PartidoEstadisticaServiceImpl
                 partido.getGolesFavor(),
                 partido.getGolesContra(),
                 partido.getResultado(),
-                jugadores);
+                jugadores,
+                admiteEstadisticas);
     }
 
     /*

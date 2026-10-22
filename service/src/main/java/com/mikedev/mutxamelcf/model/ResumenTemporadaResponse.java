@@ -9,7 +9,8 @@ import java.time.LocalDate;
 public record ResumenTemporadaResponse(
         TemporadaResumen temporada,
         PartidosResumen partidos,
-        EntrenamientosResumen entrenamientos) {
+        EntrenamientosResumen entrenamientos,
+        boolean admiteEstadisticas) {
 
     public record TemporadaResumen(String nombre, LocalDate inicio, LocalDate fin) {
     }

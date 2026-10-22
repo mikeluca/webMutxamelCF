@@ -35,7 +35,7 @@ class AppResumenTemporadaControllerTest {
     @Test
     void devuelve200ConElResumen() {
         ResumenTemporadaResponse resumen = new ResumenTemporadaResponse(
-                null, new PartidosResumen(0, 0, 0, 0, 0, 0), new EntrenamientosResumen(0, 0, 0, 0, null));
+                null, new PartidosResumen(0, 0, 0, 0, 0, 0), new EntrenamientosResumen(0, 0, 0, 0, null), true);
         when(servicio.obtenerResumen(7L, 100L)).thenReturn(resumen);
 
         ResponseEntity<?> respuesta = controller.obtenerResumen(100L, autenticado("7"));

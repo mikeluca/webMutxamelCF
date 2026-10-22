@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
+import com.mikedev.mutxamelcf.model.TarjetasEquipoResponse;
 import com.mikedev.mutxamelcf.model.TarjetasJugadorResponse;
 import com.mikedev.mutxamelcf.service.EstadisticasEquipoService;
 
@@ -35,7 +36,8 @@ class AppEstadisticasEquipoControllerTest {
 
     @Test
     void devuelve200ConLasTarjetas() {
-        List<TarjetasJugadorResponse> tarjetas = List.of(new TarjetasJugadorResponse(1L, "Pablo", 9, 4, 0, "A_UNA"));
+        TarjetasEquipoResponse tarjetas = new TarjetasEquipoResponse(true,
+                List.of(new TarjetasJugadorResponse(1L, "Pablo", 9, 4, 0, "A_UNA")));
         when(servicio.obtenerTarjetas(7L, 100L)).thenReturn(tarjetas);
 
         ResponseEntity<?> respuesta = controller.obtenerTarjetas(100L, autenticado("7"));

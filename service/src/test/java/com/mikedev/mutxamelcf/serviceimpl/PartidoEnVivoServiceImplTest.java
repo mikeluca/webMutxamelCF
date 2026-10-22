@@ -132,6 +132,7 @@ class PartidoEnVivoServiceImplTest {
         partidoDao = mock(PartidoDao.class);
         equipoDao = mock(EquipoDao.class);
         equipoGestionDao = mock(EquipoGestionDao.class);
+        when(equipoGestionDao.equipoAdmiteEstadisticas(PRIMER_EQUIPO)).thenReturn(true);
         convocatoriaDao = mock(ConvocatoriaDao.class);
         convocatoriaJugadorDao = mock(ConvocatoriaJugadorDao.class);
         estadisticaDao = mock(PartidoEstadisticaJugadorDao.class);
@@ -629,6 +630,23 @@ class PartidoEnVivoServiceImplTest {
         ArgumentCaptor<Partido> partidoGuardado = ArgumentCaptor.forClass(Partido.class);
         verify(partidoDao).actualizar(partidoGuardado.capture());
         assertThat(partidoGuardado.getValue().getGolesFavor()).isEqualTo(5);
+    }
+
+    @Test
+    void elFinalDeUnEquipoQueNoAdmiteEstadisticasGuardaElMarcadorPeroNoLosGolesPorJugador() {
+        when(equipoGestionDao.equipoAdmiteEstadisticas(PRIMER_EQUIPO)).thenReturn(false);
+
+        empezarPartido();
+        service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
+        reloj.avanzar(Duration.ofMinutes(1));
+        service.enviarGolFavor(USUARIO, PARTIDO, 11L, null);
+
+        service.enviarFinalPartido(USUARIO, PARTIDO);
+
+        verify(estadisticaDao, never()).guardar(any());
+        ArgumentCaptor<Partido> partidoGuardado = ArgumentCaptor.forClass(Partido.class);
+        verify(partidoDao).actualizar(partidoGuardado.capture());
+        assertThat(partidoGuardado.getValue().getGolesFavor()).isEqualTo(2);
     }
 
     @Test

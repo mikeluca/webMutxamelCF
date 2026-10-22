@@ -28,6 +28,7 @@ import com.mikedev.mutxamelcf.model.EstadisticasEquipoResponse.Goleador;
 import com.mikedev.mutxamelcf.model.EstadisticasEquipoResponse.Partidos;
 import com.mikedev.mutxamelcf.model.EstadisticasJugadorEquipo;
 import com.mikedev.mutxamelcf.model.PartidosEquipo;
+import com.mikedev.mutxamelcf.model.TarjetasEquipoResponse;
 import com.mikedev.mutxamelcf.model.TarjetasJugadorResponse;
 import com.mikedev.mutxamelcf.model.Temporada;
 import com.mikedev.mutxamelcf.service.EstadisticasEquipoService;
@@ -67,14 +68,18 @@ public class EstadisticasEquipoServiceImpl implements EstadisticasEquipoService 
 
 	@Override
 	@Transactional(readOnly = true)
-	public List<TarjetasJugadorResponse> obtenerTarjetas(Long usuarioAppId, Long equipoId) {
+	public TarjetasEquipoResponse obtenerTarjetas(Long usuarioAppId, Long equipoId) {
 
 		validarAcceso(usuarioAppId, equipoId);
+
+		if (!equipoGestionDao.equipoAdmiteEstadisticas(equipoId)) {
+			return new TarjetasEquipoResponse(false, List.of());
+		}
 
 		LocalDate hoy = LocalDate.now(clock);
 		Rango temporada = temporadaActiva();
 
-		return resumenTemporadaDao
+		List<TarjetasJugadorResponse> jugadores = resumenTemporadaDao
 				.estadisticasJugadoresDelEquipo(equipoId, desdePartidos(temporada), hastaPartidos(temporada, hoy), hoy)
 				.stream()
 				.map(j -> new TarjetasJugadorResponse(
@@ -85,6 +90,8 @@ public class EstadisticasEquipoServiceImpl implements EstadisticasEquipoService 
 						.thenComparing(Comparator.comparingInt(TarjetasJugadorResponse::rojas).reversed())
 						.thenComparing(TarjetasJugadorResponse::nombre, String.CASE_INSENSITIVE_ORDER))
 				.toList();
+
+		return new TarjetasEquipoResponse(true, jugadores);
 	}
 
 	@Override
@@ -99,8 +106,12 @@ public class EstadisticasEquipoServiceImpl implements EstadisticasEquipoService 
 		LocalDate desde = desdePartidos(temporada);
 		LocalDate hasta = hastaPartidos(temporada, hoy);
 
-		List<EstadisticasJugadorEquipo> jugadores = resumenTemporadaDao
-				.estadisticasJugadoresDelEquipo(equipoId, desde, hasta, hoy);
+		boolean admiteEstadisticas = equipoGestionDao.equipoAdmiteEstadisticas(equipoId);
+
+		// Sin estadísticas de jugador no hay goleadores ni asistentes; partidos y entrenamientos igual.
+		List<EstadisticasJugadorEquipo> jugadores = admiteEstadisticas
+				? resumenTemporadaDao.estadisticasJugadoresDelEquipo(equipoId, desde, hasta, hoy)
+				: List.of();
 
 		List<Goleador> goleadores = jugadores.stream()
 				.filter(j -> j.goles() > 0)
@@ -131,7 +142,8 @@ public class EstadisticasEquipoServiceImpl implements EstadisticasEquipoService 
 				asistentes,
 				entrenamientos(equipoId, temporada, hoy),
 				new Partidos(partidos.jugados(), partidos.ganados(), partidos.empatados(), partidos.perdidos(),
-						partidos.golesFavor(), partidos.golesContra()));
+						partidos.golesFavor(), partidos.golesContra()),
+				admiteEstadisticas);
 	}
 
 	/*

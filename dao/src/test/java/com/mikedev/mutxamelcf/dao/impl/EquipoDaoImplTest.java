@@ -69,9 +69,10 @@ class EquipoDaoImplTest {
         equipo.setOrden("1");
         equipo.setNombre("Senior A");
         equipo.setDeporte("FUTBOL");
+        equipo.setModalidad("F8");
 
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("SENIOR"), eq("A"))).thenReturn(0);
-        when(jdbcTemplate.update(anyString(), eq("SENIOR"), eq("A"), eq("1"), eq("Senior A"), eq("FUTBOL")))
+        when(jdbcTemplate.update(anyString(), eq("SENIOR"), eq("A"), eq("1"), eq("Senior A"), eq("FUTBOL"), eq("F8")))
                 .thenReturn(1);
 
         boolean resultado = dao.guardar(equipo);
@@ -91,10 +92,11 @@ class EquipoDaoImplTest {
         equipo.setOrden("1");
         equipo.setNombre("Senior A");
         equipo.setDeporte("FUTBOL");
+        equipo.setModalidad("F11");
 
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("SENIOR"), eq("A"), eq(5L)))
                 .thenReturn(0);
-        when(jdbcTemplate.update(anyString(), eq("SENIOR"), eq("A"), eq("1"), eq("Senior A"), eq("FUTBOL"), eq(5L)))
+        when(jdbcTemplate.update(anyString(), eq("SENIOR"), eq("A"), eq("1"), eq("Senior A"), eq("FUTBOL"), eq("F11"), eq(5L)))
                 .thenReturn(1);
 
         boolean resultado = dao.guardar(equipo);
@@ -124,6 +126,7 @@ class EquipoDaoImplTest {
         when(rs.getString("orden")).thenReturn("1");
         when(rs.getString("nombre")).thenReturn("Senior A");
         when(rs.getString("deporte")).thenReturn("FUTBOL");
+        when(rs.getString("modalidad")).thenReturn("F11");
 
         Equipo mapeado = captor.getValue().mapRow(rs, 0);
 
@@ -133,6 +136,8 @@ class EquipoDaoImplTest {
         assertThat(mapeado.getOrden()).isEqualTo("1");
         assertThat(mapeado.getNombre()).isEqualTo("Senior A");
         assertThat(mapeado.getDeporte()).isEqualTo("FUTBOL");
+        assertThat(mapeado.getModalidad()).isEqualTo("F11");
+        assertThat(mapeado.admiteEstadisticas()).isTrue();
     }
 
     @Test

@@ -48,18 +48,18 @@ public class EquipoDaoImpl implements EquipoDao {
 
 	private boolean insertarEquipo(Equipo equipo) {
 		logger.debug("Inicio insertarEquipo: categoria={}, grupo={}", equipo.getCategoria(), equipo.getGrupo());
-		String sql = "INSERT INTO equipo (categoria, grupo, orden, nombre, deporte) VALUES (?, ?, ?, ?, ?)";
+		String sql = "INSERT INTO equipo (categoria, grupo, orden, nombre, deporte, modalidad) VALUES (?, ?, ?, ?, ?, ?)";
 		boolean insertado = jdbcTemplate.update(sql, equipo.getCategoria(), equipo.getGrupo(), equipo.getOrden(),
-				equipo.getNombre(), equipo.getDeporte()) == 1;
+				equipo.getNombre(), equipo.getDeporte(), equipo.getModalidad()) == 1;
 		logger.debug("Fin insertarEquipo: insertado={}", insertado);
 		return insertado;
 	}
 
 	private boolean actualizarEquipo(Equipo equipo) {
 		logger.debug("Inicio actualizarEquipo: id={}", equipo.getId());
-		String sql = "UPDATE equipo SET categoria = ?, grupo = ?, orden = ?, nombre = ?, deporte = ? WHERE id = ?";
+		String sql = "UPDATE equipo SET categoria = ?, grupo = ?, orden = ?, nombre = ?, deporte = ?, modalidad = ? WHERE id = ?";
 		boolean actualizado = jdbcTemplate.update(sql, equipo.getCategoria(), equipo.getGrupo(), equipo.getOrden(),
-				equipo.getNombre(), equipo.getDeporte(), equipo.getId()) == 1;
+				equipo.getNombre(), equipo.getDeporte(), equipo.getModalidad(), equipo.getId()) == 1;
 		logger.debug("Fin actualizarEquipo: id={}, actualizado={}", equipo.getId(), actualizado);
 		return actualizado;
 	}
@@ -155,7 +155,7 @@ public class EquipoDaoImpl implements EquipoDao {
 	@Override
 	public Map<String, List<Equipo>> obtenerEquiposAgrupadosPorCategoria(String deporte) {
 		logger.debug("Inicio obtenerEquiposAgrupadosPorCategoria: deporte={}", deporte);
-		String sql = "SELECT id, nombre, categoria, grupo, orden, deporte FROM equipo WHERE deporte = ? and orden <> 'I' ORDER BY orden, nombre";
+		String sql = "SELECT id, nombre, categoria, grupo, orden, deporte, modalidad FROM equipo WHERE deporte = ? and orden <> 'I' ORDER BY orden, nombre";
 		List<Equipo> equipos = jdbcTemplate.query(sql, EQUIPO_ROW_MAPPER, deporte);
 
 		Map<String, List<Equipo>> agrupados = equipos.stream().collect(Collectors.groupingBy(Equipo::getOrden));
@@ -171,6 +171,7 @@ public class EquipoDaoImpl implements EquipoDao {
 		equipo.setOrden(rs.getString("orden"));
 		equipo.setNombre(rs.getString("nombre"));
 		equipo.setDeporte(rs.getString("deporte"));
+		equipo.setModalidad(rs.getString("modalidad"));
 		return equipo;
 	}
 
