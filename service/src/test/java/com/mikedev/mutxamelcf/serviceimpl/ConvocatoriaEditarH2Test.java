@@ -509,4 +509,217 @@ class ConvocatoriaEditarH2Test {
 
         assertThat(convocados(creada.getId())).containsExactly(100L);
     }
+
+    // ---- avisos al editar --------------------------------------------------------------
+
+    /** Cada jugador 10X tiene un solo usuario, el 5X (100 -> 50, 101 -> 51...). */
+    private void usuariosPorJugador() {
+        for (long jugador = 100; jugador <= 103; jugador++) {
+            when(equipoGestionDao.obtenerUsuariosPorJugador(jugador)).thenReturn(List.of(jugador - 50));
+        }
+    }
+
+    private ConvocatoriaResponse convocatoriaCon(Long... jugadores) {
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR, request(30L, "09:30", List.of(jugadores)));
+        org.mockito.Mockito.clearInvocations(comunicacionService);
+        return creada;
+    }
+
+    private Comunicacion avisoA(long usuario) {
+        ArgumentCaptor<Comunicacion> aviso = ArgumentCaptor.forClass(Comunicacion.class);
+        verify(comunicacionService).crearPrivada(aviso.capture(), eq(List.of(usuario)), anyLong(),
+                any(OpcionesPushComunicacion.class));
+        return aviso.getValue();
+    }
+
+    private void nadieMasAvisado() {
+        verify(comunicacionService, org.mockito.Mockito.times(avisosEnviados)).crearPrivada(
+                any(Comunicacion.class), any(), anyLong(), any(OpcionesPushComunicacion.class));
+    }
+
+    private int avisosEnviados;
+
+    @Test
+    void alEditarSoloSeAvisaALosAnadidosConElAvisoNormalDeConvocatoria() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "09:30", List.of(100L, 101L, 102L)));
+
+        Comunicacion aviso = avisoA(52);
+        assertThat(aviso.getTitulo()).isEqualTo("Nueva convocatoria");
+        assertThat(aviso.getContenido()).startsWith("Has sido convocado");
+
+        avisosEnviados = 1;
+        nadieMasAvisado();
+    }
+
+    @Test
+    void alEditarSeAvisaALosQuitadosDeQueYaNoEstanConvocados() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "09:30", List.of(100L)));
+
+        assertThat(avisoA(51).getContenido())
+                .isEqualTo("Ya no estás convocado para el partido contra Pego (2026-10-24)");
+
+        avisosEnviados = 1;
+        nadieMasAvisado();
+    }
+
+    @Test
+    void alCambiarLaHoraDeCitacionSeAvisaALosQueSiguenSoloDeLaHora() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L, 101L)));
+
+        ArgumentCaptor<Comunicacion> aviso = ArgumentCaptor.forClass(Comunicacion.class);
+        ArgumentCaptor<OpcionesPushComunicacion> opciones = ArgumentCaptor.forClass(OpcionesPushComunicacion.class);
+        verify(comunicacionService, org.mockito.Mockito.times(2)).crearPrivada(
+                aviso.capture(), any(), anyLong(), opciones.capture());
+
+        assertThat(aviso.getAllValues()).allSatisfy(c -> {
+            assertThat(c.getTitulo()).isEqualTo("Cambio en la convocatoria");
+            assertThat(c.getContenido())
+                    .isEqualTo("Cambio en la convocatoria del partido contra Pego: nueva hora de citación 10:00");
+        });
+        assertThat(opciones.getAllValues()).allSatisfy(o -> assertThat(o.datos())
+                .containsEntry("tipo", "CONVOCATORIA")
+                .containsEntry("convocatoriaId", String.valueOf(creada.getId())));
+    }
+
+    @Test
+    void alCambiarSoloElLugarSeDiceSoloElLugar() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+
+        ConvocatoriaGuardarRequest peticion = request(30L, "09:30", List.of(100L));
+        peticion.setLugarConvocatoria("Pabellón");
+        service.actualizar(ENTRENADOR, creada.getId(), peticion);
+
+        assertThat(avisoA(50).getContenido())
+                .isEqualTo("Cambio en la convocatoria del partido contra Pego: nuevo lugar Pabellón");
+    }
+
+    @Test
+    void alCambiarHoraYLugarSeDicenLosDosYAlCambiarDePartidoSeDiceElPartido() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+
+        ConvocatoriaGuardarRequest peticion = request(31L, "10:00", List.of(100L));
+        peticion.setLugarConvocatoria("Pabellón");
+        service.actualizar(ENTRENADOR, creada.getId(), peticion);
+
+        assertThat(avisoA(50).getContenido()).isEqualTo(
+                "Cambio en la convocatoria del partido contra Elx: nueva hora de citación 10:00"
+                        + " / nuevo lugar Pabellón / nuevo partido el 2026-10-25 a las 11:00h");
+    }
+
+    @Test
+    void sinNingunCambioRelevanteNoSeAvisaANadie() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "09:30", List.of(100L, 101L)));
+
+        avisosEnviados = 0;
+        nadieMasAvisado();
+    }
+
+    @Test
+    void alEditarNuncaSeAvisaALosQueTienenLaAusenciaJustificada() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L, 102L);
+        justificar(30, 101, "Examen");
+        justificar(30, 102, "Viaje");
+
+        // 101 sigue y cambia la hora; 102 se quita; ambos justificados: solo se avisa al 100.
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L, 101L)));
+
+        assertThat(avisoA(50).getTitulo()).isEqualTo("Cambio en la convocatoria");
+
+        avisosEnviados = 1;
+        nadieMasAvisado();
+    }
+
+    // ---- eliminar ----------------------------------------------------------------------
+
+    @Test
+    void eliminarUnaConvocatoriaDePartidoFuturoSinResultadoLaBorraYAvisaALosConvocados() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+        justificar(30, 101, "Examen");
+
+        service.eliminar(ENTRENADOR, creada.getId());
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM CONVOCATORIAS", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM CONVOCATORIA_JUGADOR", Integer.class)).isZero();
+        // Las justificaciones de ausencia al partido no se borran.
+        assertThat(justificacionDao.obtenerPorPartido(30L)).hasSize(1);
+
+        ArgumentCaptor<OpcionesPushComunicacion> opciones = ArgumentCaptor.forClass(OpcionesPushComunicacion.class);
+        ArgumentCaptor<Comunicacion> aviso = ArgumentCaptor.forClass(Comunicacion.class);
+        verify(comunicacionService).crearPrivada(aviso.capture(), eq(List.of(50L)), anyLong(), opciones.capture());
+
+        assertThat(aviso.getValue().getTitulo()).isEqualTo("Convocatoria anulada");
+        assertThat(aviso.getValue().getContenido())
+                .isEqualTo("Se ha anulado la convocatoria del partido contra Pego (2026-10-24)");
+        assertThat(opciones.getValue().datos())
+                .containsEntry("tipo", "CONVOCATORIA_ANULADA")
+                .doesNotContainKey("convocatoriaId");
+
+        // El 101 tiene la ausencia justificada: no se le avisa.
+        avisosEnviados = 1;
+        nadieMasAvisado();
+    }
+
+    @Test
+    void eliminarLaConvocatoriaDeUnPartidoDeHoyEstaPermitido() {
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        when(partidoDao.obtenerPorId(30L)).thenReturn(partido(30L, LocalDate.of(2026, 10, 21), "Pego"));
+
+        service.eliminar(ENTRENADOR, creada.getId());
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM CONVOCATORIAS", Integer.class)).isZero();
+    }
+
+    @Test
+    void noSePuedeEliminarLaConvocatoriaDeUnPartidoConResultado() {
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        Partido conResultado = partido(30L, LocalDate.of(2026, 10, 24), "Pego");
+        conResultado.setResultado("2-1");
+        when(partidoDao.obtenerPorId(30L)).thenReturn(conResultado);
+
+        assertThatThrownBy(() -> service.eliminar(ENTRENADOR, creada.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("resultado");
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM CONVOCATORIAS", Integer.class)).isEqualTo(1);
+        avisosEnviados = 0;
+        nadieMasAvisado();
+    }
+
+    @Test
+    void noSePuedeEliminarLaConvocatoriaDeUnPartidoPasado() {
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        when(partidoDao.obtenerPorId(30L)).thenReturn(partido(30L, LocalDate.of(2026, 10, 20), "Pego"));
+
+        assertThatThrownBy(() -> service.eliminar(ENTRENADOR, creada.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("se jugó");
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM CONVOCATORIAS", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void sinPermisoNoSeEliminaLaConvocatoria() {
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        when(equipoGestionDao.puedeGestionarEquipo(2L, EQUIPO)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.eliminar(2L, creada.getId())).isInstanceOf(SecurityException.class);
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM CONVOCATORIAS", Integer.class)).isEqualTo(1);
+    }
 }

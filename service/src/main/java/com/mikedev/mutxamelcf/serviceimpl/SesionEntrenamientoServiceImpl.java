@@ -1,7 +1,11 @@
 package com.mikedev.mutxamelcf.serviceimpl;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -42,6 +46,13 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
     private final ComunicacionService comunicacionService;
     private final EntrenamientoService entrenamientoService;
     private final TemporadaService temporadaService;
+    private final Clock clock;
+    private final LimitadorAvisos limitadorAvisos;
+
+    /** Como mucho un aviso del mismo tipo por jugador y sesión en este tiempo. */
+    static final Duration INTERVALO_AVISOS = Duration.ofMinutes(10);
+
+    private static final String AVISO_RETIRADA = "RETIRADA";
 
     public SesionEntrenamientoServiceImpl(
             SesionEntrenamientoDao sesionEntrenamientoDao,
@@ -51,7 +62,11 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
             UsuarioAppVinculoDao usuarioAppVinculoDao,
             ComunicacionService comunicacionService,
             EntrenamientoService entrenamientoService,
-            TemporadaService temporadaService) {
+            TemporadaService temporadaService,
+            Clock clock) {
+
+        this.clock = clock;
+        this.limitadorAvisos = new LimitadorAvisos(clock, INTERVALO_AVISOS);
 
         this.sesionEntrenamientoDao = sesionEntrenamientoDao;
         this.horarioEntrenamientoDao = horarioEntrenamientoDao;
@@ -428,6 +443,8 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
             if (justificacion != null) {
                 sesion.setJustificado(true);
                 sesion.setMotivoJustificacion(justificacion.getMotivo());
+                sesion.setPuedeRetirarJustificacion(enPlazoParaRetirar(sesion.getEstado(), sesion.getFecha(),
+                        sesion.getHora()));
             }
 
             /*
@@ -555,6 +572,102 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
                         + ") ha justificado su falta al entrenamiento del día "
                         + fecha
                         + (motivo != null && !motivo.isBlank() ? ". Motivo: " + motivo + "." : "."));
+
+        comunicacionService.crearPrivada(comunicacion, entrenadores, usuarioAppId);
+    }
+
+    @Override
+    @Transactional
+    public void retirarJustificacion(Long usuarioAppId, Long sesionId, Long jugadorId) {
+
+        validarUsuario(usuarioAppId);
+
+        if (sesionId == null) {
+            throw new IllegalArgumentException("El ID de la sesión no es válido");
+        }
+
+        if (jugadorId == null) {
+            throw new IllegalArgumentException("El jugador es obligatorio");
+        }
+
+        SesionEntrenamiento sesion = sesionEntrenamientoDao.obtenerPorId(sesionId);
+
+        if (sesion == null) {
+            throw new IllegalArgumentException("La sesión no existe");
+        }
+
+        // Mismas comprobaciones que al justificar; el vínculo, antes que nada del jugador.
+        if (!usuarioAppVinculoDao.tieneVinculoConJugador(usuarioAppId.intValue(), jugadorId)) {
+            throw new SecurityException("No tienes permiso para retirar la justificación de este jugador");
+        }
+
+        if (SesionEntrenamiento.ESTADO_CANCELADA.equals(sesion.getEstado())) {
+            throw new IllegalArgumentException("El entrenamiento está cancelado");
+        }
+
+        if (!equipoGestionDao.perteneceJugadorAEquipo(jugadorId, sesion.getEquipoId())) {
+            throw new IllegalArgumentException("El jugador no pertenece al equipo de este entrenamiento");
+        }
+
+        if (!enPlazoParaRetirar(sesion.getEstado(), sesion.getFecha(), sesion.getHora())) {
+            throw new IllegalArgumentException(
+                    "El plazo para retirar la justificación terminó al empezar el entrenamiento");
+        }
+
+        if (justificacionFaltaEntrenamientoDao.eliminarPorSesionYJugador(sesionId, jugadorId) == 0) {
+            throw new IllegalArgumentException("El jugador no tiene una falta justificada en este entrenamiento");
+        }
+
+        // Si el entrenador ya revisó la lista, la asistencia no se toca.
+        entrenamientoService.restaurarPresenteTrasRetirarJustificacion(sesionId, jugadorId);
+
+        String clave = sesionId + ":" + jugadorId;
+
+        if (!limitadorAvisos.permitir(clave, AVISO_RETIRADA)) {
+            return;
+        }
+
+        generarNotificacionRetirada(sesion, jugadorId, usuarioAppId);
+
+        limitadorAvisos.registrar(clave, AVISO_RETIRADA);
+    }
+
+    /*
+     * Hasta la hora de inicio de la sesión (Europe/Madrid, por el Clock); sin hora legible,
+     * hasta las 00:00 de ese día. Una sesión cancelada ya no admite cambios.
+     */
+    private boolean enPlazoParaRetirar(String estado, LocalDate fecha, String hora) {
+
+        if (fecha == null || SesionEntrenamiento.ESTADO_CANCELADA.equals(estado)) {
+            return false;
+        }
+
+        LocalTime inicio = HoraTexto.leer(hora);
+
+        LocalDateTime limite = fecha.atTime(inicio != null ? inicio : LocalTime.MIDNIGHT);
+
+        return !LocalDateTime.now(clock).isAfter(limite);
+    }
+
+    private void generarNotificacionRetirada(SesionEntrenamiento sesion, Long jugadorId, Long usuarioAppId) {
+
+        List<Long> entrenadores = new ArrayList<>(equipoGestionDao.obtenerEntrenadoresPorEquipo(sesion.getEquipoId()));
+
+        // Quien retira puede ser también del cuerpo técnico: no se avisa a sí mismo.
+        entrenadores.remove(usuarioAppId);
+
+        if (entrenadores.isEmpty()) {
+            return;
+        }
+
+        String jugador = equipoGestionDao.obtenerNombreJugador(jugadorId);
+        String fecha = sesion.getFecha() != null ? sesion.getFecha().toString() : "";
+
+        // Sin motivo: ni en el contenido ni en el push (se ve en la pantalla bloqueada).
+        Comunicacion comunicacion = new Comunicacion();
+
+        comunicacion.setTitulo("Justificación retirada");
+        comunicacion.setContenido(jugador + " ha retirado su justificación: asistirá al entrenamiento del " + fecha);
 
         comunicacionService.crearPrivada(comunicacion, entrenadores, usuarioAppId);
     }

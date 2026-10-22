@@ -33,10 +33,11 @@ class DispositivoAppDaoImplTest {
         dispositivo.setUsuarioAppId(1L);
         dispositivo.setTokenFcm("token-abc");
         dispositivo.setPlataforma("ANDROID");
+        dispositivo.setVersionApp("1.0.10");
 
         dao.registrar(dispositivo);
 
-        verify(jdbcTemplate).update(anyString(), eq(99L), eq(1L), eq("token-abc"), eq("ANDROID"), eq(1),
+        verify(jdbcTemplate).update(anyString(), eq(99L), eq(1L), eq("token-abc"), eq("ANDROID"), eq("1.0.10"), eq(1),
                 any(Timestamp.class), any(Timestamp.class));
     }
 
@@ -45,9 +46,9 @@ class DispositivoAppDaoImplTest {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         DispositivoAppDaoImpl dao = new DispositivoAppDaoImpl(jdbcTemplate);
 
-        dao.actualizarAcceso(1L, "token-abc");
+        dao.actualizarAcceso(1L, "token-abc", "1.0.10");
 
-        verify(jdbcTemplate).update(anyString(), any(Timestamp.class), eq(1L), eq("token-abc"));
+        verify(jdbcTemplate).update(anyString(), any(Timestamp.class), eq("1.0.10"), eq(1L), eq("token-abc"));
     }
 
     @Test

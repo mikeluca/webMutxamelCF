@@ -87,6 +87,17 @@ public interface EntrenamientoService {
                         String estado);
 
         /**
+         * Deshace {@link #sincronizarEstadoPorJustificacion} al retirar la
+         * justificación: si la asistencia del jugador en el ENTRENAMIENTO de
+         * esa sesión está en FALTA_JUSTIFICADA y el entrenador todavía no ha
+         * revisado la lista (LISTA_REVISADA = 0), vuelve a PRESENTE. Con la
+         * lista revisada, o con cualquier otro estado, no toca nada.
+         */
+        void restaurarPresenteTrasRetirarJustificacion(
+                        Long sesionEntrenamientoId,
+                        Long jugadorId);
+
+        /**
          * Estado de asistencia (PRESENTE/FALTA/FALTA_JUSTIFICADA/
          * TARDANZA...) de un jugador en el ENTRENAMIENTO vinculado a una
          * sesión del calendario, o {@code null} si esa sesión no tiene

@@ -22,6 +22,9 @@ public interface JustificacionFaltaEntrenamientoDao {
      */
     void eliminarPorSesionIds(List<Long> sesionIds);
 
+    /** Borra la justificación de ese jugador en esa sesión; devuelve las filas borradas (0 si no había). */
+    int eliminarPorSesionYJugador(Long sesionId, Long jugadorId);
+
     boolean existePorJugador(Long jugadorId);
 
     /** Borra todas las justificaciones del jugador; devuelve cuántas. */

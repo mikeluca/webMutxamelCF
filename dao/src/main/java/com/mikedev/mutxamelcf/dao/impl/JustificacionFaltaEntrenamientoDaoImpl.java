@@ -113,6 +113,15 @@ public class JustificacionFaltaEntrenamientoDaoImpl implements JustificacionFalt
     }
 
     @Override
+    public int eliminarPorSesionYJugador(Long sesionId, Long jugadorId) {
+
+        return jdbcTemplate.update(
+                "DELETE FROM JUSTIFICACIONES_FALTA_ENTRENAMIENTO WHERE SESION_ID = ? AND JUGADOR_ID = ?",
+                sesionId,
+                jugadorId);
+    }
+
+    @Override
     public void eliminarPorSesionIds(List<Long> sesionIds) {
 
         if (sesionIds == null || sesionIds.isEmpty()) {

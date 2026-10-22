@@ -58,6 +58,10 @@ public class DispositivoAppServiceImpl
                                 .trim()
                                 .toUpperCase();
 
+        String versionApp = request.getVersionApp() == null || request.getVersionApp().isBlank()
+                ? null
+                : request.getVersionApp().trim();
+
         DispositivoApp existente = dispositivoAppDao.obtenerPorUsuarioYToken(
                 usuarioAppId,
                 tokenFcm);
@@ -66,7 +70,8 @@ public class DispositivoAppServiceImpl
 
             dispositivoAppDao.actualizarAcceso(
                     usuarioAppId,
-                    tokenFcm);
+                    tokenFcm,
+                    versionApp);
 
             return;
         }
@@ -76,6 +81,7 @@ public class DispositivoAppServiceImpl
         dispositivo.setUsuarioAppId(usuarioAppId);
         dispositivo.setTokenFcm(tokenFcm);
         dispositivo.setPlataforma(plataforma);
+        dispositivo.setVersionApp(versionApp);
         dispositivo.setActivo(1);
 
         LocalDateTime ahora = LocalDateTime.now();

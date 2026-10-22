@@ -6,18 +6,22 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -26,6 +30,7 @@ import com.mikedev.mutxamelcf.dao.HorarioEntrenamientoDao;
 import com.mikedev.mutxamelcf.dao.JustificacionFaltaEntrenamientoDao;
 import com.mikedev.mutxamelcf.dao.SesionEntrenamientoDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
+import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.HorarioEntrenamiento;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaEntrenamiento;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaRequest;
@@ -76,7 +81,141 @@ class SesionEntrenamientoServiceImplTest {
     void setUp() {
         service = new SesionEntrenamientoServiceImpl(sesionEntrenamientoDao, horarioEntrenamientoDao,
                 justificacionFaltaEntrenamientoDao, equipoGestionDao, usuarioAppVinculoDao, comunicacionService,
-                entrenamientoService, temporadaService);
+                entrenamientoService, temporadaService, RELOJ);
+    }
+
+    /** Miércoles 21/10/2026, 12:00 en Madrid. */
+    private static final Clock RELOJ = Clock.fixed(
+            LocalDate.of(2026, 10, 21).atTime(12, 0).atZone(ZoneId.of("Europe/Madrid")).toInstant(),
+            ZoneId.of("Europe/Madrid"));
+
+    // ---------- retirarJustificacion ----------
+
+    private void prepararRetirada(LocalDate fecha, String hora, String estado) {
+        SesionEntrenamiento sesion = sesion(fecha, estado);
+        sesion.setHora(hora);
+        lenient().when(sesionEntrenamientoDao.obtenerPorId(SESION_ID)).thenReturn(sesion);
+        lenient().when(usuarioAppVinculoDao.tieneVinculoConJugador(USUARIO_ID.intValue(), JUGADOR_ID))
+                .thenReturn(true);
+        lenient().when(equipoGestionDao.perteneceJugadorAEquipo(JUGADOR_ID, EQUIPO_ID)).thenReturn(true);
+    }
+
+    @Test
+    void retirarJustificacionDentroDePlazoBorraRestauraYAvisa() {
+        prepararRetirada(LocalDate.of(2026, 10, 21), "18:00", SesionEntrenamiento.ESTADO_PROGRAMADA);
+        when(justificacionFaltaEntrenamientoDao.eliminarPorSesionYJugador(SESION_ID, JUGADOR_ID)).thenReturn(1);
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of(7L));
+        when(equipoGestionDao.obtenerNombreJugador(JUGADOR_ID)).thenReturn("Pablo Gil");
+
+        service.retirarJustificacion(USUARIO_ID, SESION_ID, JUGADOR_ID);
+
+        verify(entrenamientoService).restaurarPresenteTrasRetirarJustificacion(SESION_ID, JUGADOR_ID);
+
+        ArgumentCaptor<Comunicacion> captor = ArgumentCaptor.forClass(Comunicacion.class);
+        verify(comunicacionService).crearPrivada(captor.capture(), eq(List.of(7L)), eq(USUARIO_ID));
+        assertThat(captor.getValue().getContenido())
+                .isEqualTo("Pablo Gil ha retirado su justificación: asistirá al entrenamiento del 2026-10-21");
+    }
+
+    @Test
+    void retirarJustificacionFueraDePlazoDaErrorYNoTocaNada() {
+        prepararRetirada(LocalDate.of(2026, 10, 21), "11:59", SesionEntrenamiento.ESTADO_PROGRAMADA);
+
+        assertThatThrownBy(() -> service.retirarJustificacion(USUARIO_ID, SESION_ID, JUGADOR_ID))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(justificacionFaltaEntrenamientoDao, never()).eliminarPorSesionYJugador(anyLong(), anyLong());
+        verify(entrenamientoService, never()).restaurarPresenteTrasRetirarJustificacion(anyLong(), anyLong());
+        verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong());
+    }
+
+    @Test
+    void retirarJustificacionSinHoraLegibleLlegaHastaLasCeroHorasDeEseDia() {
+        prepararRetirada(LocalDate.of(2026, 10, 21), "tarde", SesionEntrenamiento.ESTADO_PROGRAMADA);
+
+        assertThatThrownBy(() -> service.retirarJustificacion(USUARIO_ID, SESION_ID, JUGADOR_ID))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        prepararRetirada(LocalDate.of(2026, 10, 22), "tarde", SesionEntrenamiento.ESTADO_PROGRAMADA);
+        when(justificacionFaltaEntrenamientoDao.eliminarPorSesionYJugador(SESION_ID, JUGADOR_ID)).thenReturn(1);
+
+        service.retirarJustificacion(USUARIO_ID, SESION_ID, JUGADOR_ID);
+
+        verify(entrenamientoService).restaurarPresenteTrasRetirarJustificacion(SESION_ID, JUGADOR_ID);
+    }
+
+    @Test
+    void retirarJustificacionSinVinculoEs403() {
+        SesionEntrenamiento sesion = sesion(LocalDate.of(2026, 10, 22), SesionEntrenamiento.ESTADO_PROGRAMADA);
+        when(sesionEntrenamientoDao.obtenerPorId(SESION_ID)).thenReturn(sesion);
+        when(usuarioAppVinculoDao.tieneVinculoConJugador(USUARIO_ID.intValue(), JUGADOR_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.retirarJustificacion(USUARIO_ID, SESION_ID, JUGADOR_ID))
+                .isInstanceOf(SecurityException.class);
+
+        verify(justificacionFaltaEntrenamientoDao, never()).eliminarPorSesionYJugador(anyLong(), anyLong());
+    }
+
+    @Test
+    void retirarJustificacionDeSesionCanceladaOJugadorDeOtroEquipoDaError() {
+        prepararRetirada(LocalDate.of(2026, 10, 22), "18:00", SesionEntrenamiento.ESTADO_CANCELADA);
+
+        assertThatThrownBy(() -> service.retirarJustificacion(USUARIO_ID, SESION_ID, JUGADOR_ID))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        prepararRetirada(LocalDate.of(2026, 10, 22), "18:00", SesionEntrenamiento.ESTADO_PROGRAMADA);
+        when(equipoGestionDao.perteneceJugadorAEquipo(JUGADOR_ID, EQUIPO_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.retirarJustificacion(USUARIO_ID, SESION_ID, JUGADOR_ID))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void retirarJustificacionSinJustificacionPrevia400() {
+        prepararRetirada(LocalDate.of(2026, 10, 22), "18:00", SesionEntrenamiento.ESTADO_PROGRAMADA);
+        when(justificacionFaltaEntrenamientoDao.eliminarPorSesionYJugador(SESION_ID, JUGADOR_ID)).thenReturn(0);
+
+        assertThatThrownBy(() -> service.retirarJustificacion(USUARIO_ID, SESION_ID, JUGADOR_ID))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(entrenamientoService, never()).restaurarPresenteTrasRetirarJustificacion(anyLong(), anyLong());
+    }
+
+    @Test
+    void retirarJustificacionAvisaUnaSolaVezEnDiezMinutos() {
+        prepararRetirada(LocalDate.of(2026, 10, 22), "18:00", SesionEntrenamiento.ESTADO_PROGRAMADA);
+        when(justificacionFaltaEntrenamientoDao.eliminarPorSesionYJugador(SESION_ID, JUGADOR_ID)).thenReturn(1);
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of(7L));
+
+        service.retirarJustificacion(USUARIO_ID, SESION_ID, JUGADOR_ID);
+        service.retirarJustificacion(USUARIO_ID, SESION_ID, JUGADOR_ID);
+
+        verify(comunicacionService, times(1)).crearPrivada(any(), any(), anyLong());
+    }
+
+    @Test
+    void elCalendarioDelJugadorIndicaSiPuedeRetirarLaJustificacion() {
+        SesionEntrenamiento futura = sesion(LocalDate.of(2026, 10, 21), SesionEntrenamiento.ESTADO_PROGRAMADA);
+        futura.setHora("18:00");
+
+        SesionEntrenamiento pasada = sesion(LocalDate.of(2026, 10, 21), SesionEntrenamiento.ESTADO_PROGRAMADA);
+        pasada.setId(31L);
+        pasada.setHora("09:00");
+
+        when(equipoGestionDao.perteneceJugadorAEquipo(JUGADOR_ID, EQUIPO_ID)).thenReturn(true);
+        when(usuarioAppVinculoDao.tieneVinculoConJugador(USUARIO_ID.intValue(), JUGADOR_ID)).thenReturn(true);
+        when(sesionEntrenamientoDao.obtenerPorEquipoYRango(any(), any(), any())).thenReturn(List.of(futura, pasada));
+
+        JustificacionFaltaEntrenamiento justificacion = new JustificacionFaltaEntrenamiento();
+        justificacion.setMotivo("Examen");
+        when(justificacionFaltaEntrenamientoDao.obtenerPorSesionYJugador(any(), eq(JUGADOR_ID)))
+                .thenReturn(justificacion);
+
+        List<SesionEntrenamientoResponse> sesiones = service.obtenerPorEquipoYRangoParaJugador(
+                USUARIO_ID, EQUIPO_ID, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31), JUGADOR_ID);
+
+        assertThat(sesiones).extracting(SesionEntrenamientoResponse::isPuedeRetirarJustificacion)
+                .containsExactly(true, false);
     }
 
     private static HorarioEntrenamiento horario(int diaSemana, boolean activo) {

@@ -21,17 +21,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiFunction;
 
 @Service
 public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
         /** Valor de "tipo" en el data del push de una convocatoria (nueva o actualizada). */
         static final String TIPO_PUSH_CONVOCATORIA = "CONVOCATORIA";
+
+        /** Valor de "tipo" en el data del push de una convocatoria anulada (ya no existe su id). */
+        static final String TIPO_PUSH_CONVOCATORIA_ANULADA = "CONVOCATORIA_ANULADA";
 
         private final ConvocatoriaDao convocatoriaDao;
         private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
@@ -179,33 +185,60 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 convocatoria.setHoraPartido(partido.getHora());
         }
 
+        /*
+         * Los avisos se crean aquí, dentro de la transacción del cambio (si se deshace, no
+         * queda ninguno), pero el push a los móviles no sale hasta que esta confirma:
+         * ComunicacionService lo difiere al commit (ComunicacionPushListener).
+         */
         private void generarNotificaciones(
                         Convocatoria convocatoria,
-                        List<Long> jugadoresIds) {
+                        Collection<Long> jugadoresIds) {
 
                 String equipo = equipoGestionDao.obtenerNombreEquipo(
                                 convocatoria.getEquipoId());
 
-                String fecha = convocatoria.getFechaPartido() != null
-                                ? convocatoria.getFechaPartido().toString()
-                                : "";
+                avisar(
+                                convocatoria,
+                                jugadoresIds,
+                                "Nueva convocatoria",
+                                TIPO_PUSH_CONVOCATORIA,
+                                true,
+                                (jugador, esJugador) -> (esJugador
+                                                ? "Has sido convocado con el equipo "
+                                                : jugador + " ha sido convocado con el equipo ")
+                                                + equipo
+                                                + " para el partido contra "
+                                                + convocatoria.getRival()
+                                                + " el día "
+                                                + textoFecha(convocatoria)
+                                                + " a las "
+                                                + textoOVacio(convocatoria.getHoraPartido())
+                                                + "h.\n\n"
+                                                + "La convocatoria es a las "
+                                                + textoOVacio(convocatoria.getHoraConvocatoria())
+                                                + "h en "
+                                                + textoOVacio(convocatoria.getLugarConvocatoria())
+                                                + ".");
+        }
 
-                String horaPartido = convocatoria.getHoraPartido() != null
-                                ? convocatoria.getHoraPartido()
-                                : "";
+        /*
+         * Un aviso por usuario (el jugador y sus familiares) y jugador, sin avisar a quien
+         * ha justificado su ausencia a este partido. La app navega según data["tipo"]
+         * (no según el título): con convocatoriaId abre el detalle de la convocatoria, y
+         * fechaPartido (yyyy-MM-dd) lleva al calendario en ese día.
+         */
+        private void avisar(
+                        Convocatoria convocatoria,
+                        Collection<Long> jugadoresIds,
+                        String titulo,
+                        String tipoPush,
+                        boolean conConvocatoriaId,
+                        BiFunction<String, Boolean, String> mensaje) {
 
-                String horaConvocatoria = convocatoria.getHoraConvocatoria() != null
-                                ? convocatoria.getHoraConvocatoria()
-                                : "";
+                if (jugadoresIds.isEmpty()) {
+                        return;
+                }
 
-                String lugar = convocatoria.getLugarConvocatoria() != null
-                                ? convocatoria.getLugarConvocatoria()
-                                : "";
-
-                String titulo = "Nueva convocatoria";
-
-                // A quien ha justificado su ausencia a este partido no se le avisa de
-                // que "ha sido convocado" (sigue en la lista hasta que se le sustituya).
                 Set<Long> ausentes = new HashSet<>();
 
                 if (convocatoria.getPartidoId() != null) {
@@ -239,58 +272,19 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
                         for (Long usuarioId : destinatariosUnicos) {
 
-                                boolean esJugador = usuariosDirectos.contains(usuarioId);
-
-                                String mensaje;
-
-                                if (esJugador) {
-
-                                        mensaje = "Has sido convocado con el equipo "
-                                                        + equipo
-                                                        + " para el partido contra "
-                                                        + convocatoria.getRival()
-                                                        + " el día "
-                                                        + fecha
-                                                        + " a las "
-                                                        + horaPartido
-                                                        + "h.\n\n"
-                                                        + "La convocatoria es a las "
-                                                        + horaConvocatoria
-                                                        + "h en "
-                                                        + lugar
-                                                        + ".";
-
-                                } else {
-
-                                        mensaje = jugador
-                                                        + " ha sido convocado con el equipo "
-                                                        + equipo
-                                                        + " para el partido contra "
-                                                        + convocatoria.getRival()
-                                                        + " el día "
-                                                        + fecha
-                                                        + " a las "
-                                                        + horaPartido
-                                                        + "h.\n\n"
-                                                        + "La convocatoria es a las "
-                                                        + horaConvocatoria
-                                                        + "h en "
-                                                        + lugar
-                                                        + ".";
-                                }
-
                                 Comunicacion comunicacion = new Comunicacion();
 
                                 comunicacion.setTitulo(titulo);
-                                comunicacion.setContenido(mensaje);
+                                comunicacion.setContenido(
+                                                mensaje.apply(jugador, usuariosDirectos.contains(usuarioId)));
 
-                                // La app navega según este tipo (no según el título
-                                // del aviso): JUGADOR/FAMILIAR abren el calendario en
-                                // el día del partido (fechaPartido, yyyy-MM-dd).
                                 Map<String, String> datosPush = new HashMap<>();
 
-                                datosPush.put("tipo", TIPO_PUSH_CONVOCATORIA);
-                                datosPush.put("convocatoriaId", String.valueOf(convocatoria.getId()));
+                                datosPush.put("tipo", tipoPush);
+
+                                if (conConvocatoriaId) {
+                                        datosPush.put("convocatoriaId", String.valueOf(convocatoria.getId()));
+                                }
 
                                 if (convocatoria.getFechaPartido() != null) {
                                         datosPush.put("fechaPartido", convocatoria.getFechaPartido().toString());
@@ -299,10 +293,112 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 comunicacionService.crearPrivada(
                                                 comunicacion,
                                                 List.of(usuarioId),
-                                                convocatoria.getUsuarioEntrenadorId(),
+                                                convocatoria.getUsuarioEntrenadorId() != null
+                                                                ? convocatoria.getUsuarioEntrenadorId()
+                                                                : usuarioId,
                                                 new OpcionesPushComunicacion(null, datosPush));
                         }
                 }
+        }
+
+        private static String textoFecha(Convocatoria convocatoria) {
+                return convocatoria.getFechaPartido() != null
+                                ? convocatoria.getFechaPartido().toString()
+                                : "";
+        }
+
+        private static String textoOVacio(String valor) {
+                return valor != null ? valor : "";
+        }
+
+        /*
+         * Avisos al editar, comparando la lista de convocados y los datos de antes y de
+         * después (nunca a quien tiene la ausencia justificada, ver avisar):
+         *  - añadidos: el aviso normal de convocatoria;
+         *  - quitados: "Ya no estás convocado...";
+         *  - los que siguen: solo si ha cambiado la hora de citación, el lugar o el partido.
+         * Sin ningún cambio relevante no se avisa a nadie.
+         */
+        private void avisarCambios(
+                        Convocatoria convocatoria,
+                        DatosConvocatoria antes,
+                        Set<Long> idsAntes,
+                        List<Long> idsDespues) {
+
+                List<Long> anadidos = new ArrayList<>();
+                List<Long> quitados = new ArrayList<>();
+                List<Long> siguen = new ArrayList<>();
+
+                for (Long id : idsDespues) {
+                        (idsAntes.contains(id) ? siguen : anadidos).add(id);
+                }
+
+                for (Long id : idsAntes) {
+
+                        if (!idsDespues.contains(id)) {
+                                quitados.add(id);
+                        }
+                }
+
+                generarNotificaciones(convocatoria, anadidos);
+
+                avisar(
+                                convocatoria,
+                                quitados,
+                                "Convocatoria actualizada",
+                                TIPO_PUSH_CONVOCATORIA,
+                                true,
+                                (jugador, esJugador) -> (esJugador
+                                                ? "Ya no estás convocado"
+                                                : jugador + " ya no está convocado")
+                                                + " para el partido contra "
+                                                + antes.rival()
+                                                + " ("
+                                                + (antes.fechaPartido() != null ? antes.fechaPartido() : "")
+                                                + ")");
+
+                List<String> cambios = new ArrayList<>();
+
+                if (!Objects.equals(antes.horaConvocatoria(), convocatoria.getHoraConvocatoria())) {
+                        cambios.add("nueva hora de citación " + textoOVacio(convocatoria.getHoraConvocatoria()));
+                }
+
+                if (!Objects.equals(antes.lugarConvocatoria(), convocatoria.getLugarConvocatoria())) {
+                        cambios.add("nuevo lugar " + textoOVacio(convocatoria.getLugarConvocatoria()));
+                }
+
+                if (!Objects.equals(antes.partidoId(), convocatoria.getPartidoId())) {
+                        cambios.add("nuevo partido el " + textoFecha(convocatoria)
+                                        + " a las " + textoOVacio(convocatoria.getHoraPartido()) + "h");
+                }
+
+                if (cambios.isEmpty()) {
+                        return;
+                }
+
+                String textoCambios = String.join(" / ", cambios);
+
+                avisar(
+                                convocatoria,
+                                siguen,
+                                "Cambio en la convocatoria",
+                                TIPO_PUSH_CONVOCATORIA,
+                                true,
+                                (jugador, esJugador) -> (esJugador
+                                                ? "Cambio en la convocatoria del partido contra "
+                                                : "Cambio en la convocatoria de " + jugador + " del partido contra ")
+                                                + convocatoria.getRival()
+                                                + ": "
+                                                + textoCambios);
+        }
+
+        /* Lo que se compara al editar: la convocatoria tal como estaba antes del PUT. */
+        private record DatosConvocatoria(
+                        Long partidoId,
+                        String rival,
+                        java.time.LocalDate fechaPartido,
+                        String horaConvocatoria,
+                        String lugarConvocatoria) {
         }
 
         @Override
@@ -326,6 +422,14 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         throw new IllegalArgumentException(
                                         "La convocatoria no existe");
                 }
+
+                // La convocatoria tal como estaba, para avisar solo de lo que cambie.
+                DatosConvocatoria antes = new DatosConvocatoria(
+                                convocatoria.getPartidoId(),
+                                convocatoria.getRival(),
+                                convocatoria.getFechaPartido(),
+                                limpiar(convocatoria.getHoraConvocatoria()),
+                                limpiar(convocatoria.getLugarConvocatoria()));
 
                 /*
                  * Comprobamos que el usuario puede gestionar el equipo
@@ -478,11 +582,14 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 .toList();
 
                 /*
-                 * Volvemos a notificar a todos los jugadores/familiares
-                 * de la convocatoria con los datos actualizados.
+                 * Avisamos solo de lo que ha cambiado: a los añadidos, a los
+                 * quitados y, si ha cambiado la citación o el partido, a los que
+                 * siguen.
                  */
-                generarNotificaciones(
+                avisarCambios(
                                 convocatoria,
+                                antes,
+                                idsActuales,
                                 jugadoresIds);
 
                 return construirResponse(convocatoria);
@@ -583,10 +690,66 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         "No tienes permiso para eliminar esta convocatoria");
                 }
 
+                // Serializa con quien justifica su ausencia a este partido y con su edición.
+                if (convocatoria.getPartidoId() != null) {
+
+                        partidoDao.bloquearPorId(convocatoria.getPartidoId());
+
+                        validarEliminable(partidoDao.obtenerPorId(convocatoria.getPartidoId()));
+                }
+
+                List<Long> convocados = convocatoriaJugadorDao.obtenerPorConvocatoria(convocatoriaId).stream()
+                                .map(ConvocatoriaJugador::getJugadorId)
+                                .toList();
+
+                // Las justificaciones de ausencia al partido NO se borran: son del partido, no de la convocatoria.
                 convocatoriaJugadorDao.eliminarPorConvocatoria(
                                 convocatoriaId);
 
                 convocatoriaDao.eliminar(convocatoriaId);
+
+                avisar(
+                                convocatoria,
+                                convocados,
+                                "Convocatoria anulada",
+                                TIPO_PUSH_CONVOCATORIA_ANULADA,
+                                false,
+                                (jugador, esJugador) -> (esJugador
+                                                ? "Se ha anulado la convocatoria del partido contra "
+                                                : "Se ha anulado la convocatoria de " + jugador
+                                                                + " del partido contra ")
+                                                + convocatoria.getRival()
+                                                + " ("
+                                                + textoFecha(convocatoria)
+                                                + ")");
+        }
+
+        /*
+         * Solo se anula la convocatoria de un partido que aún no tiene resultado y cuya
+         * fecha es hoy (hora de Madrid, por el Clock) o posterior. Se lanza
+         * IllegalStateException (400 en la API): IllegalArgumentException es "no existe" (404).
+         */
+        private void validarEliminable(Partido partido) {
+
+                if (partido == null) {
+                        return;
+                }
+
+                if (partido.getResultado() != null
+                                && !partido.getResultado().replace("-", "").isBlank()) {
+
+                        throw new IllegalStateException(
+                                        "No se puede eliminar la convocatoria: el partido ya tiene resultado");
+                }
+
+                java.time.LocalDate dia = PlazoJustificacionPartido.dia(partido);
+
+                if (dia != null && dia.isBefore(java.time.LocalDate.now(clock))) {
+
+                        throw new IllegalStateException(
+                                        "No se puede eliminar la convocatoria: el partido ya se jugó"
+                                                        + " (su fecha es anterior a hoy)");
+                }
         }
 
         private ConvocatoriaResponse construirResponse(

@@ -8,6 +8,7 @@ public class DispositivoApp {
     private Long usuarioAppId;
     private String tokenFcm;
     private String plataforma;
+    private String versionApp;
     private Integer activo;
     private LocalDateTime fechaRegistro;
     private LocalDateTime fechaUltimoAcceso;
@@ -42,6 +43,14 @@ public class DispositivoApp {
 
     public void setPlataforma(String plataforma) {
         this.plataforma = plataforma;
+    }
+
+    public String getVersionApp() {
+        return versionApp;
+    }
+
+    public void setVersionApp(String versionApp) {
+        this.versionApp = versionApp;
     }
 
     public Integer getActivo() {

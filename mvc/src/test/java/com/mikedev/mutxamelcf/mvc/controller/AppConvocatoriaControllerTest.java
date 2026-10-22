@@ -147,6 +147,19 @@ class AppConvocatoriaControllerTest {
     }
 
     @Test
+    void eliminarDevuelve400SiElPartidoTieneResultadoOYaSeJugo() {
+        ConvocatoriaService service = mock(ConvocatoriaService.class);
+        AppConvocatoriaController controller = new AppConvocatoriaController(service);
+
+        doThrow(new IllegalStateException("el partido ya tiene resultado")).when(service).eliminar(1L, 5L);
+
+        ResponseEntity<?> response = controller.eliminar(5L, autenticado("1"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isEqualTo("el partido ya tiene resultado");
+    }
+
+    @Test
     void crearDevuelve401SiElNombreDeUsuarioNoEsNumerico() {
         ConvocatoriaService service = mock(ConvocatoriaService.class);
         AppConvocatoriaController controller = new AppConvocatoriaController(service);

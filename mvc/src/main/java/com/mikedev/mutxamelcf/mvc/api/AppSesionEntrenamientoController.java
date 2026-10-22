@@ -7,6 +7,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -268,6 +269,49 @@ public class AppSesionEntrenamientoController {
         } catch (Exception e) {
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al justificar la falta");
+        }
+    }
+
+    /**
+     * DELETE /api/app/sesiones-entrenamiento/{id}/justificaciones/{jugadorId}
+     *
+     * Retira la justificación de falta (hasta la hora de inicio de la
+     * sesión). Solo el propio jugador o un familiar vinculado.
+     */
+    @DeleteMapping("/{id}/justificaciones/{jugadorId}")
+    public ResponseEntity<?> retirarJustificacion(
+            @PathVariable Long id,
+            @PathVariable Long jugadorId,
+            Authentication authentication) {
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
+        }
+
+        try {
+
+            Long usuarioId = Long.parseLong(authentication.getName());
+
+            sesionEntrenamientoService.retirarJustificacion(usuarioId, id, jugadorId);
+
+            return ResponseEntity.noContent().build();
+
+        } catch (NumberFormatException e) {
+
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no autenticado");
+
+        } catch (SecurityException e) {
+
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+
+        } catch (IllegalArgumentException e) {
+
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+
+        } catch (Exception e) {
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error al retirar la justificación");
         }
     }
 

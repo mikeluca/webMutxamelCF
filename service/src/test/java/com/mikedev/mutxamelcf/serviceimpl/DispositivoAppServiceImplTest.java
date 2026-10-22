@@ -63,8 +63,36 @@ class DispositivoAppServiceImplTest {
         service.registrar(1L, request);
 
         verify(dispositivoAppDao).desactivarTokenDeOtrosUsuarios(1L, "token-abc");
-        verify(dispositivoAppDao).actualizarAcceso(1L, "token-abc");
+        verify(dispositivoAppDao).actualizarAcceso(1L, "token-abc", null);
         verify(dispositivoAppDao, never()).registrar(any());
+    }
+
+    @Test
+    void registrarGuardaLaVersionDeLaAppEnUnDispositivoNuevo() {
+        DispositivoAppRequest request = new DispositivoAppRequest();
+        request.setTokenFcm("token-abc");
+        request.setVersionApp(" 1.0.10 ");
+
+        when(dispositivoAppDao.obtenerPorUsuarioYToken(1L, "token-abc")).thenReturn(null);
+
+        service.registrar(1L, request);
+
+        ArgumentCaptor<DispositivoApp> captor = ArgumentCaptor.forClass(DispositivoApp.class);
+        verify(dispositivoAppDao).registrar(captor.capture());
+        assertThat(captor.getValue().getVersionApp()).isEqualTo("1.0.10");
+    }
+
+    @Test
+    void registrarActualizaLaVersionDeLaAppAlRenovarElDispositivo() {
+        DispositivoAppRequest request = new DispositivoAppRequest();
+        request.setTokenFcm("token-abc");
+        request.setVersionApp("1.0.11");
+
+        when(dispositivoAppDao.obtenerPorUsuarioYToken(1L, "token-abc")).thenReturn(new DispositivoApp());
+
+        service.registrar(1L, request);
+
+        verify(dispositivoAppDao).actualizarAcceso(1L, "token-abc", "1.0.11");
     }
 
     @Test

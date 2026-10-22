@@ -297,6 +297,13 @@ public class AppConvocatoriaController {
                                         .status(HttpStatus.FORBIDDEN)
                                         .body(e.getMessage());
 
+                } catch (IllegalStateException e) {
+
+                        // El partido ya tiene resultado o ya se jugó: la convocatoria no se puede anular.
+                        return ResponseEntity
+                                        .badRequest()
+                                        .body(e.getMessage());
+
                 } catch (IllegalArgumentException e) {
 
                         return ResponseEntity

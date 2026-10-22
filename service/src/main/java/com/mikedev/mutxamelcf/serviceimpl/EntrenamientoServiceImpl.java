@@ -763,6 +763,30 @@ public class EntrenamientoServiceImpl
         }
 
         @Override
+        @Transactional
+        public void restaurarPresenteTrasRetirarJustificacion(
+                        Long sesionEntrenamientoId,
+                        Long jugadorId) {
+
+                Entrenamiento entrenamiento = entrenamientoDao.obtenerPorSesionEntrenamientoId(
+                                sesionEntrenamientoId);
+
+                if (entrenamiento == null || entrenamiento.isListaRevisada()) {
+                        return;
+                }
+
+                EntrenamientoAsistencia asistencia = asistenciaDao.obtenerPorEntrenamientoYJugador(
+                                entrenamiento.getId(),
+                                jugadorId);
+
+                if (asistencia == null || !"FALTA_JUSTIFICADA".equals(asistencia.getEstado())) {
+                        return;
+                }
+
+                asistenciaDao.actualizarEstado(entrenamiento.getId(), jugadorId, ESTADO_PRESENTE);
+        }
+
+        @Override
         public String obtenerEstadoAsistencia(
                         Long sesionEntrenamientoId,
                         Long jugadorId) {

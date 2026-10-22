@@ -73,6 +73,15 @@ public interface SesionEntrenamientoService {
     JustificacionFaltaResponse justificar(Long usuarioAppId, Long sesionId, JustificacionFaltaRequest request);
 
     /**
+     * Retira la justificación de falta de un jugador (el propio jugador o un
+     * familiar vinculado), con las mismas comprobaciones que
+     * {@link #justificar}, hasta la hora de inicio de la sesión. Si el
+     * entrenador aún no ha revisado la lista, la asistencia vuelve a
+     * PRESENTE, y se avisa al cuerpo técnico.
+     */
+    void retirarJustificacion(Long usuarioAppId, Long sesionId, Long jugadorId);
+
+    /**
      * Listado de justificaciones de una sesión, para la vista del
      * entrenador. Requiere poder gestionar el equipo de la sesión.
      */

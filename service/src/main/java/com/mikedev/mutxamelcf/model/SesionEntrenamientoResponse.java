@@ -35,6 +35,13 @@ public class SesionEntrenamientoResponse {
      */
     private String asistencia;
 
+    /**
+     * Solo en la vista de un jugador concreto: true si la sesión está
+     * justificada y todavía se puede retirar la justificación (hasta la
+     * hora de inicio de la sesión).
+     */
+    private boolean puedeRetirarJustificacion;
+
     public SesionEntrenamientoResponse() {
     }
 
@@ -132,5 +139,13 @@ public class SesionEntrenamientoResponse {
 
     public void setAsistencia(String asistencia) {
         this.asistencia = asistencia;
+    }
+
+    public boolean isPuedeRetirarJustificacion() {
+        return puedeRetirarJustificacion;
+    }
+
+    public void setPuedeRetirarJustificacion(boolean puedeRetirarJustificacion) {
+        this.puedeRetirarJustificacion = puedeRetirarJustificacion;
     }
 }

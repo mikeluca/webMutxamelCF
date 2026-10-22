@@ -11,9 +11,11 @@ public interface DispositivoAppDao {
 
         void registrar(DispositivoApp dispositivo);
 
+        /** Reactiva el dispositivo y anota el último acceso; versionApp null no toca la versión guardada. */
         void actualizarAcceso(
                         Long usuarioAppId,
-                        String tokenFcm);
+                        String tokenFcm,
+                        String versionApp);
 
         void desactivar(
                         Long usuarioAppId,

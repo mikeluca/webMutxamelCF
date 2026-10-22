@@ -36,16 +36,18 @@ public class DispositivoAppDaoImpl implements DispositivoAppDao {
                                                     USUARIO_APP_ID,
                                                     TOKEN_FCM,
                                                     PLATAFORMA,
+                                                    VERSION_APP,
                                                     ACTIVO,
                                                     FECHA_REGISTRO,
                                                     FECHA_ULTIMO_ACCESO
                                                 )
-                                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                                                 """,
                                 id,
                                 dispositivo.getUsuarioAppId(),
                                 dispositivo.getTokenFcm(),
                                 dispositivo.getPlataforma(),
+                                dispositivo.getVersionApp(),
                                 1,
                                 Timestamp.valueOf(
                                                 dispositivo.getFechaRegistro() != null
@@ -60,17 +62,20 @@ public class DispositivoAppDaoImpl implements DispositivoAppDao {
         @Override
         public void actualizarAcceso(
                         Long usuarioAppId,
-                        String tokenFcm) {
+                        String tokenFcm,
+                        String versionApp) {
 
                 jdbcTemplate.update(
                                 """
                                                 UPDATE USUARIOS_APP_DISPOSITIVOS
                                                 SET ACTIVO = 1,
-                                                    FECHA_ULTIMO_ACCESO = ?
+                                                    FECHA_ULTIMO_ACCESO = ?,
+                                                    VERSION_APP = COALESCE(?, VERSION_APP)
                                                 WHERE USUARIO_APP_ID = ?
                                                   AND TOKEN_FCM = ?
                                                 """,
                                 Timestamp.valueOf(LocalDateTime.now()),
+                                versionApp,
                                 usuarioAppId,
                                 tokenFcm);
         }
@@ -103,6 +108,7 @@ public class DispositivoAppDaoImpl implements DispositivoAppDao {
                                                     USUARIO_APP_ID,
                                                     TOKEN_FCM,
                                                     PLATAFORMA,
+                                                    VERSION_APP,
                                                     ACTIVO,
                                                     FECHA_REGISTRO,
                                                     FECHA_ULTIMO_ACCESO
@@ -130,6 +136,7 @@ public class DispositivoAppDaoImpl implements DispositivoAppDao {
                                                     USUARIO_APP_ID,
                                                     TOKEN_FCM,
                                                     PLATAFORMA,
+                                                    VERSION_APP,
                                                     ACTIVO,
                                                     FECHA_REGISTRO,
                                                     FECHA_ULTIMO_ACCESO
@@ -182,6 +189,9 @@ public class DispositivoAppDaoImpl implements DispositivoAppDao {
 
                 dispositivo.setPlataforma(
                                 rs.getString("PLATAFORMA"));
+
+                dispositivo.setVersionApp(
+                                rs.getString("VERSION_APP"));
 
                 dispositivo.setActivo(
                                 rs.getInt("ACTIVO"));
