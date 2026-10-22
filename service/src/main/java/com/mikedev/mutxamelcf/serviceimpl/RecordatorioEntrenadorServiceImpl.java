@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -113,11 +114,11 @@ public class RecordatorioEntrenadorServiceImpl implements RecordatorioEntrenador
 			comunicacion.setTitulo("Convocatoria pendiente");
 			comunicacion.setContenido("Recuerda publicar la convocatoria del partido contra "
 					+ partido.getRival() + " (" + fecha + hora + ")");
-			datos = Map.of("tipo", PUSH_CONVOCATORIA_PENDIENTE, "partidoId", String.valueOf(partido.getId()));
+			datos = datosPush(PUSH_CONVOCATORIA_PENDIENTE, partido, dia);
 		} else {
 			comunicacion.setTitulo("Resultado pendiente");
 			comunicacion.setContenido("Falta el resultado del partido contra " + partido.getRival() + " (" + fecha + ")");
-			datos = Map.of("tipo", PUSH_RESULTADO_PENDIENTE, "partidoId", String.valueOf(partido.getId()));
+			datos = datosPush(PUSH_RESULTADO_PENDIENTE, partido, dia);
 		}
 
 		// El remitente es el coordinador que lo pide.
@@ -127,6 +128,34 @@ public class RecordatorioEntrenadorServiceImpl implements RecordatorioEntrenador
 		ultimos.put(clave, ahora);
 
 		return new Enviado(entrenadores.size(), ahora);
+	}
+
+	/*
+	 * El data del push: con el partido y su equipo la app abre el formulario sin pedir nada más
+	 * (convocatoria preseleccionada o resultado del partido).
+	 */
+	private Map<String, String> datosPush(String tipo, Partido partido, LocalDate dia) {
+
+		Map<String, String> datos = new HashMap<>();
+
+		datos.put("tipo", tipo);
+		datos.put("partidoId", String.valueOf(partido.getId()));
+		datos.put("equipoId", String.valueOf(partido.getEquipoId()));
+		datos.put("local", String.valueOf(partido.isLocal()));
+
+		poner(datos, "equipo", equipoGestionDao.obtenerNombreEquipo(partido.getEquipoId()));
+		poner(datos, "rival", partido.getRival());
+		poner(datos, "hora", partido.getHora());
+		poner(datos, "fecha", dia == null ? null : dia.toString());
+
+		return datos;
+	}
+
+	private static void poner(Map<String, String> datos, String clave, String valor) {
+
+		if (valor != null && !valor.isBlank()) {
+			datos.put(clave, valor.trim());
+		}
 	}
 
 	/* Solo si no tiene convocatoria, no está cancelado y no ha pasado. */

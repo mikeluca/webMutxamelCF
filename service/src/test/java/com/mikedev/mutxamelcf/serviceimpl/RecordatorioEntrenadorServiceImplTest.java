@@ -87,6 +87,7 @@ class RecordatorioEntrenadorServiceImplTest {
 		reloj = new RelojManual(LocalDate.of(2026, 10, 21).atTime(12, 0));
 
 		when(equipoGestionDao.esCoordinadorOAdmin(COORDINADOR)).thenReturn(true);
+		when(equipoGestionDao.obtenerNombreEquipo(EQUIPO)).thenReturn("Cadete A");
 		when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO)).thenReturn(List.of(50L, 51L));
 
 		service = new RecordatorioEntrenadorServiceImpl(
@@ -139,6 +140,12 @@ class RecordatorioEntrenadorServiceImplTest {
 				.isEqualTo("Recuerda publicar la convocatoria del partido contra Pego C.F. (24/10/2026 11:00)");
 		assertThat(opciones.getValue().datos())
 				.containsEntry("tipo", "CONVOCATORIA_PENDIENTE")
+				.containsEntry("equipoId", "10")
+				.containsEntry("equipo", "Cadete A")
+				.containsEntry("rival", "Pego C.F.")
+				.containsEntry("fecha", "2026-10-24")
+				.containsEntry("hora", "11:00")
+				.containsEntry("local", "true")
 				.containsEntry("partidoId", "30");
 	}
 
