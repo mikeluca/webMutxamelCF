@@ -247,7 +247,8 @@ class RecordatorioEntrenadorServiceImplTest {
 
 		assertThatThrownBy(() -> service.enviar(COORDINADOR, PARTIDO, "CONVOCATORIA"))
 				.isInstanceOf(SinEntrenadores.class)
-				.hasMessage("El equipo no tiene entrenadores con cuenta en la app");
+				.isInstanceOfSatisfying(SinEntrenadores.class, e -> assertThat(e.codigo()).isEqualTo("SIN_ENTRENADORES"))
+                .hasMessage("El equipo no tiene entrenadores con cuenta en la app");
 
 		verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong(), any());
 
@@ -320,8 +321,8 @@ class RecordatorioEntrenadorServiceImplTest {
 		when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO)).thenReturn(List.of(COORDINADOR));
 
 		assertThatThrownBy(() -> service.enviar(COORDINADOR, PARTIDO, "CONVOCATORIA"))
-				.isInstanceOf(SinEntrenadores.class)
-				.hasMessage("Eres el único entrenador con cuenta de este equipo");
+				.isInstanceOfSatisfying(SinEntrenadores.class, e -> assertThat(e.codigo()).isEqualTo("UNICO_ENTRENADOR"))
+                .hasMessage("Eres el único entrenador con cuenta de este equipo");
 
 		verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong(), any());
 	}

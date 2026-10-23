@@ -109,7 +109,7 @@ public class RecordatorioEntrenadorServiceImpl implements RecordatorioEntrenador
 		if (entrenadores.isEmpty()) {
 
 			if (todos != null && !todos.isEmpty()) {
-				throw new SinEntrenadores("Eres el único entrenador con cuenta de este equipo");
+				throw SinEntrenadores.soloElCoordinador();
 			}
 
 			throw new SinEntrenadores();

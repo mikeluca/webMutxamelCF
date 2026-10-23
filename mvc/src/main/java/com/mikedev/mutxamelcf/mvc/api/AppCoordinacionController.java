@@ -73,7 +73,11 @@ public class AppCoordinacionController {
 
         } catch (RecordatorioEntrenadorService.SinEntrenadores e) {
 
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+            Map<String, Object> conflicto = new LinkedHashMap<>();
+            conflicto.put("codigo", e.codigo());
+            conflicto.put("mensaje", e.getMessage());
+
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(conflicto);
 
         } catch (RecordatorioEntrenadorService.DemasiadoPronto e) {
 

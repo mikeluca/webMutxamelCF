@@ -28,17 +28,33 @@ public interface RecordatorioEntrenadorService {
     record Enviado(int destinatarios, LocalDateTime fecha) {
     }
 
+    String CODIGO_SIN_ENTRENADORES = "SIN_ENTRENADORES";
+    String CODIGO_UNICO_ENTRENADOR = "UNICO_ENTRENADOR";
+
     /** El equipo no tiene entrenadores con cuenta en la app (409). */
     class SinEntrenadores extends RuntimeException {
 
         private static final long serialVersionUID = 1L;
 
+        private final String codigo;
+
         public SinEntrenadores() {
             super("El equipo no tiene entrenadores con cuenta en la app");
+            this.codigo = CODIGO_SIN_ENTRENADORES;
         }
 
-        public SinEntrenadores(String mensaje) {
+        public SinEntrenadores(String codigo, String mensaje) {
             super(mensaje);
+            this.codigo = codigo;
+        }
+
+        /** El único entrenador con cuenta es quien pide el recordatorio. */
+        public static SinEntrenadores soloElCoordinador() {
+            return new SinEntrenadores(CODIGO_UNICO_ENTRENADOR, "Eres el único entrenador con cuenta de este equipo");
+        }
+
+        public String codigo() {
+            return codigo;
         }
     }
 

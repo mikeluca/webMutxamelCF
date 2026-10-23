@@ -130,7 +130,17 @@ class AppCoordinacionControllerTest {
                 .thenThrow(new com.mikedev.mutxamelcf.service.RecordatorioEntrenadorService.SinEntrenadores());
         ResponseEntity<?> sinEntrenadores = controller.recordar(recordatorio("C"), autenticado("7"));
         assertThat(sinEntrenadores.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-        assertThat(sinEntrenadores.getBody()).isEqualTo("El equipo no tiene entrenadores con cuenta en la app");
+        assertThat((java.util.Map<String, Object>) sinEntrenadores.getBody())
+                .containsEntry("codigo", "SIN_ENTRENADORES")
+                .containsEntry("mensaje", "El equipo no tiene entrenadores con cuenta en la app");
+
+        when(recordatorios.enviar(7L, 30L, "E"))
+                .thenThrow(com.mikedev.mutxamelcf.service.RecordatorioEntrenadorService.SinEntrenadores.soloElCoordinador());
+        ResponseEntity<?> unico = controller.recordar(recordatorio("E"), autenticado("7"));
+        assertThat(unico.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat((java.util.Map<String, Object>) unico.getBody())
+                .containsEntry("codigo", "UNICO_ENTRENADOR")
+                .containsEntry("mensaje", "Eres el único entrenador con cuenta de este equipo");
 
         java.time.LocalDateTime ultimo = java.time.LocalDateTime.of(2026, 10, 23, 9, 30);
         when(recordatorios.enviar(7L, 30L, "D"))
