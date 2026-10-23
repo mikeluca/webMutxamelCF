@@ -299,6 +299,20 @@ class UsuarioAppDaoImplTest {
     }
 
     @Test
+    void activarUsuarioSiInactivoCondicionaElUpdateYDevuelveLasFilas() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        org.mockito.Mockito.when(jdbcTemplate.update(anyString(), eq(1))).thenReturn(1, 0);
+        UsuarioAppDaoImpl dao = new UsuarioAppDaoImpl(jdbcTemplate);
+
+        org.assertj.core.api.Assertions.assertThat(dao.activarUsuarioSiInactivo(1)).isEqualTo(1);
+        org.assertj.core.api.Assertions.assertThat(dao.activarUsuarioSiInactivo(1)).isZero();
+
+        org.mockito.ArgumentCaptor<String> sql = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate, org.mockito.Mockito.times(2)).update(sql.capture(), eq(1));
+        org.assertj.core.api.Assertions.assertThat(sql.getValue()).contains("ACTIVO = 0");
+    }
+
+    @Test
     void desactivarUsuarioEjecutaElUpdate() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         UsuarioAppDaoImpl dao = new UsuarioAppDaoImpl(jdbcTemplate);

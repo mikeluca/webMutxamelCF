@@ -25,6 +25,9 @@ public class ConvocatoriaResponse {
     private Long usuarioEntrenadorId;
     private List<ConvocatoriaJugadorResponse> jugadores;
 
+    /** El partido ya tiene resultado: la convocatoria ya no se puede anular. */
+    private boolean partidoConResultado;
+
     public ConvocatoriaResponse() {
     }
 
@@ -114,6 +117,14 @@ public class ConvocatoriaResponse {
 
     public void setUsuarioEntrenadorId(Long usuarioEntrenadorId) {
         this.usuarioEntrenadorId = usuarioEntrenadorId;
+    }
+
+    public boolean isPartidoConResultado() {
+        return partidoConResultado;
+    }
+
+    public void setPartidoConResultado(boolean partidoConResultado) {
+        this.partidoConResultado = partidoConResultado;
     }
 
     public List<ConvocatoriaJugadorResponse> getJugadores() {

@@ -1071,6 +1071,28 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
     }
 
     @Override
+    public boolean activarUsuarioAdminSiInactivo(int usuarioAppId) {
+
+        UsuarioApp usuario = usuarioAppDao.obtenerPorId(usuarioAppId);
+
+        if (usuario == null) {
+            throw new IllegalArgumentException("El usuario no existe");
+        }
+
+        if (usuario.isEliminada()) {
+            throw new IllegalStateException("La cuenta fue eliminada por su titular");
+        }
+
+        boolean activada = usuarioAppDao.activarUsuarioSiInactivo(usuarioAppId) > 0;
+
+        if (activada) {
+            logger.info("Cuenta de app reactivada: usuarioAppId={}", usuarioAppId);
+        }
+
+        return activada;
+    }
+
+    @Override
     public void desactivarUsuarioAdmin(int usuarioAppId) {
 
         if (usuarioAppDao.obtenerPorId(usuarioAppId) == null) {

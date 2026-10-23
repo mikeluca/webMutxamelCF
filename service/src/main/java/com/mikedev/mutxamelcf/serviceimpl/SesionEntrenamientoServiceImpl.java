@@ -13,6 +13,8 @@ import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.HorarioEntrenamientoDao;
@@ -629,7 +631,22 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
 
         generarNotificacionRetirada(sesion, jugadorId, usuarioAppId);
 
-        limitadorAvisos.registrar(clave, AVISO_RETIRADA);
+        // Se anota cuando la transacción ha confirmado: si se deshace, no consta ningún aviso enviado.
+        Runnable registrar = () -> limitadorAvisos.registrar(clave, AVISO_RETIRADA);
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    registrar.run();
+                }
+            });
+
+        } else {
+
+            registrar.run();
+        }
     }
 
     /*

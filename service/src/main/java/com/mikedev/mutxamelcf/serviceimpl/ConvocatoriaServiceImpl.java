@@ -36,9 +36,6 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
         /** Valor de "tipo" en el data del push de una convocatoria (nueva o actualizada). */
         static final String TIPO_PUSH_CONVOCATORIA = "CONVOCATORIA";
 
-        /** Valor de "tipo" en el data del push de una convocatoria anulada (ya no existe su id). */
-        static final String TIPO_PUSH_CONVOCATORIA_ANULADA = "CONVOCATORIA_ANULADA";
-
         private final ConvocatoriaDao convocatoriaDao;
         private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
         private final EquipoGestionDao equipoGestionDao;
@@ -203,6 +200,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 "Nueva convocatoria",
                                 TIPO_PUSH_CONVOCATORIA,
                                 true,
+                                null,
                                 (jugador, esJugador) -> (esJugador
                                                 ? "Has sido convocado con el equipo "
                                                 : jugador + " ha sido convocado con el equipo ")
@@ -233,6 +231,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         String titulo,
                         String tipoPush,
                         boolean conConvocatoriaId,
+                        Long partidoAnteriorId,
                         BiFunction<String, Boolean, String> mensaje) {
 
                 if (jugadoresIds.isEmpty()) {
@@ -245,6 +244,16 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
                         for (JustificacionFaltaPartido justificacion : justificacionFaltaPartidoDao
                                         .obtenerPorPartido(convocatoria.getPartidoId())) {
+
+                                ausentes.add(justificacion.getJugadorId());
+                        }
+                }
+
+                // Al cambiar de partido, también quien justificó su ausencia al anterior.
+                if (partidoAnteriorId != null) {
+
+                        for (JustificacionFaltaPartido justificacion : justificacionFaltaPartidoDao
+                                        .obtenerPorPartido(partidoAnteriorId)) {
 
                                 ausentes.add(justificacion.getJugadorId());
                         }
@@ -351,7 +360,8 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 quitados,
                                 "Convocatoria actualizada",
                                 TIPO_PUSH_CONVOCATORIA,
-                                true,
+                                false,
+                                !Objects.equals(antes.partidoId(), convocatoria.getPartidoId()) ? antes.partidoId() : null,
                                 (jugador, esJugador) -> (esJugador
                                                 ? "Ya no estás convocado"
                                                 : jugador + " ya no está convocado")
@@ -388,6 +398,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 "Cambio en la convocatoria",
                                 TIPO_PUSH_CONVOCATORIA,
                                 true,
+                                null,
                                 (jugador, esJugador) -> (esJugador
                                                 ? "Cambio en la convocatoria del partido contra "
                                                 : "Cambio en la convocatoria de " + jugador + " del partido contra ")
@@ -716,8 +727,9 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 convocatoria,
                                 convocados,
                                 "Convocatoria anulada",
-                                TIPO_PUSH_CONVOCATORIA_ANULADA,
+                                TIPO_PUSH_CONVOCATORIA,
                                 false,
+                                null,
                                 (jugador, esJugador) -> (esJugador
                                                 ? "Se ha anulado la convocatoria del partido contra "
                                                 : "Se ha anulado la convocatoria de " + jugador
@@ -779,6 +791,13 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 convocatoria.getLugarConvocatoria());
                 response.setUsuarioEntrenadorId(
                                 convocatoria.getUsuarioEntrenadorId());
+
+                Partido partidoVinculado = convocatoria.getPartidoId() == null
+                                ? null
+                                : partidoDao.obtenerPorId(convocatoria.getPartidoId());
+
+                response.setPartidoConResultado(
+                                partidoVinculado != null && CriterioResultadoPartido.tieneResultado(partidoVinculado));
 
                 List<ConvocatoriaJugador> jugadores = convocatoriaJugadorDao.obtenerPorConvocatoria(
                                 convocatoria.getId());

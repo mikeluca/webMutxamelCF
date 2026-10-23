@@ -404,7 +404,7 @@ class PartidoEnVivoServiceImplTest {
 
         assertThat(estado.golesFavor()).isEqualTo(1);
         // Y solo se difundió una vez.
-        verify(notificacionAppService, times(1)).difundirATodos(eq("RESULTADO"), org.mockito.ArgumentMatchers.startsWith("⚽ ¡GOL del Mutxamel!"),
+        verify(notificacionAppService, times(1)).difundirATodos(eq("RESULTADO"), org.mockito.ArgumentMatchers.startsWith("⚽ ¡GOOOL del Mutxamel CF!"),
                 any(), isNull());
     }
 
@@ -556,10 +556,10 @@ class PartidoEnVivoServiceImplTest {
 
         verify(notificacionAppService).difundirATodos(eq("RESULTADO"), eq("⚽ ¡Comienza el partido!"),
                 eq("Mutxamel CF - Pego C.F."), isNull());
-        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), org.mockito.ArgumentMatchers.startsWith("⚽ ¡GOL del Mutxamel!"),
-                eq("Pablo Garcia · Mutxamel CF 1 - 0 Pego C.F."), isNull());
-        verify(fcmPushService).enviarATopic(eq("resultados"), org.mockito.ArgumentMatchers.startsWith("⚽ ¡GOL del Mutxamel!"),
-                eq("Pablo Garcia · Mutxamel CF 1 - 0 Pego C.F."));
+        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), org.mockito.ArgumentMatchers.startsWith("⚽ ¡GOOOL del Mutxamel CF!"),
+                eq("Pablo Garcia (1')\n\nMutxamel CF 1 - 0 Pego C.F."), isNull());
+        verify(fcmPushService).enviarATopic(eq("resultados"), org.mockito.ArgumentMatchers.startsWith("⚽ ¡GOOOL del Mutxamel CF!"),
+                eq("Pablo Garcia (1')\n\nMutxamel CF 1 - 0 Pego C.F."));
     }
 
     @Test
@@ -1116,8 +1116,19 @@ class PartidoEnVivoServiceImplTest {
 
         service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
 
-        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), eq("⚽ ¡GOL del Mutxamel! (23')"),
-                eq("Pablo Garcia · Mutxamel CF 1 - 0 Pego C.F."), isNull());
+        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), eq("⚽ ¡GOOOL del Mutxamel CF!"),
+                eq("Pablo Garcia (23')\n\nMutxamel CF 1 - 0 Pego C.F."), isNull());
+    }
+
+    @Test
+    void elPushDelGolEnContraIncluyeElMinutoEnElCuerpo() {
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(9));
+
+        service.enviarGolContra(USUARIO, PARTIDO);
+
+        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), eq("Gol en contra"),
+                eq("Minuto 10'\n\nMutxamel CF 0 - 1 Pego C.F."), isNull());
     }
 
     // ---- corregir el minuto -------------------------------------------------------------

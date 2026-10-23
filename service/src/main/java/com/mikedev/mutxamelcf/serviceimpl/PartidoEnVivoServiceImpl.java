@@ -774,9 +774,10 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
                 String minuto = evento.getMinuto() == null ? "" : " (" + evento.getMinuto() + "')";
 
-                difundirTrasCommit("⚽ ¡GOL del Mutxamel!" + minuto, textoAutor(autor) + " · " + marcador);
+                difundirTrasCommit("⚽ ¡GOOOL del Mutxamel CF!", textoAutor(autor) + minuto + "\n\n" + marcador);
             }
-            case PartidoLiveEvento.GOL_CONTRA -> difundirTrasCommit("Gol en contra", marcador);
+            case PartidoLiveEvento.GOL_CONTRA -> difundirTrasCommit("Gol en contra",
+                (evento.getMinuto() == null ? "" : "Minuto " + evento.getMinuto() + "'\n\n") + marcador);
             case PartidoLiveEvento.DESCANSO -> difundirTrasCommit("⏸️ Descanso", marcador);
             case PartidoLiveEvento.SEGUNDA_PARTE ->
                 difundirTrasCommit("▶️ ¡Comienza la segunda parte!", "Mutxamel CF - " + nombreRival(partido));

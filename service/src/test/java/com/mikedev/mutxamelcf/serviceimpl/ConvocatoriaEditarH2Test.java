@@ -570,6 +570,56 @@ class ConvocatoriaEditarH2Test {
     }
 
     @Test
+    void elDetalleIndicaSiElPartidoYaTieneResultado() {
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+
+        assertThat(service.obtenerPorId(ENTRENADOR, creada.getId()).isPartidoConResultado()).isFalse();
+
+        Partido conResultado = partido(30L, LocalDate.of(2026, 10, 24), "Pego");
+        conResultado.setResultado("2-1");
+        when(partidoDao.obtenerPorId(30L)).thenReturn(conResultado);
+
+        assertThat(service.obtenerPorId(ENTRENADOR, creada.getId()).isPartidoConResultado()).isTrue();
+    }
+
+    @Test
+    void elAvisoDeQuitadosNoLlevaPartidoNiConvocatoriaEnElData() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "09:30", List.of(100L)));
+
+        ArgumentCaptor<OpcionesPushComunicacion> opciones = ArgumentCaptor.forClass(OpcionesPushComunicacion.class);
+        verify(comunicacionService).crearPrivada(any(Comunicacion.class), eq(List.of(51L)), anyLong(),
+                opciones.capture());
+
+        assertThat(opciones.getValue().datos())
+                .containsEntry("tipo", "CONVOCATORIA")
+                .doesNotContainKey("partidoId")
+                .doesNotContainKey("convocatoriaId");
+    }
+
+    @Test
+    void alCambiarDePartidoElAvisoDeQuitadosExcluyeAlosJustificadosDelPartidoAnterior() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+
+        // 101 justificó el partido ANTERIOR (30) y se quita de la convocatoria al pasar al 31.
+        justificar(30, 101, "Examen");
+        org.mockito.Mockito.clearInvocations(comunicacionService);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(31L, "09:30", List.of(100L)));
+
+        ArgumentCaptor<Comunicacion> avisos = ArgumentCaptor.forClass(Comunicacion.class);
+        verify(comunicacionService, org.mockito.Mockito.atLeastOnce()).crearPrivada(
+                avisos.capture(), any(), anyLong(), any(OpcionesPushComunicacion.class));
+
+        // Al 101 (usuario 51) no se le dice que ya no está convocado.
+        verify(comunicacionService, org.mockito.Mockito.never()).crearPrivada(
+                any(Comunicacion.class), eq(List.of(51L)), anyLong(), any(OpcionesPushComunicacion.class));
+    }
+
+    @Test
     void alCambiarLaHoraDeCitacionSeAvisaALosQueSiguenSoloDeLaHora() {
         usuariosPorJugador();
         ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
@@ -668,7 +718,7 @@ class ConvocatoriaEditarH2Test {
         assertThat(aviso.getValue().getContenido())
                 .isEqualTo("Se ha anulado la convocatoria del partido contra Pego (2026-10-24)");
         assertThat(opciones.getValue().datos())
-                .containsEntry("tipo", "CONVOCATORIA_ANULADA")
+                .containsEntry("tipo", "CONVOCATORIA")
                 .doesNotContainKey("convocatoriaId");
 
         // El 101 tiene la ausencia justificada: no se le avisa.

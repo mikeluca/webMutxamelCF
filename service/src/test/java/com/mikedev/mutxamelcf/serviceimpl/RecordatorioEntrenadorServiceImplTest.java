@@ -278,6 +278,52 @@ class RecordatorioEntrenadorServiceImplTest {
 	}
 
 	@Test
+	void dosLlamadasSeguidasSoloEnvianUnaVez() {
+		partido(LocalDate.of(2026, 10, 24), "11:00");
+
+		service.enviar(COORDINADOR, PARTIDO, "CONVOCATORIA");
+
+		assertThatThrownBy(() -> service.enviar(COORDINADOR, PARTIDO, "CONVOCATORIA"))
+				.isInstanceOf(DemasiadoPronto.class);
+
+		verify(comunicacionService, times(1)).crearPrivada(any(), any(), anyLong(), any());
+	}
+
+	@Test
+	void siElEnvioFallaSeLiberaLaReserva() {
+		partido(LocalDate.of(2026, 10, 24), "11:00");
+		when(comunicacionService.crearPrivada(any(), any(), anyLong(), any()))
+				.thenThrow(new IllegalStateException("fallo"))
+				.thenReturn(null);
+
+		assertThatThrownBy(() -> service.enviar(COORDINADOR, PARTIDO, "CONVOCATORIA"))
+				.isInstanceOf(IllegalStateException.class);
+
+		// No ha gastado el límite: se puede reintentar enseguida.
+		assertThat(service.enviar(COORDINADOR, PARTIDO, "CONVOCATORIA").destinatarios()).isEqualTo(2);
+	}
+
+	@Test
+	void elCoordinadorNoEsDestinatarioDeSuPropioRecordatorio() {
+		partido(LocalDate.of(2026, 10, 24), "11:00");
+		when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO)).thenReturn(List.of(COORDINADOR, 50L));
+
+		Enviado enviado = service.enviar(COORDINADOR, PARTIDO, "CONVOCATORIA");
+
+		assertThat(enviado.destinatarios()).isEqualTo(1);
+		verify(comunicacionService).crearPrivada(any(), eq(List.of(50L)), eq(COORDINADOR), any());
+	}
+
+	@Test
+	void siSoloEntrenaElCoordinadorNoHayEntrenadores() {
+		partido(LocalDate.of(2026, 10, 24), "11:00");
+		when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO)).thenReturn(List.of(COORDINADOR));
+
+		assertThatThrownBy(() -> service.enviar(COORDINADOR, PARTIDO, "CONVOCATORIA"))
+				.isInstanceOf(SinEntrenadores.class);
+	}
+
+	@Test
 	void elLimiteEsPorPartidoYPorTipo() {
 		Partido partido = partido(LocalDate.of(2026, 10, 24), "11:00");
 

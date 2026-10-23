@@ -408,6 +408,7 @@ class ModeracionServiceImplH2Test {
         autor.setId(AUTOR.intValue());
         autor.setActivo(false);
         when(usuarioAppService.obtenerPorId(AUTOR.intValue())).thenReturn(autor);
+        when(usuarioAppService.activarUsuarioAdminSiInactivo(AUTOR.intValue())).thenReturn(true);
     }
 
     private String nota(Long reporteId) {
@@ -425,7 +426,7 @@ class ModeracionServiceImplH2Test {
 
         assertThat(autor).isEqualTo(AUTOR);
         // La misma lógica que activar desde el panel web.
-        verify(usuarioAppService).activarUsuarioAdmin(AUTOR.intValue());
+        verify(usuarioAppService).activarUsuarioAdminSiInactivo(AUTOR.intValue());
         // Los dispositivos no se reactivan: no se tocan.
         verify(dispositivoAppDao, org.mockito.Mockito.times(1)).eliminarTodosDeUsuario(AUTOR);
         verify(dispositivoAppDao, never()).registrar(any());
@@ -458,6 +459,44 @@ class ModeracionServiceImplH2Test {
     }
 
     @Test
+    void laAnotacionNuevaCabeSiempreEnteraAunqueSeRecorteLoExistente() {
+        Long id = reportar(40, REPORTADOR);
+        service.desactivarAutor(ADMIN, id, "x".repeat(500), false);
+        autorDesactivado();
+
+        service.reactivarAutor(OTRO_ADMIN, id, "y".repeat(100));
+
+        String anotacion = "Reactivada por Usuario 2 el 21/10/2026 12:00: " + "y".repeat(100);
+        assertThat(nota(id)).hasSize(500).endsWith("\n" + anotacion).startsWith("xxx");
+    }
+
+    @Test
+    void conUnaNotaLargaLaAnotacionSigueCabiendoEn500() {
+        Long id = reportar(40, REPORTADOR);
+        service.desactivarAutor(ADMIN, id, "Reincidente", false);
+        autorDesactivado();
+
+        service.reactivarAutor(OTRO_ADMIN, id, "z".repeat(500));
+
+        assertThat(nota(id)).hasSizeLessThanOrEqualTo(500).contains("Reactivada por Usuario 2");
+    }
+
+    @Test
+    void siOtroAdministradorSeAdelantaLaReactivacionEs409YNoToca() {
+        Long id = reportar(40, REPORTADOR);
+        service.desactivarAutor(ADMIN, id, "Reincidente", false);
+        autorDesactivado();
+        // El UPDATE condicionado a ACTIVO = 0 no afecta a ninguna fila.
+        when(usuarioAppService.activarUsuarioAdminSiInactivo(AUTOR.intValue())).thenReturn(false);
+
+        assertThatThrownBy(() -> service.reactivarAutor(OTRO_ADMIN, id, "nota"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ya está activa");
+
+        assertThat(nota(id)).isEqualTo("Reincidente");
+    }
+
+    @Test
     void reactivarUnReporteEnOtroEstadoEs409() {
         Long pendiente = reportar(40, REPORTADOR);
         Long descartado = reportar(41, REPORTADOR);
@@ -469,7 +508,7 @@ class ModeracionServiceImplH2Test {
         assertThatThrownBy(() -> service.reactivarAutor(ADMIN, descartado, null))
                 .isInstanceOf(IllegalStateException.class);
 
-        verify(usuarioAppService, never()).activarUsuarioAdmin(anyInt());
+        verify(usuarioAppService, never()).activarUsuarioAdminSiInactivo(anyInt());
     }
 
     @Test
@@ -482,7 +521,7 @@ class ModeracionServiceImplH2Test {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("ya está activa");
 
-        verify(usuarioAppService, never()).activarUsuarioAdmin(anyInt());
+        verify(usuarioAppService, never()).activarUsuarioAdminSiInactivo(anyInt());
     }
 
     @Test
@@ -498,6 +537,6 @@ class ModeracionServiceImplH2Test {
         assertThatThrownBy(() -> service.reactivarAutor(ADMIN, 9999L, null))
                 .isInstanceOf(java.util.NoSuchElementException.class);
 
-        verify(usuarioAppService, never()).activarUsuarioAdmin(anyInt());
+        verify(usuarioAppService, never()).activarUsuarioAdminSiInactivo(anyInt());
     }
 }

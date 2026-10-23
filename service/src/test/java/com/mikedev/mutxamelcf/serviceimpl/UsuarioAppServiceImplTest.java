@@ -857,6 +857,17 @@ class UsuarioAppServiceImplTest {
     }
 
     @Test
+    void activarUsuarioAdminSiInactivoDevuelveFalseSiOtroSeAdelanto() {
+        UsuarioApp usuario = new UsuarioApp();
+        usuario.setId(7);
+        when(usuarioAppDao.obtenerPorId(7)).thenReturn(usuario);
+        when(usuarioAppDao.activarUsuarioSiInactivo(7)).thenReturn(1, 0);
+
+        assertThat(service.activarUsuarioAdminSiInactivo(7)).isTrue();
+        assertThat(service.activarUsuarioAdminSiInactivo(7)).isFalse();
+    }
+
+    @Test
     void eliminarInvitacionPendienteBorraVinculoRolesYCuenta() {
         UsuarioApp pendiente = new UsuarioApp();
         pendiente.setId(20);

@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -90,16 +91,38 @@ public class RecordatorioEntrenadorServiceImpl implements RecordatorioEntrenador
 
 		String clave = partido.getId() + ":" + tipoNormalizado;
 
-		LocalDateTime ultimo = ultimos.get(clave);
+		purgarCaducados(ahora);
 
-		if (ultimo != null && ahora.isBefore(ultimo.plus(INTERVALO))) {
-			throw new DemasiadoPronto(ultimo);
+		List<Long> todos = equipoGestionDao.obtenerEntrenadoresPorEquipo(partido.getEquipoId());
+
+		// El propio coordinador no es destinatario aunque también entrene al equipo.
+		List<Long> entrenadores = new ArrayList<>();
+
+		if (todos != null) {
+			for (Long id : todos) {
+				if (id != null && !id.equals(usuarioAppId)) {
+					entrenadores.add(id);
+				}
+			}
 		}
 
-		List<Long> entrenadores = equipoGestionDao.obtenerEntrenadoresPorEquipo(partido.getEquipoId());
-
-		if (entrenadores == null || entrenadores.isEmpty()) {
+		if (entrenadores.isEmpty()) {
 			throw new SinEntrenadores();
+		}
+
+		// Reserva atómica ANTES de enviar: dos peticiones a la vez no pasan las dos.
+		LocalDateTime[] bloqueado = new LocalDateTime[1];
+
+		ultimos.compute(clave, (k, previo) -> {
+			if (previo != null && ahora.isBefore(previo.plus(INTERVALO))) {
+				bloqueado[0] = previo;
+				return previo;
+			}
+			return ahora;
+		});
+
+		if (bloqueado[0] != null) {
+			throw new DemasiadoPronto(bloqueado[0]);
 		}
 
 		LocalDate dia = PlazoJustificacionPartido.dia(partido);
@@ -122,12 +145,20 @@ public class RecordatorioEntrenadorServiceImpl implements RecordatorioEntrenador
 		}
 
 		// El remitente es el coordinador que lo pide.
-		comunicacionService.crearPrivada(comunicacion, entrenadores, usuarioAppId,
-				new OpcionesPushComunicacion(null, datos));
-
-		ultimos.put(clave, ahora);
+		try {
+			comunicacionService.crearPrivada(comunicacion, entrenadores, usuarioAppId,
+					new OpcionesPushComunicacion(null, datos));
+		} catch (RuntimeException e) {
+			// Si no se ha enviado no gasta el límite (solo se libera si la reserva sigue siendo la nuestra).
+			ultimos.remove(clave, ahora);
+			throw e;
+		}
 
 		return new Enviado(entrenadores.size(), ahora);
+	}
+
+	private void purgarCaducados(LocalDateTime ahora) {
+		ultimos.values().removeIf(v -> !ahora.isBefore(v.plus(INTERVALO)));
 	}
 
 	/*

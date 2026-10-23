@@ -276,21 +276,35 @@ public class ModeracionServiceImpl implements ModeracionService {
 
 		// La misma lógica que /admin/usuarios-app/{id}/activar del panel web. Los dispositivos no
 		// se reactivan solos: se registran al volver a entrar.
-		usuarioAppService.activarUsuarioAdmin(autorId.intValue());
+		// UPDATE condicionado a ACTIVO = 0: si otro administrador se adelantó, no se reactiva dos veces.
+		if (!usuarioAppService.activarUsuarioAdminSiInactivo(autorId.intValue())) {
+			throw new IllegalStateException("La cuenta del autor ya está activa");
+		}
 
 		LocalDateTime ahora = LocalDateTime.now(clock);
 
 		String nombreModerador = nombreDe(moderadorId);
 
-		String anotacion = "Reactivada por "
+		String prefijo = "Reactivada por "
 				+ (nombreModerador == null || nombreModerador.isBlank() ? "el administrador " + moderadorId
 						: nombreModerador)
-				+ " el " + ahora.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
-				+ (notaLimpia == null ? "" : ": " + notaLimpia);
+				+ " el " + ahora.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+
+		String anotacion = recortar(prefijo + (notaLimpia == null ? "" : ": " + notaLimpia), MAXIMO_NOTA);
 
 		String existente = reporte.notaResolucion();
 
-		String completa = existente == null || existente.isBlank() ? anotacion : existente + "\n" + anotacion;
+		String completa = anotacion;
+
+		if (existente != null && !existente.isBlank()) {
+
+			// Se recorta lo existente para que la anotación nueva quepa siempre entera.
+			int hueco = MAXIMO_NOTA - anotacion.length() - 1;
+
+			if (hueco > 0) {
+				completa = recortar(existente, hueco) + "\n" + anotacion;
+			}
+		}
 
 		reporteDao.actualizarNotaResolucion(reporteId, recortar(completa, MAXIMO_NOTA));
 

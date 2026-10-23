@@ -24,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.HorarioEntrenamientoDao;
@@ -191,6 +192,36 @@ class SesionEntrenamientoServiceImplTest {
         service.retirarJustificacion(USUARIO_ID, SESION_ID, JUGADOR_ID);
 
         verify(comunicacionService, times(1)).crearPrivada(any(), any(), anyLong());
+    }
+
+    @Test
+    void elLimiteDeAvisosDeRetiradaSoloSeAnotaTrasElCommit() {
+        prepararRetirada(LocalDate.of(2026, 10, 22), "18:00", SesionEntrenamiento.ESTADO_PROGRAMADA);
+        when(justificacionFaltaEntrenamientoDao.eliminarPorSesionYJugador(SESION_ID, JUGADOR_ID)).thenReturn(1);
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of(7L));
+
+        TransactionSynchronizationManager.initSynchronization();
+
+        try {
+            // Una transacción que se deshace: no consta ningún aviso enviado.
+            service.retirarJustificacion(USUARIO_ID, SESION_ID, JUGADOR_ID);
+            TransactionSynchronizationManager.clearSynchronization();
+            TransactionSynchronizationManager.initSynchronization();
+
+            service.retirarJustificacion(USUARIO_ID, SESION_ID, JUGADOR_ID);
+            verify(comunicacionService, times(2)).crearPrivada(any(), any(), anyLong());
+
+            // Otra que confirma: ahora sí se anota y el siguiente aviso se limita.
+            TransactionSynchronizationManager.getSynchronizations().forEach(s -> s.afterCommit());
+            TransactionSynchronizationManager.clearSynchronization();
+            TransactionSynchronizationManager.initSynchronization();
+
+            service.retirarJustificacion(USUARIO_ID, SESION_ID, JUGADOR_ID);
+            verify(comunicacionService, times(2)).crearPrivada(any(), any(), anyLong());
+
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     @Test

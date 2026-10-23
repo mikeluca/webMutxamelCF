@@ -246,6 +246,23 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
     }
 
     @Override
+    public int activarUsuarioSiInactivo(int id) {
+
+        String sql = """
+                UPDATE USUARIOS_APP
+                SET ACTIVO = 1,
+                    FECHA_ACTIVACION = SYSTIMESTAMP,
+                    TOKEN_ACTIVACION = NULL,
+                    TOKEN_ACTIVACION_EXPIRA = NULL
+                WHERE ID = ?
+                  AND ACTIVO = 0
+                  AND FECHA_ELIMINACION IS NULL
+                """;
+
+        return jdbcTemplate.update(sql, id);
+    }
+
+    @Override
     public void desactivarUsuario(int id) {
 
         String sql = """

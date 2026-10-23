@@ -21,6 +21,9 @@ public interface UsuarioAppDao {
 
     void activarUsuario(int id);
 
+    /** Activa solo si sigue inactiva (ACTIVO = 0) y no eliminada. Devuelve las filas afectadas. */
+    int activarUsuarioSiInactivo(int id);
+
     void desactivarUsuario(int id);
 
     /**

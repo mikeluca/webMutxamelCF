@@ -119,6 +119,12 @@ public interface UsuarioAppService {
 
     void activarUsuarioAdmin(int usuarioAppId);
 
+    /**
+     * Como {@link #activarUsuarioAdmin(int)} pero con un UPDATE condicionado a ACTIVO = 0.
+     * Devuelve false si la cuenta ya estaba activa (otro administrador se adelantó).
+     */
+    boolean activarUsuarioAdminSiInactivo(int usuarioAppId);
+
     void desactivarUsuarioAdmin(int usuarioAppId);
 
     void eliminarInvitacion(int usuarioAppId);
