@@ -42,6 +42,14 @@ public final class EsquemaH2 {
         ejecutar(jdbc, "/h2/mejoras_roles.sql");
     }
 
+    /**
+     * JUGADORES y CUERPO_TECNICO sin fecha_nacimiento, poblacion ni nacionalidad. Aparte de {@link #crear}
+     * porque varios tests definen su propia JUGADORES reducida sobre el esquema compartido.
+     */
+    public static void crearPersonal(JdbcTemplate jdbc) {
+        ejecutar(jdbc, "/h2/personal.sql");
+    }
+
     /** El script de ajustes tal cual, para compararlo con el de sql/. */
     public static String ajustes() {
         return leer("/h2/ajustes_post_revision.sql");

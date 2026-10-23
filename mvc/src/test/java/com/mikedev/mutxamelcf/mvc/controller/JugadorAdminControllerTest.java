@@ -173,6 +173,23 @@ class JugadorAdminControllerTest {
     }
 
     @Test
+    void guardarJugadorConErrorDeBaseDeDatosDiceQueEsDeBaseDeDatos() {
+        JugadorForm form = new JugadorForm();
+        form.setNombre("Pedro");
+        form.setEquipo(1L);
+        form.setFoto(new MockMultipartFile("foto", new byte[0]));
+        when(equiposService.obtenerEquipoPorId(1L)).thenReturn(equipo());
+        when(jugadoresService.guardarJugador(any()))
+                .thenThrow(new org.springframework.jdbc.BadSqlGrammarException("insert", "INSERT", new java.sql.SQLException("ORA-00904")));
+
+        ResponseEntity<Map<String, String>> response = controller.guardarJugador(form, sinErrores(form));
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertEquals("No se ha podido guardar: error de base de datos. Revisa los registros del servidor.",
+                response.getBody().get("error"));
+    }
+
+    @Test
     void guardarJugadorDevuelveOkCuandoTieneExito() {
         JugadorForm form = new JugadorForm();
         form.setNombre("Pedro");

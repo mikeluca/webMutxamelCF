@@ -1,14 +1,9 @@
 package com.mikedev.mutxamelcf.model;
 
-import java.util.Date;
-
 public class CuerpoTecnicoDTO {
 	private Long id;
 	private String nombre;
 	private String apellidos;
-	private Date fechaNacimiento;
-	private String poblacion;
-	private String nacionalidad;
 	private String categoria;
 	private String deporte;
 	private String puesto;
@@ -16,16 +11,12 @@ public class CuerpoTecnicoDTO {
 	private byte[] foto;
 	private String fotoBase64;
 
-	public CuerpoTecnicoDTO(Long id, String nombre, String apellidos, Date fechaNacimiento,
-			String poblacion, String nacionalidad, String categoria, String deporte, String equipo, String puesto,
+	public CuerpoTecnicoDTO(Long id, String nombre, String apellidos, String categoria, String deporte, String equipo, String puesto,
 			byte[] foto) {
 		super();
 		this.setId(id);
 		this.nombre = nombre;
 		this.apellidos = apellidos;
-		this.fechaNacimiento = fechaNacimiento;
-		this.poblacion = poblacion;
-		this.nacionalidad = nacionalidad;
 		this.categoria = categoria;
 		this.deporte = deporte;
 		this.setEquipo(equipo);
@@ -51,30 +42,6 @@ public class CuerpoTecnicoDTO {
 
 	public void setApellidos(String apellidos) {
 		this.apellidos = apellidos;
-	}
-
-	public Date getFechaNacimiento() {
-		return fechaNacimiento;
-	}
-
-	public void setFechaNacimiento(Date fechaNacimiento) {
-		this.fechaNacimiento = fechaNacimiento;
-	}
-
-	public String getPoblacion() {
-		return poblacion;
-	}
-
-	public void setPoblacion(String poblacion) {
-		this.poblacion = poblacion;
-	}
-
-	public String getNacionalidad() {
-		return nacionalidad;
-	}
-
-	public void setNacionalidad(String nacionalidad) {
-		this.nacionalidad = nacionalidad;
 	}
 
 	public String getCategoria() {

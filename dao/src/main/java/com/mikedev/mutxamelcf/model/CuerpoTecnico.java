@@ -1,29 +1,20 @@
 package com.mikedev.mutxamelcf.model;
 
-import java.util.Date;
-
 public class CuerpoTecnico {
 	private Long id;
 	private String nombre;
 	private String apellidos;
-	private Date fechaNacimiento;
-	private String poblacion;
-	private String nacionalidad;
 	private String categoria;
 	private String deporte;
 	private String equipo;
 	private String puesto;
 	private byte[] foto;
 
-	public CuerpoTecnico(Long id, String nombre, String apellidos, Date fechaNacimiento, String poblacion,
-			String nacionalidad, String categoria, String deporte, String equipo, String puesto, byte[] foto) {
+	public CuerpoTecnico(Long id, String nombre, String apellidos, String categoria, String deporte, String equipo, String puesto, byte[] foto) {
 		super();
 		this.setId(id);
 		this.nombre = nombre;
 		this.apellidos = apellidos;
-		this.fechaNacimiento = fechaNacimiento;
-		this.poblacion = poblacion;
-		this.nacionalidad = nacionalidad;
 		this.categoria = categoria;
 		this.setDeporte(deporte);
 		this.setEquipo(equipo);
@@ -49,30 +40,6 @@ public class CuerpoTecnico {
 
 	public void setApellidos(String apellidos) {
 		this.apellidos = apellidos;
-	}
-
-	public Date getFechaNacimiento() {
-		return fechaNacimiento;
-	}
-
-	public void setFechaNacimiento(Date fechaNacimiento) {
-		this.fechaNacimiento = fechaNacimiento;
-	}
-
-	public String getPoblacion() {
-		return poblacion;
-	}
-
-	public void setPoblacion(String poblacion) {
-		this.poblacion = poblacion;
-	}
-
-	public String getNacionalidad() {
-		return nacionalidad;
-	}
-
-	public void setNacionalidad(String nacionalidad) {
-		this.nacionalidad = nacionalidad;
 	}
 
 	public String getCategoria() {

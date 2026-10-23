@@ -38,12 +38,11 @@ public class CuerpoTecnicoDaoImpl implements CuerpoTecnicoDao {
 
 	public boolean insertarCuerpoTecnico(CuerpoTecnico cuerpoTecnico) {
 		logger.debug("Inicio insertarCuerpoTecnico: nombre={}", cuerpoTecnico.getNombre());
-		String sql = "INSERT INTO cuerpo_tecnico (nombre, apellidos, fecha_nacimiento, poblacion, "
-				+ "nacionalidad, categoria, deporte, equipo, puesto, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		String sql = "INSERT INTO cuerpo_tecnico (nombre, apellidos, categoria, deporte, equipo, puesto, foto) "
+				+ "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
 		boolean insertado = jdbcTemplate.update(sql, cuerpoTecnico.getNombre(),
-				cuerpoTecnico.getApellidos(), cuerpoTecnico.getFechaNacimiento(), cuerpoTecnico.getPoblacion(),
-				cuerpoTecnico.getNacionalidad(), cuerpoTecnico.getCategoria(), cuerpoTecnico.getDeporte(),
+				cuerpoTecnico.getApellidos(), cuerpoTecnico.getCategoria(), cuerpoTecnico.getDeporte(),
 				cuerpoTecnico.getEquipo(), cuerpoTecnico.getPuesto(), cuerpoTecnico.getFoto()) == 1;
 		logger.info("Cuerpo tecnico insertado: nombre={}, insertado={}", cuerpoTecnico.getNombre(), insertado);
 		logger.debug("Fin insertarCuerpoTecnico: insertado={}", insertado);

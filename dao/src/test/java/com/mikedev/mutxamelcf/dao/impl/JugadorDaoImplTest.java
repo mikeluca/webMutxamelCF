@@ -32,9 +32,9 @@ class JugadorDaoImplTest {
 
         when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), isNull()))
                 .thenThrow(new EmptyResultDataAccessException(1));
-        // insertarJugador pasa 12 valores como varargs: hay que igualar el numero exacto de matchers
-        when(jdbcTemplate.update(anyString(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
-                any(), any())).thenReturn(1);
+        // insertarJugador pasa 9 valores como varargs: hay que igualar el numero exacto de matchers
+        when(jdbcTemplate.update(anyString(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(1);
 
         boolean resultado = dao.guardarJugador(jugador);
 

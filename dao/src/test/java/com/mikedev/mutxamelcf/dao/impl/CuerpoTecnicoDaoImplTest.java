@@ -33,8 +33,8 @@ class CuerpoTecnicoDaoImplTest {
 
         when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), isNull()))
                 .thenThrow(new EmptyResultDataAccessException(1));
-        // insertarCuerpoTecnico pasa 10 valores como varargs
-        when(jdbcTemplate.update(anyString(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        // insertarCuerpoTecnico pasa 7 valores como varargs
+        when(jdbcTemplate.update(anyString(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(1);
 
         assertThat(dao.guardar(staff)).isTrue();

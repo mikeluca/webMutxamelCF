@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -34,6 +35,9 @@ import jakarta.validation.Valid;
 public class JugadorAdminController {
 
 	private static final Logger logger = LoggerFactory.getLogger(JugadorAdminController.class);
+
+	static final String MENSAJE_ERROR_BASE_DE_DATOS =
+			"No se ha podido guardar: error de base de datos. Revisa los registros del servidor.";
 
 	private final JugadorService jugadoresService;
 
@@ -144,6 +148,11 @@ public class JugadorAdminController {
 				return ResponseEntity.badRequest().body(response);
 			}
 
+		} catch (DataAccessException e) {
+			logger.error("Error de base de datos al guardar el jugador: {}", e.getMessage(), e);
+			response.put("error", MENSAJE_ERROR_BASE_DE_DATOS);
+			logger.debug("Fin guardarJugador: resultado=ERROR_BD");
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		} catch (Exception e) {
 			logger.error("Error al guardar el jugador: {}", e.getMessage(), e); // Registrar el error
 			response.put("error", "Error al guardar el jugador");

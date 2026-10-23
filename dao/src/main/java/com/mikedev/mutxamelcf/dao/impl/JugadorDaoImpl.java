@@ -38,12 +38,11 @@ public class JugadorDaoImpl implements JugadorDao {
 
 	public boolean insertarJugador(Jugador jugador) {
 		logger.debug("Inicio insertarJugador: dni={}", jugador.getDni());
-		String sql = "INSERT INTO jugadores (dni, nombre, apellidos, fecha_nacimiento, poblacion, "
-				+ "nacionalidad, categoria, deporte, dorsal, posicion, equipo, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		String sql = "INSERT INTO jugadores (dni, nombre, apellidos, categoria, deporte, dorsal, posicion, equipo, foto) "
+				+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 		boolean insertado = jdbcTemplate.update(sql, jugador.getDni(), jugador.getNombre(), jugador.getApellidos(),
-				jugador.getFechaNacimiento(), jugador.getPoblacion(), jugador.getNacionalidad(), jugador.getCategoria(),
-				jugador.getDeporte(), jugador.getDorsal(), jugador.getPosicion(), jugador.getEquipo(),
+				jugador.getCategoria(), jugador.getDeporte(), jugador.getDorsal(), jugador.getPosicion(), jugador.getEquipo(),
 				jugador.getFoto()) == 1;
 		logger.info("Jugador insertado: dni={}, insertado={}", jugador.getDni(), insertado);
 		logger.debug("Fin insertarJugador: insertado={}", insertado);
