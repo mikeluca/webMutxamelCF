@@ -201,6 +201,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 TIPO_PUSH_CONVOCATORIA,
                                 true,
                                 null,
+                                null,
                                 (jugador, esJugador) -> (esJugador
                                                 ? "Has sido convocado con el equipo "
                                                 : jugador + " ha sido convocado con el equipo ")
@@ -232,6 +233,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         String tipoPush,
                         boolean conConvocatoriaId,
                         Long partidoAnteriorId,
+                        java.time.LocalDate fechaPartidoPush,
                         BiFunction<String, Boolean, String> mensaje) {
 
                 if (jugadoresIds.isEmpty()) {
@@ -299,8 +301,10 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         }
                                 }
 
-                                if (convocatoria.getFechaPartido() != null) {
-                                        datosPush.put("fechaPartido", convocatoria.getFechaPartido().toString());
+                                java.time.LocalDate fechaData = fechaPartidoPush != null ? fechaPartidoPush : convocatoria.getFechaPartido();
+
+                                if (fechaData != null) {
+                                        datosPush.put("fechaPartido", fechaData.toString());
                                 }
 
                                 comunicacionService.crearPrivada(
@@ -362,6 +366,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 TIPO_PUSH_CONVOCATORIA,
                                 false,
                                 !Objects.equals(antes.partidoId(), convocatoria.getPartidoId()) ? antes.partidoId() : null,
+                                antes.fechaPartido(),
                                 (jugador, esJugador) -> (esJugador
                                                 ? "Ya no estás convocado"
                                                 : jugador + " ya no está convocado")
@@ -398,6 +403,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 "Cambio en la convocatoria",
                                 TIPO_PUSH_CONVOCATORIA,
                                 true,
+                                null,
                                 null,
                                 (jugador, esJugador) -> (esJugador
                                                 ? "Cambio en la convocatoria del partido contra "
@@ -669,9 +675,18 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
                 List<ConvocatoriaResponse> respuesta = new ArrayList<>();
 
+                // Los partidos de una vez, no uno por convocatoria.
+                Map<Long, Partido> partidos = new HashMap<>();
+
+                if (!convocatorias.isEmpty()) {
+                        for (Partido p : partidoDao.obtenerPorEquipo(equipoId)) {
+                                partidos.put(p.getId(), p);
+                        }
+                }
+
                 for (Convocatoria convocatoria : convocatorias) {
                         respuesta.add(
-                                        construirResponse(convocatoria));
+                                        construirResponse(convocatoria, partidos));
                 }
 
                 return respuesta;
@@ -730,6 +745,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 TIPO_PUSH_CONVOCATORIA,
                                 false,
                                 null,
+                                null,
                                 (jugador, esJugador) -> (esJugador
                                                 ? "Se ha anulado la convocatoria del partido contra "
                                                 : "Se ha anulado la convocatoria de " + jugador
@@ -751,8 +767,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         return;
                 }
 
-                if (partido.getResultado() != null
-                                && !partido.getResultado().replace("-", "").isBlank()) {
+                if (CriterioResultadoPartido.tieneResultado(partido)) {
 
                         throw new IllegalStateException(
                                         "No se puede eliminar la convocatoria: el partido ya tiene resultado");
@@ -770,6 +785,14 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
         private ConvocatoriaResponse construirResponse(
                         Convocatoria convocatoria) {
+
+                return construirResponse(convocatoria, null);
+        }
+
+        // partidos: ya cargados (listados); null = se consulta el partido de esta convocatoria.
+        private ConvocatoriaResponse construirResponse(
+                        Convocatoria convocatoria,
+                        Map<Long, Partido> partidos) {
 
                 ConvocatoriaResponse response = new ConvocatoriaResponse();
 
@@ -794,7 +817,9 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
                 Partido partidoVinculado = convocatoria.getPartidoId() == null
                                 ? null
-                                : partidoDao.obtenerPorId(convocatoria.getPartidoId());
+                                : partidos != null
+                                                ? partidos.get(convocatoria.getPartidoId())
+                                                : partidoDao.obtenerPorId(convocatoria.getPartidoId());
 
                 response.setPartidoConResultado(
                                 partidoVinculado != null && CriterioResultadoPartido.tieneResultado(partidoVinculado));

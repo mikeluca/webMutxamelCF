@@ -583,6 +583,51 @@ class ConvocatoriaEditarH2Test {
     }
 
     @Test
+    void alCambiarDePartidoElAvisoDeQuitadosLlevaLaFechaDelPartidoAnterior() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(31L, "09:30", List.of(100L)));
+
+        ArgumentCaptor<OpcionesPushComunicacion> opciones = ArgumentCaptor.forClass(OpcionesPushComunicacion.class);
+        verify(comunicacionService).crearPrivada(any(Comunicacion.class), eq(List.of(51L)), anyLong(),
+                opciones.capture());
+
+        // Coherente con el texto ("...contra Pego (2026-10-24)"), no la del partido nuevo.
+        assertThat(opciones.getValue().datos()).containsEntry("fechaPartido", "2026-10-24");
+    }
+
+    @Test
+    void elListadoCargaLosPartidosDeUnaVezYNoUnoPorConvocatoria() {
+        convocatoriaCon(100L);
+        Partido conResultado = partido(30L, LocalDate.of(2026, 10, 24), "Pego");
+        conResultado.setGolesFavor(2);
+        when(partidoDao.obtenerPorEquipo(EQUIPO)).thenReturn(List.of(conResultado));
+        org.mockito.Mockito.clearInvocations(partidoDao);
+
+        List<ConvocatoriaResponse> lista = service.obtenerPorEquipo(ENTRENADOR, EQUIPO);
+
+        assertThat(lista).hasSize(1);
+        assertThat(lista.get(0).isPartidoConResultado()).isTrue();
+        verify(partidoDao, org.mockito.Mockito.never()).obtenerPorId(anyLong());
+        verify(partidoDao).obtenerPorEquipo(EQUIPO);
+    }
+
+    @Test
+    void noSePuedeEliminarSiElPartidoTieneGolesAunqueNoTextoDeResultado() {
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        Partido conGoles = partido(30L, LocalDate.of(2026, 10, 24), "Pego");
+        conGoles.setGolesFavor(1);
+        when(partidoDao.obtenerPorId(30L)).thenReturn(conGoles);
+
+        assertThatThrownBy(() -> service.eliminar(ENTRENADOR, creada.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ya tiene resultado");
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM CONVOCATORIAS", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
     void elAvisoDeQuitadosNoLlevaPartidoNiConvocatoriaEnElData() {
         usuariosPorJugador();
         ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);

@@ -320,7 +320,10 @@ class RecordatorioEntrenadorServiceImplTest {
 		when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO)).thenReturn(List.of(COORDINADOR));
 
 		assertThatThrownBy(() -> service.enviar(COORDINADOR, PARTIDO, "CONVOCATORIA"))
-				.isInstanceOf(SinEntrenadores.class);
+				.isInstanceOf(SinEntrenadores.class)
+				.hasMessage("Eres el único entrenador con cuenta de este equipo");
+
+		verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong(), any());
 	}
 
 	@Test

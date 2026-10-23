@@ -36,6 +36,10 @@ public interface RecordatorioEntrenadorService {
         public SinEntrenadores() {
             super("El equipo no tiene entrenadores con cuenta en la app");
         }
+
+        public SinEntrenadores(String mensaje) {
+            super(mensaje);
+        }
     }
 
     /** Ya se envió este recordatorio hace menos de 2 horas (429); [ultimo] es cuándo. */
