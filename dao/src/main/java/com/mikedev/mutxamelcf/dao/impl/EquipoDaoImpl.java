@@ -60,6 +60,11 @@ public class EquipoDaoImpl implements EquipoDao {
 		String sql = "UPDATE equipo SET categoria = ?, grupo = ?, orden = ?, nombre = ?, deporte = ?, modalidad = ? WHERE id = ?";
 		boolean actualizado = jdbcTemplate.update(sql, equipo.getCategoria(), equipo.getGrupo(), equipo.getOrden(),
 				equipo.getNombre(), equipo.getDeporte(), equipo.getModalidad(), equipo.getId()) == 1;
+		if (actualizado) {
+			// Las copias de JUGADORES (EQUIPO, CATEGORIA, DEPORTE) siguen al equipo; el enlace real es EQUIPO_ID.
+			jdbcTemplate.update("UPDATE jugadores SET equipo = ?, categoria = ?, deporte = ? WHERE equipo_id = ?",
+					equipo.getNombre(), equipo.getCategoria(), equipo.getDeporte(), equipo.getId());
+		}
 		logger.debug("Fin actualizarEquipo: id={}, actualizado={}", equipo.getId(), actualizado);
 		return actualizado;
 	}

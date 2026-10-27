@@ -369,9 +369,9 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                 INNER JOIN JUGADORES j
                     ON j.ID = uaj.JUGADOR_ID
                 INNER JOIN EQUIPO e
-                    ON UPPER(TRIM(e.NOMBRE)) =
-                       UPPER(TRIM(j.EQUIPO))
+                    ON e.ID = j.EQUIPO_ID
                 WHERE uaj.USUARIO_APP_ID = ?
+                  AND j.FECHA_BAJA IS NULL
                 ORDER BY e.ID
                 """;
 
@@ -395,9 +395,9 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                 INNER JOIN JUGADORES j
                     ON j.ID = fj.JUGADOR_ID
                 INNER JOIN EQUIPO e
-                    ON UPPER(TRIM(e.NOMBRE)) =
-                       UPPER(TRIM(j.EQUIPO))
+                    ON e.ID = j.EQUIPO_ID
                 WHERE uaf.USUARIO_APP_ID = ?
+                  AND j.FECHA_BAJA IS NULL
                 ORDER BY e.ID
                 """;
 
@@ -543,9 +543,9 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                             INNER JOIN JUGADORES j
                                 ON j.ID = uaj.JUGADOR_ID
                             INNER JOIN EQUIPO e
-                                ON UPPER(TRIM(e.NOMBRE))
-                                 = UPPER(TRIM(j.EQUIPO))
+                                ON e.ID = j.EQUIPO_ID
                             WHERE e.ID = ?
+                              AND j.FECHA_BAJA IS NULL
 
                             UNION
 
@@ -559,9 +559,9 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                             INNER JOIN JUGADORES j
                                 ON j.ID = fj.JUGADOR_ID
                             INNER JOIN EQUIPO e
-                                ON UPPER(TRIM(e.NOMBRE))
-                                 = UPPER(TRIM(j.EQUIPO))
+                                ON e.ID = j.EQUIPO_ID
                             WHERE e.ID = ?
+                              AND j.FECHA_BAJA IS NULL
 
                             UNION
 
@@ -597,8 +597,11 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                             FROM USUARIOS_APP_JUGADORES uaj
                             INNER JOIN JUGADORES j
                                 ON j.ID = uaj.JUGADOR_ID
-                            WHERE UPPER(TRIM(j.CATEGORIA))
+                            INNER JOIN EQUIPO je
+                                ON je.ID = j.EQUIPO_ID
+                            WHERE UPPER(TRIM(je.CATEGORIA))
                                 = UPPER(TRIM(?))
+                              AND j.FECHA_BAJA IS NULL
 
                             UNION
 
@@ -611,8 +614,11 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                                 ON fj.FAMILIAR_ID = f.ID
                             INNER JOIN JUGADORES j
                                 ON j.ID = fj.JUGADOR_ID
-                            WHERE UPPER(TRIM(j.CATEGORIA))
+                            INNER JOIN EQUIPO je
+                                ON je.ID = j.EQUIPO_ID
+                            WHERE UPPER(TRIM(je.CATEGORIA))
                                 = UPPER(TRIM(?))
+                              AND j.FECHA_BAJA IS NULL
 
                             UNION
 
@@ -782,7 +788,9 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                                     ON UPPER(TRIM(E.NOMBRE)) =
                                        UPPER(TRIM(CT.EQUIPO))
                                 WHERE UAJ.USUARIO_APP_ID = U.ID
-                                AND UPPER(TRIM(E.NOMBRE)) = UPPER(TRIM(J.EQUIPO))                            )
+                                  AND E.ID = J.EQUIPO_ID
+                                  AND J.FECHA_BAJA IS NULL
+                            )
 
                             OR U.ID IN (
                                 /*
@@ -802,7 +810,8 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                                     ON UPPER(TRIM(E.NOMBRE)) =
                                        UPPER(TRIM(CT.EQUIPO))
                                 WHERE UAF.USUARIO_APP_ID = U.ID
-                                  AND UPPER(TRIM(E.NOMBRE)) = UPPER(TRIM(J.EQUIPO))
+                                  AND E.ID = J.EQUIPO_ID
+                                  AND J.FECHA_BAJA IS NULL
                             )
                       )
                       AND EXISTS (
@@ -845,9 +854,12 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                                     ON UAJ.USUARIO_APP_ID = ?
                                 INNER JOIN JUGADORES J
                                     ON J.ID = UAJ.JUGADOR_ID
+                                INNER JOIN EQUIPO JE
+                                    ON JE.ID = J.EQUIPO_ID
                                 WHERE UCT.USUARIO_APP_ID = U.ID
                                   AND UPPER(TRIM(CT.EQUIPO)) =
-                                      UPPER(TRIM(J.EQUIPO))
+                                      UPPER(TRIM(JE.NOMBRE))
+                                  AND J.FECHA_BAJA IS NULL
                             )
                       )
                       AND EXISTS (
@@ -892,9 +904,12 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                                     ON FJ.FAMILIAR_ID = UAF.FAMILIAR_ID
                                 INNER JOIN JUGADORES J
                                     ON J.ID = FJ.JUGADOR_ID
+                                INNER JOIN EQUIPO JE
+                                    ON JE.ID = J.EQUIPO_ID
                                 WHERE UCT.USUARIO_APP_ID = U.ID
                                   AND UPPER(TRIM(CT.EQUIPO)) =
-                                      UPPER(TRIM(J.EQUIPO))
+                                      UPPER(TRIM(JE.NOMBRE))
+                                  AND J.FECHA_BAJA IS NULL
                             )
                       )
                       AND EXISTS (

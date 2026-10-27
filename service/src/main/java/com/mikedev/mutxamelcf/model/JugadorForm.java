@@ -23,6 +23,16 @@ public class JugadorForm {
 	private Integer dorsal;
 	private String posicion;
 	private MultipartFile foto;
+	/** Opcional; el rango (año actual − 25 … año actual − 3) lo valida {@link AnioNacimiento}. */
+	private Integer anioNacimiento;
+
+	public Integer getAnioNacimiento() {
+		return anioNacimiento;
+	}
+
+	public void setAnioNacimiento(Integer anioNacimiento) {
+		this.anioNacimiento = anioNacimiento;
+	}
 
 	public JugadorForm(Long id, String nombre, String apellidos, Long equipo, int dorsal, String posicion, MultipartFile foto) {
 		super();

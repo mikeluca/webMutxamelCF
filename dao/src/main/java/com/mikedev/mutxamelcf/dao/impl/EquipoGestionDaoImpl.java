@@ -91,9 +91,8 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
         String sql = """
                 SELECT J.ID
                 FROM JUGADORES J
-                INNER JOIN EQUIPO E
-                    ON E.NOMBRE = J.EQUIPO
-                WHERE E.ID = ?
+                WHERE J.EQUIPO_ID = ?
+                  AND J.FECHA_BAJA IS NULL
                 ORDER BY J.DORSAL ASC
                 """;
 
@@ -254,10 +253,9 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
         String sql = """
                 SELECT COUNT(*)
                 FROM JUGADORES J
-                INNER JOIN EQUIPO E
-                    ON E.NOMBRE = J.EQUIPO
                 WHERE J.ID = ?
-                  AND E.ID = ?
+                  AND J.EQUIPO_ID = ?
+                  AND J.FECHA_BAJA IS NULL
                 """;
 
         Integer count = jdbcTemplate.queryForObject(
@@ -274,11 +272,11 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
 
         List<Long> ids = jdbcTemplate.queryForList(
                 """
-                        SELECT E.ID
+                        SELECT J.EQUIPO_ID
                         FROM JUGADORES J
-                        INNER JOIN EQUIPO E
-                            ON UPPER(TRIM(E.NOMBRE)) = UPPER(TRIM(J.EQUIPO))
                         WHERE J.ID = ?
+                          AND J.EQUIPO_ID IS NOT NULL
+                          AND J.FECHA_BAJA IS NULL
                         """,
                 Long.class,
                 jugadorId);

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.EntrenamientoDao;
 import com.mikedev.mutxamelcf.dao.EquipoDao;
+import com.mikedev.mutxamelcf.dao.JugadorTemporadaDao;
 import com.mikedev.mutxamelcf.model.EnumEquipos;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.EquipoDTO;
@@ -30,10 +31,12 @@ public class EquipoServiceImpl implements EquipoService {
 	private final CuerpoTecnicoService cuerpoTecnicoService;
 	private final ConvocatoriaDao convocatoriaDao;
 	private final EntrenamientoDao entrenamientoDao;
+	private final JugadorTemporadaDao jugadorTemporadaDao;
 
 	public EquipoServiceImpl(EquipoDao equipoDao, JugadorService jugadorService,
 			CuerpoTecnicoService cuerpoTecnicoService, ConvocatoriaDao convocatoriaDao,
-			EntrenamientoDao entrenamientoDao) {
+			EntrenamientoDao entrenamientoDao, JugadorTemporadaDao jugadorTemporadaDao) {
+		this.jugadorTemporadaDao = jugadorTemporadaDao;
 		this.equipoDao = equipoDao;
 		this.jugadorService = jugadorService;
 		this.cuerpoTecnicoService = cuerpoTecnicoService;
@@ -72,6 +75,9 @@ public class EquipoServiceImpl implements EquipoService {
 
 		if (!jugadorService.obtenerJugadoresPorEquipo(equipo.getNombre()).isEmpty()) {
 			motivos.add("tiene jugadores asignados");
+		}
+		if (jugadorTemporadaDao.existenParaEquipo(id)) {
+			motivos.add("aparece en las plantillas por temporada (historial o borrador)");
 		}
 		if (!cuerpoTecnicoService.obtenerCuerpoTecnicoPorEquipo(equipo.getNombre()).isEmpty()) {
 			motivos.add("tiene cuerpo técnico asignado");

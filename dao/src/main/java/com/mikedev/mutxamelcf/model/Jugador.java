@@ -8,11 +8,15 @@ public class Jugador {
 	private String categoria;
 	private String deporte;
 	private String equipo;
-	/** ID del EQUIPO cuyo NOMBRE coincide con el campo equipo; solo lo rellena el perfil de la app. */
+	/** JUGADORES.EQUIPO_ID: el enlace con EQUIPO (nulo si el jugador no tiene equipo o está de baja). */
 	private Long equipoId;
 	private Integer dorsal;
 	private String posicion;
 	private byte[] foto;
+	/** Dato de un menor: solo lo usan el panel y el asistente de temporada, nunca la app. */
+	private Integer anioNacimiento;
+	/** Nula mientras el jugador forma parte de la plantilla actual. */
+	private java.time.LocalDate fechaBaja;
 
 	public Jugador(Long id, String dni, String nombre, String apellidos, String categoria, String deporte, String equipo, int dorsal, String posicion,
 			byte[] foto) {
@@ -119,6 +123,26 @@ public class Jugador {
 
 	public void setId(Long id) {
 		this.id = id;
+	}
+
+	public Integer getAnioNacimiento() {
+		return anioNacimiento;
+	}
+
+	public void setAnioNacimiento(Integer anioNacimiento) {
+		this.anioNacimiento = anioNacimiento;
+	}
+
+	public java.time.LocalDate getFechaBaja() {
+		return fechaBaja;
+	}
+
+	public void setFechaBaja(java.time.LocalDate fechaBaja) {
+		this.fechaBaja = fechaBaja;
+	}
+
+	public boolean estaDeBaja() {
+		return fechaBaja != null;
 	}
 
 }

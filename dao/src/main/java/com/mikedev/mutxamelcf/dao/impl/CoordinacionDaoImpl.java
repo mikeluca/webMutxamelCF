@@ -22,13 +22,14 @@ public class CoordinacionDaoImpl implements CoordinacionDao {
 	private static final String NOMBRE_JUGADOR = "TRIM(J.NOMBRE || ' ' || COALESCE(J.APELLIDOS, ''))";
 
 	private static final String SELECT_SEGUIMIENTO = """
-			SELECT J.ID, %s AS NOMBRE_JUGADOR, J.EQUIPO,
+			SELECT J.ID, %s AS NOMBRE_JUGADOR, EQ.NOMBRE AS EQUIPO,
 			       COALESCE(SUM(CASE WHEN A.ESTADO = 'FALTA' THEN 1 ELSE 0 END), 0) AS FALTAS,
 			       COALESCE(SUM(CASE WHEN A.ESTADO = 'FALTA_JUSTIFICADA' THEN 1 ELSE 0 END), 0) AS JUSTIFICADAS,
 			       COALESCE(SUM(CASE WHEN A.ESTADO = 'MAL_COMPORTAMIENTO' THEN 1 ELSE 0 END), 0) AS MAL,
 			       COALESCE(SUM(CASE WHEN A.ESTADO = 'RETRASO' THEN 1 ELSE 0 END), 0) AS RETRASOS,
 			       MAX(CASE WHEN A.ESTADO IN ('FALTA', 'MAL_COMPORTAMIENTO') THEN E.FECHA END) AS ULTIMA
 			FROM JUGADORES J
+			LEFT JOIN EQUIPO EQ ON EQ.ID = J.EQUIPO_ID
 			JOIN ENTRENAMIENTO_ASISTENCIA A ON A.JUGADOR_ID = J.ID
 			JOIN ENTRENAMIENTOS E ON E.ID = A.ENTRENAMIENTO_ID
 			WHERE E.FECHA BETWEEN ? AND ?
@@ -118,8 +119,10 @@ public class CoordinacionDaoImpl implements CoordinacionDao {
 	public List<SeguimientoJugador> seguimientoJugadores(
 			LocalDate desde, LocalDate hasta, int umbralFaltas, int umbralMalComportamiento) {
 
+		// Las bajas quedan fuera del seguimiento de la plantilla actual.
 		return jdbcTemplate.query(SELECT_SEGUIMIENTO + """
-				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, J.EQUIPO
+				AND J.FECHA_BAJA IS NULL
+				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, EQ.NOMBRE
 				HAVING SUM(CASE WHEN A.ESTADO = 'FALTA' THEN 1 ELSE 0 END) >= ?
 				    OR SUM(CASE WHEN A.ESTADO = 'MAL_COMPORTAMIENTO' THEN 1 ELSE 0 END) >= ?
 				""",
@@ -131,7 +134,7 @@ public class CoordinacionDaoImpl implements CoordinacionDao {
 	public SeguimientoJugador seguimientoDeJugador(Long jugadorId, LocalDate desde, LocalDate hasta) {
 		List<SeguimientoJugador> filas = jdbcTemplate.query(SELECT_SEGUIMIENTO + """
 				AND J.ID = ?
-				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, J.EQUIPO
+				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, EQ.NOMBRE
 				""",
 				SEGUIMIENTO,
 				Date.valueOf(desde), Date.valueOf(hasta), jugadorId);
@@ -142,8 +145,9 @@ public class CoordinacionDaoImpl implements CoordinacionDao {
 
 		// Sin asistencias en el periodo: el jugador existe con todo a cero.
 		List<SeguimientoJugador> sinDatos = jdbcTemplate.query(
-				"SELECT J.ID, " + NOMBRE_JUGADOR + " AS NOMBRE_JUGADOR, J.EQUIPO, 0 AS FALTAS, 0 AS JUSTIFICADAS,"
-						+ " 0 AS MAL, 0 AS RETRASOS, CAST(NULL AS DATE) AS ULTIMA FROM JUGADORES J WHERE J.ID = ?",
+				"SELECT J.ID, " + NOMBRE_JUGADOR + " AS NOMBRE_JUGADOR, EQ.NOMBRE AS EQUIPO, 0 AS FALTAS, 0 AS JUSTIFICADAS,"
+						+ " 0 AS MAL, 0 AS RETRASOS, CAST(NULL AS DATE) AS ULTIMA FROM JUGADORES J"
+						+ " LEFT JOIN EQUIPO EQ ON EQ.ID = J.EQUIPO_ID WHERE J.ID = ?",
 				SEGUIMIENTO, jugadorId);
 
 		return sinDatos.isEmpty() ? null : sinDatos.get(0);

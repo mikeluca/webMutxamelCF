@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<body>
+	<table>
+		<tbody>
+			<!-- Fila editable del borrador de "Nueva temporada"; se reutiliza en cada lista -->
+			<tr th:fragment="fila(f)" class="fila-borrador" th:attr="data-jugador=${f.jugadorId()}"
+				th:classappend="${f.pendiente()} ? 'table-warning'">
+				<td>
+					<span th:text="${f.nombre()}"></span>
+					<div class="small text-muted" th:if="${f.nota() != null}" th:text="${f.nota()}"></div>
+					<div class="small text-muted" th:if="${f.equipoActual() != null}" th:text="'Hoy: ' + ${f.equipoActual()}"></div>
+					<span class="badge text-bg-danger" th:if="${f.jugadorDeBaja()}">De baja en el panel: se queda de baja</span>
+				</td>
+				<td style="width: 110px;">
+					<input type="number" class="form-control form-control-sm anio" min="1900" max="2100"
+						th:value="${f.anioNacimiento()}" placeholder="Año">
+				</td>
+				<td style="width: 200px;">
+					<select class="form-select form-select-sm equipo">
+						<option value="">Sin equipo</option>
+						<option th:each="e : ${listaEquipos}" th:value="${e.id}" th:text="${e.nombre}"
+							th:selected="${f.equipoId() != null and f.equipoId().equals(e.id)}"></option>
+					</select>
+				</td>
+				<td style="width: 90px;">
+					<input type="number" class="form-control form-control-sm dorsal" min="0" max="99"
+						th:value="${f.dorsal()}" th:classappend="${f.dorsalRepetido()} ? 'is-invalid'">
+				</td>
+				<td class="text-center" style="width: 70px;">
+					<input type="checkbox" class="form-check-input baja" th:checked="${f.baja()}" title="Baja">
+				</td>
+				<td class="text-end" style="width: 60px;">
+					<button type="button" class="btn btn-primary btn-sm" onclick="guardarFila(this)"
+						title="Guardar fila (la marca como revisada)">
+						<i class="bi bi-check2"></i>
+					</button>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</body>
+
+</html>

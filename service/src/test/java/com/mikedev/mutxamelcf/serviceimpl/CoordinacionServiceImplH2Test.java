@@ -53,7 +53,7 @@ class CoordinacionServiceImplH2Test {
         jdbc.execute("""
                 CREATE TABLE JUGADORES (
                     ID NUMBER PRIMARY KEY, NOMBRE VARCHAR2(50), APELLIDOS VARCHAR2(50), DORSAL NUMBER,
-                    EQUIPO VARCHAR2(50))""");
+                    EQUIPO VARCHAR2(50), EQUIPO_ID NUMBER, FECHA_BAJA DATE)""");
         jdbc.execute("""
                 CREATE TABLE PARTIDOS (
                     ID NUMBER PRIMARY KEY, EQUIPO_ID NUMBER, RIVAL VARCHAR2(50), DIA DATE, HORA VARCHAR2(20),
@@ -121,7 +121,9 @@ class CoordinacionServiceImplH2Test {
     }
 
     private void jugador(long id, String nombre, String equipo) {
-        jdbc.update("INSERT INTO JUGADORES VALUES (?, ?, 'Lopez', 5, ?)", id, nombre, equipo);
+        // El enlace con el equipo es EQUIPO_ID; la columna EQUIPO es solo una copia
+        jdbc.update("INSERT INTO JUGADORES (ID, NOMBRE, APELLIDOS, DORSAL, EQUIPO, EQUIPO_ID)"
+                + " VALUES (?, ?, 'Lopez', 5, ?, (SELECT ID FROM EQUIPO WHERE NOMBRE = ?))", id, nombre, equipo, equipo);
     }
 
     private void entrenamiento(LocalDate fecha, Object... jugadorYEstado) {

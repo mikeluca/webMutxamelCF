@@ -52,6 +52,14 @@
 						<option th:each="categoria : ${categorias}" th:value="${categoria}" th:text="${categoria}"></option>
 					</select>
 				</div>
+				<div>
+					<label for="filtroEstado" class="form-label mb-1">Estado</label>
+					<select id="filtroEstado" class="form-select form-select-sm" onchange="cambiarEstado(this.value)">
+						<option value="activos" th:selected="${estado == 'activos'}">Activos</option>
+						<option value="bajas" th:selected="${estado == 'bajas'}">Bajas</option>
+						<option value="todos" th:selected="${estado == 'todos'}">Todos</option>
+					</select>
+				</div>
 			</div>
 
 			<!-- Nuevo Jugador -->
@@ -72,12 +80,17 @@
 					</tr>
 				</thead>
 				<tbody>
-					<tr th:each="jugador : ${jugadores}" th:attr="data-categoria=${jugador.categoria}">
+					<tr th:each="jugador : ${jugadores}" th:attr="data-categoria=${jugador.categoria}"
+						th:classappend="${jugador.deBaja} ? 'text-muted'">
 						<td class="align-middle"
 							th:text="${jugador.deporte} == 'F' ? 'Fútbol' : (${jugador.deporte} == 'FS' ? 'Fútbol Sala' : '')">
 						</td>
-						<td class="align-middle" th:text="${jugador.nombre} + ' ' + ${jugador.apellidos}"></td>
-						<td class="align-middle" th:text="${jugador.equipo}"></td>
+						<td class="align-middle">
+							<span th:text="${jugador.nombre} + ' ' + ${jugador.apellidos}"></span>
+							<span class="badge text-bg-secondary ms-1" th:if="${jugador.deBaja}"
+								th:text="'Baja ' + ${#temporals.format(jugador.fechaBaja, 'dd/MM/yyyy')}"></span>
+						</td>
+						<td class="align-middle" th:text="${jugador.deBaja} ? 'Sin equipo' : ${jugador.equipo}"></td>
 						<td class="align-middle">
 							<div class="d-flex justify-content-center align-items-center gap-2">
 								<!-- Botón Editar -->
@@ -87,8 +100,21 @@
 								                     data-apellidos=${jugador.apellidos},
 								                     data-dorsal=${jugador.dorsal},
 								                     data-posicion=${jugador.posicion},
-								                     data-equipo=${jugador.equipo}" title="Editar jugador" onclick="abrirModalEditar(this)">
+								                     data-anio=${jugador.anioNacimiento},
+								                     data-baja=${jugador.deBaja},
+								                     data-equipo-id=${jugador.equipoId}" title="Editar jugador" onclick="abrirModalEditar(this)">
 									<i class="bi bi-pencil"></i>
+								</button>
+								<!-- Botón Dar de baja / Reactivar -->
+								<button type="button" class="btn btn-outline-secondary btn-sm" th:unless="${jugador.deBaja}"
+									th:attr="data-id=${jugador.id}, data-nombre=${jugador.nombre + ' ' + jugador.apellidos}"
+									onclick="darDeBaja(this)" title="Dar de baja">
+									<i class="bi bi-person-dash"></i>
+								</button>
+								<button type="button" class="btn btn-outline-success btn-sm" th:if="${jugador.deBaja}"
+									th:attr="data-id=${jugador.id}, data-nombre=${jugador.nombre + ' ' + jugador.apellidos}"
+									onclick="abrirReactivar(this)" title="Reactivar">
+									<i class="bi bi-person-check"></i>
 								</button>
 								<!-- Botón Borrar -->
 								<button type="button" class="btn btn-danger btn-sm"
@@ -149,6 +175,16 @@
 								<div class="mb-3">
 									<label for="dorsal">Dorsal:</label>
 									<input type="number" class="form-control" id="dorsal" name="dorsal">
+								</div>
+								<div class="mb-3">
+									<label for="anioNacimiento">Año de nacimiento:</label>
+									<input type="number" class="form-control" id="anioNacimiento" name="anioNacimiento"
+										min="1940" th:max="${#dates.year(#dates.createNow()) - 3}"
+										placeholder="Opcional, 4 dígitos">
+									<small class="form-text text-muted">Se usa solo para asignar la categoría; no aparece en la app. En adultos no hace falta.</small>
+								</div>
+								<div id="avisoBaja" class="alert alert-secondary py-2" style="display:none;">
+									Jugador de baja: no tiene equipo. Usa "Reactivar" en el listado para devolverlo a un equipo.
 								</div>
 							</div>
 						</div>
@@ -235,9 +271,48 @@
 							</div>
 						</div>
 					</div>
+
+					<!-- Sección: Historial por temporada -->
+					<div id="seccionHistorial" style="display:none;">
+						<hr class="my-4">
+						<h4 class="h5 mb-3"><i class="bi bi-clock-history me-2"></i>Historial</h4>
+						<div class="table-responsive">
+							<table class="table table-sm table-bordered align-middle">
+								<thead class="table-light">
+									<tr><th>Temporada</th><th>Equipo</th><th>Categoría</th><th>Dorsal</th><th>Baja</th></tr>
+								</thead>
+								<tbody id="cuerpoHistorial"></tbody>
+							</table>
+						</div>
+					</div>
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Modal Reactivar -->
+	<div class="modal fade lead" id="reactivarModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 class="modal-title lead">Reactivar jugador</h3>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+				</div>
+				<div class="modal-body">
+					<p id="reactivarNombre" class="fw-bold"></p>
+					<div id="mensajeReactivar" class="alert" style="display:none;"></div>
+					<input type="hidden" id="reactivarId">
+					<label for="reactivarEquipo">Equipo <span class="text-danger">*</span>:</label>
+					<select id="reactivarEquipo" class="form-control">
+						<option th:each="equipo : ${listaEquipos}" th:value="${equipo.id}" th:text="${equipo.nombre}"></option>
+					</select>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+					<button type="button" class="btn btn-success" onclick="reactivarJugador()">Reactivar</button>
 				</div>
 			</div>
 		</div>
@@ -265,6 +340,8 @@
 				modalTitle.textContent = 'Nuevo Jugador';
 				document.getElementById('avisoNuevoJugador').style.display = 'block';
 				document.getElementById('contenidoFamiliaresJugador').style.display = 'none';
+				document.getElementById('avisoBaja').style.display = 'none';
+				document.getElementById('seccionHistorial').style.display = 'none';
 			} else if (button.classList.contains('btn-warning')) {
 				// Editar Jugador
 				abrirModalEditar(button);
@@ -282,20 +359,20 @@
 			document.getElementById('posicion').value = data.posicion || '';
 			document.getElementById('ayudaFoto').style.display = 'block';
 
+			document.getElementById('anioNacimiento').value = (data.anio && data.anio !== 'null') ? data.anio : '';
+			document.getElementById('avisoBaja').style.display = data.baja === 'true' ? 'block' : 'none';
+
+			// El equipo se elige por ID (un jugador de baja no tiene: se queda la primera opción, que el servidor ignora)
 			const equipoSelect = document.getElementById('equipo');
-			if (equipoSelect && data.equipo) {
-				// Recorremos todas las opciones y seleccionamos por texto
-				Array.from(equipoSelect.options).forEach(option => {
-					if (option.text === data.equipo) {
-						option.selected = true;
-					}
-				});
+			if (equipoSelect && data.equipoId && data.equipoId !== 'null') {
+				equipoSelect.value = data.equipoId;
 			}
 
 			if (data.id) {
 				document.getElementById('avisoNuevoJugador').style.display = 'none';
 				document.getElementById('contenidoFamiliaresJugador').style.display = 'block';
 				cargarFamiliaresDeJugador(data.id);
+				cargarHistorial(data.id);
 			} else {
 				document.getElementById('avisoNuevoJugador').style.display = 'block';
 				document.getElementById('contenidoFamiliaresJugador').style.display = 'none';
@@ -306,6 +383,82 @@
 			return String(valor ?? '').replace(/[&<>"']/g, (c) => ({
 				'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 			}[c]));
+		}
+
+		function cargarHistorial(jugadorId) {
+			fetch(`/admin/jugadores/${jugadorId}/historial`)
+				.then(response => response.json())
+				.then(filas => {
+					const tbody = document.getElementById('cuerpoHistorial');
+					tbody.innerHTML = '';
+					if (!filas || filas.length === 0) {
+						tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-2">Sin historial todavía.</td></tr>';
+					} else {
+						filas.forEach(f => {
+							const tr = document.createElement('tr');
+							tr.innerHTML = `<td>${escapeHtml(f.temporada)}</td><td>${escapeHtml(f.equipo || '-')}</td>`
+								+ `<td>${escapeHtml(f.categoria || '-')}</td><td>${escapeHtml(f.dorsal ?? '-')}</td>`
+								+ `<td>${f.baja ? 'Sí' : 'No'}</td>`;
+							tbody.appendChild(tr);
+						});
+					}
+					document.getElementById('seccionHistorial').style.display = 'block';
+				})
+				.catch(err => console.error('Error al cargar el historial:', err));
+		}
+
+		function cambiarEstado(estado) {
+			window.location.href = '/admin/jugadores?estado=' + encodeURIComponent(estado);
+		}
+
+		function postJson(url, formData, alerta, okMensajeRecargar) {
+			const token = document.querySelector('input[name="_csrf"]').value;
+			return fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': token }, body: formData })
+				.then(response => response.json().then(data => ({ status: response.status, body: data })));
+		}
+
+		function darDeBaja(btn) {
+			const nombre = btn.dataset.nombre || 'este jugador';
+			if (!confirm(`¿Dar de baja a ${nombre}? Dejará de aparecer en su equipo, convocatorias y avisos, pero se conserva todo su historial.`)) {
+				return;
+			}
+			postJson(`/admin/jugadores/baja/${btn.dataset.id}`, null)
+				.then(result => {
+					const alerta = document.getElementById('alertaPrincipal');
+					alerta.className = result.status === 200 ? 'alert alert-success' : 'alert alert-danger';
+					alerta.textContent = result.body.mensaje || result.body.error || 'No se ha podido dar de baja.';
+					alerta.style.display = 'block';
+					if (result.status === 200) {
+						setTimeout(() => window.location.reload(), 1000);
+					} else {
+						window.scrollTo({ top: 0, behavior: 'smooth' });
+					}
+				})
+				.catch(err => { console.error(err); alert('Error al dar de baja al jugador.'); });
+		}
+
+		function abrirReactivar(btn) {
+			document.getElementById('reactivarId').value = btn.dataset.id;
+			document.getElementById('reactivarNombre').textContent = btn.dataset.nombre || '';
+			document.getElementById('mensajeReactivar').style.display = 'none';
+			new bootstrap.Modal(document.getElementById('reactivarModal')).show();
+		}
+
+		function reactivarJugador() {
+			const id = document.getElementById('reactivarId').value;
+			const formData = new FormData();
+			formData.append('equipo', document.getElementById('reactivarEquipo').value);
+			postJson(`/admin/jugadores/reactivar/${id}`, formData)
+				.then(result => {
+					const msg = document.getElementById('mensajeReactivar');
+					msg.className = result.status === 200 ? 'alert alert-success' : 'alert alert-danger';
+					msg.textContent = result.body.mensaje || result.body.error || 'No se ha podido reactivar.';
+					msg.style.display = 'block';
+					if (result.status === 200) {
+						setTimeout(() => window.location.reload(), 800);
+					}
+				})
+				.catch(err => { console.error(err); alert('Error al reactivar al jugador.'); });
 		}
 
 		function cargarFamiliaresDeJugador(jugadorId) {
@@ -479,6 +632,9 @@
 				formData.delete("dorsal");
 			} else {
 				formData.set("dorsal", parseInt(dorsalValue, 10));
+			}
+			if (document.getElementById('anioNacimiento').value === "") {
+				formData.delete("anioNacimiento");
 			}
 
 			fetch('/admin/jugadores/guardar', {

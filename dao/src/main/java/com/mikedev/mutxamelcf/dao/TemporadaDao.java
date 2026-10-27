@@ -10,6 +10,9 @@ public interface TemporadaDao {
 
     void desactivarOtrasTemporadas(Long temporadaId);
 
+    /** Marca la temporada como activa (no toca las demás: ver {@link #desactivarOtrasTemporadas}). */
+    boolean activar(Long temporadaId);
+
     Temporada obtenerPorId(Long id);
 
     Temporada obtenerTemporadaActiva();

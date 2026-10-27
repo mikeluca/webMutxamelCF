@@ -12,6 +12,10 @@ public class JugadorDTO {
 	private String posicion;
 	private byte[] foto;
 	private String fotoBase64;
+	private Long equipoId;
+	/** Dato de un menor: solo para el panel y el asistente; no se serializa en JSON ni va a la app. */
+	private Integer anioNacimiento;
+	private java.time.LocalDate fechaBaja;
 
 	public JugadorDTO(Long id, String dni, String nombre, String apellidos, String categoria, String deporte, String equipo, int dorsal, String posicion,
 			byte[] foto) {
@@ -118,6 +122,35 @@ public class JugadorDTO {
 
 	public void setId(Long id) {
 		this.id = id;
+	}
+
+	public Long getEquipoId() {
+		return equipoId;
+	}
+
+	public void setEquipoId(Long equipoId) {
+		this.equipoId = equipoId;
+	}
+
+	@com.fasterxml.jackson.annotation.JsonIgnore
+	public Integer getAnioNacimiento() {
+		return anioNacimiento;
+	}
+
+	public void setAnioNacimiento(Integer anioNacimiento) {
+		this.anioNacimiento = anioNacimiento;
+	}
+
+	public java.time.LocalDate getFechaBaja() {
+		return fechaBaja;
+	}
+
+	public void setFechaBaja(java.time.LocalDate fechaBaja) {
+		this.fechaBaja = fechaBaja;
+	}
+
+	public boolean isDeBaja() {
+		return fechaBaja != null;
 	}
 
 }

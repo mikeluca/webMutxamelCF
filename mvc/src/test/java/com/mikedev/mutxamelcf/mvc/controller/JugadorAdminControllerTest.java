@@ -60,16 +60,90 @@ class JugadorAdminControllerTest {
     @Test
     void listarJugadoresRellenaElModelo() {
         when(equiposService.obtenerTodos()).thenReturn(List.of(equipo()));
-        when(jugadoresService.obtenerTodos()).thenReturn(List.of(new JugadorDTO()));
+        when(jugadoresService.obtenerActivos()).thenReturn(List.of(new JugadorDTO()));
         when(equiposService.obtenerCategorias()).thenReturn(List.of("Senior"));
         when(familiarService.obtenerTodos()).thenReturn(List.of(new FamiliarDTO()));
 
         Model model = new ExtendedModelMap();
-        String vista = controller.listarJugadores(model);
+        String vista = controller.listarJugadores("activos", model);
 
         assertEquals("admin/jugadores", vista);
         assertEquals(1, ((List<?>) model.getAttribute("jugadores")).size());
         assertEquals(1, ((List<?>) model.getAttribute("listaFamiliares")).size());
+        assertEquals("activos", model.getAttribute("estado"));
+    }
+
+    @Test
+    void elFiltroDeEstadoElijeActivosBajasOTodosYPorDefectoActivos() {
+        when(jugadoresService.obtenerActivos()).thenReturn(List.of(new JugadorDTO()));
+        when(jugadoresService.obtenerBajas()).thenReturn(List.of(new JugadorDTO(), new JugadorDTO()));
+        when(jugadoresService.obtenerTodos()).thenReturn(List.of(new JugadorDTO(), new JugadorDTO(), new JugadorDTO()));
+
+        Model bajas = new ExtendedModelMap();
+        controller.listarJugadores("bajas", bajas);
+        Model todos = new ExtendedModelMap();
+        controller.listarJugadores("todos", todos);
+        Model raro = new ExtendedModelMap();
+        controller.listarJugadores("loquesea", raro);
+
+        assertEquals(2, ((List<?>) bajas.getAttribute("jugadores")).size());
+        assertEquals(3, ((List<?>) todos.getAttribute("jugadores")).size());
+        assertEquals(1, ((List<?>) raro.getAttribute("jugadores")).size());
+        assertEquals("activos", raro.getAttribute("estado"));
+    }
+
+    @Test
+    void guardarJugadorRechazaUnAnioDeNacimientoFueraDeRango() {
+        JugadorForm form = new JugadorForm();
+        form.setNombre("Pedro");
+        form.setEquipo(1L);
+        form.setAnioNacimiento(1939);
+        form.setFoto(new MockMultipartFile("foto", new byte[0]));
+
+        ResponseEntity<Map<String, String>> response = controller.guardarJugador(form, sinErrores(form));
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        verify(jugadoresService, never()).guardarJugador(any());
+    }
+
+    @Test
+    void guardarJugadorEnlazaConElEquipoPorIdYCopiaSusDatos() {
+        JugadorForm form = new JugadorForm();
+        form.setNombre("Pedro");
+        form.setEquipo(1L);
+        form.setAnioNacimiento(2011);
+        form.setFoto(new MockMultipartFile("foto", new byte[0]));
+        when(equiposService.obtenerEquipoPorId(1L)).thenReturn(equipo());
+        when(jugadoresService.guardarJugador(any())).thenReturn(true);
+
+        controller.guardarJugador(form, sinErrores(form));
+
+        org.mockito.ArgumentCaptor<JugadorDTO> dto = org.mockito.ArgumentCaptor.forClass(JugadorDTO.class);
+        verify(jugadoresService).guardarJugador(dto.capture());
+        assertEquals(1L, dto.getValue().getEquipoId());
+        assertEquals("Primer equipo", dto.getValue().getEquipo());
+        assertEquals("Senior", dto.getValue().getCategoria());
+        assertEquals(2011, dto.getValue().getAnioNacimiento());
+    }
+
+    @Test
+    void darDeBajaYReactivarDelegan() {
+        assertEquals(HttpStatus.OK, controller.darDeBaja(5L).getStatusCode());
+        verify(jugadoresService).darDeBaja(5L);
+
+        assertEquals(HttpStatus.OK, controller.reactivar(5L, 1L).getStatusCode());
+        verify(jugadoresService).reactivar(5L, 1L);
+    }
+
+    @Test
+    void reactivarSinEquipoDevuelveBadRequest() {
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("Hay que elegir un equipo"))
+                .when(jugadoresService).reactivar(5L, null);
+
+        ResponseEntity<Map<String, String>> response = controller.reactivar(5L, null);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Hay que elegir un equipo", response.getBody().get("error"));
     }
 
     @Test

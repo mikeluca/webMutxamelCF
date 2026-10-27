@@ -30,6 +30,9 @@ class PersonalDaoH2Test {
         jdbc = new JdbcTemplate(new DriverManagerDataSource(
                 "jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=Oracle;DB_CLOSE_DELAY=-1", "sa", ""));
         EsquemaH2.crearPersonal(jdbc);
+        // JugadorDaoImpl lee el equipo de EQUIPO (por EQUIPO_ID)
+        jdbc.execute("CREATE TABLE EQUIPO (ID NUMBER PRIMARY KEY, NOMBRE VARCHAR2(100), CATEGORIA VARCHAR2(100))");
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE, CATEGORIA) VALUES (1, 'Cadete A', 'Cadete')");
 
         cuerpoTecnicoDao = new CuerpoTecnicoDaoImpl(jdbc);
         jugadorDao = new JugadorDaoImpl(jdbc);
@@ -65,6 +68,8 @@ class PersonalDaoH2Test {
         j.setCategoria("Cadete");
         j.setDeporte("Futbol 11");
         j.setEquipo("Cadete A");
+        j.setEquipoId(1L);
+        j.setAnioNacimiento(2011);
         j.setDorsal(9);
         j.setPosicion("DEL");
         j.setFoto(new byte[] { 4, 5 });
@@ -100,6 +105,9 @@ class PersonalDaoH2Test {
         assertThat(alta.getNombre()).isEqualTo("Pablo");
         assertThat(alta.getDorsal()).isEqualTo(9);
         assertThat(alta.getFoto()).containsExactly(4, 5);
+        assertThat(alta.getEquipoId()).isEqualTo(1L);
+        assertThat(alta.getEquipo()).isEqualTo("Cadete A");
+        assertThat(alta.getAnioNacimiento()).isEqualTo(2011);
 
         alta.setDorsal(10);
         alta.setPosicion("MED");
@@ -109,7 +117,8 @@ class PersonalDaoH2Test {
         Jugador editado = jugadorDao.obtenerPorId(alta.getId());
         assertThat(editado.getDorsal()).isEqualTo(10);
         assertThat(editado.getPosicion()).isEqualTo("MED");
-        assertThat(jugadorDao.obtenerTodosPorEquipo("Cadete A")).hasSize(1);
+        assertThat(jugadorDao.obtenerTodosPorEquipoId(1L)).hasSize(1);
+        assertThat(jugadorDao.obtenerTodosPorNombreEquipo("Cadete A")).hasSize(1);
     }
 
     @Test

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Categorías por edad | Mutxamel CF</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+	<link th:href="@{/css/estilos.css}" rel="stylesheet">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" integrity="sha384-tViUnnbYAV00FLIhhi3v/dWt3Jxw4gZQcNoSCxCIFNJVCx7/D55/wXsrNIRANwdD" crossorigin="anonymous">
+</head>
+
+<body>
+	<div th:replace="~{admin/cabeceraAdmin.html}"></div>
+
+	<main class="admin-screen-shell lead">
+		<p class="dashboard-eyebrow mb-1">Administración Deportiva</p>
+		<h1 class="admin-screen-title">Categorías por edad</h1>
+
+		<p class="text-muted">
+			La edad de un jugador es el <strong>año en que empieza la temporada</strong> menos su
+			<strong>año de nacimiento</strong>. Cada categoría cubre un rango de edades (ambos extremos incluidos).
+			La categoría tiene que coincidir con la de los equipos.
+		</p>
+		<p class="text-muted">
+			Las categorías que <strong>no aparecen aquí</strong> (Filial, Primer Equipo y Veteranos) son de adultos y
+			no cambian automáticamente al pasar de temporada: sus jugadores se quedan en su equipo.
+		</p>
+
+		<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" id="csrf" />
+		<div id="alerta" class="alert" style="display:none;"></div>
+
+		<div class="admin-list-panel">
+			<table class="table table-striped align-middle w-100">
+				<thead>
+					<tr>
+						<th>Categoría</th>
+						<th style="width: 15%;">Edad mínima</th>
+						<th style="width: 15%;">Edad máxima</th>
+						<th style="width: 15%;">Orden</th>
+						<th style="width: 15%;"></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr th:each="c : ${categoriasEdad}" class="fila-categoria" th:attr="data-categoria=${c.categoria}">
+						<td class="fw-bold" th:text="${c.categoria}"></td>
+						<td><input type="number" min="0" class="form-control form-control-sm edad-min" th:value="${c.edadMin}"></td>
+						<td><input type="number" min="0" class="form-control form-control-sm edad-max" th:value="${c.edadMax}"></td>
+						<td><input type="number" min="0" class="form-control form-control-sm orden" th:value="${c.orden}"></td>
+						<td class="text-end">
+							<button type="button" class="btn btn-primary btn-sm" onclick="guardarFila(this)" title="Guardar">
+								<i class="bi bi-save"></i>
+							</button>
+							<button type="button" class="btn btn-danger btn-sm" onclick="borrarFila(this)" title="Borrar">
+								<i class="bi bi-trash"></i>
+							</button>
+						</td>
+					</tr>
+					<tr th:if="${#lists.isEmpty(categoriasEdad)}">
+						<td colspan="5" class="text-center text-muted">No hay categorías configuradas.</td>
+					</tr>
+				</tbody>
+				<tfoot>
+					<tr class="fila-categoria" id="filaNueva">
+						<td>
+							<input type="text" list="categoriasEquipos" id="nuevaCategoria" class="form-control form-control-sm"
+								placeholder="Nueva categoría">
+							<datalist id="categoriasEquipos">
+								<option th:each="c : ${categoriasEquipos}" th:value="${c}"></option>
+							</datalist>
+						</td>
+						<td><input type="number" min="0" class="form-control form-control-sm edad-min"></td>
+						<td><input type="number" min="0" class="form-control form-control-sm edad-max"></td>
+						<td><input type="number" min="0" class="form-control form-control-sm orden"></td>
+						<td class="text-end">
+							<button type="button" class="btn btn-success btn-sm" onclick="guardarNueva(this)" title="Añadir">
+								<i class="bi bi-plus-lg"></i>
+							</button>
+						</td>
+					</tr>
+				</tfoot>
+			</table>
+		</div>
+	</main>
+
+	<div th:replace="~{admin/footerAdmin.html}"></div>
+
+	<script>
+		const token = () => document.getElementById('csrf').value;
+
+		function mostrar(texto, ok) {
+			const a = document.getElementById('alerta');
+			a.className = ok ? 'alert alert-success' : 'alert alert-danger';
+			a.textContent = texto;
+			a.style.display = 'block';
+		}
+
+		function enviar(url, datos, recargar) {
+			fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': token() }, body: new URLSearchParams(datos) })
+				.then(r => r.json().then(body => ({ status: r.status, body })))
+				.then(res => {
+					if (res.status === 200) {
+						mostrar(res.body.mensaje, true);
+						if (recargar) setTimeout(() => window.location.reload(), 600);
+					} else {
+						mostrar(res.body.error || 'No se ha podido completar la operación.', false);
+					}
+				})
+				.catch(err => { console.error(err); mostrar('Error de comunicación con el servidor.', false); });
+		}
+
+		function datosFila(tr, categoria) {
+			return {
+				categoria: categoria,
+				edadMin: tr.querySelector('.edad-min').value,
+				edadMax: tr.querySelector('.edad-max').value,
+				orden: tr.querySelector('.orden').value
+			};
+		}
+
+		function guardarFila(btn) {
+			const tr = btn.closest('tr');
+			enviar('/admin/categorias-edad/guardar', datosFila(tr, tr.dataset.categoria), true);
+		}
+
+		function guardarNueva(btn) {
+			const tr = btn.closest('tr');
+			const categoria = document.getElementById('nuevaCategoria').value.trim();
+			if (!categoria) { mostrar('Indica la categoría.', false); return; }
+			enviar('/admin/categorias-edad/guardar', datosFila(tr, categoria), true);
+		}
+
+		function borrarFila(btn) {
+			const tr = btn.closest('tr');
+			if (!confirm('¿Borrar la categoría ' + tr.dataset.categoria + '? Los jugadores de esa edad quedarán sin categoría en la propuesta.')) return;
+			enviar('/admin/categorias-edad/borrar', { categoria: tr.dataset.categoria }, true);
+		}
+	</script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+</body>
+
+</html>

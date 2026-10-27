@@ -163,6 +163,15 @@ public class SecurityConfig {
                                                 .hasAnyRole("SUPER", "ADMIN")
 
                                                 /*
+                                                 * Asistente "Nueva temporada" y categorias por edad:
+                                                 * solo administradores del panel (SUPER y ADMIN).
+                                                 */
+                                                .requestMatchers(
+                                                                "/admin/nueva-temporada/**",
+                                                                "/admin/categorias-edad/**")
+                                                .hasAnyRole("SUPER", "ADMIN")
+
+                                                /*
                                                  * SEC-03: nunca solo authenticated() aqui.
                                                  * Los roles web que existen hoy son SUPER,
                                                  * ENTRENADOR y ADMIN (no hay ningun otro

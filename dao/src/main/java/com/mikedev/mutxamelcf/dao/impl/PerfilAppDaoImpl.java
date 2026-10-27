@@ -112,13 +112,13 @@ public class PerfilAppDaoImpl implements PerfilAppDao {
                         j.APELLIDOS,
                         j.CATEGORIA,
                         j.DEPORTE,
-                        j.EQUIPO,
+                        e.NOMBRE AS EQUIPO,
                         e.ID AS EQUIPO_ID,
                         j.DORSAL,
                         j.POSICION
                     FROM JUGADORES j
                     LEFT JOIN EQUIPO e
-                        ON UPPER(TRIM(e.NOMBRE)) = UPPER(TRIM(j.EQUIPO))
+                        ON e.ID = j.EQUIPO_ID
                     INNER JOIN USUARIOS_APP_JUGADORES uaj
                         ON uaj.JUGADOR_ID = j.ID
                     WHERE uaj.USUARIO_APP_ID = ?
@@ -131,13 +131,13 @@ public class PerfilAppDaoImpl implements PerfilAppDao {
                         j.APELLIDOS,
                         j.CATEGORIA,
                         j.DEPORTE,
-                        j.EQUIPO,
+                        e.NOMBRE AS EQUIPO,
                         e.ID AS EQUIPO_ID,
                         j.DORSAL,
                         j.POSICION
                     FROM JUGADORES j
                     LEFT JOIN EQUIPO e
-                        ON UPPER(TRIM(e.NOMBRE)) = UPPER(TRIM(j.EQUIPO))
+                        ON e.ID = j.EQUIPO_ID
                     INNER JOIN FAMILIARES_JUGADOR fj
                         ON fj.JUGADOR_ID = j.ID
                     INNER JOIN USUARIOS_APP_FAMILIARES uaf

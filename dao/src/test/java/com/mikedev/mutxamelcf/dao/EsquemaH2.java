@@ -50,6 +50,14 @@ public final class EsquemaH2 {
         ejecutar(jdbc, "/h2/personal.sql");
     }
 
+    /**
+     * CATEGORIAS_EDAD y JUGADOR_TEMPORADA (sql/2026-10-29_plantillas_temporada.sql). JUGADORES tiene que existir ya,
+     * con EQUIPO_ID, ANIO_NACIMIENTO y FECHA_BAJA (personal.sql las trae).
+     */
+    public static void crearPlantillas(JdbcTemplate jdbc) {
+        ejecutar(jdbc, "/h2/plantillas_temporada.sql");
+    }
+
     /** El script de ajustes tal cual, para compararlo con el de sql/. */
     public static String ajustes() {
         return leer("/h2/ajustes_post_revision.sql");

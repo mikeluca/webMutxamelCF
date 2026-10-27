@@ -66,7 +66,7 @@ class EstadisticasEquipoServiceImplH2Test {
         jdbc.execute("""
                 CREATE TABLE JUGADORES (
                     ID NUMBER PRIMARY KEY, NOMBRE VARCHAR2(50), APELLIDOS VARCHAR2(50), DORSAL NUMBER,
-                    EQUIPO VARCHAR2(50))""");
+                    EQUIPO VARCHAR2(50), EQUIPO_ID NUMBER, FECHA_BAJA DATE)""");
         jdbc.execute("""
                 CREATE TABLE PARTIDOS (
                     ID NUMBER PRIMARY KEY, EQUIPO_ID NUMBER, DIA DATE, CANCELADO NUMBER(1) DEFAULT 0,
@@ -111,7 +111,10 @@ class EstadisticasEquipoServiceImplH2Test {
     // ---- datos ----------------------------------------------------------------------------
 
     private void jugador(long id, String nombre, String apellidos, Integer dorsal, String equipo) {
-        jdbc.update("INSERT INTO JUGADORES VALUES (?, ?, ?, ?, ?)", id, nombre, apellidos, dorsal, equipo);
+        // El enlace con el equipo es EQUIPO_ID; la columna EQUIPO es solo una copia
+        jdbc.update("INSERT INTO JUGADORES (ID, NOMBRE, APELLIDOS, DORSAL, EQUIPO, EQUIPO_ID)"
+                + " VALUES (?, ?, ?, ?, ?, (SELECT ID FROM EQUIPO WHERE NOMBRE = ?))",
+                id, nombre, apellidos, dorsal, equipo, equipo);
     }
 
     private long partido(long equipoId, LocalDate dia, boolean cancelado, Integer golesFavor, Integer golesContra) {

@@ -46,6 +46,13 @@ public class TemporadaDaoImpl implements TemporadaDao {
         logger.debug("Fin desactivarOtrasTemporadas: filasAfectadas={}", filasAfectadas);
     }
 
+    @Override
+    public boolean activar(Long temporadaId) {
+        boolean activada = jdbcTemplate.update("UPDATE TEMPORADAS SET ACTIVA = 1 WHERE ID = ?", temporadaId) == 1;
+        logger.info("Temporada activada: id={}, activada={}", temporadaId, activada);
+        return activada;
+    }
+
     private boolean insertarTemporada(Temporada temporada) {
         logger.debug("Inicio insertarTemporada: nombre={}", temporada.getNombre());
 

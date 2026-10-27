@@ -24,9 +24,12 @@ public class UsuarioAppVinculoDaoImpl implements UsuarioAppVinculoDao {
     public List<PersonaVinculable> obtenerJugadoresSinCuenta() {
 
         String sql = """
-                SELECT J.ID, J.NOMBRE, J.APELLIDOS, J.EQUIPO
+                SELECT J.ID, J.NOMBRE, J.APELLIDOS, E.NOMBRE AS EQUIPO
                 FROM JUGADORES J
-                WHERE NOT EXISTS (
+                LEFT JOIN EQUIPO E
+                    ON E.ID = J.EQUIPO_ID
+                WHERE J.FECHA_BAJA IS NULL
+                  AND NOT EXISTS (
                     SELECT 1
                     FROM USUARIOS_APP_JUGADORES UAJ
                     WHERE UAJ.JUGADOR_ID = J.ID
@@ -250,8 +253,10 @@ public class UsuarioAppVinculoDaoImpl implements UsuarioAppVinculoDao {
     private VinculoUsuarioApp obtenerVinculoJugador(int usuarioAppId) {
 
         String sql = """
-                SELECT J.ID, J.NOMBRE, J.APELLIDOS, J.EQUIPO
+                SELECT J.ID, J.NOMBRE, J.APELLIDOS, E.NOMBRE AS EQUIPO
                 FROM JUGADORES J
+                LEFT JOIN EQUIPO E
+                    ON E.ID = J.EQUIPO_ID
                 INNER JOIN USUARIOS_APP_JUGADORES UAJ
                     ON UAJ.JUGADOR_ID = J.ID
                 WHERE UAJ.USUARIO_APP_ID = ?

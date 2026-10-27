@@ -44,12 +44,35 @@ class EquipoServiceImplTest {
     @Mock
     private EntrenamientoDao entrenamientoDao;
 
+    @Mock
+    private com.mikedev.mutxamelcf.dao.JugadorTemporadaDao jugadorTemporadaDao;
+
     private EquipoServiceImpl equipoService;
 
     @BeforeEach
     void setUp() {
         equipoService = new EquipoServiceImpl(equipoDao, jugadorService, cuerpoTecnicoService, convocatoriaDao,
-                entrenamientoDao);
+                entrenamientoDao, jugadorTemporadaDao);
+    }
+
+    @Test
+    void eliminarEquipoLanzaExcepcionSiApareceEnLasPlantillasPorTemporada() {
+        Equipo equipo = new Equipo();
+        equipo.setId(1L);
+        equipo.setNombre("Senior A");
+
+        when(equipoDao.obtenerEquipoPorId(1L)).thenReturn(equipo);
+        when(jugadorService.obtenerJugadoresPorEquipo("Senior A")).thenReturn(List.of());
+        when(jugadorTemporadaDao.existenParaEquipo(1L)).thenReturn(true);
+        when(cuerpoTecnicoService.obtenerCuerpoTecnicoPorEquipo("Senior A")).thenReturn(List.of());
+        when(convocatoriaDao.obtenerPorEquipo(1L)).thenReturn(List.of());
+        when(entrenamientoDao.obtenerPorEquipo(1L)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> equipoService.eliminarEquipo(1L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("plantillas por temporada");
+
+        verify(equipoDao, never()).eliminarEquipo(any());
     }
 
     private static EquipoDTO nuevoEquipoDTO() {

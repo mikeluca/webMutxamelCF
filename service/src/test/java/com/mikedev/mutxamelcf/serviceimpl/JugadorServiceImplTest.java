@@ -7,27 +7,39 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Base64;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.EntrenamientoAsistenciaDao;
+import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.dao.JugadorDao;
+import com.mikedev.mutxamelcf.dao.JugadorTemporadaDao;
+import com.mikedev.mutxamelcf.dao.TemporadaDao;
 import com.mikedev.mutxamelcf.dao.JustificacionFaltaEntrenamientoDao;
 import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoEstadisticaJugadorDao;
 import com.mikedev.mutxamelcf.dao.PartidoLiveEventoDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
+import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.FamiliarJugadorDTO;
+import com.mikedev.mutxamelcf.model.HistorialJugadorDTO;
 import com.mikedev.mutxamelcf.model.Jugador;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
 import com.mikedev.mutxamelcf.model.JugadorPublicDTO;
+import com.mikedev.mutxamelcf.model.JugadorTemporada;
+import com.mikedev.mutxamelcf.model.Temporada;
 import com.mikedev.mutxamelcf.service.CuotaJugadorService;
 import com.mikedev.mutxamelcf.service.FamiliarJugadorService;
 
@@ -64,6 +76,17 @@ class JugadorServiceImplTest {
     @Mock
     private JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
 
+    @Mock
+    private EquipoDao equipoDao;
+
+    @Mock
+    private TemporadaDao temporadaDao;
+
+    @Mock
+    private JugadorTemporadaDao jugadorTemporadaDao;
+
+    private static final Clock RELOJ = Clock.fixed(Instant.parse("2026-10-27T10:00:00Z"), ZoneId.of("Europe/Madrid"));
+
     private JugadorServiceImpl jugadorService;
 
     @BeforeEach
@@ -71,7 +94,159 @@ class JugadorServiceImplTest {
         jugadorService = new JugadorServiceImpl(jugadorDao, familiarJugadorService, usuarioAppVinculoDao,
                 cuotaJugadorService, convocatoriaJugadorDao, entrenamientoAsistenciaDao,
                 partidoEstadisticaJugadorDao, partidoLiveEventoDao, justificacionFaltaEntrenamientoDao,
-                justificacionFaltaPartidoDao);
+                justificacionFaltaPartidoDao, equipoDao, temporadaDao, jugadorTemporadaDao, RELOJ);
+    }
+
+    private static Temporada temporadaActiva() {
+        Temporada t = new Temporada();
+        t.setId(3L);
+        t.setNombre("2026-27");
+        return t;
+    }
+
+    private static Jugador jugadorEnEquipo() {
+        Jugador j = new Jugador();
+        j.setId(10L);
+        j.setNombre("Pablo");
+        j.setEquipoId(5L);
+        j.setEquipo("Cadete A");
+        j.setCategoria("Cadete");
+        j.setDorsal(9);
+        return j;
+    }
+
+    @Test
+    void guardarJugadorActualizaLaFilaDeLaTemporadaActiva() {
+        when(jugadorDao.guardarJugador(any(Jugador.class))).thenReturn(true);
+        when(jugadorDao.obtenerPorId(10L)).thenReturn(jugadorEnEquipo());
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporadaActiva());
+
+        JugadorDTO dto = new JugadorDTO();
+        dto.setId(10L);
+        dto.setEquipoId(5L);
+
+        assertThat(jugadorService.guardarJugador(dto)).isTrue();
+
+        ArgumentCaptor<JugadorTemporada> fila = ArgumentCaptor.forClass(JugadorTemporada.class);
+        verify(jugadorTemporadaDao).guardar(fila.capture());
+        assertThat(fila.getValue().getJugadorId()).isEqualTo(10L);
+        assertThat(fila.getValue().getTemporadaId()).isEqualTo(3L);
+        assertThat(fila.getValue().getEquipoId()).isEqualTo(5L);
+        assertThat(fila.getValue().getEquipoNombre()).isEqualTo("Cadete A");
+        assertThat(fila.getValue().getCategoria()).isEqualTo("Cadete");
+        assertThat(fila.getValue().getDorsal()).isEqualTo(9);
+        assertThat(fila.getValue().isBaja()).isFalse();
+    }
+
+    @Test
+    void guardarJugadorSinTemporadaActivaNoToscaLaTabla() {
+        when(jugadorDao.guardarJugador(any(Jugador.class))).thenReturn(true);
+        when(jugadorDao.obtenerPorId(10L)).thenReturn(jugadorEnEquipo());
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(null);
+
+        JugadorDTO dto = new JugadorDTO();
+        dto.setId(10L);
+
+        assertThat(jugadorService.guardarJugador(dto)).isTrue();
+
+        verify(jugadorTemporadaDao, never()).guardar(any());
+    }
+
+    @Test
+    void editarUnJugadorDeBajaNoLeDaEquipo() {
+        Jugador deBaja = new Jugador();
+        deBaja.setId(10L);
+        deBaja.setFechaBaja(LocalDate.of(2026, 6, 30));
+        when(jugadorDao.obtenerPorId(10L)).thenReturn(deBaja);
+        when(jugadorDao.guardarJugador(any(Jugador.class))).thenReturn(true);
+
+        JugadorDTO dto = new JugadorDTO();
+        dto.setId(10L);
+        dto.setEquipoId(5L);
+        dto.setEquipo("Cadete A");
+        dto.setCategoria("Cadete");
+        jugadorService.guardarJugador(dto);
+
+        ArgumentCaptor<Jugador> guardado = ArgumentCaptor.forClass(Jugador.class);
+        verify(jugadorDao).guardarJugador(guardado.capture());
+        assertThat(guardado.getValue().getEquipoId()).isNull();
+        assertThat(guardado.getValue().getEquipo()).isNull();
+    }
+
+    @Test
+    void darDeBajaPonLaFechaDeHoyYMarcaLaFilaDeLaTemporadaActiva() {
+        when(jugadorDao.obtenerPorId(10L)).thenReturn(jugadorEnEquipo());
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporadaActiva());
+
+        jugadorService.darDeBaja(10L);
+
+        ArgumentCaptor<JugadorTemporada> fila = ArgumentCaptor.forClass(JugadorTemporada.class);
+        verify(jugadorTemporadaDao).guardar(fila.capture());
+        assertThat(fila.getValue().isBaja()).isTrue();
+        // La fila conserva el equipo en el que estaba antes de la baja
+        assertThat(fila.getValue().getEquipoId()).isEqualTo(5L);
+        verify(jugadorDao).darDeBaja(10L, LocalDate.of(2026, 10, 27));
+    }
+
+    @Test
+    void darDeBajaAUnJugadorYaDeBajaFalla() {
+        Jugador deBaja = jugadorEnEquipo();
+        deBaja.setFechaBaja(LocalDate.of(2026, 6, 30));
+        when(jugadorDao.obtenerPorId(10L)).thenReturn(deBaja);
+
+        assertThatThrownBy(() -> jugadorService.darDeBaja(10L)).isInstanceOf(IllegalStateException.class);
+
+        verify(jugadorDao, never()).darDeBaja(any(), any());
+    }
+
+    @Test
+    void reactivarAsignaElEquipoYDesmarcaLaBajaEnLaTemporada() {
+        Jugador deBaja = new Jugador();
+        deBaja.setId(10L);
+        deBaja.setFechaBaja(LocalDate.of(2026, 6, 30));
+        Equipo equipo = new Equipo();
+        equipo.setId(5L);
+        equipo.setNombre("Cadete A");
+        equipo.setCategoria("Cadete");
+        equipo.setDeporte("F");
+        when(jugadorDao.obtenerPorId(10L)).thenReturn(deBaja, jugadorEnEquipo());
+        when(equipoDao.obtenerEquipoPorId(5L)).thenReturn(equipo);
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporadaActiva());
+        when(jugadorTemporadaDao.obtener(10L, 3L)).thenReturn(null);
+
+        jugadorService.reactivar(10L, 5L);
+
+        verify(jugadorDao).reactivar(10L, 5L, "Cadete A", "Cadete", "F");
+        ArgumentCaptor<JugadorTemporada> fila = ArgumentCaptor.forClass(JugadorTemporada.class);
+        verify(jugadorTemporadaDao).guardar(fila.capture());
+        assertThat(fila.getValue().isBaja()).isFalse();
+        assertThat(fila.getValue().getEquipoId()).isEqualTo(5L);
+    }
+
+    @Test
+    void reactivarSinEquipoFalla() {
+        Jugador deBaja = new Jugador();
+        deBaja.setId(10L);
+        deBaja.setFechaBaja(LocalDate.of(2026, 6, 30));
+        when(jugadorDao.obtenerPorId(10L)).thenReturn(deBaja);
+
+        assertThatThrownBy(() -> jugadorService.reactivar(10L, null)).isInstanceOf(IllegalArgumentException.class);
+
+        verify(jugadorDao, never()).reactivar(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void elHistorialSeDevuelveSinDatosDelJugador() {
+        JugadorTemporada fila = new JugadorTemporada();
+        fila.setTemporadaNombre("2025-26");
+        fila.setEquipoNombre("Infantil A");
+        fila.setCategoria("Infantil");
+        fila.setDorsal(4);
+        fila.setBaja(false);
+        when(jugadorTemporadaDao.listarPorJugador(10L)).thenReturn(List.of(fila));
+
+        assertThat(jugadorService.obtenerHistorial(10L)).containsExactly(
+                new HistorialJugadorDTO("2025-26", "Infantil A", "Infantil", 4, false));
     }
 
     @Test
@@ -164,7 +339,7 @@ class JugadorServiceImplTest {
     @Test
     void obtenerJugadoresPorEquipoDelegaEnElDao() {
         Jugador jugador = new Jugador();
-        when(jugadorDao.obtenerTodosPorEquipo("Senior A")).thenReturn(List.of(jugador));
+        when(jugadorDao.obtenerTodosPorNombreEquipo("Senior A")).thenReturn(List.of(jugador));
 
         assertThat(jugadorService.obtenerJugadoresPorEquipo("Senior A")).hasSize(1);
     }
@@ -189,7 +364,7 @@ class JugadorServiceImplTest {
         jugador.setPosicion("DELANTERO");
         jugador.setFoto(null);
 
-        when(jugadorDao.obtenerTodosPorEquipo("Senior A")).thenReturn(List.of(jugador));
+        when(jugadorDao.obtenerTodosPorNombreEquipo("Senior A")).thenReturn(List.of(jugador));
 
         List<JugadorPublicDTO> resultado = jugadorService.obtenerJugadoresPublicosPorEquipo("Senior A");
 
