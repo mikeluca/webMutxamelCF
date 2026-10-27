@@ -27,7 +27,6 @@ class JugadorDaoImplTest {
         JugadorDaoImpl dao = new JugadorDaoImpl(jdbcTemplate);
 
         Jugador jugador = new Jugador();
-        jugador.setDni("12345678A");
 
         // Sin id no hay nada que buscar: es un alta. El INSERT recupera el id generado con un KeyHolder.
         when(jdbcTemplate.update(any(org.springframework.jdbc.core.PreparedStatementCreator.class),
@@ -46,7 +45,6 @@ class JugadorDaoImplTest {
 
         Jugador jugador = new Jugador();
         jugador.setId(9L);
-        jugador.setDni("12345678A");
 
         when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), eq(9L))).thenReturn(new Jugador());
         // actualizarJugador pasa 11 valores como varargs: hay que igualar el numero exacto de matchers

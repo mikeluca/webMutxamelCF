@@ -44,7 +44,7 @@ public class JugadorDaoImpl implements JugadorDao {
 
 	@Override
 	public boolean guardarJugador(Jugador jugador) {
-		logger.debug("Inicio guardarJugador: id={}, dni={}", jugador.getId(), jugador.getDni());
+		logger.debug("Inicio guardarJugador: id={}", jugador.getId());
 		boolean existe = jugador.getId() != null && obtenerPorId(jugador.getId()) != null;
 		boolean resultado = existe ? actualizarJugador(jugador) : insertarJugador(jugador);
 		logger.debug("Fin guardarJugador: existia={}, resultado={}", existe, resultado);
@@ -52,31 +52,30 @@ public class JugadorDaoImpl implements JugadorDao {
 	}
 
 	public boolean insertarJugador(Jugador jugador) {
-		logger.debug("Inicio insertarJugador: dni={}", jugador.getDni());
-		String sql = "INSERT INTO jugadores (dni, nombre, apellidos, categoria, deporte, dorsal, posicion, equipo, equipo_id,"
-				+ " anio_nacimiento, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		logger.debug("Inicio insertarJugador");
+		String sql = "INSERT INTO jugadores (nombre, apellidos, categoria, deporte, dorsal, posicion, equipo, equipo_id,"
+				+ " anio_nacimiento, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 		KeyHolder claves = new GeneratedKeyHolder();
 		int filas = jdbcTemplate.update(conexion -> {
 			var ps = conexion.prepareStatement(sql, new String[] { "ID" });
-			ps.setString(1, jugador.getDni());
-			ps.setString(2, jugador.getNombre());
-			ps.setString(3, jugador.getApellidos());
-			ps.setString(4, jugador.getCategoria());
-			ps.setString(5, jugador.getDeporte());
-			ps.setObject(6, jugador.getDorsal());
-			ps.setString(7, jugador.getPosicion());
-			ps.setString(8, jugador.getEquipo());
-			ps.setObject(9, jugador.getEquipoId());
-			ps.setObject(10, jugador.getAnioNacimiento());
-			ps.setBytes(11, jugador.getFoto());
+			ps.setString(1, jugador.getNombre());
+			ps.setString(2, jugador.getApellidos());
+			ps.setString(3, jugador.getCategoria());
+			ps.setString(4, jugador.getDeporte());
+			ps.setObject(5, jugador.getDorsal());
+			ps.setString(6, jugador.getPosicion());
+			ps.setString(7, jugador.getEquipo());
+			ps.setObject(8, jugador.getEquipoId());
+			ps.setObject(9, jugador.getAnioNacimiento());
+			ps.setBytes(10, jugador.getFoto());
 			return ps;
 		}, claves);
 
 		if (filas == 1 && claves.getKey() != null) {
 			jugador.setId(claves.getKey().longValue());
 		}
-		logger.info("Jugador insertado: dni={}, id={}, insertado={}", jugador.getDni(), jugador.getId(), filas == 1);
+		logger.info("Jugador insertado: id={}, insertado={}", jugador.getId(), filas == 1);
 		logger.debug("Fin insertarJugador: insertado={}", filas == 1);
 		return filas == 1;
 	}

@@ -2,7 +2,7 @@ package com.mikedev.mutxamelcf.model;
 
 /**
  * SEC-10: proyección mínima de JugadorDTO para GET
- * /api/app/equipos/jugadores. JugadorDTO completo incluye DNI, fecha de
+ * /api/app/equipos/jugadores. JugadorDTO completo incluye fecha de
  * nacimiento, nacionalidad, población y la foto duplicada (byte[] foto +
  * fotoBase64); la app de gestión de entrenadores no usa esos datos, así
  * que no hay motivo para exponerlos a través de la API.

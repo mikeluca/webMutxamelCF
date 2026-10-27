@@ -112,7 +112,7 @@ public class AppEquipoGestionController {
                         List<Long> jugadoresIds = equipoGestionDao.obtenerJugadoresPorEquipo(equipoId);
 
                         // SEC-10: se expone JugadorEquipoAppDTO (proyección mínima), no
-                        // JugadorDTO completo -- la app de gestión no necesita DNI, fecha
+                        // JugadorDTO completo -- la app de gestión no necesita fecha
                         // de nacimiento, nacionalidad, población ni la foto en byte[].
                         List<JugadorEquipoAppDTO> jugadores = new ArrayList<>();
 

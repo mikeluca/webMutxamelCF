@@ -2,7 +2,6 @@ package com.mikedev.mutxamelcf.model;
 
 public class Jugador {
 	private Long id;
-	private String dni;
 	private String nombre;
 	private String apellidos;
 	private String categoria;
@@ -18,11 +17,10 @@ public class Jugador {
 	/** Nula mientras el jugador forma parte de la plantilla actual. */
 	private java.time.LocalDate fechaBaja;
 
-	public Jugador(Long id, String dni, String nombre, String apellidos, String categoria, String deporte, String equipo, int dorsal, String posicion,
+	public Jugador(Long id, String nombre, String apellidos, String categoria, String deporte, String equipo, int dorsal, String posicion,
 			byte[] foto) {
 		super();
 		this.setId(id);
-		this.dni = dni;
 		this.nombre = nombre;
 		this.apellidos = apellidos;
 		this.categoria = categoria;
@@ -35,14 +33,6 @@ public class Jugador {
 
 	public Jugador() {
 		super();
-	}
-
-	public String getDni() {
-		return dni;
-	}
-
-	public void setDni(String dni) {
-		this.dni = dni;
 	}
 
 	public String getNombre() {

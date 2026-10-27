@@ -64,7 +64,6 @@ class PersonalDaoH2Test {
 
     private static Jugador jugador() {
         Jugador j = new Jugador();
-        j.setDni("12345678Z");
         j.setNombre("Pablo");
         j.setApellidos("Garcia");
         j.setCategoria("Cadete");
@@ -139,5 +138,27 @@ class PersonalDaoH2Test {
         assertThatThrownBy(() -> jdbc.update(
                 "INSERT INTO jugadores (nombre, fecha_nacimiento, poblacion) VALUES ('a', NULL, 'c')"))
                 .isInstanceOf(DataAccessException.class);
+    }
+
+    @Test
+    void jugadoresNoTieneDniYUnInsertQueLoUseFalla() {
+        assertThatThrownBy(() -> jdbc.queryForList("SELECT DNI FROM JUGADORES"))
+                .isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO jugadores (dni, nombre) VALUES ('12345678Z', 'a')"))
+                .isInstanceOf(DataAccessException.class);
+    }
+
+    @Test
+    void elAltaDeJugadorConFotoYSinFotoFuncionaYDevuelveElId() {
+        Jugador conFoto = jugador();
+        assertThat(jugadorDao.guardarJugador(conFoto)).isTrue();
+        assertThat(conFoto.getId()).isNotNull();
+        assertThat(jugadorDao.obtenerPorId(conFoto.getId()).getFoto()).containsExactly(4, 5);
+
+        Jugador sinFoto = jugador();
+        sinFoto.setFoto(null);
+        assertThat(jugadorDao.guardarJugador(sinFoto)).isTrue();
+        assertThat(sinFoto.getId()).isNotNull().isNotEqualTo(conFoto.getId());
+        assertThat(jugadorDao.obtenerPorId(sinFoto.getId()).getFoto()).isNull();
     }
 }

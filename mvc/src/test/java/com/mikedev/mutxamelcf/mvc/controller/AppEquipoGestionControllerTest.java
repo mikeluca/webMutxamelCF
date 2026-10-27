@@ -93,7 +93,7 @@ class AppEquipoGestionControllerTest {
 
     @Test
     void obtenerJugadoresDevuelveElDtoMinimoSinDatosDeMenoresDeMas() {
-        // SEC-10: la API de gestion de entrenadores no debe exponer DNI,
+        // SEC-10: la API de gestion de entrenadores no debe exponer
         // fecha de nacimiento, nacionalidad ni poblacion del jugador.
         setUp();
         when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
@@ -104,7 +104,6 @@ class AppEquipoGestionControllerTest {
         jugadorCompleto.setId(10L);
         jugadorCompleto.setNombre("Ana");
         jugadorCompleto.setApellidos("Garcia");
-        jugadorCompleto.setDni("12345678A");
         jugadorCompleto.setDorsal(7);
         jugadorCompleto.setPosicion("Delantera");
         when(jugadorService.obtenerJugadorPorId(10L)).thenReturn(jugadorCompleto);

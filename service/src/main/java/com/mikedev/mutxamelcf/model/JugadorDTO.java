@@ -2,7 +2,6 @@ package com.mikedev.mutxamelcf.model;
 
 public class JugadorDTO {
 	private Long id;
-	private String dni;
 	private String nombre;
 	private String apellidos;
 	private String categoria;
@@ -17,11 +16,10 @@ public class JugadorDTO {
 	private Integer anioNacimiento;
 	private java.time.LocalDate fechaBaja;
 
-	public JugadorDTO(Long id, String dni, String nombre, String apellidos, String categoria, String deporte, String equipo, int dorsal, String posicion,
+	public JugadorDTO(Long id, String nombre, String apellidos, String categoria, String deporte, String equipo, int dorsal, String posicion,
 			byte[] foto) {
 		super();
 		this.setId(id);
-		this.dni = dni;
 		this.nombre = nombre;
 		this.apellidos = apellidos;
 		this.categoria = categoria;
@@ -34,14 +32,6 @@ public class JugadorDTO {
 
 	public JugadorDTO() {
 		super();
-	}
-
-	public String getDni() {
-		return dni;
-	}
-
-	public void setDni(String dni) {
-		this.dni = dni;
 	}
 
 	public String getNombre() {
