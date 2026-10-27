@@ -31,11 +31,9 @@ class CuerpoTecnicoDaoImplTest {
         CuerpoTecnico staff = new CuerpoTecnico();
         staff.setNombre("Ana");
 
-        when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), isNull()))
-                .thenThrow(new EmptyResultDataAccessException(1));
-        // insertarCuerpoTecnico pasa 7 valores como varargs
-        when(jdbcTemplate.update(anyString(), any(), any(), any(), any(), any(), any(), any()))
-                .thenReturn(1);
+        // Sin id no hay nada que buscar: es un alta. El INSERT recupera el id generado con un KeyHolder.
+        when(jdbcTemplate.update(any(org.springframework.jdbc.core.PreparedStatementCreator.class),
+                any(org.springframework.jdbc.support.KeyHolder.class))).thenReturn(1);
 
         assertThat(dao.guardar(staff)).isTrue();
     }
@@ -135,7 +133,8 @@ class CuerpoTecnicoDaoImplTest {
 
         dao.eliminar(6L);
 
-        verify(jdbcTemplate).update(anyString(), eq(6L));
+        // Primero sus filas de CUERPO_TECNICO_EQUIPO y luego la ficha
+        verify(jdbcTemplate, org.mockito.Mockito.times(2)).update(anyString(), eq(6L));
     }
 
     @Test

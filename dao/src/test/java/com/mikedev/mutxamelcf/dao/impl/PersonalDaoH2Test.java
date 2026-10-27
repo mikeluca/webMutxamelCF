@@ -31,8 +31,10 @@ class PersonalDaoH2Test {
                 "jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=Oracle;DB_CLOSE_DELAY=-1", "sa", ""));
         EsquemaH2.crearPersonal(jdbc);
         // JugadorDaoImpl lee el equipo de EQUIPO (por EQUIPO_ID)
-        jdbc.execute("CREATE TABLE EQUIPO (ID NUMBER PRIMARY KEY, NOMBRE VARCHAR2(100), CATEGORIA VARCHAR2(100))");
+        jdbc.execute("CREATE TABLE EQUIPO (ID NUMBER PRIMARY KEY, NOMBRE VARCHAR2(100), CATEGORIA VARCHAR2(100),"
+                + " DEPORTE VARCHAR2(10), ORDEN VARCHAR2(5))");
         jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE, CATEGORIA) VALUES (1, 'Cadete A', 'Cadete')");
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE, CATEGORIA) VALUES (2, 'Cadete B', 'Cadete')");
 
         cuerpoTecnicoDao = new CuerpoTecnicoDaoImpl(jdbc);
         jugadorDao = new JugadorDaoImpl(jdbc);
@@ -78,22 +80,30 @@ class PersonalDaoH2Test {
 
     @Test
     void altaYEdicionDeCuerpoTecnico() {
-        assertThat(cuerpoTecnicoDao.guardar(cuerpoTecnico())).isTrue();
+        CuerpoTecnico nuevo = cuerpoTecnico();
+        assertThat(cuerpoTecnicoDao.guardar(nuevo)).isTrue();
+        assertThat(nuevo.getId()).isNotNull();
+        cuerpoTecnicoDao.reemplazarEquipos(nuevo.getId(),
+                java.util.List.of(new com.mikedev.mutxamelcf.model.CuerpoTecnicoEquipo(1L, null)));
 
         CuerpoTecnico alta = cuerpoTecnicoDao.obtenerTodos().get(0);
         assertThat(alta.getNombre()).isEqualTo("Ana");
         assertThat(alta.getPuesto()).isEqualTo("Entrenador");
         assertThat(alta.getFoto()).containsExactly(1, 2, 3);
+        assertThat(alta.getEquipos()).extracting(e -> e.getEquipoNombre()).containsExactly("Cadete A");
 
         alta.setPuesto("Segundo entrenador");
-        alta.setEquipo("Cadete B");
         assertThat(cuerpoTecnicoDao.guardar(alta)).isTrue();
+        cuerpoTecnicoDao.reemplazarEquipos(alta.getId(),
+                java.util.List.of(new com.mikedev.mutxamelcf.model.CuerpoTecnicoEquipo(2L, null)));
 
         assertThat(cuerpoTecnicoDao.obtenerTodos()).hasSize(1);
         CuerpoTecnico editado = cuerpoTecnicoDao.obtenerPorId(alta.getId());
         assertThat(editado.getPuesto()).isEqualTo("Segundo entrenador");
-        assertThat(editado.getEquipo()).isEqualTo("Cadete B");
+        // El equipo sale de la tabla intermedia (por EQUIPO_ID), no de la copia CUERPO_TECNICO.EQUIPO
+        assertThat(editado.getEquipos()).extracting(e -> e.getEquipoNombre()).containsExactly("Cadete B");
         assertThat(cuerpoTecnicoDao.obtenerTodosPorEquipo("Cadete B")).hasSize(1);
+        assertThat(cuerpoTecnicoDao.obtenerTodosPorEquipo("Cadete A")).isEmpty();
         assertThat(cuerpoTecnicoDao.obtenerTodosPorCategoria("Cadete")).hasSize(1);
     }
 

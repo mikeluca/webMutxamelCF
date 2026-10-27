@@ -66,11 +66,10 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
                         EXISTS (
                             SELECT 1
                             FROM USUARIOS_APP_CUERPO_TECNICO UACT
-                            INNER JOIN CUERPO_TECNICO CT
-                                ON CT.ID = UACT.CUERPO_TECNICO_ID
+                            INNER JOIN CUERPO_TECNICO_EQUIPO CTE
+                                ON CTE.CUERPO_TECNICO_ID = UACT.CUERPO_TECNICO_ID
                             WHERE UACT.USUARIO_APP_ID = ?
-                              AND UPPER(TRIM(CT.EQUIPO))
-                                  = UPPER(TRIM(E.NOMBRE))
+                              AND CTE.EQUIPO_ID = E.ID
                         )
                   )
                 """;
@@ -170,10 +169,10 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
                 FROM USUARIOS_APP U
                 INNER JOIN USUARIOS_APP_CUERPO_TECNICO UACT
                     ON UACT.USUARIO_APP_ID = U.ID
-                INNER JOIN CUERPO_TECNICO CT
-                    ON CT.ID = UACT.CUERPO_TECNICO_ID
+                INNER JOIN CUERPO_TECNICO_EQUIPO CTE
+                    ON CTE.CUERPO_TECNICO_ID = UACT.CUERPO_TECNICO_ID
                 INNER JOIN EQUIPO E
-                    ON UPPER(TRIM(CT.EQUIPO)) = UPPER(TRIM(E.NOMBRE))
+                    ON E.ID = CTE.EQUIPO_ID
                 INNER JOIN USUARIOS_APP_ROLES UAR
                     ON UAR.USUARIO_APP_ID = U.ID
                 INNER JOIN ROLES_APP R

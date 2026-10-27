@@ -82,6 +82,7 @@ class PlantillaPorEquipoIdH2Test {
         jdbc.update("INSERT INTO FAMILIARES_JUGADOR VALUES (50, 11)");
         jdbc.update("INSERT INTO USUARIOS_APP_FAMILIARES VALUES (102, 50)");
         jdbc.update("INSERT INTO CUERPO_TECNICO (ID, NOMBRE, APELLIDOS, CATEGORIA, EQUIPO) VALUES (1, 'Ana', 'Ruiz', 'Cadete', 'Cadete A')");
+        jdbc.update("INSERT INTO CUERPO_TECNICO_EQUIPO (CUERPO_TECNICO_ID, EQUIPO_ID) VALUES (1, 1)");
         jdbc.update("INSERT INTO USUARIOS_APP_CUERPO_TECNICO VALUES (103, 1)");
 
         gestion = new EquipoGestionDaoImpl(jdbc);

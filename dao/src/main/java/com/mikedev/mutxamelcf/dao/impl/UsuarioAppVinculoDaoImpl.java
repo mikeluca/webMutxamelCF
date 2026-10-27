@@ -69,7 +69,11 @@ public class UsuarioAppVinculoDaoImpl implements UsuarioAppVinculoDao {
     public List<PersonaVinculable> obtenerCuerpoTecnicoSinCuenta() {
 
         String sql = """
-                SELECT CT.ID, CT.NOMBRE, CT.APELLIDOS, CT.EQUIPO
+                SELECT CT.ID, CT.NOMBRE, CT.APELLIDOS,
+                       (SELECT LISTAGG(E.NOMBRE, ', ') WITHIN GROUP (ORDER BY E.NOMBRE)
+                          FROM CUERPO_TECNICO_EQUIPO CTE
+                          INNER JOIN EQUIPO E ON E.ID = CTE.EQUIPO_ID
+                         WHERE CTE.CUERPO_TECNICO_ID = CT.ID) AS EQUIPO
                 FROM CUERPO_TECNICO CT
                 WHERE NOT EXISTS (
                     SELECT 1
@@ -335,12 +339,16 @@ public class UsuarioAppVinculoDaoImpl implements UsuarioAppVinculoDao {
          * detalle junta los nombres de todos los equipos.
          */
         String sql = """
-                SELECT CT.ID, CT.NOMBRE, CT.APELLIDOS, CT.EQUIPO
+                SELECT CT.ID, CT.NOMBRE, CT.APELLIDOS,
+                       (SELECT LISTAGG(E.NOMBRE, ', ') WITHIN GROUP (ORDER BY E.NOMBRE)
+                          FROM CUERPO_TECNICO_EQUIPO CTE
+                          INNER JOIN EQUIPO E ON E.ID = CTE.EQUIPO_ID
+                         WHERE CTE.CUERPO_TECNICO_ID = CT.ID) AS EQUIPO
                 FROM CUERPO_TECNICO CT
                 INNER JOIN USUARIOS_APP_CUERPO_TECNICO UACT
                     ON UACT.CUERPO_TECNICO_ID = CT.ID
                 WHERE UACT.USUARIO_APP_ID = ?
-                ORDER BY CT.EQUIPO
+                ORDER BY CT.APELLIDOS, CT.NOMBRE
                 """;
 
         List<VinculoUsuarioApp> filas = jdbcTemplate.query(

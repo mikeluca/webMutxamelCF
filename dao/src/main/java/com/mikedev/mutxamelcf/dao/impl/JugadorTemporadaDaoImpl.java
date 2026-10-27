@@ -107,6 +107,13 @@ public class JugadorTemporadaDaoImpl implements JugadorTemporadaDao {
 	}
 
 	@Override
+	public int contarPorTemporada(Long temporadaId) {
+		Integer total = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM JUGADOR_TEMPORADA WHERE TEMPORADA_ID = ?",
+				Integer.class, temporadaId);
+		return total == null ? 0 : total;
+	}
+
+	@Override
 	public int contarPendientes(Long temporadaId) {
 		Integer total = jdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM JUGADOR_TEMPORADA WHERE TEMPORADA_ID = ? AND PENDIENTE_REVISION = 1",

@@ -284,13 +284,10 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
         String sql = """
                 SELECT COUNT(*)
                 FROM USUARIOS_APP_CUERPO_TECNICO uct
-                INNER JOIN CUERPO_TECNICO ct
-                    ON ct.ID = uct.CUERPO_TECNICO_ID
-                INNER JOIN EQUIPO e
-                    ON UPPER(TRIM(e.NOMBRE)) =
-                       UPPER(TRIM(ct.EQUIPO))
+                INNER JOIN CUERPO_TECNICO_EQUIPO cte
+                    ON cte.CUERPO_TECNICO_ID = uct.CUERPO_TECNICO_ID
                 WHERE uct.USUARIO_APP_ID = ?
-                  AND e.ID = ?
+                  AND cte.EQUIPO_ID = ?
                 """;
 
         Integer count = jdbcTemplate.queryForObject(
@@ -344,11 +341,10 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
         String sql = """
                 SELECT DISTINCT e.ID
                 FROM USUARIOS_APP_CUERPO_TECNICO uct
-                INNER JOIN CUERPO_TECNICO ct
-                    ON ct.ID = uct.CUERPO_TECNICO_ID
+                INNER JOIN CUERPO_TECNICO_EQUIPO cte
+                    ON cte.CUERPO_TECNICO_ID = uct.CUERPO_TECNICO_ID
                 INNER JOIN EQUIPO e
-                    ON UPPER(TRIM(e.NOMBRE)) =
-                       UPPER(TRIM(ct.EQUIPO))
+                    ON e.ID = cte.EQUIPO_ID
                 WHERE uct.USUARIO_APP_ID = ?
                 ORDER BY e.ID
                 """;
@@ -568,12 +564,9 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                             /* CUERPO TÉCNICO */
                             SELECT uct.USUARIO_APP_ID
                             FROM USUARIOS_APP_CUERPO_TECNICO uct
-                            INNER JOIN CUERPO_TECNICO ct
-                                ON ct.ID = uct.CUERPO_TECNICO_ID
-                            INNER JOIN EQUIPO e
-                                ON UPPER(TRIM(e.NOMBRE))
-                                 = UPPER(TRIM(ct.EQUIPO))
-                            WHERE e.ID = ?
+                            INNER JOIN CUERPO_TECNICO_EQUIPO cte
+                                ON cte.CUERPO_TECNICO_ID = uct.CUERPO_TECNICO_ID
+                            WHERE cte.EQUIPO_ID = ?
 
                         )
                         """,
@@ -625,9 +618,11 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                             /* CUERPO TÉCNICO */
                             SELECT uct.USUARIO_APP_ID
                             FROM USUARIOS_APP_CUERPO_TECNICO uct
-                            INNER JOIN CUERPO_TECNICO ct
-                                ON ct.ID = uct.CUERPO_TECNICO_ID
-                            WHERE UPPER(TRIM(ct.CATEGORIA))
+                            INNER JOIN CUERPO_TECNICO_EQUIPO cte
+                                ON cte.CUERPO_TECNICO_ID = uct.CUERPO_TECNICO_ID
+                            INNER JOIN EQUIPO ce
+                                ON ce.ID = cte.EQUIPO_ID
+                            WHERE UPPER(TRIM(ce.CATEGORIA))
                                 = UPPER(TRIM(?))
 
                         )
@@ -782,13 +777,10 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                                     ON J.ID = UAJ.JUGADOR_ID
                                 INNER JOIN USUARIOS_APP_CUERPO_TECNICO UCT
                                     ON UCT.USUARIO_APP_ID = ?
-                                INNER JOIN CUERPO_TECNICO CT
-                                    ON CT.ID = UCT.CUERPO_TECNICO_ID
-                                INNER JOIN EQUIPO E
-                                    ON UPPER(TRIM(E.NOMBRE)) =
-                                       UPPER(TRIM(CT.EQUIPO))
+                                INNER JOIN CUERPO_TECNICO_EQUIPO CTE
+                                    ON CTE.CUERPO_TECNICO_ID = UCT.CUERPO_TECNICO_ID
                                 WHERE UAJ.USUARIO_APP_ID = U.ID
-                                  AND E.ID = J.EQUIPO_ID
+                                  AND CTE.EQUIPO_ID = J.EQUIPO_ID
                                   AND J.FECHA_BAJA IS NULL
                             )
 
@@ -804,13 +796,10 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                                     ON J.ID = FJ.JUGADOR_ID
                                 INNER JOIN USUARIOS_APP_CUERPO_TECNICO UCT
                                     ON UCT.USUARIO_APP_ID = ?
-                                INNER JOIN CUERPO_TECNICO CT
-                                    ON CT.ID = UCT.CUERPO_TECNICO_ID
-                                INNER JOIN EQUIPO E
-                                    ON UPPER(TRIM(E.NOMBRE)) =
-                                       UPPER(TRIM(CT.EQUIPO))
+                                INNER JOIN CUERPO_TECNICO_EQUIPO CTE
+                                    ON CTE.CUERPO_TECNICO_ID = UCT.CUERPO_TECNICO_ID
                                 WHERE UAF.USUARIO_APP_ID = U.ID
-                                  AND E.ID = J.EQUIPO_ID
+                                  AND CTE.EQUIPO_ID = J.EQUIPO_ID
                                   AND J.FECHA_BAJA IS NULL
                             )
                       )
@@ -848,17 +837,14 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                             OR U.ID IN (
                                 SELECT DISTINCT UCT.USUARIO_APP_ID
                                 FROM USUARIOS_APP_CUERPO_TECNICO UCT
-                                INNER JOIN CUERPO_TECNICO CT
-                                    ON CT.ID = UCT.CUERPO_TECNICO_ID
+                                INNER JOIN CUERPO_TECNICO_EQUIPO CTE
+                                    ON CTE.CUERPO_TECNICO_ID = UCT.CUERPO_TECNICO_ID
                                 INNER JOIN USUARIOS_APP_JUGADORES UAJ
                                     ON UAJ.USUARIO_APP_ID = ?
                                 INNER JOIN JUGADORES J
                                     ON J.ID = UAJ.JUGADOR_ID
-                                INNER JOIN EQUIPO JE
-                                    ON JE.ID = J.EQUIPO_ID
                                 WHERE UCT.USUARIO_APP_ID = U.ID
-                                  AND UPPER(TRIM(CT.EQUIPO)) =
-                                      UPPER(TRIM(JE.NOMBRE))
+                                  AND CTE.EQUIPO_ID = J.EQUIPO_ID
                                   AND J.FECHA_BAJA IS NULL
                             )
                       )
@@ -896,19 +882,16 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                             OR U.ID IN (
                                 SELECT DISTINCT UCT.USUARIO_APP_ID
                                 FROM USUARIOS_APP_CUERPO_TECNICO UCT
-                                INNER JOIN CUERPO_TECNICO CT
-                                    ON CT.ID = UCT.CUERPO_TECNICO_ID
+                                INNER JOIN CUERPO_TECNICO_EQUIPO CTE
+                                    ON CTE.CUERPO_TECNICO_ID = UCT.CUERPO_TECNICO_ID
                                 INNER JOIN USUARIOS_APP_FAMILIARES UAF
                                     ON UAF.USUARIO_APP_ID = ?
                                 INNER JOIN FAMILIARES_JUGADOR FJ
                                     ON FJ.FAMILIAR_ID = UAF.FAMILIAR_ID
                                 INNER JOIN JUGADORES J
                                     ON J.ID = FJ.JUGADOR_ID
-                                INNER JOIN EQUIPO JE
-                                    ON JE.ID = J.EQUIPO_ID
                                 WHERE UCT.USUARIO_APP_ID = U.ID
-                                  AND UPPER(TRIM(CT.EQUIPO)) =
-                                      UPPER(TRIM(JE.NOMBRE))
+                                  AND CTE.EQUIPO_ID = J.EQUIPO_ID
                                   AND J.FECHA_BAJA IS NULL
                             )
                       )

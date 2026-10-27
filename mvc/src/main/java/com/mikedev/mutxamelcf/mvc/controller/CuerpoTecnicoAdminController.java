@@ -1,5 +1,6 @@
 package com.mikedev.mutxamelcf.mvc.controller;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,11 +17,14 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoDTO;
+import com.mikedev.mutxamelcf.model.CuerpoTecnicoEquipoDTO;
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoForm;
 import com.mikedev.mutxamelcf.model.EquipoDTO;
+import com.mikedev.mutxamelcf.model.FusionFichasDTO;
 import com.mikedev.mutxamelcf.service.CuerpoTecnicoService;
 import com.mikedev.mutxamelcf.service.EquipoService;
 
@@ -78,19 +82,27 @@ public class CuerpoTecnicoAdminController {
 			staff.setNombre(cuerpoTecnicoForm.getNombre());
 			staff.setApellidos(cuerpoTecnicoForm.getApellidos());
 
-			EquipoDTO e = equiposService.obtenerEquipoPorId(cuerpoTecnicoForm.getEquipo());
-			if (e == null) {
-				logger.warn("Equipo inexistente al guardar cuerpo tecnico: equipoId={}", cuerpoTecnicoForm.getEquipo());
-				response.put("error", "El equipo seleccionado no existe.");
-				logger.debug("Fin guardarCuerpoTecnico: resultado=EQUIPO_INVALIDO");
-				return ResponseEntity.badRequest().body(response);
-			}
-
-			staff.setCategoria(e.getCategoria());
-			staff.setEquipo(e.getNombre());
-			staff.setDeporte(e.getDeporte());
-
 			staff.setPuesto(cuerpoTecnicoForm.getPuesto());
+
+			// Equipos de la ficha (puede no haber ninguno), cada uno con su "puesto en este equipo" opcional
+			List<CuerpoTecnicoEquipoDTO> equipos = new ArrayList<>();
+			List<Long> equipoIds = cuerpoTecnicoForm.getEquipoIds();
+			List<String> puestos = cuerpoTecnicoForm.getPuestosEquipo();
+			for (int i = 0; i < equipoIds.size(); i++) {
+				Long equipoId = equipoIds.get(i);
+				if (equipoId == null) {
+					continue;
+				}
+				if (equiposService.obtenerEquipoPorId(equipoId) == null) {
+					logger.warn("Equipo inexistente al guardar cuerpo tecnico: equipoId={}", equipoId);
+					response.put("error", "El equipo seleccionado no existe.");
+					logger.debug("Fin guardarCuerpoTecnico: resultado=EQUIPO_INVALIDO");
+					return ResponseEntity.badRequest().body(response);
+				}
+				equipos.add(new CuerpoTecnicoEquipoDTO(equipoId, null, null, i < puestos.size() ? puestos.get(i) : null,
+						null));
+			}
+			staff.setEquipos(equipos);
 
 			// Si hay una foto cargada, validarla y convertirla a byte[]
 			if (!cuerpoTecnicoForm.getFoto().isEmpty()) {
@@ -122,6 +134,10 @@ public class CuerpoTecnicoAdminController {
 				logger.debug("Fin guardarCuerpoTecnico: resultado=FALLIDO");
 				return ResponseEntity.badRequest().body(response);
 			}
+		} catch (IllegalArgumentException e) {
+			logger.warn("Datos de cuerpo tecnico no validos: {}", e.getMessage());
+			response.put("error", e.getMessage());
+			return ResponseEntity.badRequest().body(response);
 		} catch (DataAccessException e) {
 			logger.error("Error de base de datos al guardar el cuerpo técnico: {}", e.getMessage(), e);
 			response.put("error", MENSAJE_ERROR_BASE_DE_DATOS);
@@ -131,6 +147,45 @@ public class CuerpoTecnicoAdminController {
 			logger.error("Error al guardar el cuerpo técnico: {}", e.getMessage(), e);
 			response.put("error", "Error al guardar el cuerpo técnico");
 			logger.debug("Fin guardarCuerpoTecnico: resultado=ERROR");
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+		}
+	}
+
+	/**
+	 * Fusionar fichas: lo que pasaría, sin cambiar nada. Solo administradores del panel (ver SecurityConfig).
+	 */
+	@PostMapping("/cuerpo-tecnico/fusionar/resumen")
+	@ResponseBody
+	public ResponseEntity<?> resumenFusion(@RequestParam("conservar") Long conservar,
+			@RequestParam(name = "duplicadas", required = false) List<Long> duplicadas) {
+		try {
+			FusionFichasDTO resumen = cuerpoTecnicoService.resumenFusion(conservar, duplicadas);
+			return ResponseEntity.ok(resumen);
+		} catch (IllegalArgumentException e) {
+			Map<String, String> response = new HashMap<>();
+			response.put("error", e.getMessage());
+			return ResponseEntity.badRequest().body(response);
+		}
+	}
+
+	/** Fusionar fichas, en una sola transacción. Solo administradores del panel (ver SecurityConfig). */
+	@PostMapping("/cuerpo-tecnico/fusionar")
+	@ResponseBody
+	public ResponseEntity<Map<String, String>> fusionar(@RequestParam("conservar") Long conservar,
+			@RequestParam(name = "duplicadas", required = false) List<Long> duplicadas) {
+		logger.debug("Inicio fusionar: conservar={}, duplicadas={}", conservar, duplicadas);
+		Map<String, String> response = new HashMap<>();
+		try {
+			cuerpoTecnicoService.fusionarFichas(conservar, duplicadas);
+			response.put("mensaje", "Fichas fusionadas correctamente.");
+			return ResponseEntity.ok(response);
+		} catch (IllegalArgumentException | IllegalStateException e) {
+			logger.warn("No se han podido fusionar las fichas: {}", e.getMessage());
+			response.put("error", e.getMessage());
+			return ResponseEntity.badRequest().body(response);
+		} catch (DataAccessException e) {
+			logger.error("Error de base de datos al fusionar fichas: {}", e.getMessage(), e);
+			response.put("error", "No se han podido fusionar las fichas: error de base de datos. No se ha cambiado nada.");
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
 	}

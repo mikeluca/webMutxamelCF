@@ -21,5 +21,21 @@ public interface TemporadaService {
 
     List<TemporadaDTO> obtenerTodos();
 
-    void eliminar(Long id);
+    /**
+     * Borra la temporada.
+     * <ul>
+     * <li>Activa, o que ya estuvo activa (tiene plantillas): no se puede. {@link IllegalStateException}
+     * "Esta temporada tiene historial de plantillas y no se puede borrar".</li>
+     * <li>Futura con borrador del asistente: hace falta {@code confirmarBorrador}; si no,
+     * {@link com.mikedev.mutxamelcf.model.BorradorPlantillasException}. Con confirmación, el borrador se borra en la
+     * misma transacción, antes que la temporada.</li>
+     * <li>Sin plantillas: se borra.</li>
+     * </ul>
+     * Un error de integridad con otros datos (cuotas, conceptos...) se convierte en un {@link IllegalStateException}
+     * con mensaje claro.
+     */
+    void eliminar(Long id, boolean confirmarBorrador);
+
+    /** Cuántos jugadores tiene la temporada en JUGADOR_TEMPORADA (historial o borrador). */
+    int jugadoresConBorrador(Long id);
 }

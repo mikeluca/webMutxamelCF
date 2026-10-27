@@ -10,6 +10,8 @@ public class CuerpoTecnicoDTO {
 	private String equipo;
 	private byte[] foto;
 	private String fotoBase64;
+	/** Equipos de la ficha; el puesto general es {@link #puesto}. */
+	private java.util.List<CuerpoTecnicoEquipoDTO> equipos = new java.util.ArrayList<>();
 
 	public CuerpoTecnicoDTO(Long id, String nombre, String apellidos, String categoria, String deporte, String equipo, String puesto,
 			byte[] foto) {
@@ -90,6 +92,14 @@ public class CuerpoTecnicoDTO {
 
 	public void setDeporte(String deporte) {
 		this.deporte = deporte;
+	}
+
+	public java.util.List<CuerpoTecnicoEquipoDTO> getEquipos() {
+		return equipos;
+	}
+
+	public void setEquipos(java.util.List<CuerpoTecnicoEquipoDTO> equipos) {
+		this.equipos = equipos == null ? new java.util.ArrayList<>() : equipos;
 	}
 
 	public Long getId() {

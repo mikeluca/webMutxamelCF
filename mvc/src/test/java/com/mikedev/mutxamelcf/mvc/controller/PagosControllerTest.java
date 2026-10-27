@@ -232,8 +232,58 @@ class PagosControllerTest {
     @Test
     void borrarTemporadaDelegaEnElServicio() {
         RedirectAttributes redirect = redirectAttributes();
-        controller.borrarTemporada(1L, redirect);
-        verify(temporadaService).eliminar(1L);
+        controller.borrarTemporada(1L, false, redirect);
+        verify(temporadaService).eliminar(1L, false);
+    }
+
+    @Test
+    void borrarTemporadaConHistorialMuestraElMensajeClaroEnElPanel() {
+        RedirectAttributes redirect = redirectAttributes();
+        org.mockito.Mockito.doThrow(new IllegalStateException(
+                "Esta temporada tiene historial de plantillas y no se puede borrar"))
+                .when(temporadaService).eliminar(1L, false);
+
+        String vista = controller.borrarTemporada(1L, false, redirect);
+
+        assertEquals("redirect:/admin/pagos/temporadas", vista);
+        assertEquals("Esta temporada tiene historial de plantillas y no se puede borrar",
+                redirect.getFlashAttributes().get("error"));
+        assertEquals(null, redirect.getFlashAttributes().get("mensaje"));
+    }
+
+    @Test
+    void borrarTemporadaConBorradorPideConfirmacionAntesDeBorrarlo() {
+        RedirectAttributes redirect = redirectAttributes();
+        org.mockito.Mockito.doThrow(new com.mikedev.mutxamelcf.model.BorradorPlantillasException(35))
+                .when(temporadaService).eliminar(2L, false);
+
+        controller.borrarTemporada(2L, false, redirect);
+
+        assertEquals(2L, redirect.getFlashAttributes().get("confirmarBorradoId"));
+        assertEquals("Se borrará también el borrador de plantillas de 35 jugadores. ¿Borrar la temporada?",
+                redirect.getFlashAttributes().get("confirmarBorradoMensaje"));
+    }
+
+    @Test
+    void borrarTemporadaConfirmadaPasaLaConfirmacionAlServicio() {
+        RedirectAttributes redirect = redirectAttributes();
+
+        controller.borrarTemporada(2L, true, redirect);
+
+        verify(temporadaService).eliminar(2L, true);
+        assertEquals("Temporada eliminada correctamente.", redirect.getFlashAttributes().get("mensaje"));
+    }
+
+    @Test
+    void borrarTemporadaConUnErrorDeBaseDeDatosNoLlegaComoErrorGenerico() {
+        RedirectAttributes redirect = redirectAttributes();
+        org.mockito.Mockito.doThrow(new org.springframework.dao.DataIntegrityViolationException("ORA-02292"))
+                .when(temporadaService).eliminar(1L, false);
+
+        controller.borrarTemporada(1L, false, redirect);
+
+        assertEquals("No se ha podido borrar la temporada: error de base de datos. Revisa los registros del servidor.",
+                redirect.getFlashAttributes().get("error"));
     }
 
     // ---- conceptos CRUD ----

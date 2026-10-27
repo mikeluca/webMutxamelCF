@@ -64,7 +64,7 @@ class CuerpoTecnicoAdminControllerTest {
     void guardarCuerpoTecnicoDevuelveBadRequestSiElEquipoNoExiste() {
         CuerpoTecnicoForm form = new CuerpoTecnicoForm();
         form.setNombre("Juan");
-        form.setEquipo(99L);
+        form.setEquipoIds(List.of(99L));
         form.setFoto(new MockMultipartFile("foto", new byte[0]));
         when(equiposService.obtenerEquipoPorId(99L)).thenReturn(null);
 
@@ -79,7 +79,7 @@ class CuerpoTecnicoAdminControllerTest {
     void guardarCuerpoTecnicoDevuelveBadRequestSiLaFotoNoEsValida() {
         CuerpoTecnicoForm form = new CuerpoTecnicoForm();
         form.setNombre("Juan");
-        form.setEquipo(1L);
+        form.setEquipoIds(List.of(1L));
         byte[] fotoDemasiadoGrande = new byte[6 * 1024 * 1024];
         form.setFoto(new MockMultipartFile("foto", "foto.jpg", "image/jpeg", fotoDemasiadoGrande));
         when(equiposService.obtenerEquipoPorId(1L)).thenReturn(equipo());
@@ -95,7 +95,7 @@ class CuerpoTecnicoAdminControllerTest {
         CuerpoTecnicoForm form = new CuerpoTecnicoForm();
         form.setId(5L);
         form.setNombre("Juan");
-        form.setEquipo(1L);
+        form.setEquipoIds(List.of(1L));
         form.setFoto(new MockMultipartFile("foto", new byte[0]));
 
         CuerpoTecnicoDTO existente = new CuerpoTecnicoDTO();
@@ -115,7 +115,7 @@ class CuerpoTecnicoAdminControllerTest {
     void guardarCuerpoTecnicoDevuelveBadRequestCuandoElServicioFalla() {
         CuerpoTecnicoForm form = new CuerpoTecnicoForm();
         form.setNombre("Juan");
-        form.setEquipo(1L);
+        form.setEquipoIds(List.of(1L));
         form.setFoto(new MockMultipartFile("foto", new byte[0]));
         when(equiposService.obtenerEquipoPorId(1L)).thenReturn(equipo());
         when(cuerpoTecnicoService.guardarCuerpoTecnico(any())).thenReturn(false);
@@ -130,7 +130,7 @@ class CuerpoTecnicoAdminControllerTest {
     void guardarCuerpoTecnicoConErrorDeBaseDeDatosDiceQueEsDeBaseDeDatos() {
         CuerpoTecnicoForm form = new CuerpoTecnicoForm();
         form.setNombre("Juan");
-        form.setEquipo(1L);
+        form.setEquipoIds(List.of(1L));
         form.setFoto(new MockMultipartFile("foto", new byte[0]));
         when(equiposService.obtenerEquipoPorId(1L)).thenReturn(equipo());
         when(cuerpoTecnicoService.guardarCuerpoTecnico(any()))
@@ -147,7 +147,7 @@ class CuerpoTecnicoAdminControllerTest {
     void guardarCuerpoTecnicoDevuelveOkCuandoTieneExito() {
         CuerpoTecnicoForm form = new CuerpoTecnicoForm();
         form.setNombre("Juan");
-        form.setEquipo(1L);
+        form.setEquipoIds(List.of(1L));
         form.setFoto(new MockMultipartFile("foto", new byte[0]));
         when(equiposService.obtenerEquipoPorId(1L)).thenReturn(equipo());
         when(cuerpoTecnicoService.guardarCuerpoTecnico(any())).thenReturn(true);
@@ -161,7 +161,7 @@ class CuerpoTecnicoAdminControllerTest {
     void guardarCuerpoTecnicoDevuelve500SiElServicioLanzaExcepcion() {
         CuerpoTecnicoForm form = new CuerpoTecnicoForm();
         form.setNombre("Juan");
-        form.setEquipo(1L);
+        form.setEquipoIds(List.of(1L));
         form.setFoto(new MockMultipartFile("foto", new byte[0]));
         when(equiposService.obtenerEquipoPorId(1L)).thenThrow(new RuntimeException("fallo"));
 
@@ -198,5 +198,102 @@ class CuerpoTecnicoAdminControllerTest {
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         assertNull(response.getBody().get("mensaje"));
+    }
+
+    // ---- equipos de la ficha y fusión de fichas ----
+
+    @Test
+    void guardarCuerpoTecnicoPasaLosEquiposConSuPuestoEnEseEquipo() {
+        CuerpoTecnicoForm form = new CuerpoTecnicoForm();
+        form.setNombre("Juan");
+        form.setPuesto("Entrenador");
+        form.setEquipoIds(List.of(1L, 2L));
+        form.setPuestosEquipo(List.of("", "Segundo entrenador"));
+        form.setFoto(new MockMultipartFile("foto", new byte[0]));
+        when(equiposService.obtenerEquipoPorId(1L)).thenReturn(equipo());
+        when(equiposService.obtenerEquipoPorId(2L)).thenReturn(equipo());
+        when(cuerpoTecnicoService.guardarCuerpoTecnico(any())).thenReturn(true);
+
+        controller.guardarCuerpoTecnico(form);
+
+        org.mockito.ArgumentCaptor<CuerpoTecnicoDTO> captor = org.mockito.ArgumentCaptor.forClass(CuerpoTecnicoDTO.class);
+        verify(cuerpoTecnicoService).guardarCuerpoTecnico(captor.capture());
+        assertEquals("Entrenador", captor.getValue().getPuesto());
+        assertEquals(2, captor.getValue().getEquipos().size());
+        assertEquals(1L, captor.getValue().getEquipos().get(0).equipoId());
+        assertEquals("", captor.getValue().getEquipos().get(0).puesto());
+        assertEquals("Segundo entrenador", captor.getValue().getEquipos().get(1).puesto());
+    }
+
+    @Test
+    void guardarCuerpoTecnicoSinEquiposEsValido() {
+        CuerpoTecnicoForm form = new CuerpoTecnicoForm();
+        form.setNombre("Coordinador");
+        form.setFoto(new MockMultipartFile("foto", new byte[0]));
+        when(cuerpoTecnicoService.guardarCuerpoTecnico(any())).thenReturn(true);
+
+        ResponseEntity<Map<String, String>> response = controller.guardarCuerpoTecnico(form);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        org.mockito.ArgumentCaptor<CuerpoTecnicoDTO> captor = org.mockito.ArgumentCaptor.forClass(CuerpoTecnicoDTO.class);
+        verify(cuerpoTecnicoService).guardarCuerpoTecnico(captor.capture());
+        assertEquals(0, captor.getValue().getEquipos().size());
+    }
+
+    @Test
+    void unDatoNoValidoDelServicioEsBadRequestConSuMensaje() {
+        CuerpoTecnicoForm form = new CuerpoTecnicoForm();
+        form.setNombre("Juan");
+        form.setFoto(new MockMultipartFile("foto", new byte[0]));
+        when(cuerpoTecnicoService.guardarCuerpoTecnico(any()))
+                .thenThrow(new IllegalArgumentException("El equipo seleccionado no existe."));
+
+        ResponseEntity<Map<String, String>> response = controller.guardarCuerpoTecnico(form);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("El equipo seleccionado no existe.", response.getBody().get("error"));
+    }
+
+    @Test
+    void fusionarDelegaEnElServicio() {
+        ResponseEntity<Map<String, String>> response = controller.fusionar(10L, List.of(11L, 12L));
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(cuerpoTecnicoService).fusionarFichas(10L, List.of(11L, 12L));
+    }
+
+    @Test
+    void fusionarUnaFichaConsigoMismaEsBadRequest() {
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("No se puede fusionar una ficha consigo misma."))
+                .when(cuerpoTecnicoService).fusionarFichas(10L, List.of(10L));
+
+        ResponseEntity<Map<String, String>> response = controller.fusionar(10L, List.of(10L));
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("No se puede fusionar una ficha consigo misma.", response.getBody().get("error"));
+    }
+
+    @Test
+    void fusionarConUnErrorDeBaseDeDatosDiceQueNoSeHaCambiadoNada() {
+        org.mockito.Mockito.doThrow(new org.springframework.dao.DataIntegrityViolationException("ORA-02292"))
+                .when(cuerpoTecnicoService).fusionarFichas(10L, List.of(11L));
+
+        ResponseEntity<Map<String, String>> response = controller.fusionar(10L, List.of(11L));
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertEquals("No se han podido fusionar las fichas: error de base de datos. No se ha cambiado nada.",
+                response.getBody().get("error"));
+    }
+
+    @Test
+    void elResumenDeLaFusionSeDevuelveSinCambiarNada() {
+        when(cuerpoTecnicoService.resumenFusion(10L, List.of(11L))).thenReturn(
+                new com.mikedev.mutxamelcf.model.FusionFichasDTO("Marcos Ejemplo", List.of("Lucía Prueba"),
+                        List.of("Cadete A"), List.of(), 1));
+
+        ResponseEntity<?> response = controller.resumenFusion(10L, List.of(11L));
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(cuerpoTecnicoService, never()).fusionarFichas(any(), any());
     }
 }

@@ -9,6 +9,8 @@ public class CuerpoTecnico {
 	private String equipo;
 	private String puesto;
 	private byte[] foto;
+	/** Equipos de la ficha (CUERPO_TECNICO_EQUIPO); solo se rellena en las lecturas de ficha completa. */
+	private java.util.List<CuerpoTecnicoEquipo> equipos = new java.util.ArrayList<>();
 
 	public CuerpoTecnico(Long id, String nombre, String apellidos, String categoria, String deporte, String equipo, String puesto, byte[] foto) {
 		super();
@@ -80,6 +82,14 @@ public class CuerpoTecnico {
 
 	public void setDeporte(String deporte) {
 		this.deporte = deporte;
+	}
+
+	public java.util.List<CuerpoTecnicoEquipo> getEquipos() {
+		return equipos;
+	}
+
+	public void setEquipos(java.util.List<CuerpoTecnicoEquipo> equipos) {
+		this.equipos = equipos == null ? new java.util.ArrayList<>() : equipos;
 	}
 
 	public Long getId() {

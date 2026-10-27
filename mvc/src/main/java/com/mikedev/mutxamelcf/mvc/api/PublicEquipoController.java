@@ -69,8 +69,9 @@ public class PublicEquipoController {
             return List.of();
         }
 
+        // Por EQUIPO_ID, a través de CUERPO_TECNICO_EQUIPO; el puesto es el de este equipo
         return cuerpoTecnicoService
-                .obtenerCuerpoTecnicoPublicoPorEquipo(
-                        equipo.getNombre());
+                .obtenerCuerpoTecnicoPublicoPorEquipoId(
+                        equipo.getId());
     }
 }

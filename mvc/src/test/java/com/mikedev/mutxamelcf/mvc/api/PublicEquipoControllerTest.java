@@ -59,6 +59,7 @@ class PublicEquipoControllerTest {
                 mock(CuerpoTecnicoService.class));
 
         EquipoDTO equipo = new EquipoDTO();
+        equipo.setId(1L);
         equipo.setNombre("Senior A");
         when(equipoService.obtenerEquipoPorId(1L)).thenReturn(equipo);
         when(jugadorService.obtenerJugadoresPublicosPorEquipo("Senior A")).thenReturn(List.of(new JugadorPublicDTO()));
@@ -85,9 +86,10 @@ class PublicEquipoControllerTest {
                 cuerpoTecnicoService);
 
         EquipoDTO equipo = new EquipoDTO();
+        equipo.setId(1L);
         equipo.setNombre("Senior A");
         when(equipoService.obtenerEquipoPorId(1L)).thenReturn(equipo);
-        when(cuerpoTecnicoService.obtenerCuerpoTecnicoPublicoPorEquipo("Senior A"))
+        when(cuerpoTecnicoService.obtenerCuerpoTecnicoPublicoPorEquipoId(1L))
                 .thenReturn(List.of(new CuerpoTecnicoPublicDTO()));
 
         assertThat(controller.obtenerCuerpoTecnico(1L)).hasSize(1);

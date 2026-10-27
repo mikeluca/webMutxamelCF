@@ -95,11 +95,11 @@ class AdminControllerTest {
         when(equiposService.obtenerTodos()).thenReturn(List.of(equipo));
 
         CuerpoTecnicoDTO entrenador1 = new CuerpoTecnicoDTO();
-        entrenador1.setCategoria("Senior");
+        entrenador1.setEquipos(List.of(new com.mikedev.mutxamelcf.model.CuerpoTecnicoEquipoDTO(1L, "Senior A", "Senior", null, "Entrenador")));
         entrenador1.setNombre("Juan");
         entrenador1.setApellidos("Perez");
         CuerpoTecnicoDTO entrenador2 = new CuerpoTecnicoDTO();
-        entrenador2.setCategoria("Senior");
+        entrenador2.setEquipos(List.of(new com.mikedev.mutxamelcf.model.CuerpoTecnicoEquipoDTO(1L, "Senior A", "Senior", null, "Entrenador")));
         entrenador2.setNombre("Juan");
         entrenador2.setApellidos("Perez");
         when(cuerpoTecnicoService.obtenerTodos()).thenReturn(List.of(entrenador1, entrenador2));
@@ -116,6 +116,35 @@ class AdminControllerTest {
         assertEquals(1L, resumen.get(0).get("equipos"));
         assertEquals(1L, resumen.get(0).get("jugadores"));
         assertEquals(1, resumen.get(0).get("entrenadores"));
+    }
+
+    @Test
+    void unEntrenadorConEquiposDeVariasCategoriasCuentaEnCadaUnaYUnaSolaVezEnElTotal() {
+        EquipoDTO senior = new EquipoDTO();
+        senior.setCategoria("Senior");
+        senior.setOrden("1");
+        EquipoDTO juvenil = new EquipoDTO();
+        juvenil.setCategoria("Juvenil");
+        juvenil.setOrden("2");
+        when(equiposService.obtenerTodos()).thenReturn(List.of(senior, juvenil));
+        when(jugadoresService.obtenerTodos()).thenReturn(List.of());
+
+        CuerpoTecnicoDTO entrenador = new CuerpoTecnicoDTO();
+        entrenador.setNombre("Juan");
+        entrenador.setApellidos("Perez");
+        entrenador.setEquipos(List.of(
+                new com.mikedev.mutxamelcf.model.CuerpoTecnicoEquipoDTO(1L, "Senior A", "Senior", null, "Entrenador"),
+                new com.mikedev.mutxamelcf.model.CuerpoTecnicoEquipoDTO(2L, "Juvenil A", "Juvenil", null, "Entrenador")));
+        when(cuerpoTecnicoService.obtenerTodos()).thenReturn(List.of(entrenador));
+
+        Model model = new ExtendedModelMap();
+        controller.login(model);
+
+        assertEquals(1L, model.getAttribute("totalEntrenadores"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> resumen = (List<Map<String, Object>>) model.getAttribute("resumenCategorias");
+        assertEquals(1, resumen.get(0).get("entrenadores"));
+        assertEquals(1, resumen.get(1).get("entrenadores"));
     }
 
 }

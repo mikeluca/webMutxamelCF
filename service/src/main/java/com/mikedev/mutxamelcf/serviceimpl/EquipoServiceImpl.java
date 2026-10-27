@@ -79,7 +79,7 @@ public class EquipoServiceImpl implements EquipoService {
 		if (jugadorTemporadaDao.existenParaEquipo(id)) {
 			motivos.add("aparece en las plantillas por temporada (historial o borrador)");
 		}
-		if (!cuerpoTecnicoService.obtenerCuerpoTecnicoPorEquipo(equipo.getNombre()).isEmpty()) {
+		if (cuerpoTecnicoService.equipoTieneCuerpoTecnico(id)) {
 			motivos.add("tiene cuerpo técnico asignado");
 		}
 		if (!convocatoriaDao.obtenerPorEquipo(id).isEmpty()) {

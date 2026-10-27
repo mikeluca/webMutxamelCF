@@ -182,15 +182,15 @@ public class PerfilAppDaoImpl implements PerfilAppDao {
                     ct.ID,
                     ct.NOMBRE,
                     ct.APELLIDOS,
-                    ct.CATEGORIA,
-                    ct.DEPORTE,
-                    ct.EQUIPO,
+                    NULL AS CATEGORIA,
+                    NULL AS DEPORTE,
+                    NULL AS EQUIPO,
                     ct.PUESTO
                 FROM USUARIOS_APP_CUERPO_TECNICO uact
                 INNER JOIN CUERPO_TECNICO ct
                     ON ct.ID = uact.CUERPO_TECNICO_ID
                 WHERE uact.USUARIO_APP_ID = ?
-                ORDER BY ct.EQUIPO, ct.APELLIDOS, ct.NOMBRE
+                ORDER BY ct.APELLIDOS, ct.NOMBRE
                 """;
 
         List<CuerpoTecnico> cuerpoTecnico = jdbcTemplate.query(
@@ -218,11 +218,8 @@ public class PerfilAppDaoImpl implements PerfilAppDao {
                 usuarioAppId);
 
         /*
-         * CUERPO_TECNICO.EQUIPO contiene el nombre del equipo.
-         * EQUIPO.NOMBRE contiene el mismo nombre.
-         *
-         * Utilizamos TRIM + UPPER para evitar problemas por
-         * diferencias de espacios o mayúsculas.
+         * Los equipos de un técnico salen de CUERPO_TECNICO_EQUIPO (un
+         * técnico puede llevar varios), por EQUIPO_ID.
          */
 
         String sql = """
@@ -235,10 +232,10 @@ public class PerfilAppDaoImpl implements PerfilAppDao {
                     e.DEPORTE,
                     e.MODALIDAD
                 FROM USUARIOS_APP_CUERPO_TECNICO uact
-                INNER JOIN CUERPO_TECNICO ct
-                    ON ct.ID = uact.CUERPO_TECNICO_ID
+                INNER JOIN CUERPO_TECNICO_EQUIPO cte
+                    ON cte.CUERPO_TECNICO_ID = uact.CUERPO_TECNICO_ID
                 INNER JOIN EQUIPO e
-                    ON UPPER(TRIM(e.NOMBRE)) = UPPER(TRIM(ct.EQUIPO))
+                    ON e.ID = cte.EQUIPO_ID
                 WHERE uact.USUARIO_APP_ID = ?
                 ORDER BY e.ORDEN, e.NOMBRE
                 """;

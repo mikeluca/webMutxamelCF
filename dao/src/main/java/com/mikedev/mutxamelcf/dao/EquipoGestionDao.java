@@ -24,9 +24,10 @@ public interface EquipoGestionDao {
 
     /**
      * Usuarios app con rol ENTRENADOR asignados como cuerpo técnico del
-     * equipo indicado (mismo criterio de emparejamiento
-     * CUERPO_TECNICO.EQUIPO = EQUIPO.NOMBRE, normalizado con
-     * UPPER/TRIM, que {@link #puedeGestionarEquipo(Long, Long)}).
+     * equipo indicado (mismo criterio que
+     * {@link #puedeGestionarEquipo(Long, Long)}: la tabla intermedia
+     * CUERPO_TECNICO_EQUIPO). Un técnico con varios equipos cuenta una
+     * sola vez por equipo.
      */
     List<Long> obtenerEntrenadoresPorEquipo(Long equipoId);
 

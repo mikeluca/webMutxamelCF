@@ -1,23 +1,26 @@
 package com.mikedev.mutxamelcf.model;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.web.multipart.MultipartFile;
 
 public class CuerpoTecnicoForm {
 	private Long id;
 	private String nombre;
 	private String apellidos;
-	private Long equipo;
+	/** Los equipos de la ficha (puede no haber ninguno). */
+	private List<Long> equipoIds = new ArrayList<>();
+	/**
+	 * "Puesto en este equipo", en el mismo orden que {@link #equipoIds}. Vacío = el puesto general.
+	 */
+	private List<String> puestosEquipo = new ArrayList<>();
+	/** El puesto general de la ficha: vale para todos sus equipos. */
 	private String puesto;
 	private MultipartFile foto;
 
-	public CuerpoTecnicoForm(Long id, String nombre, String apellidos, Long equipo, String puesto, MultipartFile foto) {
+	public CuerpoTecnicoForm() {
 		super();
-		this.id = id;
-		this.nombre = nombre;
-		this.apellidos = apellidos;
-		this.equipo = equipo;
-		this.puesto = puesto;
-		this.setFoto(foto);
 	}
 
 	public Long getId() {
@@ -26,10 +29,6 @@ public class CuerpoTecnicoForm {
 
 	public void setId(Long id) {
 		this.id = id;
-	}
-
-	public CuerpoTecnicoForm() {
-		super();
 	}
 
 	public String getNombre() {
@@ -56,12 +55,20 @@ public class CuerpoTecnicoForm {
 		this.puesto = puesto;
 	}
 
-	public Long getEquipo() {
-		return equipo;
+	public List<Long> getEquipoIds() {
+		return equipoIds;
 	}
 
-	public void setEquipo(Long equipo) {
-		this.equipo = equipo;
+	public void setEquipoIds(List<Long> equipoIds) {
+		this.equipoIds = equipoIds == null ? new ArrayList<>() : equipoIds;
+	}
+
+	public List<String> getPuestosEquipo() {
+		return puestosEquipo;
+	}
+
+	public void setPuestosEquipo(List<String> puestosEquipo) {
+		this.puestosEquipo = puestosEquipo == null ? new ArrayList<>() : puestosEquipo;
 	}
 
 	public MultipartFile getFoto() {

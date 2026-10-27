@@ -20,6 +20,7 @@ import java.time.format.DateTimeFormatter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import com.mikedev.mutxamelcf.model.BorradorPlantillasException;
 import com.mikedev.mutxamelcf.model.ConceptoPagoDTO;
 import com.mikedev.mutxamelcf.model.CuotaJugadorDTO;
 import com.mikedev.mutxamelcf.model.EquipoDTO;
@@ -404,10 +406,25 @@ public class PagosController {
     }
 
     @PostMapping("/temporadas/borrar")
-    public String borrarTemporada(@RequestParam Long id, RedirectAttributes redirect) {
+    public String borrarTemporada(@RequestParam Long id,
+            @RequestParam(name = "confirmarBorrador", defaultValue = "false") boolean confirmarBorrador,
+            RedirectAttributes redirect) {
         logger.debug("Inicio borrarTemporada: id={}", id);
-        temporadaService.eliminar(id);
-        redirect.addFlashAttribute("mensaje", "Temporada eliminada correctamente.");
+        try {
+            temporadaService.eliminar(id, confirmarBorrador);
+            redirect.addFlashAttribute("mensaje", "Temporada eliminada correctamente.");
+        } catch (BorradorPlantillasException e) {
+            // Futura con borrador: se pide confirmación antes de borrarlo junto con la temporada
+            redirect.addFlashAttribute("confirmarBorradoId", id);
+            redirect.addFlashAttribute("confirmarBorradoMensaje", e.getMessage() + ". ¿Borrar la temporada?");
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            logger.warn("No se ha podido borrar la temporada id={}: {}", id, e.getMessage());
+            redirect.addFlashAttribute("error", e.getMessage());
+        } catch (DataAccessException e) {
+            logger.error("Error de base de datos al borrar la temporada id={}: {}", id, e.getMessage(), e);
+            redirect.addFlashAttribute("error",
+                    "No se ha podido borrar la temporada: error de base de datos. Revisa los registros del servidor.");
+        }
         logger.debug("Fin borrarTemporada: id={}", id);
         return "redirect:/admin/pagos/temporadas";
     }

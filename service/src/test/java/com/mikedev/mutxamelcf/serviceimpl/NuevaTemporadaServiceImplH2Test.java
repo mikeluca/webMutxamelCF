@@ -155,6 +155,12 @@ class NuevaTemporadaServiceImplH2Test {
         }
 
         @Bean
+        com.mikedev.mutxamelcf.service.TemporadaService temporadaService(TemporadaDao temporadaDao,
+                JugadorTemporadaDao jugadorTemporadaDao) {
+            return new TemporadaServiceImpl(temporadaDao, jugadorTemporadaDao);
+        }
+
+        @Bean
         JugadorService jugadorService(JugadorDao jugadorDao, JugadorTemporadaDao jugadorTemporadaDao,
                 EquipoDao equipoDao, TemporadaDao temporadaDao, Clock clock) {
             return new JugadorServiceImpl(jugadorDao, mock(FamiliarJugadorService.class),
@@ -737,6 +743,72 @@ class NuevaTemporadaServiceImplH2Test {
         assertThat(equipoDe(1L)).isNull();
         assertThat(jdbc.queryForObject("SELECT FECHA_BAJA FROM JUGADORES WHERE ID = 1", Date.class)).isNotNull();
         assertThat(temporadaActiva()).isEqualTo(DESTINO);
+    }
+
+    // ---- borrar temporadas con plantillas -------------------------------------------------------------
+
+    private int temporadas(long id) {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM TEMPORADAS WHERE ID = ?", Integer.class, id);
+    }
+
+    @Test
+    void unaTemporadaSinPlantillasSeBorraComoSiempre() {
+        contexto.getBean(com.mikedev.mutxamelcf.service.TemporadaService.class).eliminar(PASADA, false);
+
+        assertThat(temporadas(PASADA)).isZero();
+    }
+
+    @Test
+    void laActivaYLaQueYaEstuvoActivaConPlantillasNoSePuedenBorrar() {
+        datosDeLasReglas();
+        jdbc.update("INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID, DORSAL) VALUES (1, ?, 5)", PASADA);
+        jdbc.update("INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID, DORSAL) VALUES (1, ?, 5)", ACTIVA);
+        var temporadaService = contexto.getBean(com.mikedev.mutxamelcf.service.TemporadaService.class);
+
+        assertThatThrownBy(() -> temporadaService.eliminar(ACTIVA, true)).isInstanceOf(IllegalStateException.class)
+                .hasMessage("Esta temporada tiene historial de plantillas y no se puede borrar");
+        assertThatThrownBy(() -> temporadaService.eliminar(PASADA, true)).isInstanceOf(IllegalStateException.class)
+                .hasMessage("Esta temporada tiene historial de plantillas y no se puede borrar");
+
+        assertThat(temporadas(ACTIVA)).isEqualTo(1);
+        assertThat(temporadas(PASADA)).isEqualTo(1);
+        assertThat(filas(PASADA)).isEqualTo(1);
+    }
+
+    @Test
+    void unaFuturaConBorradorPideConfirmacionYLuegoBorraElBorradorYLaTemporada() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+        var temporadaService = contexto.getBean(com.mikedev.mutxamelcf.service.TemporadaService.class);
+
+        assertThatThrownBy(() -> temporadaService.eliminar(DESTINO, false))
+                .isInstanceOf(com.mikedev.mutxamelcf.model.BorradorPlantillasException.class)
+                .hasMessage("Se borrará también el borrador de plantillas de 14 jugadores");
+        assertThat(temporadas(DESTINO)).isEqualTo(1);
+        assertThat(filas(DESTINO)).isEqualTo(14);
+
+        temporadaService.eliminar(DESTINO, true);
+
+        assertThat(temporadas(DESTINO)).isZero();
+        assertThat(filas(DESTINO)).isZero();
+    }
+
+    @Test
+    void siFallaElBorradoDeLaTemporadaElBorradorSeConserva() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+        // Una tabla con FK a la temporada: el DELETE de la temporada viola la integridad
+        jdbc.execute("CREATE TABLE DATOS_DE_TEMPORADA (ID NUMBER PRIMARY KEY, TEMPORADA_ID NUMBER,"
+                + " CONSTRAINT FK_DT_TEMPORADA FOREIGN KEY (TEMPORADA_ID) REFERENCES TEMPORADAS(ID))");
+        jdbc.update("INSERT INTO DATOS_DE_TEMPORADA VALUES (1, ?)", DESTINO);
+        var temporadaService = contexto.getBean(com.mikedev.mutxamelcf.service.TemporadaService.class);
+
+        assertThatThrownBy(() -> temporadaService.eliminar(DESTINO, true))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("datos relacionados");
+
+        // Mismo transacción: no se ha borrado el borrador a medias
+        assertThat(temporadas(DESTINO)).isEqualTo(1);
+        assertThat(filas(DESTINO)).isEqualTo(14);
     }
 
     // ---- mantener la temporada activa desde el panel ------------------------------------------------

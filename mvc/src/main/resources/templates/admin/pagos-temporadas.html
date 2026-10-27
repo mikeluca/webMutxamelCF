@@ -12,6 +12,17 @@
 <main class="admin-screen-shell admin-payments-page">
     <p class="dashboard-eyebrow mb-1">Administración Económica</p><h1 class="admin-screen-title">Temporadas</h1>
     <div th:if="${mensaje}" class="alert alert-success" th:text="${mensaje}"></div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+    <!-- Temporada futura con borrador de plantillas: se borra solo si se confirma -->
+    <div th:if="${confirmarBorradoId}" class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span th:text="${confirmarBorradoMensaje}"></span>
+        <form method="post" th:action="@{/admin/pagos/temporadas/borrar}" class="d-flex gap-2">
+            <input type="hidden" name="id" th:value="${confirmarBorradoId}">
+            <input type="hidden" name="confirmarBorrador" value="true">
+            <button class="btn btn-sm btn-danger" type="submit">Borrar temporada y borrador</button>
+            <a class="btn btn-sm btn-secondary" th:href="@{/admin/pagos/temporadas}">Cancelar</a>
+        </form>
+    </div>
     <section class="payment-panel mb-4">
         <h2>Crear temporada</h2>
         <form method="post" th:action="@{/admin/pagos/temporadas/guardar}" class="row g-3 align-items-end">

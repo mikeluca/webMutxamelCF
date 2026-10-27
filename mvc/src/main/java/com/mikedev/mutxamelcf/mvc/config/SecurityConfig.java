@@ -168,7 +168,9 @@ public class SecurityConfig {
                                                  */
                                                 .requestMatchers(
                                                                 "/admin/nueva-temporada/**",
-                                                                "/admin/categorias-edad/**")
+                                                                "/admin/categorias-edad/**",
+                                                                "/admin/cuerpo-tecnico/fusionar/**",
+                                                                "/admin/cuerpo-tecnico/fusionar")
                                                 .hasAnyRole("SUPER", "ADMIN")
 
                                                 /*

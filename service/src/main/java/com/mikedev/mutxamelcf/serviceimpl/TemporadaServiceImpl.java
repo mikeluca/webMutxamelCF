@@ -5,10 +5,16 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.mikedev.mutxamelcf.dao.JugadorTemporadaDao;
+import com.mikedev.mutxamelcf.dao.JugadorTemporadaDao;
 import com.mikedev.mutxamelcf.dao.TemporadaDao;
+import com.mikedev.mutxamelcf.model.BorradorPlantillasException;
+import com.mikedev.mutxamelcf.model.BorradorPlantillasException;
 import com.mikedev.mutxamelcf.model.Temporada;
 import com.mikedev.mutxamelcf.model.TemporadaDTO;
 import com.mikedev.mutxamelcf.service.TemporadaService;
@@ -20,7 +26,12 @@ public class TemporadaServiceImpl implements TemporadaService {
 
     private final TemporadaDao temporadaDao;
 
-    public TemporadaServiceImpl(TemporadaDao temporadaDao) {
+    static final String MENSAJE_HISTORIAL = "Esta temporada tiene historial de plantillas y no se puede borrar";
+
+    private final JugadorTemporadaDao jugadorTemporadaDao;
+
+    public TemporadaServiceImpl(TemporadaDao temporadaDao, JugadorTemporadaDao jugadorTemporadaDao) {
+        this.jugadorTemporadaDao = jugadorTemporadaDao;
         this.temporadaDao = temporadaDao;
     }
 
@@ -81,10 +92,51 @@ public class TemporadaServiceImpl implements TemporadaService {
     }
 
     @Override
-    public void eliminar(Long id) {
-        logger.debug("Inicio eliminar: id={}", id);
-        temporadaDao.eliminar(id);
+    @Transactional
+    public void eliminar(Long id, boolean confirmarBorrador) {
+        logger.debug("Inicio eliminar: id={}, confirmarBorrador={}", id, confirmarBorrador);
+
+        Temporada temporada = temporadaDao.obtenerPorId(id);
+        if (temporada == null) {
+            throw new IllegalArgumentException("La temporada no existe.");
+        }
+
+        int filas = jugadorTemporadaDao.contarPorTemporada(id);
+
+        if (filas > 0) {
+            Temporada activa = temporadaDao.obtenerTemporadaActiva();
+            boolean futuraConBorrador = !Integer.valueOf(1).equals(temporada.getActiva())
+                    && activa != null && activa.getFechaInicio() != null && temporada.getFechaInicio() != null
+                    && temporada.getFechaInicio().after(activa.getFechaInicio());
+
+            // Activa, o que ya estuvo activa: sus plantillas son historial
+            if (!futuraConBorrador) {
+                logger.warn("No se puede borrar la temporada id={}: tiene historial de plantillas", id);
+                throw new IllegalStateException(MENSAJE_HISTORIAL);
+            }
+            if (!confirmarBorrador) {
+                throw new BorradorPlantillasException(filas);
+            }
+            jugadorTemporadaDao.eliminarPorTemporada(id);
+        } else if (Integer.valueOf(1).equals(temporada.getActiva())) {
+            // Sin filas todavía, pero es la activa: tampoco se borra, es la que usa la app
+            throw new IllegalStateException(MENSAJE_HISTORIAL);
+        }
+
+        try {
+            temporadaDao.eliminar(id);
+        } catch (DataIntegrityViolationException e) {
+            logger.warn("No se puede borrar la temporada id={} por una restricción de integridad: {}", id,
+                    e.getMostSpecificCause().getMessage());
+            throw new IllegalStateException("No se puede borrar la temporada porque tiene datos relacionados "
+                    + "(por ejemplo cuotas o conceptos de pago). Bórralos antes.", e);
+        }
         logger.debug("Fin eliminar: id={}", id);
+    }
+
+    @Override
+    public int jugadoresConBorrador(Long id) {
+        return jugadorTemporadaDao.contarPorTemporada(id);
     }
 
     private static Temporada toEntity(TemporadaDTO dto) {

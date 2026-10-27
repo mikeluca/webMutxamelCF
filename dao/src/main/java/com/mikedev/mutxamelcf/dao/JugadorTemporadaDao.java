@@ -24,6 +24,9 @@ public interface JugadorTemporadaDao {
 	/** Jugadores de la plantilla actual (sin baja) que no tienen fila en esa temporada. */
 	List<Jugador> jugadoresActivosSinFila(Long temporadaId);
 
+	/** Cuántas filas (jugadores) tiene la temporada. */
+	int contarPorTemporada(Long temporadaId);
+
 	int contarPendientes(Long temporadaId);
 
 	boolean existenParaEquipo(Long equipoId);

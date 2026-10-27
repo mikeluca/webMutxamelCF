@@ -31,11 +31,14 @@ class CuerpoTecnicoServiceImplTest {
     @Mock
     private UsuarioAppVinculoDao usuarioAppVinculoDao;
 
+    @Mock
+    private com.mikedev.mutxamelcf.dao.EquipoDao equipoDao;
+
     private CuerpoTecnicoServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new CuerpoTecnicoServiceImpl(cuerpoTecnicoDao, usuarioAppVinculoDao);
+        service = new CuerpoTecnicoServiceImpl(cuerpoTecnicoDao, usuarioAppVinculoDao, equipoDao);
     }
 
     @Test
@@ -114,9 +117,9 @@ class CuerpoTecnicoServiceImplTest {
         staff.setPuesto("ENTRENADOR");
         staff.setFoto(null);
 
-        when(cuerpoTecnicoDao.obtenerTodosPorEquipo("Senior A")).thenReturn(List.of(staff));
+        when(cuerpoTecnicoDao.obtenerTodosPorEquipoId(1L)).thenReturn(List.of(staff));
 
-        List<CuerpoTecnicoPublicDTO> resultado = service.obtenerCuerpoTecnicoPublicoPorEquipo("Senior A");
+        List<CuerpoTecnicoPublicDTO> resultado = service.obtenerCuerpoTecnicoPublicoPorEquipoId(1L);
 
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).getPuesto()).isEqualTo("ENTRENADOR");

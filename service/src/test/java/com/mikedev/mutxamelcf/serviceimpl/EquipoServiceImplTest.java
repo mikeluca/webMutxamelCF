@@ -56,6 +56,26 @@ class EquipoServiceImplTest {
     }
 
     @Test
+    void eliminarEquipoLanzaExcepcionSiTieneCuerpoTecnicoAunqueSeaUnSoloTecnicoConVariosEquipos() {
+        Equipo equipo = new Equipo();
+        equipo.setId(1L);
+        equipo.setNombre("Senior A");
+
+        when(equipoDao.obtenerEquipoPorId(1L)).thenReturn(equipo);
+        when(jugadorService.obtenerJugadoresPorEquipo("Senior A")).thenReturn(List.of());
+        // "Tiene cuerpo técnico" = existe alguna fila en CUERPO_TECNICO_EQUIPO con ese EQUIPO_ID
+        when(cuerpoTecnicoService.equipoTieneCuerpoTecnico(1L)).thenReturn(true);
+        when(convocatoriaDao.obtenerPorEquipo(1L)).thenReturn(List.of());
+        when(entrenamientoDao.obtenerPorEquipo(1L)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> equipoService.eliminarEquipo(1L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cuerpo técnico asignado");
+
+        verify(equipoDao, never()).eliminarEquipo(any());
+    }
+
+    @Test
     void eliminarEquipoLanzaExcepcionSiApareceEnLasPlantillasPorTemporada() {
         Equipo equipo = new Equipo();
         equipo.setId(1L);
@@ -64,7 +84,7 @@ class EquipoServiceImplTest {
         when(equipoDao.obtenerEquipoPorId(1L)).thenReturn(equipo);
         when(jugadorService.obtenerJugadoresPorEquipo("Senior A")).thenReturn(List.of());
         when(jugadorTemporadaDao.existenParaEquipo(1L)).thenReturn(true);
-        when(cuerpoTecnicoService.obtenerCuerpoTecnicoPorEquipo("Senior A")).thenReturn(List.of());
+        when(cuerpoTecnicoService.equipoTieneCuerpoTecnico(1L)).thenReturn(false);
         when(convocatoriaDao.obtenerPorEquipo(1L)).thenReturn(List.of());
         when(entrenamientoDao.obtenerPorEquipo(1L)).thenReturn(List.of());
 
@@ -142,7 +162,7 @@ class EquipoServiceImplTest {
 
         when(equipoDao.obtenerEquipoPorId(1L)).thenReturn(equipo);
         when(jugadorService.obtenerJugadoresPorEquipo("Senior A")).thenReturn(List.of(new JugadorDTO()));
-        when(cuerpoTecnicoService.obtenerCuerpoTecnicoPorEquipo("Senior A")).thenReturn(List.of());
+        when(cuerpoTecnicoService.equipoTieneCuerpoTecnico(1L)).thenReturn(false);
         when(convocatoriaDao.obtenerPorEquipo(1L)).thenReturn(List.of());
         when(entrenamientoDao.obtenerPorEquipo(1L)).thenReturn(List.of());
 
@@ -161,7 +181,7 @@ class EquipoServiceImplTest {
 
         when(equipoDao.obtenerEquipoPorId(1L)).thenReturn(equipo);
         when(jugadorService.obtenerJugadoresPorEquipo("Senior A")).thenReturn(List.of());
-        when(cuerpoTecnicoService.obtenerCuerpoTecnicoPorEquipo("Senior A")).thenReturn(List.of());
+        when(cuerpoTecnicoService.equipoTieneCuerpoTecnico(1L)).thenReturn(false);
         when(convocatoriaDao.obtenerPorEquipo(1L)).thenReturn(List.of());
         when(entrenamientoDao.obtenerPorEquipo(1L)).thenReturn(List.of());
 

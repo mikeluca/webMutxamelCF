@@ -99,11 +99,13 @@ public class AdminController {
 				.collect(Collectors.groupingBy(EquipoDTO::getCategoria, Collectors.counting()));
 		Map<String, Long> jugadoresPorCategoria = jugadores.stream()
 				.collect(Collectors.groupingBy(JugadorDTO::getCategoria, Collectors.counting()));
-		Map<String, Set<String>> entrenadoresPorCategoria = cuerpoTecnico.stream()
-				.collect(Collectors.groupingBy(CuerpoTecnicoDTO::getCategoria, LinkedHashMap::new,
-						Collectors.mapping(
-								entrenador -> (entrenador.getNombre() + " " + entrenador.getApellidos()).trim(),
-								Collectors.toSet())));
+		// Un técnico con equipos de varias categorías cuenta en cada una (por los equipos de su ficha, no por la copia)
+		Map<String, Set<String>> entrenadoresPorCategoria = new LinkedHashMap<>();
+		for (CuerpoTecnicoDTO entrenador : cuerpoTecnico) {
+			String nombre = (entrenador.getNombre() + " " + entrenador.getApellidos()).trim();
+			entrenador.getEquipos().stream().map(e -> e.categoria()).filter(c -> c != null).distinct()
+					.forEach(c -> entrenadoresPorCategoria.computeIfAbsent(c, k -> new java.util.HashSet<>()).add(nombre));
+		}
 
 		Set<String> categorias = new LinkedHashSet<>();
 		categorias.addAll(ordenPorCategoria.keySet());
