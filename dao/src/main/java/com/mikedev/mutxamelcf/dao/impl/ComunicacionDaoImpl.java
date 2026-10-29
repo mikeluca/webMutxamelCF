@@ -522,6 +522,12 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                       UPPER(TRIM(cc.CATEGORIA)) =
                       UPPER(TRIM(e.CATEGORIA))
                   )
+                  /*
+                   * Los avisos de equipo y de categoría solo se ven durante la
+                   * temporada en que se publicaron. Sin temporada activa el
+                   * límite es una fecha muy antigua y no se oculta nada.
+                   */
+                  AND COALESCE(c.FECHA_PUBLICACION, c.FECHA_CREACION) >= ?
                 ORDER BY
                     c.FECHA_PUBLICACION DESC NULLS LAST,
                     c.FECHA_CREACION DESC
@@ -533,6 +539,7 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
 
         parametros.addAll(equipoIds);
         parametros.addAll(equipoIds);
+        parametros.add(TemporadaActivaId.inicioOMinimo(jdbcTemplate));
 
         return jdbcTemplate.query(
                 sql,

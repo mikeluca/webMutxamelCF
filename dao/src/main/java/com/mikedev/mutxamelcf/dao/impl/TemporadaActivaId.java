@@ -21,6 +21,24 @@ final class TemporadaActivaId {
 	}
 
 	/**
+	 * Primer instante de la temporada activa. Sin temporada activa (o sin fecha de inicio) devuelve una fecha muy
+	 * antigua, de modo que un filtro "fecha >= inicio" no oculta nada.
+	 */
+	static java.sql.Timestamp inicioOMinimo(JdbcTemplate jdbcTemplate) {
+		List<java.util.Date> inicios = jdbcTemplate.queryForList(
+				"SELECT FECHA_INICIO FROM TEMPORADAS WHERE ACTIVA = 1 AND FECHA_INICIO IS NOT NULL", java.util.Date.class);
+
+		if (inicios.isEmpty()) {
+			return java.sql.Timestamp.valueOf("1900-01-01 00:00:00");
+		}
+
+		java.util.Date inicio = inicios.get(0);
+
+		return inicio instanceof java.sql.Date sql ? java.sql.Timestamp.valueOf(sql.toLocalDate().atStartOfDay())
+				: new java.sql.Timestamp(inicio.getTime());
+	}
+
+	/**
 	 * La temporada anterior a la activa, solo mientras la activa no tenga ningún partido (el verano de después de un
 	 * cierre: la web pública muestra entonces los equipos, resultados y clasificaciones de la anterior). -1 si la activa
 	 * ya tiene partidos, si no hay activa o si no hay ninguna anterior.

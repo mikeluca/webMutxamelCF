@@ -2,6 +2,8 @@ package com.mikedev.mutxamelcf.mvc.communication;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -10,13 +12,17 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import com.mikedev.mutxamelcf.service.AvisosCuentaEmail;
+
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 
 @Service
-public class ComunicacionesService {
+public class ComunicacionesService implements AvisosCuentaEmail {
 
     private static final Logger logger = LoggerFactory.getLogger(ComunicacionesService.class);
+
+    private static final DateTimeFormatter FECHA_AVISO = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private static final String REMITENTE = "contacto.web@mutxamelcf.es";
     private static final String DESTINATARIO_PEDIDOS = "mutxamelcf.pedidos@gmail.com";
@@ -263,6 +269,46 @@ public class ComunicacionesService {
                 + codigo + "\n\n"
                 + "El codi caduca en " + minutosValidez + " minuts i només es pot provar 5 vegades.\n\n"
                 + "Si no ho has demanat tu, ignora aquest missatge: la teua contrasenya no canviarà.\n\n"
+                + "Mutxamel CF";
+
+        return es + SEPARADOR_IDIOMAS + ca;
+    }
+
+    /**
+     * Avisa a una cuenta sin ningún jugador activo de que se desactivará en la fecha indicada. El correo va en
+     * castellano y, tras una línea de separación, en valenciano.
+     */
+    @Override
+    public boolean enviarAvisoCuentaSinJugadores(String email, String nombrePersona, LocalDate fechaDesactivacion) {
+        logger.debug("Inicio enviarAvisoCuentaSinJugadores");
+
+        boolean enviado = enviarEmail(REMITENTE, email, null,
+                "Tu cuenta de la app del Mutxamel CF se desactivará / El teu compte de l'app del Mutxamel CF es desactivarà",
+                construirAvisoCuentaSinJugadores(nombrePersona, fechaDesactivacion));
+
+        logger.debug("Fin enviarAvisoCuentaSinJugadores: enviado={}", enviado);
+        return enviado;
+    }
+
+    static String construirAvisoCuentaSinJugadores(String nombrePersona, LocalDate fechaDesactivacion) {
+
+        String saludo = saludo(nombrePersona);
+        String fecha = FECHA_AVISO.format(fechaDesactivacion);
+
+        String es = saludo + "\n\n"
+                + "Tu cuenta de la app del Mutxamel CF ya no tiene ningún jugador activo vinculado. "
+                + "Si sigue así, se desactivará el " + fecha + ".\n\n"
+                + "Si es un error, o si tu jugador sigue con nosotros, escríbenos a "
+                + "mutxamelcf.gestion@gmail.com y lo arreglamos. Si vuelve a haber un jugador activo "
+                + "antes de esa fecha, no pasará nada.\n\n"
+                + "Mutxamel CF";
+
+        String ca = saludo + "\n\n"
+                + "El teu compte de l'app del Mutxamel CF ja no té cap jugador actiu vinculat. "
+                + "Si continua així, es desactivarà el " + fecha + ".\n\n"
+                + "Si és un error, o si el teu jugador continua amb nosaltres, escriu-nos a "
+                + "mutxamelcf.gestion@gmail.com i ho arreglem. Si torna a haver-hi un jugador actiu "
+                + "abans d'eixa data, no passarà res.\n\n"
                 + "Mutxamel CF";
 
         return es + SEPARADOR_IDIOMAS + ca;
