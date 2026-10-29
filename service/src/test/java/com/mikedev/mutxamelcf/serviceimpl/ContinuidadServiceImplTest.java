@@ -409,4 +409,26 @@ class ContinuidadServiceImplTest {
 
 		assertThatThrownBy(() -> servicio.altaPrueba(9L, "Luis", "Gil", 2016)).isInstanceOf(IllegalStateException.class);
 	}
+
+	// ---- el recordatorio escribe en la bandeja: no puede ir en una transacción de solo lectura -----------
+
+	@Test
+	void recordarPendientesNoEsTransaccionalDeSoloLecturaPorqueCreaNotificaciones() throws Exception {
+		var metodo = ContinuidadServiceImpl.class.getMethod("recordarPendientes");
+		var transaccional = metodo.getAnnotation(org.springframework.transaction.annotation.Transactional.class);
+
+		assertThat(transaccional == null || !transaccional.readOnly()).isTrue();
+	}
+
+	@Test
+	void elRecordatorioCreaLaNotificacionEnLaBandeja() {
+		when(jugadorTemporadaDao.listarPorTemporada(SIGUIENTE)).thenReturn(List.of(
+				fila(1, "Pablo", "Alevín", "CONFIRMADO", "PENDIENTE", LocalDateTime.of(2027, 5, 1, 9, 0))));
+		cuentas(1, 50L);
+
+		servicio.recordarPendientes();
+
+		verify(notificacionAppService).crear(eq(50L), eq("CONTINUIDAD"), eq("Recordatorio: continuidad en 2027/2028"),
+				anyString(), eq(SIGUIENTE));
+	}
 }

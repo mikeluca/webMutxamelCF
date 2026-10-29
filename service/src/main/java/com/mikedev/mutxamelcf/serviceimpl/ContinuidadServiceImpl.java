@@ -175,8 +175,8 @@ public class ContinuidadServiceImpl implements ContinuidadService {
 	// Recordatorio semanal
 	// ============================================================
 
+	// Sin @Transactional: lee y crea notificaciones de la bandeja una a una; una cuenta que falle no deshace el resto.
 	@Override
-	@Transactional(readOnly = true)
 	public int recordarPendientes() {
 		Temporada siguiente = temporadaSiguiente();
 

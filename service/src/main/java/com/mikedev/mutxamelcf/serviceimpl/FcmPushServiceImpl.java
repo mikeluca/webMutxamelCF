@@ -2,6 +2,7 @@ package com.mikedev.mutxamelcf.serviceimpl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -28,9 +29,25 @@ public class FcmPushServiceImpl implements FcmPushService {
 
         private final DispositivoAppDao dispositivoAppDao;
 
+        // app.push.habilitado=false (p. ej. en local, contra DEV): no se envía nada a Firebase, solo se registra en el log.
+        private final boolean habilitado;
+
         public FcmPushServiceImpl(
-                        DispositivoAppDao dispositivoAppDao) {
+                        DispositivoAppDao dispositivoAppDao,
+                        @Value("${app.push.habilitado:true}") boolean habilitado) {
                 this.dispositivoAppDao = dispositivoAppDao;
+                this.habilitado = habilitado;
+        }
+
+        private boolean desactivado(String tipo, String destinatario, String titulo) {
+                if (habilitado) {
+                        return false;
+                }
+
+                logger.info("push desactivado (app.push.habilitado=false): tipo={}, destinatario={}, titulo={}", tipo,
+                                destinatario, titulo);
+
+                return true;
         }
 
         /**
@@ -46,6 +63,10 @@ public class FcmPushServiceImpl implements FcmPushService {
                         String mensaje) {
 
                 if (tokenFcm == null || tokenFcm.isBlank()) {
+                        return;
+                }
+
+                if (desactivado("", "token " + truncarToken(tokenFcm), titulo)) {
                         return;
                 }
 
@@ -129,6 +150,10 @@ public class FcmPushServiceImpl implements FcmPushService {
                         Map<String, String> datosExtra) {
 
                 if (usuarioId == null) {
+                        return;
+                }
+
+                if (desactivado(tipo, "usuario " + usuarioId, titulo)) {
                         return;
                 }
 
@@ -254,6 +279,10 @@ public class FcmPushServiceImpl implements FcmPushService {
                         Map<String, String> datosExtra) {
 
                 if (topic == null || topic.isBlank()) {
+                        return;
+                }
+
+                if (desactivado("", "topic " + topic, titulo)) {
                         return;
                 }
 

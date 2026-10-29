@@ -41,7 +41,7 @@ class FcmPushServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new FcmPushServiceImpl(dispositivoAppDao);
+        service = new FcmPushServiceImpl(dispositivoAppDao, true);
         firebaseMessagingStatic = mockStatic(FirebaseMessaging.class);
         firebaseMessagingStatic.when(FirebaseMessaging::getInstance).thenReturn(firebaseMessaging);
     }
@@ -207,5 +207,35 @@ class FcmPushServiceImplTest {
         when(firebaseMessaging.send(any(Message.class))).thenThrow(new RuntimeException("fallo"));
 
         service.enviarATopic("noticias", "Titulo", "Mensaje");
+    }
+
+    // ---- interruptor app.push.habilitado --------------------------------------------------------------
+
+    @Test
+    void conElPushDesactivadoNoSeEnviaNadaANingunaViaYNiSiquieraSeBuscanDispositivos() throws Exception {
+        FcmPushServiceImpl apagado = new FcmPushServiceImpl(dispositivoAppDao, false);
+
+        apagado.enviarNotificacion("token-abc", "Titulo", "Mensaje");
+        apagado.enviarNotificacionAUsuario(7L, "NOTICIA", "Titulo", "Mensaje", 1L);
+        apagado.enviarNotificacionAUsuario(7L, "NOTICIA", "Titulo", "Mensaje", 1L, Map.of("k", "v"));
+        apagado.enviarATopic("noticias", "Titulo", "Mensaje");
+        apagado.enviarATopic("noticias", "Titulo", "Mensaje", Map.of("k", "v"));
+
+        verifyNoInteractions(firebaseMessaging);
+        verifyNoInteractions(dispositivoAppDao);
+        firebaseMessagingStatic.verify(FirebaseMessaging::getInstance, never());
+    }
+
+    @Test
+    void conElPushActivadoSeEnviaComoSiempre() throws Exception {
+        DispositivoApp dispositivo = new DispositivoApp();
+        dispositivo.setTokenFcm("token-abc");
+        when(dispositivoAppDao.obtenerActivosPorUsuario(7L)).thenReturn(List.of(dispositivo));
+        when(firebaseMessaging.send(any(Message.class))).thenReturn("msg-id");
+
+        service.enviarNotificacionAUsuario(7L, "NOTICIA", "Titulo", "Mensaje", 1L);
+        service.enviarATopic("noticias", "Titulo", "Mensaje");
+
+        verify(firebaseMessaging, times(2)).send(any(Message.class));
     }
 }
