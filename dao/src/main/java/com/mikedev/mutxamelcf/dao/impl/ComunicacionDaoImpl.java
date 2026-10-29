@@ -345,14 +345,19 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                     ON cte.CUERPO_TECNICO_ID = uct.CUERPO_TECNICO_ID
                 INNER JOIN EQUIPO e
                     ON e.ID = cte.EQUIPO_ID
+                LEFT JOIN EQUIPO_TEMPORADA et
+                    ON et.EQUIPO_ID = e.ID AND et.TEMPORADA_ID = ?
                 WHERE uct.USUARIO_APP_ID = ?
+                  AND (? < 0 OR et.ACTIVO = 1)
                 ORDER BY e.ID
                 """;
 
         return jdbcTemplate.query(
                 sql,
                 (rs, rowNum) -> rs.getLong("ID"),
-                usuarioAppId);
+                TemporadaActivaId.obtenerOMenosUno(jdbcTemplate),
+                usuarioAppId,
+                TemporadaActivaId.obtenerOMenosUno(jdbcTemplate));
     }
 
     @Override
@@ -366,15 +371,20 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                     ON j.ID = uaj.JUGADOR_ID
                 INNER JOIN EQUIPO e
                     ON e.ID = j.EQUIPO_ID
+                LEFT JOIN EQUIPO_TEMPORADA et
+                    ON et.EQUIPO_ID = e.ID AND et.TEMPORADA_ID = ?
                 WHERE uaj.USUARIO_APP_ID = ?
                   AND j.FECHA_BAJA IS NULL
+                  AND (? < 0 OR et.ACTIVO = 1)
                 ORDER BY e.ID
                 """;
 
         return jdbcTemplate.query(
                 sql,
                 (rs, rowNum) -> rs.getLong("ID"),
-                usuarioAppId);
+                TemporadaActivaId.obtenerOMenosUno(jdbcTemplate),
+                usuarioAppId,
+                TemporadaActivaId.obtenerOMenosUno(jdbcTemplate));
     }
 
     @Override
@@ -392,15 +402,20 @@ public class ComunicacionDaoImpl implements ComunicacionDao {
                     ON j.ID = fj.JUGADOR_ID
                 INNER JOIN EQUIPO e
                     ON e.ID = j.EQUIPO_ID
+                LEFT JOIN EQUIPO_TEMPORADA et
+                    ON et.EQUIPO_ID = e.ID AND et.TEMPORADA_ID = ?
                 WHERE uaf.USUARIO_APP_ID = ?
                   AND j.FECHA_BAJA IS NULL
+                  AND (? < 0 OR et.ACTIVO = 1)
                 ORDER BY e.ID
                 """;
 
         return jdbcTemplate.query(
                 sql,
                 (rs, rowNum) -> rs.getLong("ID"),
-                usuarioAppId);
+                TemporadaActivaId.obtenerOMenosUno(jdbcTemplate),
+                usuarioAppId,
+                TemporadaActivaId.obtenerOMenosUno(jdbcTemplate));
     }
 
     @Override

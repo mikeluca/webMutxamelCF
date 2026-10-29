@@ -38,7 +38,7 @@ public class EquipoAdminController {
 	@GetMapping("/equipos")
 	public String listarEquipos(Model model) {
 		logger.debug("Inicio listarEquipos");
-		List<EquipoDTO> listaEquipos = equiposService.obtenerTodos(); // Obtener todos los equipos
+		List<EquipoDTO> listaEquipos = equiposService.obtenerTodosConEstadoTemporada(); // Todos, juegue o no esta temporada
 		model.addAttribute("listaEquipos", listaEquipos);
 		List<String> categorias = equiposService.obtenerCategorias(); // Obtener categorías de equipos
 
@@ -58,7 +58,8 @@ public class EquipoAdminController {
 	@ResponseBody
 	public ResponseEntity<Map<String, String>> guardarEquipo(@RequestParam(required = false) Long id,
 			@RequestParam String categoria, @RequestParam String nombre, @RequestParam String grupo,
-			@RequestParam String deporte, @RequestParam(required = false) String modalidad) {
+			@RequestParam String deporte, @RequestParam(required = false) String modalidad,
+			@RequestParam(required = false) Integer juega) {
 		logger.debug("Inicio guardarEquipo: id={}, categoria={}, nombre={}, grupo={}, deporte={}", id, categoria,
 				nombre, grupo, deporte);
 		Map<String, String> response = new HashMap<>();
@@ -75,6 +76,8 @@ public class EquipoAdminController {
 			equipo.setGrupo(grupo);
 			equipo.setDeporte(deporte);
 			equipo.setModalidad(modalidadAGuardar(id, modalidad, modalidadNormalizada));
+			// Sin parámetro conserva el estado actual; un equipo nuevo entra activo en la temporada activa
+			equipo.setActivoTemporada(juega == null ? null : juega == 1);
 
 			if (equiposService.guardar(equipo)) {
 				response.put("mensaje", "Equipo guardado correctamente.");

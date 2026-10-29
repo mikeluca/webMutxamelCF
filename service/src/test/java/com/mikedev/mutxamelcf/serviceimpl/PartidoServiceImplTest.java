@@ -719,7 +719,7 @@ class PartidoServiceImplTest {
         partido.setResultado("2-1");
         partido.setTipo("COPA");
 
-        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipoA, equipoB));
+        when(equipoDao.obtenerActivosPublicosPorDeporte("F")).thenReturn(List.of(equipoA, equipoB));
         when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(partido);
         when(partidoDao.obtenerMasRelevantePorEquipo(2L)).thenReturn(null);
 
@@ -744,7 +744,7 @@ class PartidoServiceImplTest {
          * que el service reordena por categoría y fecha en vez de
          * limitarse a devolver el orden que trae equipoDao.
          */
-        when(equipoDao.obtenerTodosPorDeporte("F"))
+        when(equipoDao.obtenerActivosPublicosPorDeporte("F"))
                 .thenReturn(List.of(equipoJuvenil, equipoSeniorB, equipoSeniorA));
         /*
          * equipoDao.obtenerCategorias() devuelve el orden ASCENDENTE de
@@ -785,7 +785,7 @@ class PartidoServiceImplTest {
         Equipo equipoConFecha = equipoConCategoria(1L, "Senior");
         Equipo equipoSinFecha = equipoConCategoria(2L, "Senior");
 
-        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipoSinFecha, equipoConFecha));
+        when(equipoDao.obtenerActivosPublicosPorDeporte("F")).thenReturn(List.of(equipoSinFecha, equipoConFecha));
         when(equipoDao.obtenerCategorias()).thenReturn(List.of("Senior"));
 
         Partido partidoConFecha = new Partido();
@@ -808,7 +808,7 @@ class PartidoServiceImplTest {
     void obtenerResultadosIncluyePlaceholderConRivalNuloParaEquiposSinPartidos() {
         Equipo equipoSinPartidos = equipo(2L);
 
-        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipoSinPartidos));
+        when(equipoDao.obtenerActivosPublicosPorDeporte("F")).thenReturn(List.of(equipoSinPartidos));
         when(partidoDao.obtenerMasRelevantePorEquipo(2L)).thenReturn(null);
 
         List<ResultadoDTO> resultados = service.obtenerResultados("F");
@@ -829,7 +829,7 @@ class PartidoServiceImplTest {
 
     @Test
     void obtenerResultadosDevuelveListaVaciaSiNoHayEquiposDeEseDeporte() {
-        when(equipoDao.obtenerTodosPorDeporte("FS")).thenReturn(List.of());
+        when(equipoDao.obtenerActivosPublicosPorDeporte("FS")).thenReturn(List.of());
 
         assertThat(service.obtenerResultados("FS")).isEmpty();
     }
@@ -892,7 +892,7 @@ class PartidoServiceImplTest {
     @Test
     void obtenerResultadosMarcaDescansaSiElEquipoTieneDescansoYNingunPartidoEseFinDeSemana() {
         LocalDate sabado = LocalDate.now().plusDays(3);
-        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
+        when(equipoDao.obtenerActivosPublicosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
         when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(null);
         when(descansoEquipoDao.obtenerDesde(org.mockito.ArgumentMatchers.eq(1L), any()))
                 .thenReturn(List.of(new com.mikedev.mutxamelcf.model.DescansoEquipo(1L, 1L, sabado, null)));
@@ -904,7 +904,7 @@ class PartidoServiceImplTest {
     @Test
     void obtenerResultadosNoMarcaDescansaSiElEquipoTienePartidoPendienteEseFinDeSemana() {
         LocalDate sabado = LocalDate.now().plusDays(3);
-        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
+        when(equipoDao.obtenerActivosPublicosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
         when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(partidoPendiente(1L, sabado.plusDays(1)));
         when(descansoEquipoDao.obtenerDesde(org.mockito.ArgumentMatchers.eq(1L), any()))
                 .thenReturn(List.of(new com.mikedev.mutxamelcf.model.DescansoEquipo(1L, 1L, sabado, null)));
@@ -916,7 +916,7 @@ class PartidoServiceImplTest {
     @Test
     void obtenerResultadosNoMarcaDescansaSiElPartidoPendienteEsAnteriorAlDescanso() {
         LocalDate sabado = LocalDate.now().plusDays(8);
-        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
+        when(equipoDao.obtenerActivosPublicosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
         when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(partidoPendiente(1L, LocalDate.now().plusDays(2)));
         when(descansoEquipoDao.obtenerDesde(org.mockito.ArgumentMatchers.eq(1L), any()))
                 .thenReturn(List.of(new com.mikedev.mutxamelcf.model.DescansoEquipo(1L, 1L, sabado, null)));
@@ -1067,7 +1067,7 @@ class PartidoServiceImplTest {
     }
 
     private ResultadoDTO resultadoDe(Partido partido) {
-        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
+        when(equipoDao.obtenerActivosPublicosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
         when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(partido);
         return serviceConReloj(MIERCOLES).obtenerResultados("F").get(0);
     }
@@ -1158,7 +1158,7 @@ class PartidoServiceImplTest {
         LocalDate sabado = LocalDate.now().plusDays(3);
         Partido jugado = partidoPendiente(1L, LocalDate.now().minusDays(4));
         jugado.setResultado("2-1");
-        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
+        when(equipoDao.obtenerActivosPublicosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
         when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(jugado);
         when(descansoEquipoDao.obtenerDesde(org.mockito.ArgumentMatchers.eq(1L), any()))
                 .thenReturn(List.of(new com.mikedev.mutxamelcf.model.DescansoEquipo(1L, 1L, sabado, null)));
@@ -1169,7 +1169,7 @@ class PartidoServiceImplTest {
 
     @Test
     void obtenerResultadosNoMarcaDescansaSinDescansoRegistrado() {
-        when(equipoDao.obtenerTodosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
+        when(equipoDao.obtenerActivosPublicosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
         when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(null);
 
         assertThat(service.obtenerResultados("F")).singleElement()

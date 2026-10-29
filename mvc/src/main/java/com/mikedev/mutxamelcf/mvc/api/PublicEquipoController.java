@@ -35,7 +35,7 @@ public class PublicEquipoController {
 
     @GetMapping
     public List<EquipoDTO> obtenerEquipos() {
-        return equipoService.obtenerTodos();
+        return equipoService.obtenerPublicos();
     }
 
     @GetMapping("/{id}")

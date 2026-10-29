@@ -36,8 +36,13 @@ public class EquipoFfcvDaoImpl implements EquipoFfcvDao {
 	public List<EquipoFfcv> listarTodos() {
 		logger.debug("Inicio listarTodos");
 
+		// Solo los de la temporada activa (sin temporada activa no se filtra)
+		long temporadaId = TemporadaActivaId.obtenerOMenosUno(jdbcTemplate);
+
 		List<EquipoFfcv> relaciones = jdbcTemplate.query(
-				"SELECT " + CAMPOS_SELECT + " FROM EQUIPOS_FFCV ORDER BY COMPETICION, LETRA", ROW_MAPPER);
+				"SELECT " + CAMPOS_SELECT + " FROM EQUIPOS_FFCV WHERE (? < 0 OR TEMPORADA_ID = ?)"
+						+ " ORDER BY COMPETICION, LETRA",
+				ROW_MAPPER, temporadaId, temporadaId);
 
 		logger.debug("Fin listarTodos: total={}", relaciones.size());
 		return relaciones;
@@ -58,13 +63,18 @@ public class EquipoFfcvDaoImpl implements EquipoFfcvDao {
 		 * LETRA puede ser NULL (equipo sin letra, p.ej. el primer equipo) y
 		 * "= NULL" nunca es cierto en SQL, de ahí las dos consultas.
 		 */
+		// Solo el enlace de la temporada activa (sin temporada activa no se filtra)
+		long temporadaId = TemporadaActivaId.obtenerOMenosUno(jdbcTemplate);
+
 		List<EquipoFfcv> resultado = letra == null
 				? jdbcTemplate.query(
-						"SELECT " + CAMPOS_SELECT + " FROM EQUIPOS_FFCV WHERE COMPETICION = ? AND LETRA IS NULL",
-						ROW_MAPPER, competicion)
+						"SELECT " + CAMPOS_SELECT + " FROM EQUIPOS_FFCV WHERE COMPETICION = ? AND LETRA IS NULL"
+								+ " AND (? < 0 OR TEMPORADA_ID = ?)",
+						ROW_MAPPER, competicion, temporadaId, temporadaId)
 				: jdbcTemplate.query(
-						"SELECT " + CAMPOS_SELECT + " FROM EQUIPOS_FFCV WHERE COMPETICION = ? AND LETRA = ?",
-						ROW_MAPPER, competicion, letra);
+						"SELECT " + CAMPOS_SELECT + " FROM EQUIPOS_FFCV WHERE COMPETICION = ? AND LETRA = ?"
+								+ " AND (? < 0 OR TEMPORADA_ID = ?)",
+						ROW_MAPPER, competicion, letra, temporadaId, temporadaId);
 
 		return resultado.isEmpty() ? null : resultado.get(0);
 	}

@@ -111,23 +111,40 @@ public class EquipoServiceImpl implements EquipoService {
 	@Override
 	public List<EquipoDTO> obtenerTodos() {
 		logger.debug("Inicio obtenerTodos");
-		List<EquipoDTO> equipos = toDTOList(equipoDao.obtenerTodos());
+		List<EquipoDTO> equipos = ordenados(equipoDao.obtenerActivos());
+		logger.debug("Fin obtenerTodos: total={}", equipos.size());
+		return equipos;
+	}
+
+	@Override
+	public List<EquipoDTO> obtenerTodosConEstadoTemporada() {
+		logger.debug("Inicio obtenerTodosConEstadoTemporada");
+		List<EquipoDTO> equipos = ordenados(equipoDao.obtenerTodos());
+		logger.debug("Fin obtenerTodosConEstadoTemporada: total={}", equipos.size());
+		return equipos;
+	}
+
+	@Override
+	public List<EquipoDTO> obtenerPublicos() {
+		logger.debug("Inicio obtenerPublicos");
+		List<EquipoDTO> equipos = ordenados(equipoDao.obtenerActivosPublicos());
+		logger.debug("Fin obtenerPublicos: total={}", equipos.size());
+		return equipos;
+	}
+
+	private List<EquipoDTO> ordenados(List<Equipo> entidades) {
+		List<EquipoDTO> equipos = toDTOList(entidades);
 		equipos.sort(Comparator
 				.comparing((EquipoDTO equipo) -> equipo.getOrden() == null ? "" : equipo.getOrden(),
 						Comparator.nullsLast(String::compareTo))
 				.thenComparing(EquipoDTO::getNombre, Comparator.nullsLast(String::compareTo)));
-		logger.debug("Fin obtenerTodos: total={}", equipos.size());
 		return equipos;
 	}
 
 	@Override
 	public List<EquipoDTO> obtenerTodosPorCategoria(String categoria) {
 		logger.debug("Inicio obtenerTodosPorCategoria: categoria={}", categoria);
-		List<EquipoDTO> equipos = toDTOList(equipoDao.obtenerTodosPorCategoria(categoria));
-		equipos.sort(Comparator
-				.comparing((EquipoDTO equipo) -> equipo.getOrden() == null ? "" : equipo.getOrden(),
-						Comparator.nullsLast(String::compareTo))
-				.thenComparing(EquipoDTO::getNombre, Comparator.nullsLast(String::compareTo)));
+		List<EquipoDTO> equipos = ordenados(equipoDao.obtenerActivosPorCategoria(categoria));
 		logger.debug("Fin obtenerTodosPorCategoria: categoria={}, total={}", categoria, equipos.size());
 		return equipos;
 	}
@@ -154,6 +171,7 @@ public class EquipoServiceImpl implements EquipoService {
 		equipo.setNombre(equipoDTO.getNombre().trim());
 		equipo.setDeporte(equipoDTO.getDeporte().trim());
 		equipo.setModalidad(equipoDTO.getModalidad());
+		equipo.setActivoTemporada(equipoDTO.getActivoTemporada());
 
 		return equipo;
 	}
@@ -172,6 +190,8 @@ public class EquipoServiceImpl implements EquipoService {
 		equipoDTO.setNombre(equipo.getNombre().trim());
 		equipoDTO.setDeporte(equipo.getDeporte().trim());
 		equipoDTO.setModalidad(equipo.getModalidad());
+		equipoDTO.setActivoTemporada(equipo.getActivoTemporada());
+		equipoDTO.setTipoTemporada(equipo.getTipoTemporada());
 
 		return equipoDTO;
 	}

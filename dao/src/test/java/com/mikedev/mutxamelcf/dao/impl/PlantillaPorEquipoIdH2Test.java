@@ -47,6 +47,7 @@ class PlantillaPorEquipoIdH2Test {
                     FECHA_FIN DATE, ACTIVA NUMBER(1))""");
         EsquemaH2.crearPersonal(jdbc);
         EsquemaH2.crearPlantillas(jdbc);
+        EsquemaH2.crearTransicion(jdbc);
         jdbc.execute("CREATE TABLE USUARIOS_APP (ID NUMBER PRIMARY KEY, ACTIVO NUMBER(1))");
         jdbc.execute("CREATE TABLE ROLES_APP (ID NUMBER PRIMARY KEY, CODIGO VARCHAR2(30))");
         jdbc.execute("CREATE TABLE USUARIOS_APP_ROLES (USUARIO_APP_ID NUMBER, ROL_ID NUMBER)");
@@ -135,8 +136,26 @@ class PlantillaPorEquipoIdH2Test {
         assertThat(comunicacion.obtenerEquiposDeFamiliar(102L)).containsExactly(1L);
     }
 
-    @Test
-    void unJugadorDeBajaNoTieneEquipoNiRecibeAvisosDelEquipo() {
+@Test
+void losEquiposDelUsuarioSoloSonLosQueJueganEnLaTemporadaActiva() {
+    jdbc.update("INSERT INTO TEMPORADAS VALUES (7, '2026-27', DATE '2026-09-01', DATE '2027-06-30', 1)");
+    jdbc.update("INSERT INTO EQUIPO_TEMPORADA (EQUIPO_ID, TEMPORADA_ID, ACTIVO) VALUES (1, 7, 1)");
+    jdbc.update("INSERT INTO EQUIPO_TEMPORADA (EQUIPO_ID, TEMPORADA_ID, ACTIVO) VALUES (2, 7, 1)");
+
+    assertThat(comunicacion.obtenerEquiposDeJugador(100L)).containsExactly(1L);
+    assertThat(comunicacion.obtenerEquiposDeFamiliar(102L)).containsExactly(1L);
+    assertThat(comunicacion.obtenerEquiposDeEntrenador(103L)).containsExactly(1L);
+
+    // El Cadete A deja de jugar esta temporada: sus avisos de equipo dejan de llegar a nadie
+    jdbc.update("UPDATE EQUIPO_TEMPORADA SET ACTIVO = 0 WHERE EQUIPO_ID = 1");
+
+    assertThat(comunicacion.obtenerEquiposDeJugador(100L)).isEmpty();
+    assertThat(comunicacion.obtenerEquiposDeFamiliar(102L)).isEmpty();
+    assertThat(comunicacion.obtenerEquiposDeEntrenador(103L)).isEmpty();
+}
+
+@Test
+void unJugadorDeBajaNoTieneEquipoNiRecibeAvisosDelEquipo() {
         assertThat(comunicacion.obtenerEquiposDeJugador(101L)).isEmpty();
         assertThat(comunicacion.obtenerUsuariosDelEquipo(1L)).doesNotContain(101L);
     }

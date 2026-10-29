@@ -494,7 +494,7 @@ public class PartidoServiceImpl implements PartidoService {
 		 * partido más relevante: el próximo sin resultado o, si no hay
 		 * ninguno futuro, el último jugado.
 		 */
-		List<Equipo> equipos = equipoDao.obtenerTodosPorDeporte(deporte);
+		List<Equipo> equipos = equipoDao.obtenerActivosPublicosPorDeporte(deporte);
 
 		List<EquipoConPartidoMasReciente> equiposConPartido = new ArrayList<>();
 

@@ -345,7 +345,7 @@ public class ImportacionFfcvServiceImpl implements ImportacionFfcvService {
 		LocalDate hasta = filas.stream().map(FfcvFilaCsv::fecha).max(Comparator.naturalOrder()).orElseThrow();
 
 		Map<Long, Equipo> equipos = new HashMap<>();
-		for (Equipo equipo : equipoDao.obtenerTodos()) {
+		for (Equipo equipo : equipoDao.obtenerActivos()) {
 			equipos.put(equipo.getId(), equipo);
 		}
 

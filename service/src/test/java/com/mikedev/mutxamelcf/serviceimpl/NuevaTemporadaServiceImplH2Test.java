@@ -196,6 +196,7 @@ class NuevaTemporadaServiceImplH2Test {
                     FECHA_INICIO DATE, FECHA_FIN DATE, ACTIVA NUMBER(1))""");
         EsquemaH2.crearPersonal(jdbc);
         EsquemaH2.crearPlantillas(jdbc);
+        EsquemaH2.crearTransicion(jdbc);
 
         temporada(ACTIVA, "2026-27", LocalDate.of(2026, 9, 1), 1);
         temporada(DESTINO, "2027-28", LocalDate.of(2027, 9, 1), 0);

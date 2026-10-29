@@ -18,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -122,7 +123,7 @@ class PerfilAppDaoImplTest {
 
         ArgumentCaptor<RowMapper<Equipo>> captor = ArgumentCaptor.forClass(RowMapper.class);
         Equipo esperado = new Equipo();
-        when(jdbcTemplate.query(anyString(), captor.capture(), anyInt())).thenReturn(List.of(esperado));
+        when(jdbcTemplate.query(anyString(), captor.capture(), eq(-1L), anyInt(), eq(-1L))).thenReturn(List.of(esperado));
 
         assertThat(dao.obtenerEquiposPorUsuario(1)).containsExactly(esperado);
 

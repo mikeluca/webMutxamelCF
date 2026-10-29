@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -113,7 +114,7 @@ class EquipoDaoImplTest {
         ArgumentCaptor<RowMapper<Equipo>> captor = ArgumentCaptor.forClass(RowMapper.class);
 
         Equipo esperado = new Equipo();
-        when(jdbcTemplate.queryForObject(anyString(), captor.capture(), eq(3L))).thenReturn(esperado);
+        when(jdbcTemplate.queryForObject(anyString(), captor.capture(), eq(-1L), eq(3L))).thenReturn(esperado);
 
         Equipo resultado = dao.obtenerEquipoPorId(3L);
 
@@ -147,7 +148,7 @@ class EquipoDaoImplTest {
         EquipoDaoImpl dao = new EquipoDaoImpl(jdbcTemplate);
 
         Equipo esperado = new Equipo();
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq("Senior A"))).thenReturn(List.of(esperado));
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(-1L), eq("Senior A"))).thenReturn(List.of(esperado));
 
         Equipo resultado = dao.obtenerEquipoPorNombre("Senior A");
 
@@ -160,7 +161,7 @@ class EquipoDaoImplTest {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         EquipoDaoImpl dao = new EquipoDaoImpl(jdbcTemplate);
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq("Senior A")))
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(-1L), eq("Senior A")))
                 .thenReturn(java.util.Collections.emptyList());
 
         assertThat(dao.obtenerEquipoPorNombre("Senior A")).isNull();
@@ -173,7 +174,7 @@ class EquipoDaoImplTest {
 
         dao.eliminarEquipo(7L);
 
-        verify(jdbcTemplate).update(anyString(), eq(7L));
+        verify(jdbcTemplate, times(2)).update(anyString(), eq(7L));
     }
 
     @Test
@@ -195,7 +196,7 @@ class EquipoDaoImplTest {
         EquipoDaoImpl dao = new EquipoDaoImpl(jdbcTemplate);
 
         List<Equipo> esperado = List.of(new Equipo());
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class))).thenReturn(esperado);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(-1L))).thenReturn(esperado);
 
         List<Equipo> resultado = dao.obtenerTodos();
 
@@ -204,28 +205,28 @@ class EquipoDaoImplTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void obtenerTodosPorCategoriaFiltraPorCategoria() {
+    void obtenerActivosPorCategoriaFiltraPorCategoria() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         EquipoDaoImpl dao = new EquipoDaoImpl(jdbcTemplate);
 
         List<Equipo> esperado = List.of(new Equipo());
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq("SENIOR"))).thenReturn(esperado);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(-1L), eq(-1L), eq("SENIOR"))).thenReturn(esperado);
 
-        List<Equipo> resultado = dao.obtenerTodosPorCategoria("SENIOR");
+        List<Equipo> resultado = dao.obtenerActivosPorCategoria("SENIOR");
 
         assertThat(resultado).isSameAs(esperado);
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void obtenerTodosPorDeporteFiltraPorDeporte() {
+    void obtenerActivosPublicosPorDeporteFiltraPorDeporte() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         EquipoDaoImpl dao = new EquipoDaoImpl(jdbcTemplate);
 
         List<Equipo> esperado = List.of(new Equipo());
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq("F"))).thenReturn(esperado);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(-1L), eq(-1L), eq("F"))).thenReturn(esperado);
 
-        List<Equipo> resultado = dao.obtenerTodosPorDeporte("F");
+        List<Equipo> resultado = dao.obtenerActivosPublicosPorDeporte("F");
 
         assertThat(resultado).isSameAs(esperado);
     }
@@ -243,7 +244,7 @@ class EquipoDaoImplTest {
         Equipo equipoB = new Equipo();
         equipoB.setOrden("2");
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq("FUTBOL")))
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(-1L), eq(-1L), eq("FUTBOL")))
                 .thenReturn(List.of(equipoA1, equipoA2, equipoB));
 
         Map<String, List<Equipo>> agrupados = dao.obtenerEquiposAgrupadosPorCategoria("FUTBOL");

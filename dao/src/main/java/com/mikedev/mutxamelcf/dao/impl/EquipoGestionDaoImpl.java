@@ -288,8 +288,14 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
     public boolean equipoAdmiteEstadisticas(Long equipoId) {
 
         List<String> modalidades = jdbcTemplate.query(
-                "SELECT MODALIDAD FROM EQUIPO WHERE ID = ?",
+                """
+                SELECT COALESCE(ET.MODALIDAD, E.MODALIDAD)
+                FROM EQUIPO E
+                LEFT JOIN EQUIPO_TEMPORADA ET ON ET.EQUIPO_ID = E.ID AND ET.TEMPORADA_ID = ?
+                WHERE E.ID = ?
+                """,
                 (rs, fila) -> rs.getString(1),
+                TemporadaActivaId.obtenerOMenosUno(jdbcTemplate),
                 equipoId);
 
         if (modalidades.isEmpty()) {

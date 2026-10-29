@@ -62,7 +62,8 @@
 						<th style="width: 25%;">Nombre</th>
 						<th style="width: 15%;">Categoría</th>
 						<th style="width: 15%;">Grupo</th>
-						<th style="width: 20%;">Modalidad</th>
+						<th style="width: 15%;">Modalidad (esta temporada)</th>
+						<th style="width: 10%;">Esta temporada</th>
 						<th style="width: 10%;"></th>
 					</tr>
 				</thead>
@@ -78,13 +79,20 @@
 							th:text="${equipo.modalidad} == 'F11' ? 'Fútbol 11' : (${equipo.modalidad} == 'F8' ? 'Fútbol 8' : (${equipo.modalidad} == 'F5' ? 'Fútbol 5' : 'Sin modalidad'))">
 						</td>
 						<td class="align-middle">
+							<span class="badge bg-success" th:if="${equipo.activoTemporada == true and equipo.tipoTemporada == 'PRETEMPORADA'}">Pretemporada</span>
+							<span class="badge bg-success" th:if="${equipo.activoTemporada == true and equipo.tipoTemporada != 'PRETEMPORADA'}">Juega</span>
+							<span class="badge bg-secondary" th:if="${equipo.activoTemporada == false}">No juega</span>
+							<span class="badge bg-warning text-dark" th:if="${equipo.activoTemporada == null}">Sin asignar</span>
+						</td>
+						<td class="align-middle">
 							<div class="d-flex justify-content-center align-items-center gap-2">
 								<button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal"
 									data-bs-target="#equipoModal" th:attr="data-id=${equipo.id},
 										                     data-deporte=${equipo.deporte},
 										                     data-categoria=${equipo.categoria},
 										                     data-grupo=${equipo.grupo},
-										                     data-modalidad=${equipo.modalidad}" title="Editar equipo"
+										                     data-modalidad=${equipo.modalidad},
+										                     data-juega=${equipo.activoTemporada == false ? '0' : '1'}" title="Editar equipo"
 									onclick="abrirModalEditar(this)">
 									<i class="bi bi-pencil"></i>
 								</button>
@@ -146,7 +154,14 @@
 							</select>
 						</div>
 						<div class="form-group">
-							<label for="modalidad">Modalidad:</label>
+							<label for="juega">Juega esta temporada:</label>
+							<select id="juega" name="juega" class="form-control">
+								<option value="1">Sí</option>
+								<option value="0">No</option>
+							</select>
+						</div>
+						<div class="form-group">
+							<label for="modalidad">Modalidad esta temporada:</label>
 							<select id="modalidad" name="modalidad" class="form-control">
 								<option value="F11">Fútbol 11</option>
 								<option value="F8">Fútbol 8</option>
@@ -215,6 +230,7 @@
 			document.getElementById('grupo').value = '';
 			document.getElementById('deporte').value = '';
 			document.getElementById('modalidad').value = '';
+			document.getElementById('juega').value = '1'; // un equipo nuevo entra activo
 			document.getElementById('equipoModalLabel').textContent = 'Nuevo Equipo';
 			document.getElementById('mensajeModal').style.display = 'none'; // Limpiar mensaje
 		}
@@ -229,6 +245,7 @@
 			document.getElementById('cate').value = data.categoria || '';
 			document.getElementById('grupo').value = data.grupo || '';
 			document.getElementById('modalidad').value = data.modalidad || '';
+			document.getElementById('juega').value = data.juega || '1';
 			actualizarNombre();
 		}
 

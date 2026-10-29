@@ -41,9 +41,13 @@ public class ClasificacionDaoImpl implements ClasificacionDao {
 	public List<Clasificacion> obtenerPorEquipo(Long equipoId) {
 		logger.debug("Inicio obtenerPorEquipo: equipoId={}", equipoId);
 
+		// La de la temporada activa (sin temporada activa no se filtra)
+		long temporadaId = TemporadaActivaId.obtenerOMenosUno(jdbcTemplate);
+
 		List<Clasificacion> filas = jdbcTemplate.query(
-				"SELECT " + CAMPOS_SELECT + " FROM CLASIFICACIONES WHERE EQUIPO_ID = ? ORDER BY POSICION, NOMBRE_EQUIPO, ID",
-				ROW_MAPPER, equipoId);
+				"SELECT " + CAMPOS_SELECT + " FROM CLASIFICACIONES WHERE EQUIPO_ID = ? AND (? < 0 OR TEMPORADA_ID = ?)"
+						+ " ORDER BY POSICION, NOMBRE_EQUIPO, ID",
+				ROW_MAPPER, equipoId, temporadaId, temporadaId);
 
 		logger.debug("Fin obtenerPorEquipo: total={}", filas.size());
 		return filas;

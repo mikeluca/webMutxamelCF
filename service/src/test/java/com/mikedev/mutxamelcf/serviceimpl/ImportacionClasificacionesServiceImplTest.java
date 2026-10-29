@@ -52,7 +52,7 @@ class ImportacionClasificacionesServiceImplTest {
                 equipo(FILIAL, "Filial"),
                 equipo(JUVENIL_A, "Juvenil A"));
 
-        when(equipoDao.obtenerTodos()).thenReturn(equipos);
+        when(equipoDao.obtenerActivos()).thenReturn(equipos);
         for (Equipo equipo : equipos) {
             when(equipoDao.obtenerEquipoPorId(equipo.getId())).thenReturn(equipo);
         }

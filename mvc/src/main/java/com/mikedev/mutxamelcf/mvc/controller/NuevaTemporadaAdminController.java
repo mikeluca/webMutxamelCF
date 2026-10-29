@@ -62,7 +62,7 @@ public class NuevaTemporadaAdminController {
 		}
 
 		if (destino != null) {
-			List<EquipoDTO> equipos = equipoService.obtenerTodos();
+			List<EquipoDTO> equipos = equipoService.obtenerTodosConEstadoTemporada();
 			model.addAttribute("destino", destino);
 			model.addAttribute("listaEquipos", equipos);
 			model.addAttribute("revision", nuevaTemporadaService.revision(destino.getId()));

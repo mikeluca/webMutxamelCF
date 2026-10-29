@@ -61,7 +61,7 @@ class EquipoAdminControllerTest {
 
     @Test
     void listarEquiposRellenaElModelo() {
-        when(equiposService.obtenerTodos()).thenReturn(List.of(new EquipoDTO()));
+        when(equiposService.obtenerTodosConEstadoTemporada()).thenReturn(List.of(new EquipoDTO()));
         when(equiposService.obtenerCategorias()).thenReturn(List.of("Senior"));
 
         Model model = new ExtendedModelMap();
@@ -76,7 +76,7 @@ class EquipoAdminControllerTest {
         when(equiposService.guardar(org.mockito.ArgumentMatchers.any())).thenReturn(true);
 
         ResponseEntity<Map<String, String>> response = controller.guardarEquipo(null, "Senior", "Equipo A", "A",
-                "Futbol", "F11");
+                "Futbol", "F11", null);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
     }
@@ -86,7 +86,7 @@ class EquipoAdminControllerTest {
         when(equiposService.guardar(org.mockito.ArgumentMatchers.any())).thenReturn(false);
 
         ResponseEntity<Map<String, String>> response = controller.guardarEquipo(null, "Senior", "Equipo A", "A",
-                "Futbol", "F11");
+                "Futbol", "F11", null);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("Error. El equipo ya existe.", response.getBody().get("error"));
@@ -97,7 +97,7 @@ class EquipoAdminControllerTest {
         when(equiposService.guardar(org.mockito.ArgumentMatchers.any())).thenThrow(new RuntimeException("fallo"));
 
         ResponseEntity<Map<String, String>> response = controller.guardarEquipo(null, "Senior", "Equipo A", "A",
-                "Futbol", "F11");
+                "Futbol", "F11", null);
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
     }
@@ -107,9 +107,9 @@ class EquipoAdminControllerTest {
         when(equiposService.guardar(org.mockito.ArgumentMatchers.any())).thenReturn(true);
         org.mockito.ArgumentCaptor<EquipoDTO> captor = org.mockito.ArgumentCaptor.forClass(EquipoDTO.class);
 
-        controller.guardarEquipo(null, "Benjamín", "Benjamín A", "A", "F", "F8");
-        controller.guardarEquipo(7L, "Benjamín", "Benjamín A", "A", "F", "");
-        controller.guardarEquipo(null, "Benjamín", "Benjamín A", "A", "F", null);
+        controller.guardarEquipo(null, "Benjamín", "Benjamín A", "A", "F", "F8", null);
+        controller.guardarEquipo(7L, "Benjamín", "Benjamín A", "A", "F", "", null);
+        controller.guardarEquipo(null, "Benjamín", "Benjamín A", "A", "F", null, null);
 
         org.mockito.Mockito.verify(equiposService, org.mockito.Mockito.times(3)).guardar(captor.capture());
         assertEquals("F8", captor.getAllValues().get(0).getModalidad());
@@ -125,16 +125,32 @@ class EquipoAdminControllerTest {
         when(equiposService.guardar(org.mockito.ArgumentMatchers.any())).thenReturn(true);
         org.mockito.ArgumentCaptor<EquipoDTO> captor = org.mockito.ArgumentCaptor.forClass(EquipoDTO.class);
 
-        controller.guardarEquipo(7L, "Benjamín", "Benjamín A", "A", "F", null);
+        controller.guardarEquipo(7L, "Benjamín", "Benjamín A", "A", "F", null, null);
 
         org.mockito.Mockito.verify(equiposService).guardar(captor.capture());
         assertEquals("F8", captor.getValue().getModalidad());
     }
 
-    @Test
-    void guardarEquipoRechazaUnaModalidadInvalidaSinGuardar() {
+@Test
+void guardarEquipoPasaSiJuegaEstaTemporada() {
+    when(equiposService.guardar(org.mockito.ArgumentMatchers.any())).thenReturn(true);
+    org.mockito.ArgumentCaptor<EquipoDTO> captor = org.mockito.ArgumentCaptor.forClass(EquipoDTO.class);
+
+    controller.guardarEquipo(7L, "Benjamín", "Benjamín A", "A", "F", "F8", 0);
+    controller.guardarEquipo(7L, "Benjamín", "Benjamín A", "A", "F", "F8", 1);
+    controller.guardarEquipo(7L, "Benjamín", "Benjamín A", "A", "F", "F8", null);
+
+    org.mockito.Mockito.verify(equiposService, org.mockito.Mockito.times(3)).guardar(captor.capture());
+    assertEquals(Boolean.FALSE, captor.getAllValues().get(0).getActivoTemporada());
+    assertEquals(Boolean.TRUE, captor.getAllValues().get(1).getActivoTemporada());
+    // Sin parámetro: nulo, que conserva el estado actual (o activo si es nuevo)
+    assertEquals(null, captor.getAllValues().get(2).getActivoTemporada());
+}
+
+@Test
+void guardarEquipoRechazaUnaModalidadInvalidaSinGuardar() {
         ResponseEntity<Map<String, String>> response = controller.guardarEquipo(null, "Senior", "Equipo A", "A", "F",
-                "F7");
+                "F7", null);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         org.mockito.Mockito.verify(equiposService, org.mockito.Mockito.never()).guardar(org.mockito.ArgumentMatchers.any());

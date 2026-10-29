@@ -223,7 +223,7 @@ class ComunicacionDaoImplTest {
         ComunicacionDaoImpl dao = new ComunicacionDaoImpl(jdbcTemplate, rolAppDao);
 
         ArgumentCaptor<RowMapper<Long>> captor = ArgumentCaptor.forClass(RowMapper.class);
-        when(jdbcTemplate.query(anyString(), captor.capture(), eq(1L))).thenReturn(List.of(10L));
+        when(jdbcTemplate.query(anyString(), captor.capture(), eq(-1L), eq(1L), eq(-1L))).thenReturn(List.of(10L));
 
         assertThat(dao.obtenerEquiposDeEntrenador(1L)).containsExactly(10L);
 
@@ -239,7 +239,7 @@ class ComunicacionDaoImplTest {
         RolAppDao rolAppDao = mock(RolAppDao.class);
         ComunicacionDaoImpl dao = new ComunicacionDaoImpl(jdbcTemplate, rolAppDao);
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(1L))).thenReturn(List.of(10L));
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(-1L), eq(1L), eq(-1L))).thenReturn(List.of(10L));
 
         assertThat(dao.obtenerEquiposDeJugador(1L)).containsExactly(10L);
     }
@@ -251,7 +251,7 @@ class ComunicacionDaoImplTest {
         RolAppDao rolAppDao = mock(RolAppDao.class);
         ComunicacionDaoImpl dao = new ComunicacionDaoImpl(jdbcTemplate, rolAppDao);
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(1L))).thenReturn(List.of(10L));
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(-1L), eq(1L), eq(-1L))).thenReturn(List.of(10L));
 
         assertThat(dao.obtenerEquiposDeFamiliar(1L)).containsExactly(10L);
     }

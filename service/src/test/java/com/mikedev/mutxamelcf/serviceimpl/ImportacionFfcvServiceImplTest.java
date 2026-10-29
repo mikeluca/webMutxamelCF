@@ -91,7 +91,7 @@ class ImportacionFfcvServiceImplTest {
                 equipo(ESCUELITA, "Escuelita"),
                 equipo(CADETE_A, "Cadete A"));
 
-        when(equipoDao.obtenerTodos()).thenReturn(equipos);
+        when(equipoDao.obtenerActivos()).thenReturn(equipos);
         for (Equipo equipo : equipos) {
             when(equipoDao.obtenerEquipoPorId(equipo.getId())).thenReturn(equipo);
         }

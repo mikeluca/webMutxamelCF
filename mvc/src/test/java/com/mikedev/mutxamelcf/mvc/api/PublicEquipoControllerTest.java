@@ -23,7 +23,7 @@ class PublicEquipoControllerTest {
         PublicEquipoController controller = new PublicEquipoController(equipoService, mock(JugadorService.class),
                 mock(CuerpoTecnicoService.class));
 
-        when(equipoService.obtenerTodos()).thenReturn(List.of(new EquipoDTO()));
+        when(equipoService.obtenerPublicos()).thenReturn(List.of(new EquipoDTO()));
 
         assertThat(controller.obtenerEquipos()).hasSize(1);
     }

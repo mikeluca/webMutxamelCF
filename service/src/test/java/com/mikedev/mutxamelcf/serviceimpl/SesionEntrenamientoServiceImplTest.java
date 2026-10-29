@@ -293,6 +293,37 @@ class SesionEntrenamientoServiceImplTest {
     }
 
     @Test
+    void generarSesionesNoGeneraNadaParaUnHorarioDeOtraTemporada() {
+        HorarioEntrenamiento antiguo = horario(2, true);
+        antiguo.setTemporadaId(1L);
+        when(horarioEntrenamientoDao.obtenerPorId(HORARIO_ID)).thenReturn(antiguo);
+        com.mikedev.mutxamelcf.model.TemporadaDTO activa = new com.mikedev.mutxamelcf.model.TemporadaDTO();
+        activa.setId(2L);
+        when(temporadaService.obtenerTemporadaActiva()).thenReturn(activa);
+
+        service.generarSesiones(HORARIO_ID, LocalDate.now().plusMonths(2));
+
+        verify(sesionEntrenamientoDao, never()).crear(any());
+    }
+
+    @Test
+    void generarSesionesSiGeneraParaUnHorarioDeLaTemporadaActiva() {
+        HorarioEntrenamiento actual = horario(2, true);
+        actual.setTemporadaId(2L);
+        when(horarioEntrenamientoDao.obtenerPorId(HORARIO_ID)).thenReturn(actual);
+        com.mikedev.mutxamelcf.model.TemporadaDTO activa = new com.mikedev.mutxamelcf.model.TemporadaDTO();
+        activa.setId(2L);
+        when(temporadaService.obtenerTemporadaActiva()).thenReturn(activa);
+        when(sesionEntrenamientoDao.obtenerUltimaFechaGenerada(HORARIO_ID)).thenReturn(null);
+        when(sesionEntrenamientoDao.existePorHorarioYFecha(eq(HORARIO_ID), any(LocalDate.class))).thenReturn(false);
+
+        LocalDate hasta = LocalDate.now().plusWeeks(3);
+        service.generarSesiones(HORARIO_ID, hasta);
+
+        verify(sesionEntrenamientoDao, times((int) contarMartes(LocalDate.now(), hasta))).crear(any());
+    }
+
+    @Test
     void generarSesionesCreaUnaSesionPorCadaSemanaHastaLaFechaLimite() {
         /*
          * Horario en martes (DayOfWeek=2). Generamos desde hoy hasta

@@ -10,6 +10,10 @@ public class Equipo {
 	private String deporte;
 	private String modalidad;
 
+	// Su fila de EQUIPO_TEMPORADA en la temporada activa; nulos si no tiene fila.
+	private Boolean activoTemporada;
+	private String tipoTemporada;
+
 	public Equipo() {
 		super();
 	}
@@ -70,6 +74,24 @@ public class Equipo {
 
 	public void setDeporte(String deporte) {
 		this.deporte = deporte;
+	}
+
+	/** Si juega en la temporada activa (EQUIPO_TEMPORADA.ACTIVO). Al guardar, nulo conserva el estado actual. */
+	public Boolean getActivoTemporada() {
+		return activoTemporada;
+	}
+
+	public void setActivoTemporada(Boolean activoTemporada) {
+		this.activoTemporada = activoTemporada;
+	}
+
+	/** NORMAL o PRETEMPORADA (EQUIPO_TEMPORADA.TIPO). */
+	public String getTipoTemporada() {
+		return tipoTemporada;
+	}
+
+	public void setTipoTemporada(String tipoTemporada) {
+		this.tipoTemporada = tipoTemporada;
 	}
 
 	public String getModalidad() {

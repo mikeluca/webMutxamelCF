@@ -124,7 +124,7 @@ class ImportadorFfcvDaoImplTest {
         dao.obtenerPorCompeticionYLetra("Primera FFCV, Grup 4", null);
 
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-        verify(jdbcTemplate).query(sql.capture(), any(RowMapper.class), eq("Primera FFCV, Grup 4"));
+        verify(jdbcTemplate).query(sql.capture(), any(RowMapper.class), eq("Primera FFCV, Grup 4"), eq(-1L), eq(-1L));
         assertThat(sql.getValue()).contains("LETRA IS NULL");
     }
 
@@ -137,7 +137,7 @@ class ImportadorFfcvDaoImplTest {
         dao.obtenerPorCompeticionYLetra("Segona FFCV, Grup 7", "B");
 
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-        verify(jdbcTemplate).query(sql.capture(), any(RowMapper.class), eq("Segona FFCV, Grup 7"), eq("B"));
+        verify(jdbcTemplate).query(sql.capture(), any(RowMapper.class), eq("Segona FFCV, Grup 7"), eq("B"), eq(-1L), eq(-1L));
         assertThat(sql.getValue()).contains("LETRA = ?");
     }
 

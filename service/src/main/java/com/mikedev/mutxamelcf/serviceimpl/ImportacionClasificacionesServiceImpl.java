@@ -79,7 +79,7 @@ public class ImportacionClasificacionesServiceImpl implements ImportacionClasifi
 		}
 
 		Map<Long, Equipo> equipos = new HashMap<>();
-		for (Equipo equipo : equipoDao.obtenerTodos()) {
+		for (Equipo equipo : equipoDao.obtenerActivos()) {
 			equipos.put(equipo.getId(), equipo);
 		}
 

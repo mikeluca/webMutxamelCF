@@ -127,7 +127,10 @@ class CuerpoTecnicoEquipoH2Test {
         jdbc.execute("""
                 CREATE TABLE EQUIPO (ID NUMBER PRIMARY KEY, NOMBRE VARCHAR2(100), CATEGORIA VARCHAR2(100),
                     GRUPO VARCHAR2(10), ORDEN VARCHAR2(5), DEPORTE VARCHAR2(10), MODALIDAD VARCHAR2(5))""");
+        jdbc.execute("CREATE TABLE TEMPORADAS (ID NUMBER PRIMARY KEY, NOMBRE VARCHAR2(50), FECHA_INICIO DATE,"
+                + " FECHA_FIN DATE, ACTIVA NUMBER(1))");
         EsquemaH2.crearPersonal(jdbc);
+        EsquemaH2.crearTransicion(jdbc);
         jdbc.execute("CREATE TABLE USUARIOS_APP (ID NUMBER PRIMARY KEY, ACTIVO NUMBER(1))");
         jdbc.execute("CREATE TABLE ROLES_APP (ID NUMBER PRIMARY KEY, CODIGO VARCHAR2(30))");
         jdbc.execute("CREATE TABLE USUARIOS_APP_ROLES (USUARIO_APP_ID NUMBER, ROL_ID NUMBER)");

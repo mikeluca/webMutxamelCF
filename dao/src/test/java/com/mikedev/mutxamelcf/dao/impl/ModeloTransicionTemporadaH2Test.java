@@ -177,6 +177,82 @@ class ModeloTransicionTemporadaH2Test {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    // ---- lecturas: solo la temporada activa ---------------------------------------------------------
+
+    private void horario(long temporada, int dia, int activo) {
+        jdbc.update("INSERT INTO HORARIOS_ENTRENAMIENTO (EQUIPO_ID, DIA_SEMANA, HORA, ACTIVO, TEMPORADA_ID)"
+                + " VALUES (?, ?, '18:00', ?, ?)", EQUIPO, dia, activo, temporada);
+    }
+
+    @Test
+    void laLecturaDeLosEnlacesFfcvSoloVeLosDeLaTemporadaActiva() {
+        enlaceFfcv(ANTERIOR, "Primera Cadet, Grup 10", "A");
+        enlaceFfcv(ACTIVA, "Primera Cadet, Grup 10", "A");
+        enlaceFfcv(ANTERIOR, "Segona Cadet, Grup 3", "B");
+        EquipoFfcvDaoImpl dao = new EquipoFfcvDaoImpl(jdbc);
+
+        assertThat(dao.listarTodos()).hasSize(1);
+        EquipoFfcv actual = dao.obtenerPorCompeticionYLetra("Primera Cadet, Grup 10", "A");
+        assertThat(jdbc.queryForObject("SELECT TEMPORADA_ID FROM EQUIPOS_FFCV WHERE ID = ?", Long.class,
+                actual.getId())).isEqualTo(ACTIVA);
+        // El de otra temporada no se enlaza
+        assertThat(dao.obtenerPorCompeticionYLetra("Segona Cadet, Grup 3", "B")).isNull();
+    }
+
+    @Test
+    void sinTemporadaActivaLasLecturasFfcvNoFiltran() {
+        enlaceFfcv(ANTERIOR, "Primera Cadet, Grup 10", "A");
+        enlaceFfcv(ACTIVA, "Segona Cadet, Grup 3", "B");
+        jdbc.update("UPDATE TEMPORADAS SET ACTIVA = 0");
+
+        assertThat(new EquipoFfcvDaoImpl(jdbc).listarTodos()).hasSize(2);
+    }
+
+    @Test
+    void laClasificacionQueSeLeeEsLaDeLaTemporadaActiva() {
+        jdbc.update("INSERT INTO CLASIFICACIONES (EQUIPO_ID, COMPETICION, POSICION, NOMBRE_EQUIPO, PUNTOS, PJ, PG,"
+                + " PE, PP, GF, GC, FECHA_IMPORTACION, TEMPORADA_ID) VALUES (?, 'Antigua', 1, 'Final', 60, 30, 20,"
+                + " 0, 10, 50, 20, CURRENT_TIMESTAMP, ?)", EQUIPO, ANTERIOR);
+        ClasificacionDaoImpl dao = new ClasificacionDaoImpl(jdbc);
+        dao.insertarTodas(List.of(fila(1), fila(2)));
+
+        assertThat(dao.obtenerPorEquipo(EQUIPO)).extracting(Clasificacion::getCompeticion)
+                .containsOnly("Primera Cadet, Grup 10").hasSize(2);
+    }
+
+    @Test
+    void losHorariosActivosQueSeLeenSonLosDeLaTemporadaActiva() {
+        horario(ANTERIOR, 2, 1);
+        horario(ACTIVA, 4, 1);
+        horario(ACTIVA, 5, 0);
+        HorarioEntrenamientoDaoImpl dao = new HorarioEntrenamientoDaoImpl(jdbc);
+
+        assertThat(dao.obtenerActivosPorEquipo(EQUIPO)).extracting(HorarioEntrenamiento::getDiaSemana)
+                .containsExactly(4);
+        assertThat(dao.obtenerTodosActivos()).extracting(HorarioEntrenamiento::getDiaSemana).containsExactly(4);
+        assertThat(dao.obtenerTodosActivos()).extracting(HorarioEntrenamiento::getTemporadaId)
+                .containsExactly(ACTIVA);
+    }
+
+    @Test
+    void unHorarioSeLeePorIdAunqueSeaDeOtraTemporadaYTraeSuTemporada() {
+        horario(ANTERIOR, 2, 1);
+        long id = jdbc.queryForObject("SELECT MAX(ID) FROM HORARIOS_ENTRENAMIENTO", Long.class);
+
+        HorarioEntrenamiento horario = new HorarioEntrenamientoDaoImpl(jdbc).obtenerPorId(id);
+
+        assertThat(horario.getTemporadaId()).isEqualTo(ANTERIOR);
+    }
+
+    @Test
+    void sinTemporadaActivaLosHorariosNoFiltran() {
+        horario(ANTERIOR, 2, 1);
+        horario(ACTIVA, 4, 1);
+        jdbc.update("UPDATE TEMPORADAS SET ACTIVA = 0");
+
+        assertThat(new HorarioEntrenamientoDaoImpl(jdbc).obtenerTodosActivos()).hasSize(2);
+    }
+
     // ---- CUOTAS_JUGADOR: INCOBRABLE ---------------------------------------------------------------
 
     private long cuota(String estado) {

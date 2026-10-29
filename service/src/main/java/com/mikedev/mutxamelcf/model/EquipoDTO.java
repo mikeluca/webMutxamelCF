@@ -10,6 +10,10 @@ public class EquipoDTO {
 	private String deporte;
 	private String modalidad;
 
+	// Su fila de EQUIPO_TEMPORADA en la temporada activa; nulos si no tiene fila.
+	private Boolean activoTemporada;
+	private String tipoTemporada;
+
 	public EquipoDTO() {
 		super();
 	}
@@ -70,6 +74,22 @@ public class EquipoDTO {
 
 	public void setDeporte(String deporte) {
 		this.deporte = deporte;
+	}
+
+	public Boolean getActivoTemporada() {
+		return activoTemporada;
+	}
+
+	public void setActivoTemporada(Boolean activoTemporada) {
+		this.activoTemporada = activoTemporada;
+	}
+
+	public String getTipoTemporada() {
+		return tipoTemporada;
+	}
+
+	public void setTipoTemporada(String tipoTemporada) {
+		this.tipoTemporada = tipoTemporada;
 	}
 
 	public String getModalidad() {

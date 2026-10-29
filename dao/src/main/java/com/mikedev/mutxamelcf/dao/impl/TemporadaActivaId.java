@@ -13,6 +13,13 @@ final class TemporadaActivaId {
 	private TemporadaActivaId() {
 	}
 
+	/** El ID de la temporada activa, o -1 si no hay ninguna (las lecturas entonces no filtran). */
+	static long obtenerOMenosUno(JdbcTemplate jdbcTemplate) {
+		List<Long> ids = jdbcTemplate.queryForList("SELECT ID FROM TEMPORADAS WHERE ACTIVA = 1", Long.class);
+
+		return ids.isEmpty() ? -1L : ids.get(0);
+	}
+
 	static long obtener(JdbcTemplate jdbcTemplate) {
 		List<Long> ids = jdbcTemplate.queryForList("SELECT ID FROM TEMPORADAS WHERE ACTIVA = 1", Long.class);
 

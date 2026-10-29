@@ -12,6 +12,7 @@ public class HorarioEntrenamiento {
     private boolean activo;
     private Long usuarioActualizoId;
     private Timestamp fechaActualizacion;
+    private Long temporadaId;
 
     public HorarioEntrenamiento() {
         super();
@@ -23,6 +24,15 @@ public class HorarioEntrenamiento {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    /** La temporada a la que pertenece el horario (HORARIOS_ENTRENAMIENTO.TEMPORADA_ID); nulo si no se ha leído. */
+    public Long getTemporadaId() {
+        return temporadaId;
+    }
+
+    public void setTemporadaId(Long temporadaId) {
+        this.temporadaId = temporadaId;
     }
 
     public Long getEquipoId() {

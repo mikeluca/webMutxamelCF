@@ -98,13 +98,19 @@ public class CoordinacionDaoImpl implements CoordinacionDao {
 
 	@Override
 	public List<EquipoCoordinacion> equiposConRelacionFfcv() {
+		// Equipos activos con enlace FFCV de la temporada activa (sin temporada activa no se filtra)
+		long temporadaId = TemporadaActivaId.obtenerOMenosUno(jdbcTemplate);
+
 		return jdbcTemplate.query("""
 				SELECT E.ID, E.NOMBRE, E.ORDEN
 				FROM EQUIPO E
-				WHERE EXISTS (SELECT 1 FROM EQUIPOS_FFCV F WHERE F.EQUIPO_ID = E.ID)
+				LEFT JOIN EQUIPO_TEMPORADA ET ON ET.EQUIPO_ID = E.ID AND ET.TEMPORADA_ID = ?
+				WHERE EXISTS (SELECT 1 FROM EQUIPOS_FFCV F WHERE F.EQUIPO_ID = E.ID AND (? < 0 OR F.TEMPORADA_ID = ?))
+				  AND (? < 0 OR ET.ACTIVO = 1)
 				ORDER BY E.ORDEN, E.NOMBRE
 				""",
-				(rs, n) -> new EquipoCoordinacion(rs.getLong("ID"), rs.getString("NOMBRE"), null, null));
+				(rs, n) -> new EquipoCoordinacion(rs.getLong("ID"), rs.getString("NOMBRE"), null, null),
+				temporadaId, temporadaId, temporadaId, temporadaId);
 	}
 
 	@Override

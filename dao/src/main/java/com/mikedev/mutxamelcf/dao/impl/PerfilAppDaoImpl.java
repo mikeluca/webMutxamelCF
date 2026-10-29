@@ -230,20 +230,27 @@ public class PerfilAppDaoImpl implements PerfilAppDao {
                     e.ORDEN,
                     e.NOMBRE,
                     e.DEPORTE,
-                    e.MODALIDAD
+                    COALESCE(et.MODALIDAD, e.MODALIDAD) AS MODALIDAD
                 FROM USUARIOS_APP_CUERPO_TECNICO uact
                 INNER JOIN CUERPO_TECNICO_EQUIPO cte
                     ON cte.CUERPO_TECNICO_ID = uact.CUERPO_TECNICO_ID
                 INNER JOIN EQUIPO e
                     ON e.ID = cte.EQUIPO_ID
+                LEFT JOIN EQUIPO_TEMPORADA et
+                    ON et.EQUIPO_ID = e.ID AND et.TEMPORADA_ID = ?
                 WHERE uact.USUARIO_APP_ID = ?
+                  AND (? < 0 OR et.ACTIVO = 1)
                 ORDER BY e.ORDEN, e.NOMBRE
                 """;
+
+        long temporadaId = TemporadaActivaId.obtenerOMenosUno(jdbcTemplate);
 
         List<Equipo> equipos = jdbcTemplate.query(
                 sql,
                 EQUIPO_ROW_MAPPER,
-                usuarioAppId);
+                temporadaId,
+                usuarioAppId,
+                temporadaId);
 
         logger.debug(
                 "Fin obtenerEquiposPorUsuario: usuarioAppId={}, total={}",

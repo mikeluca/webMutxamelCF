@@ -108,7 +108,7 @@ public class HorarioEntrenamientoDaoImpl implements HorarioEntrenamientoDao {
 
         String sql = """
                 SELECT ID, EQUIPO_ID, DIA_SEMANA, HORA, LUGAR, ACTIVO,
-                       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION
+                       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, TEMPORADA_ID
                 FROM HORARIOS_ENTRENAMIENTO
                 WHERE ID = ?
                 """;
@@ -123,14 +123,18 @@ public class HorarioEntrenamientoDaoImpl implements HorarioEntrenamientoDao {
 
         String sql = """
                 SELECT ID, EQUIPO_ID, DIA_SEMANA, HORA, LUGAR, ACTIVO,
-                       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION
+                       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, TEMPORADA_ID
                 FROM HORARIOS_ENTRENAMIENTO
                 WHERE EQUIPO_ID = ?
                   AND ACTIVO = 1
+                  AND (? < 0 OR TEMPORADA_ID = ?)
                 ORDER BY DIA_SEMANA ASC, HORA ASC
                 """;
 
-        return jdbcTemplate.query(sql, ROW_MAPPER, equipoId);
+        // Solo los de la temporada activa (sin temporada activa no se filtra)
+        long temporadaId = TemporadaActivaId.obtenerOMenosUno(jdbcTemplate);
+
+        return jdbcTemplate.query(sql, ROW_MAPPER, equipoId, temporadaId, temporadaId);
     }
 
     @Override
@@ -138,13 +142,17 @@ public class HorarioEntrenamientoDaoImpl implements HorarioEntrenamientoDao {
 
         String sql = """
                 SELECT ID, EQUIPO_ID, DIA_SEMANA, HORA, LUGAR, ACTIVO,
-                       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION
+                       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, TEMPORADA_ID
                 FROM HORARIOS_ENTRENAMIENTO
                 WHERE ACTIVO = 1
+                  AND (? < 0 OR TEMPORADA_ID = ?)
                 ORDER BY EQUIPO_ID ASC, DIA_SEMANA ASC
                 """;
 
-        return jdbcTemplate.query(sql, ROW_MAPPER);
+        // Solo los de la temporada activa (sin temporada activa no se filtra)
+        long temporadaId = TemporadaActivaId.obtenerOMenosUno(jdbcTemplate);
+
+        return jdbcTemplate.query(sql, ROW_MAPPER, temporadaId, temporadaId);
     }
 
     private static HorarioEntrenamiento mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -161,6 +169,8 @@ public class HorarioEntrenamientoDaoImpl implements HorarioEntrenamientoDao {
         long usuarioActualizoId = rs.getLong("USUARIO_ACTUALIZO_ID");
         horario.setUsuarioActualizoId(rs.wasNull() ? null : usuarioActualizoId);
 
+        long temporada = rs.getLong("TEMPORADA_ID");
+        horario.setTemporadaId(rs.wasNull() ? null : temporada);
         horario.setFechaActualizacion(rs.getTimestamp("FECHA_ACTUALIZACION"));
 
         return horario;

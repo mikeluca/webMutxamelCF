@@ -24,6 +24,7 @@ import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
 import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.HorarioEntrenamiento;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaEntrenamiento;
+import com.mikedev.mutxamelcf.model.TemporadaDTO;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaRequest;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaResponse;
 import com.mikedev.mutxamelcf.model.SesionEntrenamiento;
@@ -87,6 +88,14 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
         HorarioEntrenamiento horario = horarioEntrenamientoDao.obtenerPorId(horarioId);
 
         if (horario == null || !horario.isActivo()) {
+            return;
+        }
+
+        // Un horario de otra temporada (copiado o antiguo) no genera sesiones
+        TemporadaDTO activa = temporadaService.obtenerTemporadaActiva();
+
+        if (activa != null && activa.getId() != null && horario.getTemporadaId() != null
+                && !activa.getId().equals(horario.getTemporadaId())) {
             return;
         }
 
