@@ -253,7 +253,7 @@ Cada paso lleva "qué mirar" y, entre corchetes, la sección de verificación SQ
 - [ ] Panel → `Nueva temporada` (`/admin/nueva-temporada`): revisa `CATEGORIAS_EDAD`.
 - [ ] Rellena los años de nacimiento que falten [6.4: jugadores activos sin año]. Debe quedar en 0.
 - [ ] Genera el borrador (`Generar`). Mira: cada jugador formativo con su categoría por edad; Filial, Primer Equipo y Veteranos se quedan en su equipo; el Juvenil de último año queda pendiente.
-- [ ] `Regenerar` no duplica filas ni pierde las decisiones tomadas.
+- [ ] `Regenerar` (con cuidado): comprueba si conserva las decisiones ya tomadas antes de usarlo en PRO; anota lo que ocurre.
 
 **Fase 2: pedir confirmación a las familias**
 - [ ] Botón "Pedir confirmación a las familias" (solo SUPER). Resultado: jugadores preguntados y cuentas avisadas.
@@ -332,7 +332,7 @@ La temporada nueva está activa y **todavía no tiene partidos**; la web públic
 - Resultados y clasificaciones: **los de la temporada anterior**, hasta que empiece la competición (cuando la nueva temporada tenga partidos, vuelve a lo normal).
 - Los equipos de pretemporada **no** salen en la web pública.
 - Web: los equipos que no juegan la nueva temporada no aparecen.
-- App: la bandeja tiene el aviso "Nueva temporada"; las familias ven a sus jugadores con la categoría nueva y "`<Categoría> · Pretemporada`"; el calendario muestra los entrenamientos de la pretemporada; no hay horarios ni sesiones de la temporada vieja en el futuro.
+- App: la bandeja tiene el aviso "Nueva temporada"; las familias ven a sus jugadores con la categoría nueva y "`<Categoría> · Pretemporada`"; no hay horarios ni sesiones de la temporada vieja en el futuro (los horarios se copian desactivados: el calendario de la pretemporada se llena cuando el coordinador crea o activa los suyos).
 - Panel: Historial (`/admin/historial`) muestra la temporada cerrada con sus plantillas y cuerpos técnicos; Pagos → Temporadas con la nueva activa.
 
 ### Después del reparto
@@ -476,4 +476,4 @@ El cierre real solo se puede lanzar **desde el 1/7/2027** (en PRO `app.cierre-te
 **Después**
 - Julio-agosto: el coordinador asigna entrenadores a los equipos de pretemporada y se entrena con ellos.
 - Septiembre: reparto de equipos (genera las cuotas en la primera asignación), reactivar los horarios, enlazar `EQUIPOS_FFCV`, importar la FFCV, crear los equipos que falten. Al importar los primeros partidos, la web sale del modo verano.
-- Tareas automáticas (comunicaciones, cuentas sin jugadores) siguen corriendo con su calendario; el aviso a las familias sin jugadores activos, con la copia de seguridad hecha, sale a partir del cierre.
+- Tareas automáticas: la purga de comunicaciones (03:30) y el job de cuentas sin jugadores (04:00) corren cada noche. Tras el cierre, la primera noche las familias cuyos jugadores quedaron todos de baja recibirán el aviso de desactivación (a los 3 meses se desactiva la cuenta): revisa antes la lista con la sección 6.11 y las bajas del borrador.
