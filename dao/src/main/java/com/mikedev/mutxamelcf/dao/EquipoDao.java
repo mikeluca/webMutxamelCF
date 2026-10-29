@@ -27,13 +27,22 @@ public interface EquipoDao {
 	/** Los equipos activos en la temporada activa (selectores del panel y de la app). */
 	List<Equipo> obtenerActivos();
 
-	/** Los activos de TIPO = 'NORMAL' (web pública). */
+	/**
+	 * Los activos de TIPO = 'NORMAL' (web pública). Mientras la temporada activa no tenga ningún partido (verano) se
+	 * suman los que estaban activos y NORMAL en la temporada anterior, para que la web los siga mostrando.
+	 */
 	List<Equipo> obtenerActivosPublicos();
 
 	List<Equipo> obtenerActivosPorCategoria(String categoria);
 
 	/** Los activos de TIPO = 'NORMAL' de un deporte (web pública). */
 	List<Equipo> obtenerActivosPublicosPorDeporte(String deporte);
+
+	/**
+	 * Activa o desactiva el equipo (ACTIVO) en la temporada activa. Al activar un equipo sin fila se crea una NORMAL con
+	 * la modalidad de EQUIPO. Sin temporada activa no hace nada.
+	 */
+	void marcarActivoEnTemporada(Long equipoId, boolean activo);
 
 	Equipo obtenerEquipoPorId(Long id);
 

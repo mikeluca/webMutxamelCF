@@ -390,4 +390,50 @@ class JugadorServiceImplTest {
         assertThat(resultado.get(0).getNombre()).isEqualTo("Juan");
         assertThat(resultado.get(0).getDorsal()).isEqualTo(9);
     }
+
+    // ---- plantilla en preparación (web pública) ------------------------------------------------------
+
+    @Test
+    void unEquipoSinJugadoresDefinitivosEstaEnPreparacion() {
+        Equipo equipo = new Equipo();
+        equipo.setId(5L);
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporadaActiva());
+        when(jugadorTemporadaDao.contarPorTemporada(any())).thenReturn(30);
+        when(equipoDao.obtenerEquipoPorNombre("Cadete A")).thenReturn(equipo);
+        when(jugadorTemporadaDao.contarDefinitivosEnLaTemporadaActiva(5L)).thenReturn(0);
+
+        assertThat(jugadorService.plantillaEnPreparacion("Cadete A")).isTrue();
+    }
+
+    @Test
+    void conAlgunDefinitivoLaPlantillaYaSePublica() {
+        Equipo equipo = new Equipo();
+        equipo.setId(5L);
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporadaActiva());
+        when(jugadorTemporadaDao.contarPorTemporada(any())).thenReturn(30);
+        when(equipoDao.obtenerEquipoPorNombre("Cadete A")).thenReturn(equipo);
+        when(jugadorTemporadaDao.contarDefinitivosEnLaTemporadaActiva(5L)).thenReturn(1);
+
+        assertThat(jugadorService.plantillaEnPreparacion("Cadete A")).isFalse();
+    }
+
+    @Test
+    void sinFichasDeLaTemporadaActivaNuncaSeMuestraEnPreparacion() {
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporadaActiva());
+        when(jugadorTemporadaDao.contarPorTemporada(any())).thenReturn(0);
+
+        assertThat(jugadorService.plantillaEnPreparacion("Cadete A")).isFalse();
+        assertThat(jugadorService.plantillaEnPreparacion(null)).isFalse();
+    }
+
+    @Test
+    void sinTemporadaActivaOConUnEquipoDesconocidoNoEstaEnPreparacion() {
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(null);
+        assertThat(jugadorService.plantillaEnPreparacion("Cadete A")).isFalse();
+
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporadaActiva());
+        when(jugadorTemporadaDao.contarPorTemporada(any())).thenReturn(30);
+        when(equipoDao.obtenerEquipoPorNombre("Fantasma")).thenReturn(null);
+        assertThat(jugadorService.plantillaEnPreparacion("Fantasma")).isFalse();
+    }
 }

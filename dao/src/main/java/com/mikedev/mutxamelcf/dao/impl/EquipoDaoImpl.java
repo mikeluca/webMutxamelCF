@@ -35,7 +35,11 @@ public class EquipoDaoImpl implements EquipoDao {
 			""";
 
 	private static final String SOLO_ACTIVOS = "(? < 0 OR et.activo = 1)";
-	private static final String SOLO_PUBLICOS = "(? < 0 OR (et.activo = 1 AND et.tipo = 'NORMAL'))";
+	// Públicos: activos y NORMAL esta temporada o, en verano (la activa sin partidos), los que lo eran en la anterior.
+	// Este filtro lleva dos parámetros: la temporada activa y la anterior (-1 si no es verano: no coincide con ninguna).
+	private static final String SOLO_PUBLICOS = "(? < 0 OR (et.activo = 1 AND et.tipo = 'NORMAL')"
+			+ " OR EXISTS (SELECT 1 FROM equipo_temporada ep WHERE ep.equipo_id = e.id AND ep.temporada_id = ?"
+			+ " AND ep.activo = 1 AND ep.tipo = 'NORMAL'))";
 
 	private final JdbcTemplate jdbcTemplate;
 
@@ -148,6 +152,23 @@ public class EquipoDaoImpl implements EquipoDao {
 	}
 
 	@Override
+	public void marcarActivoEnTemporada(Long equipoId, boolean activo) {
+		long temporadaId = TemporadaActivaId.obtenerOMenosUno(jdbcTemplate);
+
+		if (temporadaId < 0) {
+			return;
+		}
+
+		int filas = jdbcTemplate.update("UPDATE equipo_temporada SET activo = ? WHERE equipo_id = ? AND temporada_id = ?",
+				activo ? 1 : 0, equipoId, temporadaId);
+
+		if (filas == 0 && activo) {
+			jdbcTemplate.update("INSERT INTO equipo_temporada (equipo_id, temporada_id, activo, modalidad, tipo)"
+					+ " SELECT id, ?, 1, modalidad, 'NORMAL' FROM equipo WHERE id = ?", temporadaId, equipoId);
+		}
+	}
+
+	@Override
 	public Equipo obtenerEquipoPorId(Long id) {
 		logger.debug("Inicio obtenerEquipoPorId: id={}", id);
 		Equipo equipo = jdbcTemplate.queryForObject(BASE + " WHERE e.id = ?", EQUIPO_ROW_MAPPER,
@@ -249,6 +270,10 @@ public class EquipoDaoImpl implements EquipoDao {
 		if (filtroTemporada != null) {
 			condiciones.add(filtroTemporada);
 			args.add(temporadaId);
+
+			if (filtroTemporada == SOLO_PUBLICOS) {
+				args.add(TemporadaActivaId.anteriorSiVerano(jdbcTemplate));
+			}
 		}
 
 		if (condicion != null) {

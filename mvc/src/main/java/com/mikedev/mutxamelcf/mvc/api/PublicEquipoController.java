@@ -1,7 +1,10 @@
 package com.mikedev.mutxamelcf.mvc.api;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,13 +47,36 @@ public class PublicEquipoController {
         return equipoService.obtenerEquipoPorId(id);
     }
 
+    /**
+     * GET /api/public/equipos/{id}/plantilla
+     *
+     * Igual que /jugadores, pero distingue "plantilla vacía" de "plantillas en preparación": el equipo todavía no tiene
+     * ningún jugador con equipo definitivo (reparto de septiembre pendiente). 404 si el equipo no existe.
+     */
+    @GetMapping("/{id}/plantilla")
+    public ResponseEntity<Map<String, Object>> obtenerPlantilla(@PathVariable Long id) {
+        EquipoDTO equipo = equipoService.obtenerEquipoPorId(id);
+
+        if (equipo == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        boolean enPreparacion = jugadorService.plantillaEnPreparacion(equipo.getNombre());
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("enPreparacion", enPreparacion);
+        respuesta.put("jugadores", enPreparacion ? List.of()
+                : jugadorService.obtenerJugadoresPublicosPorEquipo(equipo.getNombre()));
+
+        return ResponseEntity.ok(respuesta);
+    }
+
     @GetMapping("/{id}/jugadores")
     public List<JugadorPublicDTO> obtenerJugadores(
             @PathVariable Long id) {
 
         EquipoDTO equipo = equipoService.obtenerEquipoPorId(id);
 
-        if (equipo == null) {
+        if (equipo == null || jugadorService.plantillaEnPreparacion(equipo.getNombre())) {
             return List.of();
         }
 
@@ -65,7 +91,7 @@ public class PublicEquipoController {
 
         EquipoDTO equipo = equipoService.obtenerEquipoPorId(id);
 
-        if (equipo == null) {
+        if (equipo == null || jugadorService.plantillaEnPreparacion(equipo.getNombre())) {
             return List.of();
         }
 

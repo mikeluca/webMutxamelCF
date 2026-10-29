@@ -220,7 +220,16 @@ public class MainController {
 		logger.debug("Inicio categorias: equipo={}", equipo);
 		String pantalla;
 
-		if (equipo.contains("Esc")) {
+		// Equipo sin ningún jugador con equipo definitivo: "Plantillas en preparación" (reparto de septiembre)
+		boolean enPreparacion = jugadoresService.plantillaEnPreparacion(equipo);
+		model.addAttribute("plantillaEnPreparacion", enPreparacion);
+
+		if (enPreparacion) {
+			model.addAttribute("equipoEscuelita", new JugadorDTO());
+			model.addAttribute("jugadores", new ArrayList<JugadorDTO>());
+			model.addAttribute("staff", new ArrayList<CuerpoTecnicoDTO>());
+			pantalla = equipo.contains("Esc") ? "plantillasEscuelas" : "plantilla";
+		} else if (equipo.contains("Esc")) {
 			// Las escuelitas tienen una foto en comun del equipo, no jugadores individuales
 			List<JugadorDTO> jugadores = jugadoresService.obtenerJugadoresPorEquipo(equipo);
 			if (jugadores != null && !jugadores.isEmpty()) {

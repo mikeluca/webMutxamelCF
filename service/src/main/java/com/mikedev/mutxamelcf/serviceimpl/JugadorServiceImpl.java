@@ -313,6 +313,20 @@ public class JugadorServiceImpl implements JugadorService {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
+	public boolean plantillaEnPreparacion(String equipoNombre) {
+		Temporada activa = temporadaDao.obtenerTemporadaActiva();
+
+		if (activa == null || equipoNombre == null || jugadorTemporadaDao.contarPorTemporada(activa.getId()) == 0) {
+			return false;
+		}
+
+		Equipo equipo = equipoDao.obtenerEquipoPorNombre(equipoNombre);
+
+		return equipo != null && jugadorTemporadaDao.contarDefinitivosEnLaTemporadaActiva(equipo.getId()) == 0;
+	}
+
+	@Override
 	public List<JugadorPublicDTO> obtenerJugadoresPublicosPorEquipo(
 			String equipo) {
 

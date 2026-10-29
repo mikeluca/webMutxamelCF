@@ -171,10 +171,13 @@ public class SecurityConfig {
                                                 .hasRole("SUPER")
 
                                                 /*
-                                                 * Categorias por edad y fusion de cuerpo tecnico:
-                                                 * solo administradores del panel (SUPER y ADMIN).
+                                                 * Reparto de septiembre, historial de temporadas, categorias por
+                                                 * edad y fusion de cuerpo tecnico: solo administradores del panel
+                                                 * (SUPER y ADMIN).
                                                  */
                                                 .requestMatchers(
+                                                                "/admin/reparto/**",
+                                                                "/admin/historial/**",
                                                                 "/admin/categorias-edad/**",
                                                                 "/admin/cuerpo-tecnico/fusionar/**",
                                                                 "/admin/cuerpo-tecnico/fusionar")

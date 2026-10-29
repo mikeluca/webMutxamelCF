@@ -224,7 +224,7 @@ class EquipoDaoImplTest {
         EquipoDaoImpl dao = new EquipoDaoImpl(jdbcTemplate);
 
         List<Equipo> esperado = List.of(new Equipo());
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(-1L), eq(-1L), eq("F"))).thenReturn(esperado);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(-1L), eq(-1L), eq(-1L), eq("F"))).thenReturn(esperado);
 
         List<Equipo> resultado = dao.obtenerActivosPublicosPorDeporte("F");
 
@@ -244,7 +244,7 @@ class EquipoDaoImplTest {
         Equipo equipoB = new Equipo();
         equipoB.setOrden("2");
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(-1L), eq(-1L), eq("FUTBOL")))
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(-1L), eq(-1L), eq(-1L), eq("FUTBOL")))
                 .thenReturn(List.of(equipoA1, equipoA2, equipoB));
 
         Map<String, List<Equipo>> agrupados = dao.obtenerEquiposAgrupadosPorCategoria("FUTBOL");

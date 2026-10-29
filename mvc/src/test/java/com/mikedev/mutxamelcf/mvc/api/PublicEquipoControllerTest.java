@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -93,5 +94,45 @@ class PublicEquipoControllerTest {
                 .thenReturn(List.of(new CuerpoTecnicoPublicDTO()));
 
         assertThat(controller.obtenerCuerpoTecnico(1L)).hasSize(1);
+    }
+
+    @Test
+    void conLaPlantillaEnPreparacionNoSePublicanJugadoresNiCuerpoTecnico() {
+        EquipoService equipoService = mock(EquipoService.class);
+        JugadorService jugadorService = mock(JugadorService.class);
+        CuerpoTecnicoService cuerpoTecnicoService = mock(CuerpoTecnicoService.class);
+        PublicEquipoController controller = new PublicEquipoController(equipoService, jugadorService,
+                cuerpoTecnicoService);
+        EquipoDTO equipo = new EquipoDTO();
+        equipo.setId(5L);
+        equipo.setNombre("Cadete A");
+        when(equipoService.obtenerEquipoPorId(5L)).thenReturn(equipo);
+        when(jugadorService.plantillaEnPreparacion("Cadete A")).thenReturn(true);
+
+        assertThat(controller.obtenerJugadores(5L)).isEmpty();
+        assertThat(controller.obtenerCuerpoTecnico(5L)).isEmpty();
+        assertThat(controller.obtenerPlantilla(5L).getBody()).containsEntry("enPreparacion", true)
+                .containsEntry("jugadores", List.of());
+        org.mockito.Mockito.verify(jugadorService, org.mockito.Mockito.never()).obtenerJugadoresPublicosPorEquipo(any());
+        org.mockito.Mockito.verify(cuerpoTecnicoService, org.mockito.Mockito.never())
+                .obtenerCuerpoTecnicoPublicoPorEquipoId(any());
+    }
+
+    @Test
+    void laPlantillaPublicadaIncluyeLosJugadoresYNoEstaEnPreparacion() {
+        EquipoService equipoService = mock(EquipoService.class);
+        JugadorService jugadorService = mock(JugadorService.class);
+        PublicEquipoController controller = new PublicEquipoController(equipoService, jugadorService,
+                mock(CuerpoTecnicoService.class));
+        EquipoDTO equipo = new EquipoDTO();
+        equipo.setId(5L);
+        equipo.setNombre("Cadete A");
+        when(equipoService.obtenerEquipoPorId(5L)).thenReturn(equipo);
+        when(jugadorService.plantillaEnPreparacion("Cadete A")).thenReturn(false);
+        when(jugadorService.obtenerJugadoresPublicosPorEquipo("Cadete A")).thenReturn(List.of(new JugadorPublicDTO()));
+
+        assertThat(controller.obtenerPlantilla(5L).getBody()).containsEntry("enPreparacion", false);
+        assertThat((List<?>) controller.obtenerPlantilla(5L).getBody().get("jugadores")).hasSize(1);
+        assertThat(controller.obtenerPlantilla(99L).getStatusCode().value()).isEqualTo(404);
     }
 }

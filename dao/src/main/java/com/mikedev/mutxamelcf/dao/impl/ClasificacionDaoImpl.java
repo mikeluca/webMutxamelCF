@@ -49,8 +49,31 @@ public class ClasificacionDaoImpl implements ClasificacionDao {
 						+ " ORDER BY POSICION, NOMBRE_EQUIPO, ID",
 				ROW_MAPPER, equipoId, temporadaId, temporadaId);
 
+		// Verano: sin partidos en la activa y sin tabla propia, se muestra la final de la temporada anterior
+		if (filas.isEmpty()) {
+			long anterior = TemporadaActivaId.anteriorSiVerano(jdbcTemplate);
+
+			if (anterior >= 0) {
+				filas = obtenerPorEquipoYTemporada(equipoId, anterior);
+			}
+		}
+
 		logger.debug("Fin obtenerPorEquipo: total={}", filas.size());
 		return filas;
+	}
+
+	@Override
+	public List<Clasificacion> obtenerPorEquipoYTemporada(Long equipoId, Long temporadaId) {
+		return jdbcTemplate.query("SELECT " + CAMPOS_SELECT
+				+ " FROM CLASIFICACIONES WHERE EQUIPO_ID = ? AND TEMPORADA_ID = ? ORDER BY POSICION, NOMBRE_EQUIPO, ID",
+				ROW_MAPPER, equipoId, temporadaId);
+	}
+
+	@Override
+	public List<Clasificacion> listarPorTemporada(Long temporadaId) {
+		return jdbcTemplate.query("SELECT " + CAMPOS_SELECT
+				+ " FROM CLASIFICACIONES WHERE TEMPORADA_ID = ? ORDER BY EQUIPO_ID, POSICION, NOMBRE_EQUIPO, ID",
+				ROW_MAPPER, temporadaId);
 	}
 
 	@Override

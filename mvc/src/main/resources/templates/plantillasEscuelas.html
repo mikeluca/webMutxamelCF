@@ -28,6 +28,7 @@
 
 	<main class="container-fluid my-5 lead">
 		<h1 class="page-title"><span th:text="#{plantilla.jugadoresDe}">Jugadores -</span> <span th:text="${categoria}"></span></h1>
+		<p class="alert alert-info lead" th:if="${plantillaEnPreparacion}" th:text="#{plantilla.enPreparacion}">Plantillas en preparación</p>
 		<div class="personas-grid">
 			<div th:if="${equipoEscuelita.fotoBase64 != null}" class="text-center">
 				<img th:src="'data:image/jpeg;base64,' + ${equipoEscuelita.fotoBase64}" class="card-img-top"

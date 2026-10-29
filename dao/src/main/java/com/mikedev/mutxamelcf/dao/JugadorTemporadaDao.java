@@ -39,4 +39,10 @@ public interface JugadorTemporadaDao {
 	int contarPendientes(Long temporadaId);
 
 	boolean existenParaEquipo(Long equipoId);
+
+	/** Jugadores (sin las bajas) con ese equipo en la temporada activa y EQUIPO_DEFINITIVO = 1. */
+	int contarDefinitivosEnLaTemporadaActiva(Long equipoId);
+
+	/** Jugadores (sin las bajas) con ese equipo en la temporada activa, sean o no definitivos. */
+	int contarEnEquipoEnLaTemporadaActiva(Long equipoId);
 }

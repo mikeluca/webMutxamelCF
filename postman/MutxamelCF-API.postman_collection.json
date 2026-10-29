@@ -69,6 +69,19 @@
           }
         },
         {
+          "name": "Equipos - Plantilla en preparación",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/equipos/{{equipoId}}/plantilla",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "equipos", "{{equipoId}}", "plantilla"]
+            },
+            "description": "Indica si la plantilla del equipo está en preparación (ningún jugador de la temporada activa con equipo definitivo). Si lo está, /jugadores y /cuerpo-tecnico devuelven lista vacía."
+          }
+        },
+        {
           "name": "Equipos - Cuerpo técnico del equipo",
           "request": {
             "method": "GET",
@@ -719,6 +732,70 @@
               "query": [{ "key": "equipoId", "value": "{{equipoId}}" }]
             },
             "description": "El jugador debe pertenecer al equipo indicado en equipoId; el controller lo valida antes de responder."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reparto (COORDINADOR)",
+      "description": "Reparto de septiembre: pasar jugadores de pretemporada/prueba a un equipo definitivo de su categoría. Solo COORDINADOR y ADMIN_APP (403 para el resto). Solo categorías formativas.",
+      "item": [
+        {
+          "name": "Categorías con reparto",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/reparto/categorias",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "reparto", "categorias"]
+            },
+            "description": "Lista de nombres de categoría formativa con equipos en la temporada activa. 403 si no eres coordinador."
+          }
+        },
+        {
+          "name": "Reparto de una categoría",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/reparto?categoria=Alevín",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "reparto"],
+              "query": [{ "key": "categoria", "value": "Alevín" }]
+            },
+            "description": "{categoria, pretemporada, porAsignar: [jugadores de pretemporada y de prueba], equipos: [equipos definitivos con sus jugadores]}. 400 si la categoría no es formativa."
+          }
+        },
+        {
+          "name": "Asignar jugadores a un equipo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"equipoId\": {{equipoId}},\n  \"jugadores\": [\n    { \"jugadorId\": {{jugadorId}}, \"dorsal\": 7 }\n  ],\n  \"confirmarPruebas\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/reparto/asignar",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "reparto", "asignar"]
+            },
+            "description": "200 {asignados, avisos, equipoActivado, pretemporadaVaciada, pruebasConfirmadas}. Los dorsales repetidos salen en avisos pero no impiden asignar. 409 con codigo PRUEBAS_SIN_CONFIRMAR si hay jugadores de prueba y confirmarPruebas no es true (no se asigna nada; reenviar con true para confirmarlos). 400 si el equipo no es definitivo de esa categoría, algún jugador es de otra categoría o está de baja, o el dorsal no está entre 0 y 99. 403 si no eres coordinador."
+          }
+        },
+        {
+          "name": "Crear equipo de la categoría",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/reparto/equipos?categoria=Alevín",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "reparto", "equipos"],
+              "query": [{ "key": "categoria", "value": "Alevín" }]
+            },
+            "description": "201 con el equipo creado (siguiente letra libre, misma modalidad que la categoría). Queda inactivo hasta que se le asigne el primer jugador. 400 si la categoría no es formativa. 403 si no eres coordinador."
           }
         }
       ]

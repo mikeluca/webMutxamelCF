@@ -28,7 +28,8 @@
 
 	<main class="container-fluid my-5">
 		<h1 class="page-title"><span th:text="#{plantilla.jugadoresDe}">Jugadores -</span> <span th:text="${categoria}"></span></h1>
-		<div class="personas-grid">
+		<p class="alert alert-info lead" th:if="${plantillaEnPreparacion}" th:text="#{plantilla.enPreparacion}">Plantillas en preparación</p>
+		<div class="personas-grid" th:unless="${plantillaEnPreparacion}">
 			<div class="card h-100" th:each="jugador : ${jugadores}">
 
 				<div th:if="${jugador.fotoBase64 != null}">

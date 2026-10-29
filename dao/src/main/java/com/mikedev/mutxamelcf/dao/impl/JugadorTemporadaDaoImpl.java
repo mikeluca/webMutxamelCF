@@ -147,6 +147,24 @@ public class JugadorTemporadaDaoImpl implements JugadorTemporadaDao {
 		return total == null ? 0 : total;
 	}
 
+	private int contarEnLaActiva(Long equipoId, boolean soloDefinitivos) {
+		Integer total = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM JUGADOR_TEMPORADA JT"
+				+ " JOIN TEMPORADAS T ON T.ID = JT.TEMPORADA_ID"
+				+ " WHERE T.ACTIVA = 1 AND JT.EQUIPO_ID = ? AND JT.ESTADO <> 'BAJA'"
+				+ (soloDefinitivos ? " AND JT.EQUIPO_DEFINITIVO = 1" : ""), Integer.class, equipoId);
+		return total == null ? 0 : total;
+	}
+
+	@Override
+	public int contarDefinitivosEnLaTemporadaActiva(Long equipoId) {
+		return contarEnLaActiva(equipoId, true);
+	}
+
+	@Override
+	public int contarEnEquipoEnLaTemporadaActiva(Long equipoId) {
+		return contarEnLaActiva(equipoId, false);
+	}
+
 	@Override
 	public boolean existenParaEquipo(Long equipoId) {
 		Integer total = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM JUGADOR_TEMPORADA WHERE EQUIPO_ID = ?",

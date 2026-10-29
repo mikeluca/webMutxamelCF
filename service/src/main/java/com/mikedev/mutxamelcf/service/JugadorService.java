@@ -41,4 +41,11 @@ public interface JugadorService {
 
 	List<JugadorPublicDTO> obtenerJugadoresPublicosPorEquipo(String equipo);
 
+	/**
+	 * Si el equipo (por nombre) todavía no tiene ningún jugador con EQUIPO_DEFINITIVO = 1 en la temporada activa: la web
+	 * pública muestra entonces "Plantillas en preparación" en vez de su plantilla. Sin temporada activa, o si la
+	 * temporada activa no tiene todavía ninguna ficha de jugador (los datos no se han migrado), es falso.
+	 */
+	boolean plantillaEnPreparacion(String equipoNombre);
+
 }
