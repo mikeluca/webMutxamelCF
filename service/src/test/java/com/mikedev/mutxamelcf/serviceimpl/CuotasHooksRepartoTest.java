@@ -63,7 +63,7 @@ class CuotasHooksRepartoTest {
 	}
 
 	private AsignacionDefinitiva asignacion(boolean eraPrueba) {
-		return new AsignacionDefinitiva(1L, EQUIPO, TEMPORADA, eraPrueba);
+		return new AsignacionDefinitiva(1L, EQUIPO, TEMPORADA, eraPrueba, false);
 	}
 
 	@Test
@@ -127,6 +127,33 @@ class CuotasHooksRepartoTest {
 		when(equipoDao.obtenerEquipoPorId(EQUIPO)).thenThrow(new EmptyResultDataAccessException(1));
 
 		alAsignar.alAsignar(asignacion(false));
+
+		verify(cuotas).crearCuotasDelJugador(1L);
+	}
+
+	@Test
+	void moverAUnJugadorEntreDosEquiposDefinitivosNoCreaCuotas() {
+		ficha("CONFIRMADO", true, false);
+
+		alAsignar.alAsignar(new AsignacionDefinitiva(1L, EQUIPO, TEMPORADA, false, true));
+
+		verify(cuotas, never()).crearCuotasDelJugador(1L);
+	}
+
+	@Test
+	void laPrimeraAsignacionDesdePretemporadaCreaLasCuotas() {
+		ficha("CONFIRMADO", true, false);
+
+		alAsignar.alAsignar(new AsignacionDefinitiva(1L, EQUIPO, TEMPORADA, false, false));
+
+		verify(cuotas).crearCuotasDelJugador(1L);
+	}
+
+	@Test
+	void unaPruebaConfirmadaAlAsignarlaTambienLasCrea() {
+		ficha("CONFIRMADO", true, false);
+
+		alAsignar.alAsignar(new AsignacionDefinitiva(1L, EQUIPO, TEMPORADA, true, false));
 
 		verify(cuotas).crearCuotasDelJugador(1L);
 	}

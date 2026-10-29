@@ -36,6 +36,12 @@ public class CuotasAlAsignarEquipoDefinitivo implements AlAsignarEquipoDefinitiv
 
 	@Override
 	public void alAsignar(AsignacionDefinitiva asignacion) {
+		// Solo en la primera asignación definitiva: mover a un jugador entre dos equipos definitivos no vuelve a cobrar
+		if (asignacion.eraDefinitivo()) {
+			logger.info("Sin cuotas: el jugador {} ya tenía equipo definitivo (cambio de equipo)", asignacion.jugadorId());
+			return;
+		}
+
 		JugadorTemporada ficha = jugadorTemporadaDao.obtener(asignacion.jugadorId(), asignacion.temporadaId());
 
 		if (ficha == null || "PRUEBA".equals(ficha.getEstado()) || ficha.isBaja() || !ficha.isEquipoDefinitivo()) {

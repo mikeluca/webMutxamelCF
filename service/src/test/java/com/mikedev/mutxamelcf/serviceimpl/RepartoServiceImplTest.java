@@ -454,4 +454,17 @@ class RepartoServiceImplTest {
 
 		assertThat(resultado.avisos()).containsExactly(avisosDelHook.get(0));
 	}
+
+	@Test
+	void elHookDeAsignarSabeSiElJugadorYaTeniaEquipoDefinitivo() {
+		fila(1, "Ana", "CONFIRMADO", PRE, false, null);
+		fila(2, "Eva", "CONFIRMADO", ALEVIN_A, true, 4);
+
+		servicio.asignar(peticion(ALEVIN_B, false, new AsignacionRepartoRequest.Jugador(1L, 1),
+				new AsignacionRepartoRequest.Jugador(2L, 2)));
+
+		assertThat(eventos).extracting(AsignacionDefinitiva::jugadorId, AsignacionDefinitiva::eraDefinitivo)
+				.containsExactly(org.assertj.core.api.Assertions.tuple(1L, false),
+						org.assertj.core.api.Assertions.tuple(2L, true));
+	}
 }

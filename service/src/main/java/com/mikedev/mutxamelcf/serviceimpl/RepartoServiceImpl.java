@@ -247,6 +247,7 @@ public class RepartoServiceImpl implements RepartoService {
 		for (Map.Entry<Long, Integer> e : dorsales.entrySet()) {
 			JugadorTemporada fila = filas.get(e.getKey());
 			boolean eraPrueba = "PRUEBA".equals(fila.getEstado());
+			boolean eraDefinitivo = fila.isEquipoDefinitivo();
 
 			if (fila.getEquipoId() != null && !fila.getEquipoId().equals(equipo.getId())) {
 				equiposDeOrigen.add(fila.getEquipoId());
@@ -265,7 +266,7 @@ public class RepartoServiceImpl implements RepartoService {
 			}
 			jugadorTemporadaDao.guardar(fila);
 
-			eventos.add(new AsignacionDefinitiva(fila.getJugadorId(), equipo.getId(), activa.getId(), eraPrueba));
+			eventos.add(new AsignacionDefinitiva(fila.getJugadorId(), equipo.getId(), activa.getId(), eraPrueba, eraDefinitivo));
 		}
 
 		// El equipo entra en juego con su primer jugador

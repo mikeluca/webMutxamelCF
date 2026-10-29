@@ -11,7 +11,9 @@ public interface AlAsignarEquipoDefinitivo {
 
 	/**
 	 * @param eraPrueba el jugador estaba en estado PRUEBA y pasa a CONFIRMADO con esta asignación
+	 * @param eraDefinitivo antes de esta asignación el jugador ya tenía equipo definitivo (pasa de uno a otro)
 	 */
-	record AsignacionDefinitiva(Long jugadorId, Long equipoId, Long temporadaId, boolean eraPrueba) {
+	record AsignacionDefinitiva(Long jugadorId, Long equipoId, Long temporadaId, boolean eraPrueba,
+			boolean eraDefinitivo) {
 	}
 }
