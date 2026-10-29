@@ -21,6 +21,7 @@ public class JugadorTemporadaDaoImpl implements JugadorTemporadaDao {
 			SELECT JT.JUGADOR_ID, JT.TEMPORADA_ID, JT.EQUIPO_ID, JT.EQUIPO_NOMBRE, JT.CATEGORIA, JT.DORSAL,
 			       JT.PENDIENTE_REVISION, JT.NOTA, JT.FECHA_CREACION, JT.FECHA_ACTUALIZACION,
 			       JT.ESTADO, JT.CONTINUIDAD, JT.FECHA_CONTINUIDAD, JT.USUARIO_APP_CONTINUIDAD_ID, JT.EQUIPO_DEFINITIVO,
+			       JT.FECHA_PREGUNTA_CONTINUIDAD,
 			       J.NOMBRE AS JUGADOR_NOMBRE, J.APELLIDOS AS JUGADOR_APELLIDOS, J.ANIO_NACIMIENTO,
 			       J.EQUIPO_ID AS EQUIPO_ACTUAL_ID, EA.NOMBRE AS EQUIPO_ACTUAL_NOMBRE, T.NOMBRE AS TEMPORADA_NOMBRE,
 			       CASE WHEN J.FECHA_BAJA IS NULL THEN 0 ELSE 1 END AS JUGADOR_DE_BAJA
@@ -63,25 +64,27 @@ public class JugadorTemporadaDaoImpl implements JugadorTemporadaDao {
 		String estado = f.getEstado() == null ? "CONFIRMADO" : f.getEstado();
 		String continuidad = f.getContinuidad() == null ? "PENDIENTE" : f.getContinuidad();
 		Timestamp fechaContinuidad = f.getFechaContinuidad() == null ? null : Timestamp.valueOf(f.getFechaContinuidad());
+		Timestamp fechaPregunta = f.getFechaPreguntaContinuidad() == null ? null
+				: Timestamp.valueOf(f.getFechaPreguntaContinuidad());
 
 		int filas = jdbcTemplate.update("""
 				UPDATE JUGADOR_TEMPORADA SET EQUIPO_ID = ?, EQUIPO_NOMBRE = ?, CATEGORIA = ?, DORSAL = ?, ESTADO = ?,
 				       CONTINUIDAD = ?, FECHA_CONTINUIDAD = ?, USUARIO_APP_CONTINUIDAD_ID = ?, EQUIPO_DEFINITIVO = ?,
-				       PENDIENTE_REVISION = ?, NOTA = ?, FECHA_ACTUALIZACION = ?
+				       PENDIENTE_REVISION = ?, NOTA = ?, FECHA_ACTUALIZACION = ?, FECHA_PREGUNTA_CONTINUIDAD = ?
 				WHERE JUGADOR_ID = ? AND TEMPORADA_ID = ?""",
 				f.getEquipoId(), f.getEquipoNombre(), f.getCategoria(), f.getDorsal(), estado, continuidad,
 				fechaContinuidad, f.getUsuarioAppContinuidadId(), f.isEquipoDefinitivo() ? 1 : 0,
-				f.isPendienteRevision() ? 1 : 0, f.getNota(), ahora, f.getJugadorId(), f.getTemporadaId());
+				f.isPendienteRevision() ? 1 : 0, f.getNota(), ahora, fechaPregunta, f.getJugadorId(), f.getTemporadaId());
 
 		if (filas == 0) {
 			jdbcTemplate.update("""
 					INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID, EQUIPO_ID, EQUIPO_NOMBRE, CATEGORIA, DORSAL,
 					       ESTADO, CONTINUIDAD, FECHA_CONTINUIDAD, USUARIO_APP_CONTINUIDAD_ID, EQUIPO_DEFINITIVO,
-					       PENDIENTE_REVISION, NOTA, FECHA_CREACION, FECHA_ACTUALIZACION)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+					       PENDIENTE_REVISION, NOTA, FECHA_CREACION, FECHA_ACTUALIZACION, FECHA_PREGUNTA_CONTINUIDAD)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
 					f.getJugadorId(), f.getTemporadaId(), f.getEquipoId(), f.getEquipoNombre(), f.getCategoria(),
 					f.getDorsal(), estado, continuidad, fechaContinuidad, f.getUsuarioAppContinuidadId(),
-					f.isEquipoDefinitivo() ? 1 : 0, f.isPendienteRevision() ? 1 : 0, f.getNota(), ahora, ahora);
+					f.isEquipoDefinitivo() ? 1 : 0, f.isPendienteRevision() ? 1 : 0, f.getNota(), ahora, ahora, fechaPregunta);
 		}
 	}
 
@@ -190,6 +193,8 @@ public class JugadorTemporadaDaoImpl implements JugadorTemporadaDao {
 		long usuarioContinuidad = rs.getLong("USUARIO_APP_CONTINUIDAD_ID");
 		f.setUsuarioAppContinuidadId(rs.wasNull() ? null : usuarioContinuidad);
 		f.setEquipoDefinitivo(rs.getInt("EQUIPO_DEFINITIVO") == 1);
+		Timestamp pregunta = rs.getTimestamp("FECHA_PREGUNTA_CONTINUIDAD");
+		f.setFechaPreguntaContinuidad(pregunta == null ? null : pregunta.toLocalDateTime());
 		f.setNota(rs.getString("NOTA"));
 		Timestamp creada = rs.getTimestamp("FECHA_CREACION");
 		f.setFechaCreacion(creada == null ? null : creada.toLocalDateTime());

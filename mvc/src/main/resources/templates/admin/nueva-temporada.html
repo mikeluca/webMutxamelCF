@@ -54,6 +54,9 @@
 				<button type="button" class="btn btn-success" onclick="generar()">
 					<i class="bi bi-magic me-1"></i> Generar propuesta
 				</button>
+				<button type="button" class="btn btn-primary" onclick="pedirContinuidad()">
+					<i class="bi bi-send me-1"></i> Pedir confirmación a las familias
+				</button>
 				<button type="button" class="btn btn-outline-danger" onclick="regenerar()">
 					<i class="bi bi-arrow-repeat me-1"></i> Regenerar (borra el borrador)
 				</button>
@@ -280,6 +283,11 @@
 
 		function generar() {
 			enviar('/admin/nueva-temporada/generar', { temporadaId: destinoId() });
+		}
+
+		function pedirContinuidad() {
+			if (!confirm('Se genera el borrador (si falta) y se envía a las familias de cada jugador formativo la pregunta de si seguirá. No se repite a quien ya se le preguntó. ¿Continuar?')) return;
+			enviar('/admin/nueva-temporada/pedir-continuidad', { temporadaId: destinoId() });
 		}
 
 		function regenerar() {

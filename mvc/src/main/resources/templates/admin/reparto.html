@@ -102,9 +102,13 @@
 								onclick="asignar(this)">Asignar seleccionados</button>
 						</div>
 						<ul class="list-group list-group-flush" th:unless="${#lists.isEmpty(e.jugadores())}">
-							<li class="list-group-item d-flex justify-content-between" th:each="j : ${e.jugadores()}">
+							<li class="list-group-item d-flex justify-content-between align-items-center" th:each="j : ${e.jugadores()}">
 								<span th:text="${j.nombre()}"></span>
-								<span class="text-muted" th:text="${j.dorsal() != null} ? '#' + ${j.dorsal()} : ''"></span>
+								<span>
+									<span class="text-muted" th:text="${j.dorsal() != null} ? '#' + ${j.dorsal()} : ''"></span>
+									<button type="button" class="btn btn-outline-secondary btn-sm ms-2" th:attr="data-jugador=${j.jugadorId()}"
+										onclick="devolver(this)" title="Devolver a la pretemporada"><i class="bi bi-arrow-counterclockwise"></i></button>
+								</span>
 							</li>
 						</ul>
 					</div>
@@ -164,6 +168,18 @@
 					if (confirm(res.body.error)) asignar(boton, true);
 				} else {
 					mostrar(res.body.error || 'No se ha podido asignar.', 'alert-danger');
+				}
+			}).catch(err => { console.error(err); mostrar('Error de comunicación con el servidor.', 'alert-danger'); });
+		}
+
+		function devolver(boton) {
+			if (!confirm('El jugador vuelve al equipo de pretemporada de su categoría, sin dorsal. ¿Continuar?')) return;
+			enviarJson('/admin/reparto/devolver', { jugadorIds: [Number(boton.dataset.jugador)] }).then(res => {
+				if (res.status === 200) {
+					mostrar(res.body.mensaje, 'alert-success');
+					setTimeout(() => window.location.reload(), 900);
+				} else {
+					mostrar(res.body.error || 'No se ha podido devolver al jugador.', 'alert-danger');
 				}
 			}).catch(err => { console.error(err); mostrar('Error de comunicación con el servidor.', 'alert-danger'); });
 		}

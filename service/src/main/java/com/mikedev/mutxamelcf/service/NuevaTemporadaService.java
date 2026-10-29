@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.service;
 import java.util.List;
 
 import com.mikedev.mutxamelcf.model.ResumenCierreDTO;
+import com.mikedev.mutxamelcf.model.JugadorTemporada;
 import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO;
 import com.mikedev.mutxamelcf.model.Temporada;
 
@@ -42,17 +43,26 @@ public interface NuevaTemporadaService {
 	 * Marca la respuesta de continuidad (PENDIENTE, SIGUE, NO_SIGUE o DUDA) de una fila. NO_SIGUE propone la baja y
 	 * queda pendiente hasta que el coordinador la confirme guardando la fila; PENDIENTE y DUDA dejan la fila pendiente.
 	 */
-	void marcarContinuidad(Long destinoId, Long jugadorId, String continuidad);
+	default void marcarContinuidad(Long destinoId, Long jugadorId, String continuidad) {
+		marcarContinuidad(destinoId, jugadorId, continuidad, null);
+	}
+
+	/**
+	 * Igual que el anterior, guardando quién ha respondido (la familia desde la app; null = el coordinador desde el panel).
+	 * Mismas reglas en los dos casos.
+	 */
+	void marcarContinuidad(Long destinoId, Long jugadorId, String continuidad, Long usuarioAppId);
 
 	/**
 	 * Da de alta a un jugador de prueba: crea al jugador y su fila PRUEBA en el borrador, en la categoría que le toca
 	 * por edad y sin equipo. No aparece en ninguna plantilla ni listado de la temporada activa hasta que se aplique
 	 * la temporada.
 	 *
+	 * @return la fila PRUEBA creada (con el ID del jugador y su categoría)
 	 * @throws IllegalArgumentException si falta el nombre, los apellidos o el año de nacimiento, o ninguna categoría
 	 *                                  formativa cubre su edad
 	 */
-	void anadirPrueba(Long destinoId, String nombre, String apellidos, Integer anioNacimiento);
+	JugadorTemporada anadirPrueba(Long destinoId, String nombre, String apellidos, Integer anioNacimiento);
 
 	/** Añade al borrador a un jugador creado después de generar la propuesta, con las reglas de la propuesta. */
 	void anadirSinPropuesta(Long destinoId, Long jugadorId);

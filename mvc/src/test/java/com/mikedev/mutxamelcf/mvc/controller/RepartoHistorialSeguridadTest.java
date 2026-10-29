@@ -33,6 +33,7 @@ import com.mikedev.mutxamelcf.model.JugadorRepartoDTO;
 import com.mikedev.mutxamelcf.model.PartidosEquipo;
 import com.mikedev.mutxamelcf.model.PruebasSinConfirmarException;
 import com.mikedev.mutxamelcf.model.RepartoCategoriaDTO;
+import com.mikedev.mutxamelcf.model.ResultadoDevolucionDTO;
 import com.mikedev.mutxamelcf.model.ResultadoRepartoDTO;
 import com.mikedev.mutxamelcf.model.Temporada;
 import com.mikedev.mutxamelcf.service.HistorialTemporadaService;
@@ -152,5 +153,24 @@ class RepartoHistorialSeguridadTest {
 
         mockMvc.perform(get("/admin/historial").param("temporadaId", "99").with(user("a").roles("ADMIN")))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("La temporada no existe.")));
+    }
+
+    @Test
+    void devolverAPretemporadaSoloLoHaceSuperOAdmin() throws Exception {
+        when(repartoService.devolverAPretemporada(any())).thenReturn(new ResultadoDevolucionDTO(1, true));
+
+        mockMvc.perform(post("/admin/reparto/devolver").with(csrf()).with(user("e").roles("ENTRENADOR"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"jugadorIds\":[1]}"))
+                .andExpect(status().isForbidden());
+        verify(repartoService, never()).devolverAPretemporada(any());
+
+        mockMvc.perform(post("/admin/reparto/devolver").with(csrf()).with(user("a").roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"jugadorIds\":[1]}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.mensaje").value(containsString("1 jugador(es) devuelto(s)")));
+
+        when(repartoService.devolverAPretemporada(any())).thenThrow(new IllegalArgumentException("sin equipo definitivo"));
+        mockMvc.perform(post("/admin/reparto/devolver").with(csrf()).with(user("a").roles("SUPER"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"jugadorIds\":[1]}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("sin equipo definitivo"));
     }
 }

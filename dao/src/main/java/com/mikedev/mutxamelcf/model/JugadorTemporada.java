@@ -20,6 +20,7 @@ public class JugadorTemporada {
 	private String continuidad = "PENDIENTE";
 	private LocalDateTime fechaContinuidad;
 	private Long usuarioAppContinuidadId;
+	private LocalDateTime fechaPreguntaContinuidad;
 	private boolean equipoDefinitivo = true;
 	private String nota;
 	private LocalDateTime fechaCreacion;
@@ -58,6 +59,15 @@ public class JugadorTemporada {
 
 	public void setFechaContinuidad(LocalDateTime fechaContinuidad) {
 		this.fechaContinuidad = fechaContinuidad;
+	}
+
+	/** Cuándo se preguntó a las familias si el jugador sigue (null = todavía no se ha preguntado). */
+	public LocalDateTime getFechaPreguntaContinuidad() {
+		return fechaPreguntaContinuidad;
+	}
+
+	public void setFechaPreguntaContinuidad(LocalDateTime fechaPreguntaContinuidad) {
+		this.fechaPreguntaContinuidad = fechaPreguntaContinuidad;
 	}
 
 	public Long getUsuarioAppContinuidadId() {

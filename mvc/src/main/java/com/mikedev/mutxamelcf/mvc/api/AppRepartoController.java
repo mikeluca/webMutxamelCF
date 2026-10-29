@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mikedev.mutxamelcf.model.AsignacionRepartoRequest;
+import com.mikedev.mutxamelcf.model.DevolucionRepartoRequest;
 import com.mikedev.mutxamelcf.model.PruebasSinConfirmarException;
 import com.mikedev.mutxamelcf.service.RepartoService;
 
@@ -70,6 +71,21 @@ public class AppRepartoController {
         return ejecutar(authentication, HttpStatus.OK, usuario -> {
             repartoService.comprobarCoordinador(usuario);
             return repartoService.asignar(request);
+        });
+    }
+
+    /**
+     * POST /api/app/reparto/devolver {jugadorIds: [..]}
+     *
+     * Devuelve a la pretemporada de su categoría a jugadores asignados por error (EQUIPO_DEFINITIVO = 0, sin dorsal). El
+     * equipo definitivo que se queda vacío no se desactiva solo.
+     */
+    @PostMapping("/devolver")
+    public ResponseEntity<?> devolver(@RequestBody DevolucionRepartoRequest request, Authentication authentication) {
+
+        return ejecutar(authentication, HttpStatus.OK, usuario -> {
+            repartoService.comprobarCoordinador(usuario);
+            return repartoService.devolverAPretemporada(request);
         });
     }
 

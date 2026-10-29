@@ -306,7 +306,7 @@ public class NuevaTemporadaServiceImpl implements NuevaTemporadaService {
 	 */
 	@Override
 	@Transactional
-	public void anadirPrueba(Long destinoId, String nombre, String apellidos, Integer anioNacimiento) {
+	public JugadorTemporada anadirPrueba(Long destinoId, String nombre, String apellidos, Integer anioNacimiento) {
 		Temporada destino = validarDestino(destinoId);
 
 		String nombreLimpio = nombre == null ? "" : nombre.trim();
@@ -358,6 +358,7 @@ public class NuevaTemporadaServiceImpl implements NuevaTemporadaService {
 
 		logger.info("Alta de prueba: jugadorId={}, categoria={}, destino={}", jugador.getId(), categoria,
 				destino.getNombre());
+		return fila;
 	}
 
 	// ============================================================
@@ -370,7 +371,7 @@ public class NuevaTemporadaServiceImpl implements NuevaTemporadaService {
 	 */
 	@Override
 	@Transactional
-	public void marcarContinuidad(Long destinoId, Long jugadorId, String continuidad) {
+	public void marcarContinuidad(Long destinoId, Long jugadorId, String continuidad, Long usuarioAppId) {
 		validarDestino(destinoId);
 
 		if (continuidad == null || !CONTINUIDADES.contains(continuidad)) {
@@ -388,7 +389,7 @@ public class NuevaTemporadaServiceImpl implements NuevaTemporadaService {
 		boolean eraNoSigue = "NO_SIGUE".equals(fila.getContinuidad());
 		fila.setContinuidad(continuidad);
 		fila.setFechaContinuidad(LocalDateTime.now(clock));
-		fila.setUsuarioAppContinuidadId(null);
+		fila.setUsuarioAppContinuidadId(usuarioAppId);
 
 		if ("NO_SIGUE".equals(continuidad)) {
 			fila.setBaja(true);

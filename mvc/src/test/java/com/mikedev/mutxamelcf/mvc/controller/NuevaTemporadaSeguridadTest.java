@@ -31,6 +31,8 @@ import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO;
 import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO.Fila;
 import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO.GrupoCategoria;
 import com.mikedev.mutxamelcf.model.Temporada;
+import com.mikedev.mutxamelcf.model.ResultadoPreguntaContinuidadDTO;
+import com.mikedev.mutxamelcf.service.ContinuidadService;
 import com.mikedev.mutxamelcf.service.EquipoService;
 import com.mikedev.mutxamelcf.service.NuevaTemporadaService;
 
@@ -51,6 +53,9 @@ class NuevaTemporadaSeguridadTest {
 
     @MockBean
     private EquipoService equipoService;
+
+    @MockBean
+    private ContinuidadService continuidadService;
 
     @Autowired
     private MockMvc mockMvc;
@@ -152,5 +157,20 @@ class NuevaTemporadaSeguridadTest {
                 .andExpect(status().isForbidden());
 
         verify(nuevaTemporadaService, never()).cerrar(anyLong(), any());
+    }
+
+    @Test
+    void pedirLaConfirmacionDeContinuidadEsSoloDeSuper() throws Exception {
+        when(continuidadService.pedirConfirmacion(2L))
+                .thenReturn(new ResultadoPreguntaContinuidadDTO(2L, "2027-28", 3, 2, 1));
+
+        mockMvc.perform(post("/admin/nueva-temporada/pedir-continuidad").with(csrf()).with(user("admin").roles("ADMIN"))
+                        .param("temporadaId", "2"))
+                .andExpect(status().isForbidden());
+        verify(continuidadService, never()).pedirConfirmacion(any());
+
+        mockMvc.perform(post("/admin/nueva-temporada/pedir-continuidad").with(csrf()).with(user("super").roles("SUPER"))
+                        .param("temporadaId", "2"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.mensaje").exists());
     }
 }

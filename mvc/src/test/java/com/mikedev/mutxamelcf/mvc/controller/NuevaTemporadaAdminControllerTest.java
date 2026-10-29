@@ -1,6 +1,8 @@
 package com.mikedev.mutxamelcf.mvc.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -12,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import com.mikedev.mutxamelcf.model.ResultadoPreguntaContinuidadDTO;
+import com.mikedev.mutxamelcf.service.ContinuidadService;
 import com.mikedev.mutxamelcf.service.EquipoService;
 import com.mikedev.mutxamelcf.service.NuevaTemporadaService;
 
@@ -19,11 +23,14 @@ class NuevaTemporadaAdminControllerTest {
 
     private NuevaTemporadaService nuevaTemporadaService;
     private NuevaTemporadaAdminController controller;
+    private ContinuidadService continuidadService;
 
     @BeforeEach
     void setUp() {
         nuevaTemporadaService = mock(NuevaTemporadaService.class);
-        controller = new NuevaTemporadaAdminController(nuevaTemporadaService, mock(EquipoService.class));
+        continuidadService = mock(ContinuidadService.class);
+        controller = new NuevaTemporadaAdminController(nuevaTemporadaService, mock(EquipoService.class),
+                continuidadService);
     }
 
     @Test
@@ -62,5 +69,27 @@ class NuevaTemporadaAdminControllerTest {
         ResponseEntity<Map<String, String>> respuesta = controller.anadirPrueba(2L, "Luis", "Gil", null);
 
         assertEquals(HttpStatus.BAD_REQUEST, respuesta.getStatusCode());
+    }
+
+    @Test
+    void pedirContinuidadDelegaYResumeCuantosSeHanPreguntado() {
+        when(continuidadService.pedirConfirmacion(2L))
+                .thenReturn(new ResultadoPreguntaContinuidadDTO(2L, "2027/2028", 30, 12, 9));
+
+        ResponseEntity<Map<String, String>> respuesta = controller.pedirContinuidad(2L);
+
+        assertEquals(HttpStatus.OK, respuesta.getStatusCode());
+        assertEquals("Pregunta enviada: 12 jugador(es), 9 cuenta(s) avisada(s).", respuesta.getBody().get("mensaje"));
+    }
+
+    @Test
+    void pedirContinuidadSinNadieNuevoLoDiceYUnDestinoInvalidoEsUn400() {
+        when(continuidadService.pedirConfirmacion(2L))
+                .thenReturn(new ResultadoPreguntaContinuidadDTO(2L, "2027/2028", 0, 0, 0));
+        when(continuidadService.pedirConfirmacion(9L)).thenThrow(new IllegalArgumentException("La temporada de destino no existe."));
+
+        assertEquals(HttpStatus.OK, controller.pedirContinuidad(2L).getStatusCode());
+        assertTrue(controller.pedirContinuidad(2L).getBody().get("mensaje").startsWith("No había nadie nuevo"));
+        assertEquals(HttpStatus.BAD_REQUEST, controller.pedirContinuidad(9L).getStatusCode());
     }
 }

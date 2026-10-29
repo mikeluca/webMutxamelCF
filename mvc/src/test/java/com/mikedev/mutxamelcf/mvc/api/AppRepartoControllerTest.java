@@ -18,6 +18,8 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
 import com.mikedev.mutxamelcf.model.AsignacionRepartoRequest;
+import com.mikedev.mutxamelcf.model.DevolucionRepartoRequest;
+import com.mikedev.mutxamelcf.model.ResultadoDevolucionDTO;
 import com.mikedev.mutxamelcf.model.EquipoRepartoDTO;
 import com.mikedev.mutxamelcf.model.PruebasSinConfirmarException;
 import com.mikedev.mutxamelcf.model.RepartoCategoriaDTO;
@@ -132,5 +134,24 @@ class AppRepartoControllerTest {
 
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(respuesta.getBody()).isSameAs(equipo);
+    }
+
+    @Test
+    void devolverALaPretemporadaDelegaYRespetaLosPermisos() {
+        ResultadoDevolucionDTO resultado = new ResultadoDevolucionDTO(1, false);
+        when(servicio.devolverAPretemporada(any())).thenReturn(resultado);
+        DevolucionRepartoRequest peticion = new DevolucionRepartoRequest(List.of(1L));
+
+        assertThat(controller.devolver(peticion, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        ResponseEntity<?> respuesta = controller.devolver(peticion, autenticado("7"));
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respuesta.getBody()).isSameAs(resultado);
+
+        doThrow(new SecurityException("no")).when(servicio).comprobarCoordinador(8L);
+        assertThat(controller.devolver(peticion, autenticado("8")).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        when(servicio.devolverAPretemporada(any())).thenThrow(new IllegalArgumentException("no tiene equipo definitivo"));
+        assertThat(controller.devolver(peticion, autenticado("7")).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 }

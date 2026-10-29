@@ -22,6 +22,8 @@ import com.mikedev.mutxamelcf.dao.JugadorDao;
 import com.mikedev.mutxamelcf.dao.JugadorTemporadaDao;
 import com.mikedev.mutxamelcf.dao.TemporadaDao;
 import com.mikedev.mutxamelcf.model.AsignacionRepartoRequest;
+import com.mikedev.mutxamelcf.model.DevolucionRepartoRequest;
+import com.mikedev.mutxamelcf.model.ResultadoDevolucionDTO;
 import com.mikedev.mutxamelcf.model.CategoriaEdad;
 import com.mikedev.mutxamelcf.model.EnumEquipos;
 import com.mikedev.mutxamelcf.model.Equipo;
@@ -34,6 +36,8 @@ import com.mikedev.mutxamelcf.model.ResultadoRepartoDTO;
 import com.mikedev.mutxamelcf.model.Temporada;
 import com.mikedev.mutxamelcf.service.AlAsignarEquipoDefinitivo;
 import com.mikedev.mutxamelcf.service.AlAsignarEquipoDefinitivo.AsignacionDefinitiva;
+import com.mikedev.mutxamelcf.service.AlQuitarEquipoDefinitivo;
+import com.mikedev.mutxamelcf.service.AlQuitarEquipoDefinitivo.QuitaDefinitiva;
 import com.mikedev.mutxamelcf.service.CategoriaPorEdad;
 import com.mikedev.mutxamelcf.service.RepartoService;
 
@@ -51,10 +55,12 @@ public class RepartoServiceImpl implements RepartoService {
 	private final CategoriaPorEdad categoriaPorEdad;
 	private final EquipoGestionDao equipoGestionDao;
 	private final List<AlAsignarEquipoDefinitivo> alAsignar;
+	private final List<AlQuitarEquipoDefinitivo> alQuitar;
 
 	public RepartoServiceImpl(TemporadaDao temporadaDao, EquipoDao equipoDao, JugadorDao jugadorDao,
 			JugadorTemporadaDao jugadorTemporadaDao, CategoriaPorEdad categoriaPorEdad,
-			EquipoGestionDao equipoGestionDao, List<AlAsignarEquipoDefinitivo> alAsignar) {
+			EquipoGestionDao equipoGestionDao, List<AlAsignarEquipoDefinitivo> alAsignar,
+			List<AlQuitarEquipoDefinitivo> alQuitar) {
 		this.temporadaDao = temporadaDao;
 		this.equipoDao = equipoDao;
 		this.jugadorDao = jugadorDao;
@@ -62,6 +68,7 @@ public class RepartoServiceImpl implements RepartoService {
 		this.categoriaPorEdad = categoriaPorEdad;
 		this.equipoGestionDao = equipoGestionDao;
 		this.alAsignar = alAsignar;
+		this.alQuitar = alQuitar;
 	}
 
 	// ============================================================
@@ -310,6 +317,79 @@ public class RepartoServiceImpl implements RepartoService {
 		});
 
 		return avisos;
+	}
+
+	// ============================================================
+	// Devolver a la pretemporada
+	// ============================================================
+
+	@Override
+	@Transactional
+	public ResultadoDevolucionDTO devolverAPretemporada(DevolucionRepartoRequest request) {
+		if (request == null || request.jugadorIds() == null || request.jugadorIds().isEmpty()) {
+			throw new IllegalArgumentException("Hay que indicar al menos un jugador.");
+		}
+
+		Temporada activa = activa();
+		List<Equipo> equipos = equipoDao.obtenerTodos();
+		Map<Long, JugadorTemporada> filas = new LinkedHashMap<>();
+		jugadorTemporadaDao.listarPorTemporada(activa.getId()).forEach(f -> filas.put(f.getJugadorId(), f));
+
+		// Todo se valida antes de tocar nada
+		Map<Long, Equipo> destinos = new LinkedHashMap<>();
+		Set<Long> repetidos = new HashSet<>();
+
+		for (Long jugadorId : request.jugadorIds()) {
+			if (jugadorId == null || !repetidos.add(jugadorId)) {
+				throw new IllegalArgumentException("Hay un jugador sin identificar o repetido en la lista.");
+			}
+
+			JugadorTemporada fila = filas.get(jugadorId);
+			if (fila == null) {
+				throw new IllegalArgumentException("El jugador " + jugadorId + " no tiene ficha en la temporada activa.");
+			}
+			if (fila.isBaja() || !fila.isEquipoDefinitivo()) {
+				throw new IllegalArgumentException(nombre(fila) + " no tiene un equipo definitivo que quitar.");
+			}
+
+			Equipo pretemporada = equipos.stream().filter(e -> PRETEMPORADA.equals(e.getTipoTemporada())
+					&& e.getActivoTemporada() != null && mismaCategoria(e.getCategoria(), fila.getCategoria())).findFirst()
+					.orElseThrow(() -> new IllegalArgumentException("La categoría " + fila.getCategoria()
+							+ " no tiene equipo de pretemporada en la temporada activa."));
+			destinos.put(jugadorId, pretemporada);
+		}
+
+		Set<Long> reactivadas = new HashSet<>();
+		List<QuitaDefinitiva> eventos = new ArrayList<>();
+
+		for (Map.Entry<Long, Equipo> e : destinos.entrySet()) {
+			JugadorTemporada fila = filas.get(e.getKey());
+			Equipo pretemporada = e.getValue();
+			Long anterior = fila.getEquipoId();
+
+			jugadorDao.asignarPlantilla(fila.getJugadorId(), pretemporada.getId(), pretemporada.getNombre(),
+					pretemporada.getCategoria(), pretemporada.getDeporte(), null);
+
+			fila.setEquipoId(pretemporada.getId());
+			fila.setEquipoNombre(pretemporada.getNombre());
+			fila.setDorsal(null);
+			fila.setEquipoDefinitivo(false);
+			jugadorTemporadaDao.guardar(fila);
+
+			if (!Boolean.TRUE.equals(pretemporada.getActivoTemporada()) && reactivadas.add(pretemporada.getId())) {
+				// Había quedado vacío y se desactivó: con jugadores vuelve a estar activo
+				equipoDao.marcarActivoEnTemporada(pretemporada.getId(), true);
+
+			}
+
+			eventos.add(new QuitaDefinitiva(fila.getJugadorId(), anterior, activa.getId()));
+		}
+
+		eventos.forEach(ev -> alQuitar.forEach(h -> h.alQuitar(ev)));
+
+		logger.info("Reparto: devueltos a la pretemporada={}, pretemporadaReactivada={}", eventos.size(), !reactivadas.isEmpty());
+
+		return new ResultadoDevolucionDTO(eventos.size(), !reactivadas.isEmpty());
 	}
 
 	// ============================================================

@@ -785,6 +785,23 @@
           }
         },
         {
+          "name": "Devolver jugadores a la pretemporada",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jugadorIds\": [{{jugadorId}}]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/reparto/devolver",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "reparto", "devolver"]
+            },
+            "description": "Devuelve a la pretemporada de su categoría a jugadores asignados por error: EQUIPO_DEFINITIVO = 0 y sin dorsal. La pretemporada se reactiva si estaba vacía; el equipo definitivo que se queda vacío no se desactiva solo. 200 {devueltos, pretemporadaReactivada}. 400 si algún jugador no tiene equipo definitivo, está repetido o su categoría no tiene pretemporada (no se toca nada). 403 si no eres coordinador."
+          }
+        },
+        {
           "name": "Crear equipo de la categoría",
           "request": {
             "method": "POST",
@@ -796,6 +813,65 @@
               "query": [{ "key": "categoria", "value": "Alevín" }]
             },
             "description": "201 con el equipo creado (siguiente letra libre, misma modalidad que la categoría). Queda inactivo hasta que se le asigne el primer jugador. 400 si la categoría no es formativa. 403 si no eres coordinador."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Continuidad (familias)",
+      "description": "Confirmación de si cada jugador continúa la temporada siguiente. Solo se ven y se contestan los jugadores vinculados al usuario (familiar o cuenta del propio jugador). Los avisos push llevan tipo CONTINUIDAD y pantalla CONTINUIDAD en el data; ver docs/api-app-transicion.md.",
+      "item": [
+        {
+          "name": "Mis jugadores a confirmar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/continuidad",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "continuidad"]
+            },
+            "description": "Lista [{jugadorId, nombre, categoria, temporadaId, temporada, respuesta, fechaRespuesta}] de los jugadores del usuario a los que se ha preguntado. respuesta: PENDIENTE, SIGUE, NO_SIGUE o DUDA. Lista vacía si no hay borrador o no se ha preguntado todavía."
+          }
+        },
+        {
+          "name": "Responder continuidad de un jugador",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"respuesta\": \"SIGUE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/continuidad/{{jugadorId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "continuidad", "{{jugadorId}}"]
+            },
+            "description": "respuesta: SIGUE, NO_SIGUE o DUDA. Se puede cambiar hasta el cierre de la temporada. 200 con el estado nuevo del jugador. NO_SIGUE propone la baja, que queda pendiente de que la confirme el coordinador; al responder NO_SIGUE o DUDA se avisa a los coordinadores. 400 si la respuesta no es válida o el jugador no tiene que confirmar; 403 si no estás vinculado con el jugador; 409 si no hay temporada siguiente."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pruebas (COORDINADOR)",
+      "description": "Alta de jugadores de prueba en la temporada siguiente. Solo COORDINADOR y ADMIN_APP.",
+      "item": [
+        {
+          "name": "Alta de jugador de prueba",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Luis\",\n  \"apellidos\": \"Gil\",\n  \"anioNacimiento\": 2016\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/pruebas",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "pruebas"]
+            },
+            "description": "Mismas reglas que el asistente: nombre, apellidos y año de nacimiento obligatorios; la categoría sale de la edad en la temporada siguiente y el jugador queda sin equipo, en estado PRUEBA. 201 {jugadorId, categoria, temporadaId, estado}. 400 si faltan datos o ninguna categoría cubre su edad; 403 si no eres coordinador; 409 si no hay temporada siguiente."
           }
         }
       ]

@@ -402,6 +402,26 @@ class ModeloTransicionTemporadaH2Test {
     }
 
     @Test
+    void laFechaDeLaPreguntaDeContinuidadSeGuardaYSeConservaAlActualizarLaFila() {
+        JugadorTemporadaDaoImpl dao = jugadorTemporada();
+        JugadorTemporada f = fila(false);
+        assertThat(f.getFechaPreguntaContinuidad()).isNull();
+        dao.guardar(f);
+        assertThat(dao.obtener(10L, ACTIVA).getFechaPreguntaContinuidad()).isNull();
+
+        JugadorTemporada leida = dao.obtener(10L, ACTIVA);
+        leida.setFechaPreguntaContinuidad(LocalDate.of(2027, 5, 1).atTime(9, 0));
+        dao.guardar(leida);
+
+        // Otro guardado (p. ej. la respuesta de la familia) no la pierde
+        JugadorTemporada otra = dao.obtener(10L, ACTIVA);
+        otra.setContinuidad("DUDA");
+        dao.guardar(otra);
+
+        assertThat(dao.obtener(10L, ACTIVA).getFechaPreguntaContinuidad()).isEqualTo(LocalDate.of(2027, 5, 1).atTime(9, 0));
+    }
+
+    @Test
     void laRevisionDependeDeLaContinuidadSoloSiSeQuedaElJugador() {
         JugadorTemporada f = new JugadorTemporada();
         assertThat(f.requiereRevision()).isTrue();          // CONFIRMADO + PENDIENTE

@@ -3,6 +3,8 @@ package com.mikedev.mutxamelcf.service;
 import java.util.List;
 
 import com.mikedev.mutxamelcf.model.AsignacionRepartoRequest;
+import com.mikedev.mutxamelcf.model.DevolucionRepartoRequest;
+import com.mikedev.mutxamelcf.model.ResultadoDevolucionDTO;
 import com.mikedev.mutxamelcf.model.EquipoRepartoDTO;
 import com.mikedev.mutxamelcf.model.RepartoCategoriaDTO;
 import com.mikedev.mutxamelcf.model.ResultadoRepartoDTO;
@@ -41,4 +43,14 @@ public interface RepartoService {
 	 * asigne el primer jugador.
 	 */
 	EquipoRepartoDTO crearEquipo(String categoria);
+
+	/**
+	 * Devuelve a la pretemporada de su categoría a jugadores asignados por error a un equipo definitivo: pasan a
+	 * EQUIPO_DEFINITIVO = 0, sin dorsal, en el equipo de pretemporada (que se reactiva si estaba vacío). El equipo
+	 * definitivo que se queda sin jugadores no se desactiva solo. No se toca nada si alguno no es válido.
+	 *
+	 * @throws IllegalArgumentException si falta algún jugador, no tiene equipo definitivo o su categoría no tiene
+	 *                                  equipo de pretemporada
+	 */
+	ResultadoDevolucionDTO devolverAPretemporada(DevolucionRepartoRequest request);
 }

@@ -34,7 +34,10 @@ import com.mikedev.mutxamelcf.model.ResultadoRepartoDTO;
 import com.mikedev.mutxamelcf.model.Temporada;
 import com.mikedev.mutxamelcf.service.AlAsignarEquipoDefinitivo;
 import com.mikedev.mutxamelcf.service.AlAsignarEquipoDefinitivo.AsignacionDefinitiva;
+import com.mikedev.mutxamelcf.service.AlQuitarEquipoDefinitivo;
 import com.mikedev.mutxamelcf.service.CategoriaPorEdad;
+import com.mikedev.mutxamelcf.model.DevolucionRepartoRequest;
+import com.mikedev.mutxamelcf.model.ResultadoDevolucionDTO;
 
 class RepartoServiceImplTest {
 
@@ -50,6 +53,7 @@ class RepartoServiceImplTest {
 	private CategoriaPorEdad categoriaPorEdad;
 	private EquipoGestionDao equipoGestionDao;
 	private List<AsignacionDefinitiva> eventos;
+	private List<AlQuitarEquipoDefinitivo.QuitaDefinitiva> quitas;
 	private RepartoServiceImpl servicio;
 
 	private List<Equipo> equipos;
@@ -64,6 +68,7 @@ class RepartoServiceImplTest {
 		categoriaPorEdad = mock(CategoriaPorEdad.class);
 		equipoGestionDao = mock(EquipoGestionDao.class);
 		eventos = new ArrayList<>();
+		quitas = new ArrayList<>();
 
 		Temporada activa = new Temporada();
 		activa.setId(TEMPORADA);
@@ -80,7 +85,7 @@ class RepartoServiceImplTest {
 
 		AlAsignarEquipoDefinitivo hook = eventos::add;
 		servicio = new RepartoServiceImpl(temporadaDao, equipoDao, jugadorDao, jugadorTemporadaDao, categoriaPorEdad,
-				equipoGestionDao, List.of(hook));
+				equipoGestionDao, List.of(hook), List.of(quitas::add));
 	}
 
 	private static Equipo equipo(long id, String nombre, String grupo, String tipo, boolean activo) {
@@ -354,5 +359,84 @@ class RepartoServiceImplTest {
 	void noSeCreanEquiposDeCategoriasNoFormativas() {
 		assertThatThrownBy(() -> servicio.crearEquipo("Senior")).isInstanceOf(IllegalArgumentException.class);
 		verify(equipoDao, never()).guardar(any());
+	}
+
+	// ---- devolver a la pretemporada ----------------------------------------------------------------
+
+	@Test
+	void devolverPasaAlJugadorALaPretemporadaSinDorsalNiEquipoDefinitivo() {
+		JugadorTemporada ana = fila(1, "Ana", "CONFIRMADO", ALEVIN_B, true, 7);
+
+		ResultadoDevolucionDTO resultado = servicio.devolverAPretemporada(new DevolucionRepartoRequest(List.of(1L)));
+
+		assertThat(resultado.devueltos()).isEqualTo(1);
+		assertThat(resultado.pretemporadaReactivada()).isFalse();
+		verify(jugadorDao).asignarPlantilla(1L, PRE, "Alevín (Pretemporada)", "Alevín", "F", null);
+		assertThat(ana.getEquipoId()).isEqualTo(PRE);
+		assertThat(ana.getDorsal()).isNull();
+		assertThat(ana.isEquipoDefinitivo()).isFalse();
+		assertThat(ana.getEstado()).isEqualTo("CONFIRMADO");
+		verify(jugadorTemporadaDao).guardar(ana);
+	}
+
+	@Test
+	void elEquipoDefinitivoQueSeQuedaVacioNoSeDesactivaSolo() {
+		fila(1, "Ana", "CONFIRMADO", ALEVIN_B, true, 7);
+		when(jugadorTemporadaDao.contarEnEquipoEnLaTemporadaActiva(ALEVIN_B)).thenReturn(0);
+
+		servicio.devolverAPretemporada(new DevolucionRepartoRequest(List.of(1L)));
+
+		verify(equipoDao, never()).marcarActivoEnTemporada(eq(ALEVIN_B), anyBoolean());
+	}
+
+	@Test
+	void unaPretemporadaDesactivadaSeReactivaAlRecibirAUnJugador() {
+		equipos.set(0, equipo(PRE, "Alevín (Pretemporada)", "P", "PRETEMPORADA", false));
+		fila(1, "Ana", "CONFIRMADO", ALEVIN_B, true, 7);
+
+		ResultadoDevolucionDTO resultado = servicio.devolverAPretemporada(new DevolucionRepartoRequest(List.of(1L)));
+
+		assertThat(resultado.pretemporadaReactivada()).isTrue();
+		verify(equipoDao).marcarActivoEnTemporada(PRE, true);
+	}
+
+	@Test
+	void devolverAvisaAlHookDeQuitarEquipoDefinitivo() {
+		fila(1, "Ana", "CONFIRMADO", ALEVIN_B, true, 7);
+
+		servicio.devolverAPretemporada(new DevolucionRepartoRequest(List.of(1L)));
+
+		assertThat(quitas).singleElement().satisfies(q -> {
+			assertThat(q.jugadorId()).isEqualTo(1L);
+			assertThat(q.equipoAnteriorId()).isEqualTo(ALEVIN_B);
+			assertThat(q.temporadaId()).isEqualTo(TEMPORADA);
+		});
+	}
+
+	@Test
+	void devolverValidaTodoAntesDeTocarNada() {
+		fila(1, "Ana", "CONFIRMADO", ALEVIN_B, true, 7);
+		fila(2, "Biel", "CONFIRMADO", PRE, false, null);
+
+		assertThatThrownBy(() -> servicio.devolverAPretemporada(new DevolucionRepartoRequest(List.of(1L, 2L))))
+				.hasMessageContaining("no tiene un equipo definitivo");
+		assertThatThrownBy(() -> servicio.devolverAPretemporada(new DevolucionRepartoRequest(List.of(1L, 1L))))
+				.hasMessageContaining("repetido");
+		assertThatThrownBy(() -> servicio.devolverAPretemporada(new DevolucionRepartoRequest(List.of(77L))))
+				.hasMessageContaining("no tiene ficha");
+		assertThatThrownBy(() -> servicio.devolverAPretemporada(new DevolucionRepartoRequest(List.of())))
+				.hasMessageContaining("al menos un jugador");
+
+		verify(jugadorDao, never()).asignarPlantilla(anyLong(), anyLong(), any(), any(), any(), any());
+		assertThat(quitas).isEmpty();
+	}
+
+	@Test
+	void sinEquipoDePretemporadaEnLaCategoriaNoSeDevuelve() {
+		equipos.remove(0);
+		fila(1, "Ana", "CONFIRMADO", ALEVIN_B, true, 7);
+
+		assertThatThrownBy(() -> servicio.devolverAPretemporada(new DevolucionRepartoRequest(List.of(1L))))
+				.hasMessageContaining("no tiene equipo de pretemporada");
 	}
 }

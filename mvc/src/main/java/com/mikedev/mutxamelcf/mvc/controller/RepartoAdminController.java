@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import com.mikedev.mutxamelcf.model.AsignacionRepartoRequest;
+import com.mikedev.mutxamelcf.model.DevolucionRepartoRequest;
+import com.mikedev.mutxamelcf.model.ResultadoDevolucionDTO;
 import com.mikedev.mutxamelcf.model.EquipoRepartoDTO;
 import com.mikedev.mutxamelcf.model.PruebasSinConfirmarException;
 import com.mikedev.mutxamelcf.model.RepartoCategoriaDTO;
@@ -94,6 +96,26 @@ public class RepartoAdminController {
 			return error(e.getMessage(), HttpStatus.BAD_REQUEST);
 		} catch (DataAccessException e) {
 			logger.error("Error de base de datos al asignar: {}", e.getMessage(), e);
+			return error(MENSAJE_ERROR_BASE_DE_DATOS, HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	@PostMapping("/devolver")
+	@org.springframework.web.bind.annotation.ResponseBody
+	public ResponseEntity<Map<String, Object>> devolver(@RequestBody DevolucionRepartoRequest request) {
+		logger.debug("Inicio devolver a la pretemporada");
+
+		try {
+			ResultadoDevolucionDTO resultado = repartoService.devolverAPretemporada(request);
+			Map<String, Object> respuesta = new HashMap<>();
+			respuesta.put("mensaje", resultado.devueltos() + " jugador(es) devuelto(s) a la pretemporada."
+					+ (resultado.pretemporadaReactivada() ? " El equipo de pretemporada vuelve a estar activo." : ""));
+			return ResponseEntity.ok(respuesta);
+		} catch (IllegalArgumentException | IllegalStateException e) {
+			logger.warn("No se ha podido devolver a la pretemporada: {}", e.getMessage());
+			return error(e.getMessage(), HttpStatus.BAD_REQUEST);
+		} catch (DataAccessException e) {
+			logger.error("Error de base de datos al devolver a la pretemporada: {}", e.getMessage(), e);
 			return error(MENSAJE_ERROR_BASE_DE_DATOS, HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}

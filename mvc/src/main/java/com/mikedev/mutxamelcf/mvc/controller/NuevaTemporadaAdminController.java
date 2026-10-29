@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.mikedev.mutxamelcf.model.EquipoDTO;
 import com.mikedev.mutxamelcf.model.Temporada;
+import com.mikedev.mutxamelcf.model.ResultadoPreguntaContinuidadDTO;
+import com.mikedev.mutxamelcf.service.ContinuidadService;
 import com.mikedev.mutxamelcf.service.EquipoService;
 import com.mikedev.mutxamelcf.service.NuevaTemporadaService;
 
@@ -37,10 +39,13 @@ public class NuevaTemporadaAdminController {
 
 	private final NuevaTemporadaService nuevaTemporadaService;
 	private final EquipoService equipoService;
+	private final ContinuidadService continuidadService;
 
-	public NuevaTemporadaAdminController(NuevaTemporadaService nuevaTemporadaService, EquipoService equipoService) {
+	public NuevaTemporadaAdminController(NuevaTemporadaService nuevaTemporadaService, EquipoService equipoService,
+			ContinuidadService continuidadService) {
 		this.nuevaTemporadaService = nuevaTemporadaService;
 		this.equipoService = equipoService;
+		this.continuidadService = continuidadService;
 	}
 
 	@GetMapping
@@ -78,6 +83,18 @@ public class NuevaTemporadaAdminController {
 		return ejecutar("generar propuesta", () -> {
 			int creadas = nuevaTemporadaService.generarPropuesta(temporadaId);
 			return "Propuesta generada: " + creadas + " jugador(es) añadido(s) al borrador.";
+		});
+	}
+
+	@PostMapping("/pedir-continuidad")
+	@ResponseBody
+	public ResponseEntity<Map<String, String>> pedirContinuidad(@RequestParam Long temporadaId) {
+		return ejecutar("pedir continuidad", () -> {
+			ResultadoPreguntaContinuidadDTO r = continuidadService.pedirConfirmacion(temporadaId);
+			if (r.jugadoresPreguntados() == 0) {
+				return "No había nadie nuevo a quien preguntar: todos los jugadores formativos pendientes ya han sido preguntados.";
+			}
+			return "Pregunta enviada: " + r.jugadoresPreguntados() + " jugador(es), " + r.usuariosAvisados() + " cuenta(s) avisada(s).";
 		});
 	}
 

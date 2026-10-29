@@ -624,6 +624,30 @@ class NuevaTemporadaServiceImplH2Test {
     }
 
     @Test
+    void laRespuestaDeUnaFamiliaGuardaQuienLaDaYLaFechaConLasMismasReglasDelPanel() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+
+        asistente.marcarContinuidad(DESTINO, 1L, "NO_SIGUE", 2L);
+
+        assertThat(fila(1).getUsuarioAppContinuidadId()).isEqualTo(2L);
+        assertThat(fila(1).getFechaContinuidad()).isNotNull();
+        assertThat(fila(1).isBaja()).isTrue();
+        assertThat(fila(1).requiereRevision()).isTrue();
+
+        // Cambia de opinión: ya no es una baja propuesta y vuelve a revisarse
+        asistente.marcarContinuidad(DESTINO, 1L, "SIGUE", 1L);
+
+        assertThat(fila(1).getUsuarioAppContinuidadId()).isEqualTo(1L);
+        assertThat(fila(1).isBaja()).isFalse();
+        assertThat(fila(1).requiereRevision()).isTrue();
+
+        // El botón del panel no guarda usuario
+        asistente.marcarContinuidad(DESTINO, 1L, "SIGUE");
+        assertThat(fila(1).getUsuarioAppContinuidadId()).isNull();
+    }
+
+    @Test
     void noSigueProponeLaBajaPeroQuedaPendienteHastaQueElCoordinadorLaConfirma() {
         datosDeLasReglas();
         asistente.generarPropuesta(DESTINO);
