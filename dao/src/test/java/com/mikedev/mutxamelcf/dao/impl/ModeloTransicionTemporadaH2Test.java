@@ -447,6 +447,42 @@ class ModeloTransicionTemporadaH2Test {
         assertThat(leida.isEquipoDefinitivo()).isFalse();
     }
 
+    // ---- pruebas ocultas: solo las del borrador -----------------------------------------------------
+
+    private void jugadorDeBajaConPrueba(long id, long temporada) {
+        jdbc.update("INSERT INTO JUGADORES (ID, NOMBRE, APELLIDOS, CATEGORIA, DEPORTE, FECHA_BAJA)"
+                + " VALUES (?, 'Luis', 'Prueba', 'Alevín', 'F', DATE '2026-10-29')", id);
+        jdbc.update("INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID, ESTADO) VALUES (?, ?, 'PRUEBA')", id,
+                temporada);
+    }
+
+    @Test
+    void soloLaFilaPruebaDeUnaTemporadaEnBorradorOcultaAlJugador() {
+        // Temporada 3: el borrador (no activa y posterior a la activa)
+        jdbc.update("INSERT INTO TEMPORADAS VALUES (3, '2027/2028', DATE '2027-07-01', DATE '2028-06-30', 0)");
+        jugadorDeBajaConPrueba(21, 3);          // prueba oculta
+        jugadorDeBajaConPrueba(22, ACTIVA);     // su fila PRUEBA es de la temporada activa: ya no está oculto
+        jugadorDeBajaConPrueba(23, ANTERIOR);   // la fila PRUEBA es de una temporada pasada: tampoco
+        JugadorDaoImpl jugadores = new JugadorDaoImpl(jdbc);
+        JugadorTemporadaDaoImpl filas = new JugadorTemporadaDaoImpl(jdbc);
+
+        assertThat(jugadores.obtenerBajas()).extracting(j -> j.getId()).containsExactlyInAnyOrder(22L, 23L);
+        assertThat(jugadores.obtenerTodos()).extracting(j -> j.getId()).containsExactlyInAnyOrder(22L, 23L);
+        assertThat(filas.esDePrueba(21L)).isTrue();
+        assertThat(filas.esDePrueba(22L)).isFalse();
+        assertThat(filas.esDePrueba(23L)).isFalse();
+    }
+
+    @Test
+    void sinTemporadaActivaNingunaPruebaSeOculta() {
+        jdbc.update("INSERT INTO TEMPORADAS VALUES (3, '2027/2028', DATE '2027-07-01', DATE '2028-06-30', 0)");
+        jugadorDeBajaConPrueba(21, 3);
+        jdbc.update("UPDATE TEMPORADAS SET ACTIVA = 0");
+
+        assertThat(new JugadorDaoImpl(jdbc).obtenerBajas()).extracting(j -> j.getId()).containsExactly(21L);
+        assertThat(new JugadorTemporadaDaoImpl(jdbc).esDePrueba(21L)).isFalse();
+    }
+
     @Test
     void laColumnaBajaYaNoExisteYLosCheckDeEstadoSiguen() {
         jugadorTemporada();

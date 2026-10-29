@@ -97,8 +97,12 @@ public class JugadorTemporadaDaoImpl implements JugadorTemporadaDao {
 
 	@Override
 	public boolean esDePrueba(Long jugadorId) {
-		Integer total = jdbcTemplate.queryForObject(
-				"SELECT COUNT(*) FROM JUGADOR_TEMPORADA WHERE JUGADOR_ID = ? AND ESTADO = 'PRUEBA'", Integer.class, jugadorId);
+		// Solo en el borrador: una temporada no activa que empieza después de la activa
+		Integer total = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM JUGADOR_TEMPORADA JTP"
+				+ " JOIN TEMPORADAS TP ON TP.ID = JTP.TEMPORADA_ID"
+				+ " WHERE JTP.JUGADOR_ID = ? AND JTP.ESTADO = 'PRUEBA' AND TP.ACTIVA = 0"
+				+ " AND TP.FECHA_INICIO > (SELECT TA.FECHA_INICIO FROM TEMPORADAS TA WHERE TA.ACTIVA = 1)",
+				Integer.class, jugadorId);
 		return total != null && total > 0;
 	}
 

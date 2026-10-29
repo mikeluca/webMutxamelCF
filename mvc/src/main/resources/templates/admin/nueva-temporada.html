@@ -24,7 +24,7 @@
 
 		<p class="text-muted">
 			Prepara la plantilla de la temporada que viene. Lo que hagas aquí es un <strong>borrador</strong>: nada
-			cambia en la app hasta que pulses <em>Aplicar y activar temporada</em>.
+			cambia en la app hasta que pulses <em>Cerrar temporada</em>.
 			<span th:if="${activa != null}">Temporada activa: <strong th:text="${activa.nombre}"></strong>.</span>
 		</p>
 
@@ -173,18 +173,50 @@
 				</div>
 			</div>
 
-			<!-- d) Aplicar y activar -->
+			<!-- d) Cerrar temporada -->
 			<section class="border rounded p-3 mb-5">
-				<h2 class="h4">Aplicar y activar temporada</h2>
+				<h2 class="h4">Cerrar temporada</h2>
+				<p class="text-muted mb-2">
+					Se cierra <strong th:text="${resumen.temporadaActual()}"></strong> y se activa
+					<strong th:text="${resumen.temporada()}"></strong>. Todo se hace en una sola operación: si algo falla, no se aplica nada.
+				</p>
 
 				<div class="alert alert-warning" th:unless="${resumen.bloqueos().isEmpty()}">
-					<strong>Todavía no se puede aplicar:</strong>
+					<strong>Todavía no se puede cerrar:</strong>
 					<ul class="mb-0"><li th:each="b : ${resumen.bloqueos()}" th:text="${b}"></li></ul>
 				</div>
 
+				<h3 class="h6">Lo que va a pasar</h3>
+				<ol class="mb-3" th:with="p=${resumen.pasos()}">
+					<li><strong>Foto del cuerpo técnico</strong> de la temporada que se cierra:
+						<strong th:text="${p.fotoCuerpoTecnico()}"></strong> asignaciones.</li>
+					<li><strong>Equipos de la temporada nueva:</strong>
+						<strong th:text="${p.equiposAdultosActivos()}"></strong> (Filial, Primer Equipo, Veteranos) activos y
+						<strong th:text="${p.equiposCopiadosInactivos()}"></strong> copiados desactivados (se activan en el reparto de septiembre).
+						<span th:if="${not #lists.isEmpty(p.pretemporadaNuevos())}">Equipos de pretemporada que se crean:
+							<strong th:text="${#strings.listJoin(p.pretemporadaNuevos(), ', ')}"></strong>.</span>
+						<span th:if="${not #lists.isEmpty(p.pretemporadaReutilizados())}">Se reutilizan:
+							<strong th:text="${#strings.listJoin(p.pretemporadaReutilizados(), ', ')}"></strong>.</span></li>
+					<li><strong>Plantilla:</strong>
+						<strong th:text="${p.bajas()}"></strong> bajas,
+						<strong th:text="${p.formativosAPretemporada()}"></strong> formativos a su equipo de pretemporada (sin dorsal; también los
+						que ya tienen equipo elegido en el borrador, el reparto es en septiembre),
+						<strong th:text="${p.pruebasQueEntran()}"></strong> pruebas que dejan de estar ocultas y entran en su pretemporada,
+						<strong th:text="${p.adultosSeQuedan()}"></strong> adultos que se quedan como están.</li>
+					<li><strong>Cuerpo técnico:</strong> se desasignan <strong th:text="${p.cuerpoTecnicoDesasignado()}"></strong>
+						asignaciones (se conservan las de Filial, Primer Equipo y Veteranos).</li>
+					<li><strong>Horarios:</strong> <strong th:text="${p.horariosDesactivados()}"></strong> se desactivan y se copian a la
+						temporada nueva desactivados; se borran <strong th:text="${p.sesionesBorradas()}"></strong> sesiones futuras sin entrenamiento.</li>
+					<li><strong>Conceptos de pago:</strong> se copian <strong th:text="${p.conceptosCopiados()}"></strong> a la temporada nueva.</li>
+					<li><strong>Notificaciones de la app:</strong> se borran <strong th:text="${p.notificacionesBorradas()}"></strong>.</li>
+					<li><strong>Se activa</strong> la temporada <span th:text="${resumen.temporada()}"></span> y se desactivan las demás.</li>
+					<li><strong>Aviso</strong> a <strong th:text="${p.destinatariosAviso()}"></strong> cuentas activas de la app (solo después de guardar
+						todo): "Empieza la temporada <span th:text="${resumen.temporada()}"></span>. Los equipos se publicarán en septiembre."</li>
+				</ol>
+
 				<div class="row">
 					<div class="col-md-6">
-						<h3 class="h6">Jugadores por equipo</h3>
+						<h3 class="h6">Jugadores al terminar</h3>
 						<ul class="list-unstyled">
 							<li th:each="e : ${resumen.jugadoresPorEquipo()}"><span th:text="${e.key}"></span>:
 								<strong th:text="${e.value}"></strong></li>
@@ -193,27 +225,22 @@
 					</div>
 					<div class="col-md-6">
 						<ul class="list-unstyled">
-							<li>Cambios de equipo: <strong th:text="${resumen.cambiosDeEquipo()}"></strong></li>
 							<li>Bajas: <strong th:text="${resumen.bajas()}"></strong></li>
-							<li>Sin equipo: <strong th:text="${resumen.sinEquipo()}"></strong></li>
+							<li>Sin equipo ni categoría: <strong th:text="${resumen.sinEquipo()}"></strong></li>
 						</ul>
 					</div>
 				</div>
 
-				<p class="small text-muted">
-					Se hará en una sola operación: se copian equipo, dorsal y categoría a los jugadores, las bajas reciben la
-					fecha de hoy, se activa la temporada y se desactivan las demás. No se envían notificaciones.
-				</p>
 				<div class="row g-2 align-items-end">
 					<div class="col-12 col-md-6">
 						<label class="form-label" for="confirmacion">Para confirmar, escribe
 							<strong th:text="${destino.nombre}"></strong></label>
 						<input type="text" id="confirmacion" class="form-control" autocomplete="off"
-							th:disabled="${not resumen.puedeAplicar()}">
+							th:disabled="${not resumen.puedeCerrar()}">
 					</div>
 					<div class="col-auto">
-						<button type="button" class="btn btn-danger" onclick="aplicar()" th:disabled="${not resumen.puedeAplicar()}">
-							Aplicar y activar temporada
+						<button type="button" class="btn btn-danger" onclick="cerrarTemporada()" th:disabled="${not resumen.puedeCerrar()}">
+							Cerrar temporada
 						</button>
 					</div>
 				</div>
@@ -296,10 +323,10 @@
 			enviar('/admin/nueva-temporada/prueba/anadir', datos);
 		}
 
-		function aplicar() {
+		function cerrarTemporada() {
 			const nombre = document.getElementById('confirmacion').value;
-			if (!confirm('Se va a activar la nueva temporada y a cambiar la plantilla de la app. ¿Seguro?')) return;
-			enviar('/admin/nueva-temporada/aplicar', { temporadaId: destinoId(), confirmacion: nombre });
+			if (!confirm('Se va a cerrar la temporada actual, a activar la nueva y a cambiar la plantilla de la app. Esto no se puede deshacer. ¿Seguro?')) return;
+			enviar('/admin/nueva-temporada/cerrar', { temporadaId: destinoId(), confirmacion: nombre });
 		}
 	</script>
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>

@@ -2,12 +2,12 @@ package com.mikedev.mutxamelcf.service;
 
 import java.util.List;
 
-import com.mikedev.mutxamelcf.model.ResumenAplicacionDTO;
+import com.mikedev.mutxamelcf.model.ResumenCierreDTO;
 import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO;
 import com.mikedev.mutxamelcf.model.Temporada;
 
 /**
- * Asistente "Nueva temporada". Las filas de JUGADOR_TEMPORADA de una temporada que todavía no está activa son el
+ * Asistente "Nueva temporada" y cierre de la temporada. Las filas de JUGADOR_TEMPORADA de una temporada que todavía no está activa son el
  * borrador: se preparan durante días y nada cambia en JUGADORES hasta {@link #aplicar}.
  */
 public interface NuevaTemporadaService {
@@ -57,15 +57,18 @@ public interface NuevaTemporadaService {
 	/** Añade al borrador a un jugador creado después de generar la propuesta, con las reglas de la propuesta. */
 	void anadirSinPropuesta(Long destinoId, Long jugadorId);
 
-	ResumenAplicacionDTO resumenAplicacion(Long destinoId);
+	/** Lo que va a pasar en cada paso del cierre y los bloqueos, sin tocar nada. */
+	ResumenCierreDTO resumenCierre(Long destinoId);
 
 	/**
-	 * En una sola transacción: copia equipo, dorsal y categoría a JUGADORES, da de baja a las bajas, activa el destino
-	 * y desactiva las demás. No envía notificaciones.
+	 * Cierra la temporada activa y activa el destino. Los pasos 1 a 8 van en una sola transacción: foto del cuerpo
+	 * técnico, equipos de la temporada nueva (con las pretemporadas), plantilla (bajas, pruebas y formativos a su
+	 * pretemporada), cuerpo técnico desasignado, horarios y sesiones, conceptos de pago, notificaciones y activación.
+	 * Solo después del commit se avisa a todos los usuarios de la app; si el aviso falla, el cierre no se deshace.
 	 *
-	 * @param confirmacion el nombre de la temporada, escrito por el administrador
-	 * @throws IllegalStateException    si hay jugadores sin fila o filas pendientes
+	 * @param confirmacion el nombre de la temporada destino, escrito por el administrador
+	 * @throws IllegalStateException    si hay jugadores sin fila, filas pendientes o jugadores sin año de nacimiento
 	 * @throws IllegalArgumentException si la confirmación no coincide o el destino no es válido
 	 */
-	void aplicar(Long destinoId, String confirmacion);
+	void cerrar(Long destinoId, String confirmacion);
 }

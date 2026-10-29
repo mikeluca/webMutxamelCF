@@ -66,7 +66,7 @@ public class NuevaTemporadaAdminController {
 			model.addAttribute("destino", destino);
 			model.addAttribute("listaEquipos", equipos);
 			model.addAttribute("revision", nuevaTemporadaService.revision(destino.getId()));
-			model.addAttribute("resumen", nuevaTemporadaService.resumenAplicacion(destino.getId()));
+			model.addAttribute("resumen", nuevaTemporadaService.resumenCierre(destino.getId()));
 		}
 
 		return "admin/nueva-temporada";
@@ -137,13 +137,13 @@ public class NuevaTemporadaAdminController {
 		});
 	}
 
-	@PostMapping("/aplicar")
+	@PostMapping("/cerrar")
 	@ResponseBody
-	public ResponseEntity<Map<String, String>> aplicar(@RequestParam Long temporadaId,
+	public ResponseEntity<Map<String, String>> cerrar(@RequestParam Long temporadaId,
 			@RequestParam(name = "confirmacion", defaultValue = "") String confirmacion) {
-		return ejecutar("aplicar temporada", () -> {
-			nuevaTemporadaService.aplicar(temporadaId, confirmacion);
-			return "Temporada aplicada y activada. La anterior queda como historial.";
+		return ejecutar("cerrar temporada", () -> {
+			nuevaTemporadaService.cerrar(temporadaId, confirmacion);
+			return "Temporada cerrada y activada la nueva. La anterior queda como historial.";
 		});
 	}
 

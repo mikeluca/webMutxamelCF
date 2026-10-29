@@ -37,12 +37,15 @@ public class JugadorDaoImpl implements JugadorDao {
 	private static final RowMapper<Jugador> JUGADOR_ROW_MAPPER = JugadorDaoImpl::mapRow;
 
 	/**
-	 * Subconsulta: el jugador (J) tiene una fila PRUEBA, es decir, es una prueba dada de alta desde "Nueva temporada".
-	 * Mientras la temporada no se aplica su ficha tiene FECHA_BAJA solo para que los listados de jugadores activos
-	 * (todos filtran por FECHA_BAJA IS NULL) no la vean.
+	 * Subconsulta: el jugador (J) es una prueba dada de alta desde "Nueva temporada" y todavía oculta, es decir, tiene
+	 * una fila PRUEBA en una temporada que aún no está activa (el borrador: no activa y posterior a la activa). Mientras
+	 * la temporada no se cierra su ficha tiene FECHA_BAJA solo para que los listados de jugadores activos (todos filtran
+	 * por FECHA_BAJA IS NULL) no la vean. Una fila PRUEBA de una temporada ya activa o pasada no oculta al jugador.
 	 */
 	private static final String PRUEBA_PENDIENTE = "SELECT 1 FROM JUGADOR_TEMPORADA JTP"
-			+ " WHERE JTP.JUGADOR_ID = J.ID AND JTP.ESTADO = 'PRUEBA'";
+			+ " JOIN TEMPORADAS TP ON TP.ID = JTP.TEMPORADA_ID"
+			+ " WHERE JTP.JUGADOR_ID = J.ID AND JTP.ESTADO = 'PRUEBA' AND TP.ACTIVA = 0"
+			+ " AND TP.FECHA_INICIO > (SELECT TA.FECHA_INICIO FROM TEMPORADAS TA WHERE TA.ACTIVA = 1)";
 
 	private final JdbcTemplate jdbcTemplate;
 

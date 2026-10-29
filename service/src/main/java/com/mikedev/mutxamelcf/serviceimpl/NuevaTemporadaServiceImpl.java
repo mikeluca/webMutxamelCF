@@ -11,14 +11,19 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import com.mikedev.mutxamelcf.dao.CierreTemporadaDao;
 import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.dao.JugadorDao;
 import com.mikedev.mutxamelcf.dao.JugadorTemporadaDao;
@@ -26,10 +31,12 @@ import com.mikedev.mutxamelcf.dao.TemporadaDao;
 import com.mikedev.mutxamelcf.model.AnioNacimiento;
 import com.mikedev.mutxamelcf.model.CategoriaPorEdadResultado;
 import com.mikedev.mutxamelcf.model.CategoriaPorEdadResultado.Estado;
+import com.mikedev.mutxamelcf.model.CifrasCierre;
+import com.mikedev.mutxamelcf.model.EnumEquipos;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.Jugador;
 import com.mikedev.mutxamelcf.model.JugadorTemporada;
-import com.mikedev.mutxamelcf.model.ResumenAplicacionDTO;
+import com.mikedev.mutxamelcf.model.ResumenCierreDTO;
 import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO;
 import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO.Fila;
 import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO.GrupoCategoria;
@@ -37,6 +44,7 @@ import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO.GrupoEquipo;
 import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO.SinPropuesta;
 import com.mikedev.mutxamelcf.model.Temporada;
 import com.mikedev.mutxamelcf.service.CategoriaPorEdad;
+import com.mikedev.mutxamelcf.service.NotificacionAppService;
 import com.mikedev.mutxamelcf.service.NuevaTemporadaService;
 
 @Service
@@ -55,11 +63,18 @@ public class NuevaTemporadaServiceImpl implements NuevaTemporadaService {
 	private final JugadorTemporadaDao jugadorTemporadaDao;
 	private final EquipoDao equipoDao;
 	private final CategoriaPorEdad categoriaPorEdad;
+	private final CierreTemporadaDao cierreDao;
+	private final PlatformTransactionManager transactionManager;
+	private final NotificacionAppService notificacionAppService;
 	private final Clock clock;
 
 	public NuevaTemporadaServiceImpl(TemporadaDao temporadaDao, JugadorDao jugadorDao,
 			JugadorTemporadaDao jugadorTemporadaDao, EquipoDao equipoDao, CategoriaPorEdad categoriaPorEdad,
-			Clock clock) {
+			CierreTemporadaDao cierreDao, PlatformTransactionManager transactionManager,
+			NotificacionAppService notificacionAppService, Clock clock) {
+		this.cierreDao = cierreDao;
+		this.transactionManager = transactionManager;
+		this.notificacionAppService = notificacionAppService;
 		this.temporadaDao = temporadaDao;
 		this.jugadorDao = jugadorDao;
 		this.jugadorTemporadaDao = jugadorTemporadaDao;
@@ -523,12 +538,89 @@ public class NuevaTemporadaServiceImpl implements NuevaTemporadaService {
 	}
 
 	// ============================================================
-	// Aplicar
+	// Cerrar temporada
 	// ============================================================
 
+	/** Tipo del aviso de cambio de temporada: respeta el interruptor general y el de noticias de cada usuario. */
+	static final String TIPO_AVISO = "NOTICIA";
+
+	/** Modalidad del equipo de pretemporada de cada categoría (sin tildes ni mayúsculas). */
+	private static final Map<String, String> MODALIDAD_PRETEMPORADA = Map.of("escuelita", "F5", "prebenjamin", "F8",
+			"benjamin", "F8", "alevin", "F8", "infantil", "F11", "cadete", "F11", "juvenil", "F11");
+
+	/** Grupo del equipo de pretemporada: no choca con los grupos en uso (A, B, C, D, Fem, Esc). */
+	static final String GRUPO_PRETEMPORADA = "P";
+
+	private static String clave(String categoria) {
+		return categoria == null ? "" : categoria.trim().toLowerCase();
+	}
+
+	private static String modalidadPretemporada(String categoria) {
+		String sinAcentos = java.text.Normalizer.normalize(clave(categoria), java.text.Normalizer.Form.NFD)
+				.replaceAll("\\p{M}", "");
+		return MODALIDAD_PRETEMPORADA.getOrDefault(sinAcentos, "F11");
+	}
+
+	static String nombrePretemporada(String categoria) {
+		return categoria.trim() + " (Pretemporada)";
+	}
+
+	private static LocalDate aLocalDate(java.util.Date fecha) {
+		return fecha instanceof java.sql.Date sql ? sql.toLocalDate()
+				: fecha.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+	}
+
+	/** Las filas del borrador según lo que les va a pasar al cerrar. */
+	private record Reparto(List<JugadorTemporada> bajas, List<JugadorTemporada> pruebas,
+			List<JugadorTemporada> formativos, List<JugadorTemporada> adultos, List<JugadorTemporada> sinEquipo,
+			int yaDeBaja) {
+
+		/** Las categorías (primera grafía vista) de los jugadores que van a una pretemporada. */
+		Map<String, String> categoriasDePretemporada() {
+			Map<String, String> categorias = new LinkedHashMap<>();
+			Stream.concat(formativos.stream(), pruebas.stream())
+					.forEach(f -> categorias.putIfAbsent(clave(f.getCategoria()), f.getCategoria().trim()));
+			return categorias;
+		}
+	}
+
+	private Reparto repartir(List<JugadorTemporada> filas, Set<String> categoriasConEdad) {
+		List<JugadorTemporada> bajas = new ArrayList<>();
+		List<JugadorTemporada> pruebas = new ArrayList<>();
+		List<JugadorTemporada> formativos = new ArrayList<>();
+		List<JugadorTemporada> adultos = new ArrayList<>();
+		List<JugadorTemporada> sinEquipo = new ArrayList<>();
+		int yaDeBaja = 0;
+
+		for (JugadorTemporada f : filas) {
+			if ("PRUEBA".equals(f.getEstado())) {
+				pruebas.add(f);
+			} else if (f.isJugadorDeBaja()) {
+				// Se dio de baja desde el panel mientras se preparaba el borrador: sigue de baja.
+				yaDeBaja++;
+			} else if (f.isBaja()) {
+				bajas.add(f);
+			} else if (f.getCategoria() != null && categoriasConEdad.contains(clave(f.getCategoria()))) {
+				// Aunque el coordinador le haya elegido equipo en el borrador: el reparto es en septiembre
+				formativos.add(f);
+			} else if (f.getEquipoId() != null) {
+				adultos.add(f);
+			} else {
+				sinEquipo.add(f);
+			}
+		}
+
+		return new Reparto(bajas, pruebas, formativos, adultos, sinEquipo, yaDeBaja);
+	}
+
+	private Set<String> categoriasConEdad() {
+		return categoriaPorEdad.obtenerTodas().stream().map(c -> clave(c.getCategoria())).collect(Collectors.toSet());
+	}
+
 	@Override
-	public ResumenAplicacionDTO resumenAplicacion(Long destinoId) {
+	public ResumenCierreDTO resumenCierre(Long destinoId) {
 		Temporada destino = validarDestino(destinoId);
+		Temporada origen = temporadaDao.obtenerTemporadaActiva();
 		List<JugadorTemporada> filas = jugadorTemporadaDao.listarPorTemporada(destinoId);
 
 		List<String> bloqueos = new ArrayList<>();
@@ -546,83 +638,158 @@ public class NuevaTemporadaServiceImpl implements NuevaTemporadaService {
 			bloqueos.add(sinAnio + " jugador(es) activo(s) sin año de nacimiento: rellénalo en la revisión.");
 		}
 
-		Map<String, Integer> porEquipo = new LinkedHashMap<>();
-		Map<String, Integer> porCategoria = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-		int cambios = 0;
-		int bajas = 0;
-		int sinEquipo = 0;
+		Reparto reparto = repartir(filas, categoriasConEdad());
 
-		for (JugadorTemporada f : filas.stream().filter(f -> !f.isJugadorDeBaja() || "PRUEBA".equals(f.getEstado()))
-				.toList()) {
-			if (f.isBaja()) {
-				bajas++;
-			} else if (f.getEquipoId() != null) {
-				porEquipo.merge(f.getEquipoNombre(), 1, Integer::sum);
-				if (!f.getEquipoId().equals(f.getEquipoActualId())) {
-					cambios++;
-				}
-			} else if (f.getCategoria() != null) {
-				porCategoria.merge(f.getCategoria() + " (sin equipo)", 1, Integer::sum);
-			} else {
-				sinEquipo++;
-			}
-		}
+		// Cómo quedan al terminar: los adultos en su equipo y los formativos (y las pruebas) en su pretemporada
+		Map<String, Integer> porEquipo = new TreeMap<>();
+		reparto.adultos().forEach(f -> porEquipo.merge(f.getEquipoNombre(), 1, Integer::sum));
+		Stream.concat(reparto.formativos().stream(), reparto.pruebas().stream())
+				.forEach(f -> porEquipo.merge(nombrePretemporada(f.getCategoria()), 1, Integer::sum));
 
-		Map<String, Integer> ordenado = new LinkedHashMap<>();
-		porEquipo.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(e -> ordenado.put(e.getKey(), e.getValue()));
-		ordenado.putAll(porCategoria);
+		Set<String> equiposExistentes = equipoDao.obtenerTodos().stream().map(e -> clave(e.getNombre()))
+				.collect(Collectors.toSet());
+		List<String> nuevos = new ArrayList<>();
+		List<String> reutilizados = new ArrayList<>();
+		reparto.categoriasDePretemporada().values().forEach(categoria -> {
+			String nombre = nombrePretemporada(categoria);
+			(equiposExistentes.contains(clave(nombre)) ? reutilizados : nuevos).add(nombre);
+		});
 
-		return new ResumenAplicacionDTO(destino.getNombre(), ordenado, cambios, bajas, sinEquipo, bloqueos);
+		CifrasCierre c = cierreDao.cifras(origen.getId(), destinoId, aLocalDate(destino.getFechaInicio()));
+		ResumenCierreDTO.Pasos pasos = new ResumenCierreDTO.Pasos(c.fotoCuerpoTecnico(), c.equiposAdultos(),
+				c.equiposInactivos(), nuevos, reutilizados, reparto.bajas().size(), reparto.pruebas().size(),
+				reparto.formativos().size(), reparto.adultos().size(), c.cuerpoTecnicoDesasignado(),
+				c.horariosActivos(), c.horariosActivos(), c.sesionesABorrar(), c.conceptosACopiar(),
+				c.notificaciones(), c.usuariosActivos());
+
+		return new ResumenCierreDTO(destino.getNombre(), origen.getNombre(), porEquipo, reparto.bajas().size(),
+				reparto.sinEquipo().size(), pasos, bloqueos);
 	}
 
 	@Override
-	@Transactional
-	public void aplicar(Long destinoId, String confirmacion) {
+	public void cerrar(Long destinoId, String confirmacion) {
 		Temporada destino = validarDestino(destinoId);
 
 		if (confirmacion == null || !destino.getNombre().trim().equals(confirmacion.trim())) {
 			throw new IllegalArgumentException("Para confirmar, escribe el nombre de la temporada: " + destino.getNombre());
 		}
 
-		ResumenAplicacionDTO resumen = resumenAplicacion(destinoId);
-		if (!resumen.puedeAplicar()) {
-			throw new IllegalStateException("No se puede aplicar: " + String.join(" ", resumen.bloqueos()));
-		}
+		Temporada origen = temporadaDao.obtenerTemporadaActiva();
 
+		// Pasos 1 a 8: todo o nada
+		new TransactionTemplate(transactionManager).executeWithoutResult(estado -> {
+			ResumenCierreDTO resumen = resumenCierre(destinoId);
+			if (!resumen.puedeCerrar()) {
+				throw new IllegalStateException("No se puede cerrar: " + String.join(" ", resumen.bloqueos()));
+			}
+
+			ejecutarCierre(origen, destino);
+		});
+
+		// Paso 9: solo con el cierre ya confirmado en la base de datos; si falla, el cierre no se deshace
+		avisarCambioDeTemporada(destino);
+	}
+
+	private void ejecutarCierre(Temporada origen, Temporada destino) {
 		LocalDate hoy = LocalDate.now(clock);
-		Set<Long> yaDeBaja = new HashSet<>();
+		List<JugadorTemporada> filas = jugadorTemporadaDao.listarPorTemporada(destino.getId());
+		Reparto reparto = repartir(filas, categoriasConEdad());
 
-		for (JugadorTemporada fila : jugadorTemporadaDao.listarPorTemporada(destinoId)) {
-			if ("PRUEBA".equals(fila.getEstado())) {
-				// La prueba sale de su ficha oculta: pasa a ser un jugador activo de su categoría, sin equipo.
-				jugadorDao.activarSinEquipo(fila.getJugadorId(), fila.getCategoria());
-				continue;
-			}
+		// 1. Foto del cuerpo técnico de la temporada que se cierra
+		int foto = cierreDao.fotografiarCuerpoTecnico(origen.getId());
 
-			if (fila.isJugadorDeBaja()) {
-				// Se dio de baja desde el panel mientras se preparaba el borrador: sigue de baja.
-				yaDeBaja.add(fila.getJugadorId());
-				continue;
-			}
+		// 2. Equipos de la temporada nueva y un equipo de pretemporada por categoría formativa con jugadores
+		cierreDao.copiarEquipos(origen.getId(), destino.getId());
+		List<Equipo> equipos = equipoDao.obtenerTodos();
+		Map<String, Equipo> pretemporada = new HashMap<>();
+		reparto.categoriasDePretemporada().forEach((clave, categoria) -> {
+			String nombre = nombrePretemporada(categoria);
+			String modalidad = modalidadPretemporada(categoria);
+			Long id = cierreDao.obtenerOCrearEquipo(nombre, categoria, GRUPO_PRETEMPORADA,
+					ordenDe(categoria, equipos), "F", modalidad);
+			cierreDao.activarPretemporada(id, destino.getId(), modalidad);
+			pretemporada.put(clave, new Equipo(id, categoria, GRUPO_PRETEMPORADA, null, nombre, "F"));
+		});
 
-			if (fila.isBaja()) {
-				jugadorDao.darDeBaja(fila.getJugadorId(), hoy);
-			} else if (fila.getEquipoId() == null) {
-				// Categoría por edad, sin equipo y sin dorsal
-				jugadorDao.asignarPlantilla(fila.getJugadorId(), null, null, fila.getCategoria(), null, fila.getDorsal());
-			} else {
-				Equipo equipo = equipoDao.obtenerEquipoPorId(fila.getEquipoId());
-				jugadorDao.asignarPlantilla(fila.getJugadorId(), equipo.getId(), equipo.getNombre(),
-						equipo.getCategoria(), equipo.getDeporte(), fila.getDorsal());
-			}
+		// 3. El borrador: bajas, pruebas y formativos a su pretemporada; los adultos se quedan
+		reparto.bajas().forEach(f -> jugadorDao.darDeBaja(f.getJugadorId(), hoy));
+
+		for (JugadorTemporada f : reparto.pruebas()) {
+			// Deja de estar oculto y entra en la pretemporada de su categoría; su fila sigue siendo PRUEBA
+			jugadorDao.activarSinEquipo(f.getJugadorId(), f.getCategoria());
+			enPretemporada(f, pretemporada);
 		}
 
-		temporadaDao.desactivarOtrasTemporadas(destinoId);
-		if (!temporadaDao.activar(destinoId)) {
+		reparto.formativos().forEach(f -> enPretemporada(f, pretemporada));
+
+		for (JugadorTemporada f : reparto.adultos()) {
+			Equipo equipo = equipoDao.obtenerEquipoPorId(f.getEquipoId());
+			jugadorDao.asignarPlantilla(f.getJugadorId(), equipo.getId(), equipo.getNombre(), equipo.getCategoria(),
+					equipo.getDeporte(), f.getDorsal());
+		}
+
+		reparto.sinEquipo().forEach(f -> jugadorDao.asignarPlantilla(f.getJugadorId(), null, null, null, null,
+				f.getDorsal()));
+
+		// 4. Cuerpo técnico: se desasigna salvo el de los equipos de adultos
+		int desasignados = cierreDao.desasignarCuerpoTecnico();
+
+		// 5. Horarios: se copian a la nueva temporada (desactivados), se desactivan los viejos y se limpian las sesiones
+		int horarios = cierreDao.copiarHorariosActivos(origen.getId(), destino.getId());
+		cierreDao.desactivarHorarios(origen.getId());
+		int sesiones = cierreDao.eliminarSesionesSinEntrenamiento(aLocalDate(destino.getFechaInicio()));
+
+		// 6. Conceptos de pago
+		int conceptos = cierreDao.copiarConceptosActivos(origen.getId(), destino.getId());
+
+		// 7. Notificaciones de la app
+		int notificaciones = cierreDao.eliminarNotificaciones();
+
+		// 8. La temporada nueva pasa a ser la activa
+		temporadaDao.desactivarOtrasTemporadas(destino.getId());
+		if (!temporadaDao.activar(destino.getId())) {
 			throw new IllegalStateException("No se ha podido activar la temporada " + destino.getNombre() + ".");
 		}
 
-		logger.info("Temporada aplicada y activada: destino={}, bajas={}, sinEquipo={}, cambiosDeEquipo={}, yaDeBaja={}",
-				destino.getNombre(), resumen.bajas(), resumen.sinEquipo(), resumen.cambiosDeEquipo(), yaDeBaja.size());
+		logger.info("Temporada cerrada: origen={}, destino={}, bajas={}, pruebas={}, formativos={}, adultos={}, "
+				+ "yaDeBaja={}, fotoCuerpoTecnico={}, cuerpoTecnicoDesasignado={}, horariosCopiados={}, "
+				+ "sesionesBorradas={}, conceptosCopiados={}, notificacionesBorradas={}", origen.getNombre(),
+				destino.getNombre(), reparto.bajas().size(), reparto.pruebas().size(), reparto.formativos().size(),
+				reparto.adultos().size(), reparto.yaDeBaja(), foto, desasignados, horarios, sesiones, conceptos,
+				notificaciones);
+	}
+
+	/** El jugador pasa al equipo de pretemporada de su categoría, sin dorsal y sin equipo definitivo. */
+	private void enPretemporada(JugadorTemporada fila, Map<String, Equipo> pretemporada) {
+		Equipo equipo = pretemporada.get(clave(fila.getCategoria()));
+
+		jugadorDao.asignarPlantilla(fila.getJugadorId(), equipo.getId(), equipo.getNombre(), equipo.getCategoria(),
+				equipo.getDeporte(), null);
+
+		fila.setEquipoId(equipo.getId());
+		fila.setEquipoNombre(equipo.getNombre());
+		fila.setDorsal(null);
+		fila.setEquipoDefinitivo(false);
+		jugadorTemporadaDao.guardar(fila);
+	}
+
+	/** ORDEN de la categoría (la letra de EnumEquipos) o, si no es una categoría conocida, la de sus equipos. */
+	private static String ordenDe(String categoria, List<Equipo> equipos) {
+		try {
+			return EnumEquipos.getOrdenByCategoria(categoria);
+		} catch (IllegalArgumentException e) {
+			return equipos.stream().filter(eq -> mismaCategoria(eq.getCategoria(), categoria))
+					.map(Equipo::getOrden).filter(Objects::nonNull).findFirst().orElse("X");
+		}
+	}
+
+	private void avisarCambioDeTemporada(Temporada destino) {
+		try {
+			notificacionAppService.difundirATodos(TIPO_AVISO, "Nueva temporada",
+					"Empieza la temporada " + destino.getNombre() + ". Los equipos se publicarán en septiembre.", null);
+		} catch (RuntimeException e) {
+			logger.error("La temporada {} está cerrada, pero ha fallado el aviso a los usuarios de la app: {}",
+					destino.getNombre(), e.getMessage(), e);
+		}
 	}
 }

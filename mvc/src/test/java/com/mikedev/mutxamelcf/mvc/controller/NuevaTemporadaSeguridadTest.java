@@ -26,7 +26,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.google.firebase.FirebaseApp;
-import com.mikedev.mutxamelcf.model.ResumenAplicacionDTO;
+import com.mikedev.mutxamelcf.model.ResumenCierreDTO;
 import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO;
 import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO.Fila;
 import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO.GrupoCategoria;
@@ -68,8 +68,8 @@ class NuevaTemporadaSeguridadTest {
     }
 
     @Test
-    void adminNoPuedeAplicarNiTocarElBorrador() throws Exception {
-        mockMvc.perform(post("/admin/nueva-temporada/aplicar").with(csrf()).with(user("admin").roles("ADMIN"))
+    void adminNoPuedeCerrarNiTocarElBorrador() throws Exception {
+        mockMvc.perform(post("/admin/nueva-temporada/cerrar").with(csrf()).with(user("admin").roles("ADMIN"))
                         .param("temporadaId", "2").param("confirmacion", "2027-28"))
                 .andExpect(status().isForbidden());
         mockMvc.perform(post("/admin/nueva-temporada/continuidad").with(csrf()).with(user("admin").roles("ADMIN"))
@@ -80,7 +80,7 @@ class NuevaTemporadaSeguridadTest {
                         .param("anioNacimiento", "2016"))
                 .andExpect(status().isForbidden());
 
-        verify(nuevaTemporadaService, never()).aplicar(anyLong(), any());
+        verify(nuevaTemporadaService, never()).cerrar(anyLong(), any());
         verify(nuevaTemporadaService, never()).marcarContinuidad(any(), any(), any());
         verify(nuevaTemporadaService, never()).anadirPrueba(any(), any(), any(), any());
     }
@@ -108,13 +108,18 @@ class NuevaTemporadaSeguridadTest {
                 List.of(new RevisionTemporadaDTO.GrupoEquipo(11L, "Primer Equipo", 1, List.of(adulto))),
                 List.of(new GrupoCategoria("Alevín", 2, List.of(formativo, prueba))), List.of(formativo), List.of(),
                 List.of(), List.of(), List.of(), 3));
-        when(nuevaTemporadaService.resumenAplicacion(2L)).thenReturn(new ResumenAplicacionDTO("2027-28",
-                Map.of("Primer Equipo", 1, "Alevín (sin equipo)", 2), 0, 0, 0,
+        when(nuevaTemporadaService.resumenCierre(2L)).thenReturn(new ResumenCierreDTO("2027-28", "2026-27",
+                Map.of("Primer Equipo", 1, "Alevín (Pretemporada)", 2), 0, 0,
+                new ResumenCierreDTO.Pasos(5, 3, 12, List.of("Alevín (Pretemporada)"), List.of(), 0, 1, 1, 1, 7, 4, 4, 2, 6,
+                        9, 120),
                 List.of("1 fila(s) pendiente(s) de revisar (incluye la continuidad sin resolver).")));
 
         mockMvc.perform(get("/admin/nueva-temporada").param("temporadaId", "2").with(user("super").roles("SUPER")))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Alevín (sin equipo)")))
+                .andExpect(content().string(containsString("Cerrar temporada")))
+                .andExpect(content().string(containsString("Alevín (Pretemporada)")))
+                .andExpect(content().string(containsString("Los equipos se publicarán en septiembre")))
                 .andExpect(content().string(containsString("Alta de un jugador de prueba")))
                 .andExpect(content().string(containsString("continuidad(this, 'NO_SIGUE')")))
                 .andExpect(content().string(containsString("Categoría: Alevín")))
@@ -123,8 +128,8 @@ class NuevaTemporadaSeguridadTest {
     }
 
     @Test
-    void superPuedeAplicarMarcarContinuidadYAnadirPruebas() throws Exception {
-        mockMvc.perform(post("/admin/nueva-temporada/aplicar").with(csrf()).with(user("super").roles("SUPER"))
+    void superPuedeCerrarMarcarContinuidadYAnadirPruebas() throws Exception {
+        mockMvc.perform(post("/admin/nueva-temporada/cerrar").with(csrf()).with(user("super").roles("SUPER"))
                         .param("temporadaId", "2").param("confirmacion", "2027-28"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.mensaje").exists());
         mockMvc.perform(post("/admin/nueva-temporada/continuidad").with(csrf()).with(user("super").roles("SUPER"))
@@ -135,17 +140,17 @@ class NuevaTemporadaSeguridadTest {
                         .param("anioNacimiento", "2016"))
                 .andExpect(status().isOk());
 
-        verify(nuevaTemporadaService).aplicar(2L, "2027-28");
+        verify(nuevaTemporadaService).cerrar(2L, "2027-28");
         verify(nuevaTemporadaService).marcarContinuidad(2L, 1L, "NO_SIGUE");
         verify(nuevaTemporadaService).anadirPrueba(2L, "Luis", "Gil", 2016);
     }
 
     @Test
     void sinTokenCsrfSeRechazaAunSiendoSuper() throws Exception {
-        mockMvc.perform(post("/admin/nueva-temporada/aplicar").with(user("super").roles("SUPER"))
+        mockMvc.perform(post("/admin/nueva-temporada/cerrar").with(user("super").roles("SUPER"))
                         .param("temporadaId", "2").param("confirmacion", "2027-28"))
                 .andExpect(status().isForbidden());
 
-        verify(nuevaTemporadaService, never()).aplicar(anyLong(), any());
+        verify(nuevaTemporadaService, never()).cerrar(anyLong(), any());
     }
 }
