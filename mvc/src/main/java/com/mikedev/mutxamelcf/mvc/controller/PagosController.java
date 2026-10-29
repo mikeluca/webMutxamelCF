@@ -264,6 +264,7 @@ public class PagosController {
         logger.debug("Inicio temporadas");
         List<TemporadaDTO> temporadas = temporadaService.obtenerTodos();
         model.addAttribute("temporadas", temporadas);
+        model.addAttribute("hayActiva", temporadas.stream().anyMatch(t -> Integer.valueOf(1).equals(t.getActiva())));
         logger.debug("Fin temporadas: total={}", temporadas.size());
         return "admin/pagos-temporadas";
     }
@@ -399,8 +400,13 @@ public class PagosController {
         temporada.setFechaInicio(parseDate(fechaInicio));
         temporada.setFechaFin(parseDate(fechaFin));
         temporada.setActiva(activa);
-        temporadaService.guardarTemporada(temporada);
-        redirect.addFlashAttribute("mensaje", "Temporada guardada correctamente.");
+        try {
+            temporadaService.guardarTemporada(temporada);
+            redirect.addFlashAttribute("mensaje", "Temporada guardada correctamente.");
+        } catch (IllegalArgumentException e) {
+            logger.warn("No se ha podido guardar la temporada id={}: {}", id, e.getMessage());
+            redirect.addFlashAttribute("error", e.getMessage());
+        }
         logger.debug("Fin guardarTemporada: id={}", id);
         return "redirect:/admin/pagos/temporadas";
     }

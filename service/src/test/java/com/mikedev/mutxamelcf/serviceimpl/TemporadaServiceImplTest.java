@@ -1,6 +1,7 @@
 package com.mikedev.mutxamelcf.serviceimpl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -12,6 +13,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -59,6 +61,7 @@ class TemporadaServiceImplTest {
         TemporadaDTO dto = new TemporadaDTO();
         dto.setId(1L);
         dto.setNombre("2025/2026");
+        dto.setFechaInicio(java.sql.Date.valueOf("2025-07-01"));
         dto.setActiva(1);
 
         when(temporadaDao.guardarTemporada(any(Temporada.class))).thenReturn(true);
@@ -72,6 +75,7 @@ class TemporadaServiceImplTest {
     void guardarTemporadaNoActivaNoTocaLasDemas() {
         TemporadaDTO dto = new TemporadaDTO();
         dto.setNombre("2024/2025");
+        dto.setFechaInicio(java.sql.Date.valueOf("2024-07-01"));
         dto.setActiva(0);
 
         when(temporadaDao.guardarTemporada(any(Temporada.class))).thenReturn(true);
@@ -79,6 +83,98 @@ class TemporadaServiceImplTest {
         assertThat(service.guardarTemporada(dto)).isTrue();
 
         verify(temporadaDao, never()).desactivarOtrasTemporadas(any());
+    }
+
+    @Test
+    void activarOtraHabiendoUnaActivaDaErrorYNoGuardaNiDesactivaNada() {
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(conNombre(temporada(1L, 1, "2026-07-01"), "2026/2027"));
+        TemporadaDTO dto = dto(2L, "2027/2028", "2027-07-01", "2028-06-30", 1);
+
+        assertThatThrownBy(() -> service.guardarTemporada(dto))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Nueva temporada");
+
+        verify(temporadaDao, never()).guardarTemporada(any());
+        verify(temporadaDao, never()).desactivarOtrasTemporadas(any());
+    }
+
+    @Test
+    void editarLaActivaSinLaCasillaSigueActiva() {
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporada(1L, 1, "2026-07-01"));
+        when(temporadaDao.guardarTemporada(any(Temporada.class))).thenReturn(true);
+
+        service.guardarTemporada(dto(1L, "2026/2027", "2026-07-01", "2027-06-30", 0));
+
+        ArgumentCaptor<Temporada> captor = ArgumentCaptor.forClass(Temporada.class);
+        verify(temporadaDao).guardarTemporada(captor.capture());
+        assertThat(captor.getValue().getActiva()).isEqualTo(1);
+        verify(temporadaDao, never()).desactivarOtrasTemporadas(any());
+    }
+
+    @Test
+    void crearLaSiguienteContiguaSinActivarEsValido() {
+        Temporada actual = conFin(conNombre(temporada(1L, 1, "2026-07-01"), "2026/2027"), "2027-06-30");
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(actual);
+        when(temporadaDao.obtenerTodos()).thenReturn(List.of(actual));
+        when(temporadaDao.guardarTemporada(any(Temporada.class))).thenReturn(true);
+
+        assertThat(service.guardarTemporada(dto(null, "2027/2028", "2027-07-01", "2028-06-30", 0))).isTrue();
+    }
+
+    @Test
+    void fechasSolapadasDanErrorIndicandoLaTemporada() {
+        Temporada actual = conFin(conNombre(temporada(1L, 1, "2026-07-01"), "2026/2027"), "2027-06-30");
+        when(temporadaDao.obtenerTodos()).thenReturn(List.of(actual));
+
+        assertThatThrownBy(() -> service.guardarTemporada(dto(null, "2027/2028", "2027-06-30", "2028-06-30", 0)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("2026/2027");
+        verify(temporadaDao, never()).guardarTemporada(any());
+    }
+
+    @Test
+    void otraTemporadaSinFechaDeFinSolapaConCualquierPosterior() {
+        Temporada abierta = conNombre(temporada(1L, 1, "2026-07-01"), "2026/2027");
+        when(temporadaDao.obtenerTodos()).thenReturn(List.of(abierta));
+
+        assertThatThrownBy(() -> service.guardarTemporada(dto(null, "2030/2031", "2030-07-01", "2031-06-30", 0)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("2026/2027");
+    }
+
+    @Test
+    void finAnteriorAlInicioDaError() {
+        assertThatThrownBy(() -> service.guardarTemporada(dto(null, "X", "2026-07-01", "2026-06-30", 0)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("fin");
+        verify(temporadaDao, never()).guardarTemporada(any());
+    }
+
+    @Test
+    void sinFechaDeInicioDaError() {
+        assertThatThrownBy(() -> service.guardarTemporada(dto(null, "X", null, null, 0)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("inicio");
+    }
+
+    private static TemporadaDTO dto(Long id, String nombre, String inicio, String fin, int activa) {
+        TemporadaDTO dto = new TemporadaDTO();
+        dto.setId(id);
+        dto.setNombre(nombre);
+        dto.setFechaInicio(inicio == null ? null : java.sql.Date.valueOf(inicio));
+        dto.setFechaFin(fin == null ? null : java.sql.Date.valueOf(fin));
+        dto.setActiva(activa);
+        return dto;
+    }
+
+    private static Temporada conNombre(Temporada t, String nombre) {
+        t.setNombre(nombre);
+        return t;
+    }
+
+    private static Temporada conFin(Temporada t, String fin) {
+        t.setFechaFin(java.sql.Date.valueOf(fin));
+        return t;
     }
 
     @Test

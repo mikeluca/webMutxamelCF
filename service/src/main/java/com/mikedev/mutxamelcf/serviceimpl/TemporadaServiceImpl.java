@@ -41,10 +41,26 @@ public class TemporadaServiceImpl implements TemporadaService {
         logger.debug("Inicio guardarTemporada: id={}, nombre={}", temporada == null ? null : temporada.getId(),
                 temporada == null ? null : temporada.getNombre());
         Temporada entidad = toEntity(temporada);
-        if (entidad != null && Integer.valueOf(1).equals(entidad.getActiva())) {
-            // Regla de negocio: solo puede haber una temporada activa a la vez
-            logger.info("Temporada marcada como activa, se desactivaran las demas: id={}", entidad.getId());
-            temporadaDao.desactivarOtrasTemporadas(entidad.getId());
+        if (entidad != null) {
+            validarFechas(entidad);
+            validarSolapes(entidad);
+            Temporada activaActual = temporadaDao.obtenerTemporadaActiva();
+            boolean yaEsLaActiva = activaActual != null && entidad.getId() != null
+                    && entidad.getId().equals(activaActual.getId());
+            boolean pideActivar = Integer.valueOf(1).equals(entidad.getActiva());
+            if (yaEsLaActiva) {
+                // Editar la activa no la desactiva, aunque el formulario no mande la casilla
+                entidad.setActiva(1);
+            } else if (pideActivar && activaActual != null) {
+                throw new IllegalArgumentException("La temporada activa solo se cambia desde \"Nueva temporada\", "
+                        + "que además pasa las plantillas a la temporada nueva.");
+            } else if (pideActivar) {
+                // Puesta en marcha: no hay ninguna activa
+                logger.info("Temporada marcada como activa, se desactivaran las demas: id={}", entidad.getId());
+                temporadaDao.desactivarOtrasTemporadas(entidad.getId());
+            } else {
+                entidad.setActiva(0);
+            }
         }
         boolean resultado = temporadaDao.guardarTemporada(entidad);
         logger.debug("Fin guardarTemporada: resultado={}", resultado);
@@ -137,6 +153,38 @@ public class TemporadaServiceImpl implements TemporadaService {
     @Override
     public int jugadoresConBorrador(Long id) {
         return jugadorTemporadaDao.contarPorTemporada(id);
+    }
+
+    private static void validarFechas(Temporada t) {
+        if (t.getFechaInicio() == null) {
+            throw new IllegalArgumentException("La fecha de inicio de la temporada es obligatoria.");
+        }
+        if (t.getFechaFin() != null && aLocalDate(t.getFechaFin()).isBefore(aLocalDate(t.getFechaInicio()))) {
+            throw new IllegalArgumentException("La fecha de fin no puede ser anterior a la de inicio.");
+        }
+    }
+
+    // Una temporada sin fecha de fin esta abierta y solapa con cualquier posterior
+    private void validarSolapes(Temporada t) {
+        java.time.LocalDate inicio = aLocalDate(t.getFechaInicio());
+        java.time.LocalDate fin = t.getFechaFin() == null ? java.time.LocalDate.MAX : aLocalDate(t.getFechaFin());
+        for (Temporada otra : temporadaDao.obtenerTodos()) {
+            if (otra.getFechaInicio() == null || (t.getId() != null && t.getId().equals(otra.getId()))) {
+                continue;
+            }
+            java.time.LocalDate otraInicio = aLocalDate(otra.getFechaInicio());
+            java.time.LocalDate otraFin = otra.getFechaFin() == null ? java.time.LocalDate.MAX
+                    : aLocalDate(otra.getFechaFin());
+            if (!inicio.isAfter(otraFin) && !otraInicio.isAfter(fin)) {
+                throw new IllegalArgumentException("Las fechas se solapan con la temporada " + otra.getNombre() + ".");
+            }
+        }
+    }
+
+    // java.sql.Date no admite toInstant().
+    private static java.time.LocalDate aLocalDate(java.util.Date fecha) {
+        return fecha instanceof java.sql.Date sqlDate ? sqlDate.toLocalDate()
+                : fecha.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
     }
 
     private static Temporada toEntity(TemporadaDTO dto) {

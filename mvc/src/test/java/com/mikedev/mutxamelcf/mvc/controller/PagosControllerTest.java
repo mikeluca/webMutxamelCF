@@ -230,6 +230,19 @@ class PagosControllerTest {
     }
 
     @Test
+    void guardarTemporadaConErrorDeValidacionVaAlFlashError() {
+        RedirectAttributes redirect = redirectAttributes();
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("Las fechas se solapan con la temporada 2026/2027."))
+                .when(temporadaService).guardarTemporada(any());
+
+        String vista = controller.guardarTemporada(null, "2027/2028", "2027-06-30", "2028-06-30", 0, redirect);
+
+        assertEquals("redirect:/admin/pagos/temporadas", vista);
+        assertEquals("Las fechas se solapan con la temporada 2026/2027.", redirect.getFlashAttributes().get("error"));
+        assertEquals(null, redirect.getFlashAttributes().get("mensaje"));
+    }
+
+    @Test
     void borrarTemporadaDelegaEnElServicio() {
         RedirectAttributes redirect = redirectAttributes();
         controller.borrarTemporada(1L, false, redirect);
