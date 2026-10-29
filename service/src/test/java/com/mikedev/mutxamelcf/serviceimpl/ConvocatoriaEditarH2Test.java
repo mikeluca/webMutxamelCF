@@ -55,6 +55,7 @@ class ConvocatoriaEditarH2Test {
     private EquipoGestionDao equipoGestionDao;
     private ComunicacionService comunicacionService;
     private PartidoDao partidoDao;
+    private com.mikedev.mutxamelcf.dao.TemporadaDao temporadaDao;
     private ConvocatoriaDaoImpl convocatoriaDao;
 
     @BeforeEach
@@ -91,6 +92,7 @@ class ConvocatoriaEditarH2Test {
         when(equipoGestionDao.obtenerUsuariosFamiliaresPorJugador(anyLong())).thenReturn(List.of());
 
         partidoDao = mock(PartidoDao.class);
+        temporadaDao = mock(com.mikedev.mutxamelcf.dao.TemporadaDao.class);
         when(partidoDao.obtenerPorId(30L)).thenReturn(partido(30L, LocalDate.of(2026, 10, 24), "Pego"));
         when(partidoDao.obtenerPorId(31L)).thenReturn(partido(31L, LocalDate.of(2026, 10, 25), "Elx"));
 
@@ -105,6 +107,7 @@ class ConvocatoriaEditarH2Test {
                 partidoDao,
                 comunicacionService,
                 justificacionDao,
+                temporadaDao,
                 java.time.Clock.fixed(
                         LocalDate.of(2026, 10, 21).atTime(12, 0).atZone(java.time.ZoneId.of("Europe/Madrid")).toInstant(),
                         java.time.ZoneId.of("Europe/Madrid")));
@@ -611,6 +614,24 @@ class ConvocatoriaEditarH2Test {
         assertThat(lista.get(0).isPartidoConResultado()).isTrue();
         verify(partidoDao, org.mockito.Mockito.never()).obtenerPorId(anyLong());
         verify(partidoDao).obtenerPorEquipo(EQUIPO);
+    }
+
+    @Test
+    void elListadoSoloDevuelveLasConvocatoriasDePartidosDeLaTemporadaActiva() {
+        // Partido 30 (24/10/2026) y 31 (25/10/2026); la temporada activa acaba el 24/10/2026.
+        ConvocatoriaResponse dentro = convocatoriaCon(100L);
+        ConvocatoriaResponse fuera = service.crear(ENTRENADOR, request(31L, "09:30", List.of(101L)));
+        when(partidoDao.obtenerPorEquipo(EQUIPO)).thenReturn(List.of(
+                partido(30L, LocalDate.of(2026, 10, 24), "Pego"), partido(31L, LocalDate.of(2026, 10, 25), "Elx")));
+        com.mikedev.mutxamelcf.model.Temporada activa = new com.mikedev.mutxamelcf.model.Temporada();
+        activa.setFechaInicio(java.sql.Date.valueOf("2026-07-01"));
+        activa.setFechaFin(java.sql.Date.valueOf("2026-10-24"));
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(activa);
+
+        List<ConvocatoriaResponse> lista = service.obtenerPorEquipo(ENTRENADOR, EQUIPO);
+
+        assertThat(lista).extracting(ConvocatoriaResponse::getId).containsExactly(dentro.getId());
+        assertThat(lista).extracting(ConvocatoriaResponse::getId).doesNotContain(fuera.getId());
     }
 
     @Test

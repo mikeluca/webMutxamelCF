@@ -29,6 +29,7 @@ import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
+import com.mikedev.mutxamelcf.dao.TemporadaDao;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaPartido;
 import com.mikedev.mutxamelcf.model.DescansoEquipo;
@@ -66,6 +67,7 @@ public class PartidoServiceImpl implements PartidoService {
 	private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
 	private final DescansoEquipoDao descansoEquipoDao;
 	private final JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
+	private final TemporadaDao temporadaDao;
 	private final Clock clock;
 
 	public PartidoServiceImpl(
@@ -76,6 +78,7 @@ public class PartidoServiceImpl implements PartidoService {
 			ConvocatoriaJugadorDao convocatoriaJugadorDao,
 			DescansoEquipoDao descansoEquipoDao,
 			JustificacionFaltaPartidoDao justificacionFaltaPartidoDao,
+			TemporadaDao temporadaDao,
 			Clock clock) {
 
 		this.partidoDao = partidoDao;
@@ -85,6 +88,7 @@ public class PartidoServiceImpl implements PartidoService {
 		this.convocatoriaJugadorDao = convocatoriaJugadorDao;
 		this.descansoEquipoDao = descansoEquipoDao;
 		this.justificacionFaltaPartidoDao = justificacionFaltaPartidoDao;
+		this.temporadaDao = temporadaDao;
 		this.clock = clock;
 	}
 
@@ -342,7 +346,7 @@ public class PartidoServiceImpl implements PartidoService {
 	public List<PartidoDTO> obtenerPorEquipo(Long equipoId) {
 		logger.debug("Inicio obtenerPorEquipo: equipoId={}", equipoId);
 
-		List<Partido> partidos = partidoDao.obtenerPorEquipo(equipoId);
+		List<Partido> partidos = partidosDeLaTemporadaActiva(equipoId);
 
 		List<PartidoDTO> resultado = toDTOList(partidos);
 
@@ -723,9 +727,19 @@ public class PartidoServiceImpl implements PartidoService {
 	 * resultado puesto. Si el equipo no tiene ningún partido previo, se
 	 * puede crear sin restricción (es el primero).
 	 */
+	// Partidos del equipo de la temporada activa, en el orden del DAO. Sin temporada activa, todos.
+	private List<Partido> partidosDeLaTemporadaActiva(Long equipoId) {
+		RangoTemporada rango = RangoTemporada.de(temporadaDao.obtenerTemporadaActiva());
+
+		return partidoDao.obtenerPorEquipo(equipoId).stream()
+				.filter(p -> rango.contiene(p.getDia()))
+				.toList();
+	}
+
 	private void validarPartidoAnteriorTieneResultado(Long equipoId) {
 
-		List<Partido> partidosEquipo = partidoDao.obtenerPorEquipo(equipoId);
+		// Solo la temporada activa: un partido sin resultado de la anterior no bloquea el primero de la nueva
+		List<Partido> partidosEquipo = partidosDeLaTemporadaActiva(equipoId);
 
 		if (partidosEquipo.isEmpty()) {
 			return;

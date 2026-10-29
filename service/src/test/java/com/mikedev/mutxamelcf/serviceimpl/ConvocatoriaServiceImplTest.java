@@ -48,6 +48,9 @@ class ConvocatoriaServiceImplTest {
     private PartidoDao partidoDao;
 
     @Mock
+    private com.mikedev.mutxamelcf.dao.TemporadaDao temporadaDao;
+
+    @Mock
     private ComunicacionService comunicacionService;
 
     @Mock
@@ -64,7 +67,7 @@ class ConvocatoriaServiceImplTest {
     void setUp() {
         service = new ConvocatoriaServiceImpl(
                 convocatoriaDao, convocatoriaJugadorDao, equipoGestionDao, partidoDao, comunicacionService,
-                justificacionFaltaPartidoDao,
+                justificacionFaltaPartidoDao, temporadaDao,
                 java.time.Clock.fixed(
                         java.time.LocalDate.of(2026, 10, 21).atTime(12, 0)
                                 .atZone(java.time.ZoneId.of("Europe/Madrid")).toInstant(),

@@ -614,7 +614,11 @@ public class EntrenamientoServiceImpl
 
                 List<Entrenamiento> entrenamientos = entrenamientoDao.obtenerPorEquipo(equipoId);
 
+                // Solo los de la temporada activa (sin temporada activa, todos)
+                RangoTemporada rango = RangoTemporada.de(temporadaService.obtenerTemporadaActiva());
+
                 return entrenamientos.stream()
+                                .filter(e -> rango.contiene(e.getFecha()))
                                 .map(this::construirResponse)
                                 .toList();
         }

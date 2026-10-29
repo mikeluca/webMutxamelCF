@@ -313,6 +313,35 @@ class EntrenamientoServiceImplTest {
     }
 
     @Test
+    void obtenerPorEquipoSinRangoSoloDevuelveLosEntrenamientosDeLaTemporadaActiva() {
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+
+        com.mikedev.mutxamelcf.model.TemporadaDTO activa = new com.mikedev.mutxamelcf.model.TemporadaDTO();
+        activa.setFechaInicio(java.sql.Date.valueOf("2026-07-01"));
+        activa.setFechaFin(java.sql.Date.valueOf("2027-06-30"));
+        when(temporadaService.obtenerTemporadaActiva()).thenReturn(activa);
+
+        Entrenamiento actual = new Entrenamiento();
+        actual.setId(5L);
+        actual.setEquipoId(1L);
+        actual.setFecha(LocalDate.of(2026, 10, 14));
+        Entrenamiento anterior = new Entrenamiento();
+        anterior.setId(6L);
+        anterior.setEquipoId(1L);
+        anterior.setFecha(LocalDate.of(2026, 3, 4));
+
+        when(entrenamientoDao.obtenerPorEquipo(1L)).thenReturn(List.of(actual, anterior));
+        when(equipoGestionDao.obtenerNombreEquipo(1L)).thenReturn("Senior A");
+        when(asistenciaDao.obtenerPorEntrenamiento(5L)).thenReturn(List.of());
+
+        List<EntrenamientoResponse> resultado = service.obtenerPorEquipo(1L, 1L);
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).getId()).isEqualTo(5L);
+    }
+
+    @Test
     void obtenerPorEquipoConRangoUsaElDaoEnRango() {
         when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
         when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);

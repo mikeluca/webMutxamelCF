@@ -42,6 +42,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
         private final PartidoDao partidoDao;
         private final ComunicacionService comunicacionService;
         private final JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
+        private final com.mikedev.mutxamelcf.dao.TemporadaDao temporadaDao;
         private final java.time.Clock clock;
 
         public ConvocatoriaServiceImpl(
@@ -51,9 +52,11 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         PartidoDao partidoDao,
                         ComunicacionService comunicacionService,
                         JustificacionFaltaPartidoDao justificacionFaltaPartidoDao,
+                        com.mikedev.mutxamelcf.dao.TemporadaDao temporadaDao,
                         java.time.Clock clock) {
 
                 this.clock = clock;
+                this.temporadaDao = temporadaDao;
                 this.justificacionFaltaPartidoDao = justificacionFaltaPartidoDao;
                 this.convocatoriaDao = convocatoriaDao;
                 this.convocatoriaJugadorDao = convocatoriaJugadorDao;
@@ -684,7 +687,16 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         }
                 }
 
+                // Solo las de partidos de la temporada activa (sin temporada activa, todas)
+                RangoTemporada rango = RangoTemporada.de(temporadaDao.obtenerTemporadaActiva());
+
                 for (Convocatoria convocatoria : convocatorias) {
+                        Partido partido = partidos.get(convocatoria.getPartidoId());
+
+                        if (partido != null && !rango.contiene(partido.getDia())) {
+                                continue;
+                        }
+
                         respuesta.add(
                                         construirResponse(convocatoria, partidos));
                 }

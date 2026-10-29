@@ -38,6 +38,9 @@ class PartidoServiceImplTest {
     private PartidoDao partidoDao;
 
     @Mock
+    private com.mikedev.mutxamelcf.dao.TemporadaDao temporadaDao;
+
+    @Mock
     private EquipoGestionDao equipoGestionDao;
 
     @Mock
@@ -61,7 +64,7 @@ class PartidoServiceImplTest {
     void setUp() {
         service = new PartidoServiceImpl(
                 partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
-                descansoEquipoDao, justificacionFaltaPartidoDao, java.time.Clock.systemDefaultZone());
+                descansoEquipoDao, justificacionFaltaPartidoDao, temporadaDao, java.time.Clock.systemDefaultZone());
     }
 
     private static PartidoGuardarRequest requestValido() {
@@ -931,7 +934,7 @@ class PartidoServiceImplTest {
     private PartidoServiceImpl serviceConReloj(java.time.Clock reloj) {
         return new PartidoServiceImpl(
                 partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
-                descansoEquipoDao, justificacionFaltaPartidoDao, reloj);
+                descansoEquipoDao, justificacionFaltaPartidoDao, temporadaDao, reloj);
     }
 
     // ---- ausencia justificada en el calendario del jugador (reloj fijo: miércoles 21/10/2026 10:00) ----
@@ -1184,4 +1187,69 @@ class PartidoServiceImplTest {
         assertThat(service.obtenerResultadoPrimerEquipo().isDescansa()).isTrue();
     }
 
+
+    // ---------- listados y validación por temporada activa ----------
+
+    private static com.mikedev.mutxamelcf.model.Temporada temporadaActiva() {
+        com.mikedev.mutxamelcf.model.Temporada t = new com.mikedev.mutxamelcf.model.Temporada();
+        t.setId(2L);
+        t.setActiva(1);
+        t.setFechaInicio(java.sql.Date.valueOf("2026-07-01"));
+        t.setFechaFin(java.sql.Date.valueOf("2027-06-30"));
+        return t;
+    }
+
+    private static Partido partidoDelDia(String dia, String resultado) {
+        Partido p = new Partido();
+        p.setDia(java.sql.Date.valueOf(dia));
+        p.setResultado(resultado);
+        return p;
+    }
+
+    @Test
+    void unPartidoSinResultadoDeLaTemporadaAnteriorNoImpideCrearElPrimeroDeLaActiva() {
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporadaActiva());
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of(partidoDelDia("2026-06-14", null)));
+        when(partidoDao.crear(any(Partido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThat(service.crear(1L, requestValido())).isNotNull();
+    }
+
+    @Test
+    void unPartidoSinResultadoDeLaTemporadaActivaSiImpideCrearOtro() {
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporadaActiva());
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of(
+                partidoDelDia("2026-10-17", null), partidoDelDia("2026-06-14", "1-0")));
+
+        assertThatThrownBy(() -> service.crear(1L, requestValido())).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no tenga el resultado puesto");
+    }
+
+    @Test
+    void obtenerPorEquipoSoloDevuelveLosPartidosDeLaTemporadaActivaEnElMismoOrden() {
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporadaActiva());
+        Partido reciente = partidoDelDia("2026-10-17", "2-0");
+        Partido sinFecha = new Partido();
+        Partido anterior = partidoDelDia("2026-06-14", "1-0");
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of(reciente, anterior, sinFecha));
+
+        List<PartidoDTO> resultado = service.obtenerPorEquipo(1L);
+
+        // El de la temporada anterior sale; el que no tiene fecha se conserva.
+        assertThat(resultado).hasSize(2);
+        assertThat(resultado.get(0).getResultado()).isEqualTo("2-0");
+    }
+
+    @Test
+    void obtenerPorEquipoSinTemporadaActivaNoFiltraNada() {
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(null);
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of(
+                partidoDelDia("2026-10-17", "2-0"), partidoDelDia("2025-06-14", "1-0")));
+
+        assertThat(service.obtenerPorEquipo(1L)).hasSize(2);
+    }
 }
