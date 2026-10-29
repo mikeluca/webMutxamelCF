@@ -140,7 +140,7 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 			Long equipoId, LocalDate desde, LocalDate hasta, LocalDate hoy) {
 
 		return jdbcTemplate.query("""
-				SELECT J.ID, J.NOMBRE, J.APELLIDOS, J.DORSAL,
+				SELECT J.ID, J.NOMBRE, J.APELLIDOS, COALESCE(JT.DORSAL, J.DORSAL) AS DORSAL,
 				       COALESCE(SUM(EJ.GOLES), 0) AS GOLES,
 				       COALESCE(SUM(EJ.ASISTENCIAS), 0) AS ASISTENCIAS,
 				       COALESCE(SUM(EJ.TARJETAS_AMARILLAS), 0) AS AMARILLAS,
@@ -155,14 +155,15 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 				           AND P.EQUIPO_ID = ?
 				           AND (P.DIA < ? OR (P.DIA = ? AND NOT %s))) AS PARTIDOS
 				FROM JUGADORES J
-				JOIN EQUIPO E ON E.ID = J.EQUIPO_ID
+				LEFT JOIN JUGADOR_TEMPORADA JT ON JT.JUGADOR_ID = J.ID AND JT.TEMPORADA_ID = ?
 				LEFT JOIN PARTIDO_ESTADISTICAS_JUGADOR EJ
 				       ON EJ.JUGADOR_ID = J.ID
 				      AND EJ.PARTIDO_ID IN (SELECT PP.ID FROM PARTIDOS PP
 				                             WHERE PP.CANCELADO = 0 AND PP.EQUIPO_ID = ?
 				                               AND PP.DIA BETWEEN ? AND ?)
-				WHERE E.ID = ?
-				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, J.DORSAL
+				WHERE ((JT.ID IS NOT NULL AND JT.EQUIPO_ID = ? AND JT.BAJA = 0)
+				    OR (JT.ID IS NULL AND J.EQUIPO_ID = ?))
+				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, COALESCE(JT.DORSAL, J.DORSAL)
 				""".formatted(SIN_RESULTADO),
 				(rs, n) -> new EstadisticasJugadorEquipo(
 						rs.getLong("ID"), nombreCompleto(rs), dorsal(rs),
@@ -170,8 +171,26 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 						rs.getInt("PARTIDOS")),
 				// Los partidos se filtran por P.EQUIPO_ID = el equipo consultado (un jugador puede
 				// estar convocado en otro equipo y la sanción va por competición).
+				// Orden: subconsulta de convocatorias, temporada del JOIN de JUGADOR_TEMPORADA,
+				// partidos del JOIN de estadísticas y, al final, los dos equipos del WHERE.
 				Date.valueOf(desde), Date.valueOf(hasta), equipoId, Date.valueOf(hoy), Date.valueOf(hoy),
-				equipoId, Date.valueOf(desde), Date.valueOf(hasta), equipoId);
+				temporadaId(desde),
+				equipoId, Date.valueOf(desde), Date.valueOf(hasta),
+				equipoId, equipoId);
+	}
+
+	// La temporada que contiene la fecha (la más reciente si hubiera varias); -1 si ninguna.
+	// Se resuelve aparte: una subconsulta en el ON del LEFT JOIN puede dar ORA-01799 en Oracle.
+	private long temporadaId(LocalDate fecha) {
+
+		List<Long> ids = jdbcTemplate.queryForList("""
+				SELECT ID FROM TEMPORADAS
+				WHERE FECHA_INICIO <= ? AND (FECHA_FIN IS NULL OR FECHA_FIN >= ?)
+				ORDER BY FECHA_INICIO DESC
+				""",
+				Long.class, Date.valueOf(fecha), Date.valueOf(fecha));
+
+		return ids.isEmpty() ? -1L : ids.get(0);
 	}
 
 	@Override
@@ -179,23 +198,28 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 			Long equipoId, LocalDate desde, LocalDate hasta) {
 
 		return jdbcTemplate.query("""
-				SELECT J.ID, J.NOMBRE, J.APELLIDOS, J.DORSAL,
+				SELECT J.ID, J.NOMBRE, J.APELLIDOS, COALESCE(JT.DORSAL, J.DORSAL) AS DORSAL,
 				       COUNT(A.ENTRENAMIENTO_ID) AS TOTAL,
 				       COALESCE(SUM(CASE WHEN A.ESTADO IN ('PRESENTE', 'RETRASO', 'MAL_COMPORTAMIENTO')
 				                         THEN 1 ELSE 0 END), 0) AS ASISTIDOS
 				FROM JUGADORES J
-				JOIN EQUIPO E ON E.ID = J.EQUIPO_ID
+				LEFT JOIN JUGADOR_TEMPORADA JT ON JT.JUGADOR_ID = J.ID AND JT.TEMPORADA_ID = ?
 				LEFT JOIN ENTRENAMIENTO_ASISTENCIA A
 				       ON A.JUGADOR_ID = J.ID
 				      AND A.ENTRENAMIENTO_ID IN (SELECT EN.ID FROM ENTRENAMIENTOS EN
 				                                  WHERE EN.EQUIPO_ID = ? AND EN.LISTA_REVISADA = 1
 				                                    AND EN.FECHA BETWEEN ? AND ?)
-				WHERE E.ID = ?
-				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, J.DORSAL
+				WHERE ((JT.ID IS NOT NULL AND JT.EQUIPO_ID = ? AND JT.BAJA = 0)
+				    OR (JT.ID IS NULL AND J.EQUIPO_ID = ?))
+				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, COALESCE(JT.DORSAL, J.DORSAL)
 				""",
 				(rs, n) -> new AsistenciaJugadorEquipo(
 						rs.getLong("ID"), nombreCompleto(rs), dorsal(rs), rs.getInt("TOTAL"), rs.getInt("ASISTIDOS")),
-				equipoId, Date.valueOf(desde), Date.valueOf(hasta), equipoId);
+				// Orden: temporada del JOIN de JUGADOR_TEMPORADA, entrenamientos del JOIN de asistencia
+				// y los dos equipos del WHERE.
+				temporadaId(desde),
+				equipoId, Date.valueOf(desde), Date.valueOf(hasta),
+				equipoId, equipoId);
 	}
 
 	@Override

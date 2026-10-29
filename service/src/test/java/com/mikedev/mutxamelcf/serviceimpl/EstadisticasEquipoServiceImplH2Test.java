@@ -82,6 +82,7 @@ class EstadisticasEquipoServiceImplH2Test {
                     ENTRENAMIENTO_ID NUMBER, JUGADOR_ID NUMBER, ESTADO VARCHAR2(30))""");
 
         EsquemaH2.crear(jdbc);
+        EsquemaH2.crearPlantillas(jdbc);
 
         jdbc.update("INSERT INTO TEMPORADAS VALUES (1, '2025/2026', ?, ?, 0)",
                 Date.valueOf(LocalDate.of(2025, 9, 1)), Date.valueOf(LocalDate.of(2026, 6, 30)));
@@ -516,6 +517,74 @@ class EstadisticasEquipoServiceImplH2Test {
             assertThat(j.total()).isZero();
             assertThat(j.porcentaje()).isNull();
         });
+    }
+
+    // ---- plantilla por temporada ---------------------------------------------------------------
+
+    private void plantilla(long jugador, long temporada, Long equipo, Integer dorsal, boolean baja) {
+        jdbc.update("INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID, EQUIPO_ID, DORSAL, BAJA)"
+                + " VALUES (?, ?, ?, ?, ?)", jugador, temporada, equipo, dorsal, baja ? 1 : 0);
+    }
+
+    /** En 2025/2026: Marta (hoy en el B) jugaba en el A con el 11; Pablo estaba en el B y Luis de baja. */
+    private void plantillaDe2025() {
+        plantilla(MARTA, 1, EQUIPO, 11, false);
+        plantilla(PABLO, 1, OTRO_EQUIPO, 9, false);
+        plantilla(LUIS, 1, EQUIPO, 1, true);
+        plantilla(MARTA, 2, OTRO_EQUIPO, 7, false);
+    }
+
+    @Test
+    void laTemporadaPasadaSacaLaPlantillaDeEntoncesConSuDorsalYSusGoles() {
+        plantillaDe2025();
+        long antiguo = partido(EQUIPO, LocalDate.of(2026, 3, 1), false, 2, 0);
+        estadistica(antiguo, MARTA, 2, 1, 0, 0);
+        estadistica(antiguo, PABLO, 4, 0, 0, 0);
+
+        List<com.mikedev.mutxamelcf.model.EstadisticasJugadorEquipo> lista = new ResumenTemporadaDaoImpl(jdbc)
+                .estadisticasJugadoresDelEquipo(EQUIPO, LocalDate.of(2025, 9, 1), LocalDate.of(2026, 6, 30), HOY);
+
+        // Ana no tiene fila en 2025/2026: se mantiene lo de JUGADORES (Cadete A).
+        assertThat(lista).extracting(com.mikedev.mutxamelcf.model.EstadisticasJugadorEquipo::jugadorId)
+                .containsExactlyInAnyOrder(MARTA, ANA);
+        com.mikedev.mutxamelcf.model.EstadisticasJugadorEquipo marta = lista.stream()
+                .filter(j -> j.jugadorId() == MARTA).findFirst().orElseThrow();
+        assertThat(marta.dorsal()).isEqualTo(11);
+        assertThat(marta.goles()).isEqualTo(2);
+        assertThat(marta.asistencias()).isEqualTo(1);
+    }
+
+    @Test
+    void laTemporadaPasadaSacaLaAsistenciaDeLaPlantillaDeEntonces() {
+        plantillaDe2025();
+        long id = siguienteId++;
+        jdbc.update("INSERT INTO ENTRENAMIENTOS (ID, EQUIPO_ID, FECHA, USUARIO_ENTRENADOR_ID, LISTA_REVISADA)"
+                + " VALUES (?, ?, ?, 1, 1)", id, EQUIPO, Date.valueOf(LocalDate.of(2026, 3, 2)));
+        jdbc.update("INSERT INTO ENTRENAMIENTO_ASISTENCIA VALUES (?, ?, 'PRESENTE')", id, MARTA);
+        jdbc.update("INSERT INTO ENTRENAMIENTO_ASISTENCIA VALUES (?, ?, 'FALTA')", id, ANA);
+
+        List<com.mikedev.mutxamelcf.model.AsistenciaJugadorEquipo> lista = new ResumenTemporadaDaoImpl(jdbc)
+                .asistenciaEntrenamientosDelEquipo(EQUIPO, LocalDate.of(2025, 9, 1), LocalDate.of(2026, 6, 30));
+
+        assertThat(lista).extracting(com.mikedev.mutxamelcf.model.AsistenciaJugadorEquipo::jugadorId)
+                .containsExactlyInAnyOrder(MARTA, ANA);
+        com.mikedev.mutxamelcf.model.AsistenciaJugadorEquipo marta = lista.stream()
+                .filter(j -> j.jugadorId() == MARTA).findFirst().orElseThrow();
+        assertThat(marta.dorsal()).isEqualTo(11);
+        assertThat(marta.total()).isEqualTo(1);
+        assertThat(marta.asistidos()).isEqualTo(1);
+    }
+
+    @Test
+    void enLaTemporadaActivaUnJugadorConFilaDeBajaODeOtroEquipoNoSaleEnLasTarjetas() {
+        // JUGADORES dice que Pablo y Luis son del Cadete A, pero su fila de 2026/2027 dice otra cosa.
+        plantilla(PABLO, 2, EQUIPO, 10, true);
+        plantilla(LUIS, 2, OTRO_EQUIPO, 1, false);
+        plantilla(MARTA, 2, EQUIPO, 7, false);
+
+        assertThat(tarjetas()).extracting(TarjetasJugadorResponse::jugadorId)
+                .containsExactlyInAnyOrder(ANA, MARTA);
+        assertThat(tarjetasDe(MARTA).dorsal()).isEqualTo(7);
     }
 
     @Test
