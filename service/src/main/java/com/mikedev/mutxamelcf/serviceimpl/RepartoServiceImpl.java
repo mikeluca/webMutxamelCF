@@ -385,11 +385,12 @@ public class RepartoServiceImpl implements RepartoService {
 			eventos.add(new QuitaDefinitiva(fila.getJugadorId(), anterior, activa.getId()));
 		}
 
-		eventos.forEach(ev -> alQuitar.forEach(h -> h.alQuitar(ev)));
+		List<String> avisos = new ArrayList<>();
+		eventos.forEach(ev -> alQuitar.forEach(h -> avisos.addAll(h.alQuitar(ev))));
 
 		logger.info("Reparto: devueltos a la pretemporada={}, pretemporadaReactivada={}", eventos.size(), !reactivadas.isEmpty());
 
-		return new ResultadoDevolucionDTO(eventos.size(), !reactivadas.isEmpty());
+		return new ResultadoDevolucionDTO(eventos.size(), !reactivadas.isEmpty(), avisos);
 	}
 
 	// ============================================================

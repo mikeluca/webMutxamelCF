@@ -18,10 +18,12 @@ import com.mikedev.mutxamelcf.model.CuotaJugadorDTO;
 import com.mikedev.mutxamelcf.model.Jugador;
 import com.mikedev.mutxamelcf.model.PagoCuotaResponse;
 import com.mikedev.mutxamelcf.model.PagoDTO;
+import com.mikedev.mutxamelcf.model.TemporadaDTO;
 import com.mikedev.mutxamelcf.service.ConceptoPagoService;
 import com.mikedev.mutxamelcf.service.CuotaFamiliarService;
 import com.mikedev.mutxamelcf.service.CuotaJugadorService;
 import com.mikedev.mutxamelcf.service.PagoService;
+import com.mikedev.mutxamelcf.service.TemporadaService;
 
 @Service
 public class CuotaFamiliarServiceImpl implements CuotaFamiliarService {
@@ -30,21 +32,31 @@ public class CuotaFamiliarServiceImpl implements CuotaFamiliarService {
     private final CuotaJugadorService cuotaJugadorService;
     private final ConceptoPagoService conceptoPagoService;
     private final PagoService pagoService;
+    private final TemporadaService temporadaService;
 
     public CuotaFamiliarServiceImpl(
             PerfilAppDao perfilAppDao,
             CuotaJugadorService cuotaJugadorService,
             ConceptoPagoService conceptoPagoService,
-            PagoService pagoService) {
+            PagoService pagoService,
+            TemporadaService temporadaService) {
 
         this.perfilAppDao = perfilAppDao;
         this.cuotaJugadorService = cuotaJugadorService;
         this.conceptoPagoService = conceptoPagoService;
         this.pagoService = pagoService;
+        this.temporadaService = temporadaService;
     }
 
     @Override
     public List<CuotaFamiliarResponse> obtenerCuotasDeMisJugadores(int usuarioAppId) {
+
+        // Las familias solo ven las cuotas de la temporada activa: las de otros años se gestionan en Morosidad.
+        TemporadaDTO activa = temporadaService.obtenerTemporadaActiva();
+
+        if (activa == null) {
+            return new ArrayList<>();
+        }
 
         List<Jugador> jugadores = perfilAppDao.obtenerJugadoresPorUsuario(usuarioAppId);
 
@@ -58,14 +70,22 @@ public class CuotaFamiliarServiceImpl implements CuotaFamiliarService {
 
             for (CuotaJugadorDTO cuota : cuotas) {
 
-                resultado.add(construirResponse(cuota, jugadorNombre));
+                ConceptoPagoDTO concepto = cuota.getConceptoPagoId() == null ? null
+                        : conceptoPagoService.obtenerPorId(cuota.getConceptoPagoId());
+
+                if (concepto == null || !activa.getId().equals(concepto.getTemporadaId())) {
+                    continue;
+                }
+
+                resultado.add(construirResponse(cuota, concepto, jugadorNombre));
             }
         }
 
         return resultado;
     }
 
-    private CuotaFamiliarResponse construirResponse(CuotaJugadorDTO cuota, String jugadorNombre) {
+    private CuotaFamiliarResponse construirResponse(CuotaJugadorDTO cuota, ConceptoPagoDTO concepto,
+            String jugadorNombre) {
 
         /*
          * La columna ESTADO ya se sincroniza correctamente al registrar
@@ -77,7 +97,7 @@ public class CuotaFamiliarServiceImpl implements CuotaFamiliarService {
         response.setId(cuota.getId());
         response.setJugadorId(cuota.getJugadorId());
         response.setJugadorNombre(jugadorNombre);
-        response.setConcepto(nombreConcepto(cuota.getConceptoPagoId()));
+        response.setConcepto(concepto.getNombre() != null ? concepto.getNombre() : "Otros");
         response.setPeriodo(cuota.getPeriodo());
         response.setImporte(cuota.getImporte());
         response.setEstado(cuota.getEstado());
@@ -128,19 +148,6 @@ public class CuotaFamiliarServiceImpl implements CuotaFamiliarService {
 
             return null;
         }
-    }
-
-    private String nombreConcepto(Long conceptoPagoId) {
-
-        if (conceptoPagoId == null) {
-            return "Otros";
-        }
-
-        ConceptoPagoDTO concepto = conceptoPagoService.obtenerPorId(conceptoPagoId);
-
-        return concepto != null && concepto.getNombre() != null
-                ? concepto.getNombre()
-                : "Otros";
     }
 
     private boolean esVencida(CuotaJugadorDTO cuota) {

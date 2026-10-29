@@ -1,6 +1,7 @@
 package com.mikedev.mutxamelcf.serviceimpl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -39,12 +40,20 @@ class CuotaFamiliarServiceImplTest {
     @Mock
     private PagoService pagoService;
 
+    @Mock
+    private com.mikedev.mutxamelcf.service.TemporadaService temporadaService;
+
+    private static final long TEMPORADA_ACTIVA = 5L;
+
     private CuotaFamiliarServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new CuotaFamiliarServiceImpl(
-                perfilAppDao, cuotaJugadorService, conceptoPagoService, pagoService);
+                perfilAppDao, cuotaJugadorService, conceptoPagoService, pagoService, temporadaService);
+        com.mikedev.mutxamelcf.model.TemporadaDTO activa = new com.mikedev.mutxamelcf.model.TemporadaDTO();
+        activa.setId(TEMPORADA_ACTIVA);
+        lenient().when(temporadaService.obtenerTemporadaActiva()).thenReturn(activa);
     }
 
     private Jugador jugador(long id, String nombre, String apellidos) {
@@ -76,6 +85,7 @@ class CuotaFamiliarServiceImplTest {
         ConceptoPagoDTO concepto = new ConceptoPagoDTO();
         concepto.setId(id);
         concepto.setNombre(nombre);
+        concepto.setTemporadaId(TEMPORADA_ACTIVA);
         return concepto;
     }
 
@@ -209,5 +219,28 @@ class CuotaFamiliarServiceImplTest {
         List<CuotaFamiliarResponse> resultado = service.obtenerCuotasDeMisJugadores(7);
 
         assertThat(resultado).isEmpty();
+    }
+
+    @Test
+    void lasFamiliasNoVenLasCuotasDeOtrasTemporadas() {
+        when(perfilAppDao.obtenerJugadoresPorUsuario(7)).thenReturn(List.of(jugador(1L, "Juan", "Perez")));
+        when(cuotaJugadorService.obtenerPorJugador(1L)).thenReturn(List.of(
+                cuota(10L, 1L, 100L, "PENDIENTE", null),
+                cuota(11L, 1L, 200L, "PENDIENTE", null)));
+        when(conceptoPagoService.obtenerPorId(100L)).thenReturn(concepto(100L, "Cuota F8"));
+        ConceptoPagoDTO delAnoPasado = concepto(200L, "Cuota F8 2025");
+        delAnoPasado.setTemporadaId(TEMPORADA_ACTIVA - 1);
+        when(conceptoPagoService.obtenerPorId(200L)).thenReturn(delAnoPasado);
+
+        List<CuotaFamiliarResponse> resultado = service.obtenerCuotasDeMisJugadores(7);
+
+        assertThat(resultado).extracting(CuotaFamiliarResponse::getId).containsExactly(10L);
+    }
+
+    @Test
+    void sinTemporadaActivaNoSeDevuelveNingunaCuota() {
+        when(temporadaService.obtenerTemporadaActiva()).thenReturn(null);
+
+        assertThat(service.obtenerCuotasDeMisJugadores(7)).isEmpty();
     }
 }

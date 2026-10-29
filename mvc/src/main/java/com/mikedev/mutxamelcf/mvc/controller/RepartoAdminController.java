@@ -110,6 +110,7 @@ public class RepartoAdminController {
 			Map<String, Object> respuesta = new HashMap<>();
 			respuesta.put("mensaje", resultado.devueltos() + " jugador(es) devuelto(s) a la pretemporada."
 					+ (resultado.pretemporadaReactivada() ? " El equipo de pretemporada vuelve a estar activo." : ""));
+			respuesta.put("avisos", resultado.avisos());
 			return ResponseEntity.ok(respuesta);
 		} catch (IllegalArgumentException | IllegalStateException e) {
 			logger.warn("No se ha podido devolver a la pretemporada: {}", e.getMessage());

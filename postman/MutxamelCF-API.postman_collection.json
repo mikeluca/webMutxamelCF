@@ -798,7 +798,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["app", "reparto", "devolver"]
             },
-            "description": "Devuelve a la pretemporada de su categoría a jugadores asignados por error: EQUIPO_DEFINITIVO = 0 y sin dorsal. La pretemporada se reactiva si estaba vacía; el equipo definitivo que se queda vacío no se desactiva solo. 200 {devueltos, pretemporadaReactivada}. 400 si algún jugador no tiene equipo definitivo, está repetido o su categoría no tiene pretemporada (no se toca nada). 403 si no eres coordinador."
+            "description": "Devuelve a la pretemporada de su categoría a jugadores asignados por error: EQUIPO_DEFINITIVO = 0 y sin dorsal. La pretemporada se reactiva si estaba vacía; el equipo definitivo que se queda vacío no se desactiva solo. 200 {devueltos, pretemporadaReactivada, avisos}: al devolver se borran las cuotas de la temporada activa del jugador que no tienen pagos; si alguna tiene pagos se conserva y sale un texto en avisos. 400 si algún jugador no tiene equipo definitivo, está repetido o su categoría no tiene pretemporada (no se toca nada). 403 si no eres coordinador."
           }
         },
         {

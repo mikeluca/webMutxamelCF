@@ -81,6 +81,24 @@ public class CuotaJugadorServiceImpl implements CuotaJugadorService {
     }
 
     @Override
+    public List<com.mikedev.mutxamelcf.model.CuotaMorosidad> listarParaMorosidad(Long temporadaId,
+            boolean incluirPagadas) {
+        return cuotaJugadorDao.listarParaMorosidad(temporadaId, incluirPagadas);
+    }
+
+    @Override
+    @Transactional
+    public int marcarIncobrable(Long id) {
+        return cuotaJugadorDao.marcarIncobrable(id);
+    }
+
+    @Override
+    @Transactional
+    public int deshacerIncobrable(Long id) {
+        return cuotaJugadorDao.deshacerIncobrable(id);
+    }
+
+    @Override
     @Transactional
     public void eliminar(Long id) {
         logger.debug("Inicio eliminar: id={}", id);

@@ -157,7 +157,7 @@ class RepartoHistorialSeguridadTest {
 
     @Test
     void devolverAPretemporadaSoloLoHaceSuperOAdmin() throws Exception {
-        when(repartoService.devolverAPretemporada(any())).thenReturn(new ResultadoDevolucionDTO(1, true));
+        when(repartoService.devolverAPretemporada(any())).thenReturn(new ResultadoDevolucionDTO(1, true, java.util.List.of()));
 
         mockMvc.perform(post("/admin/reparto/devolver").with(csrf()).with(user("e").roles("ENTRENADOR"))
                 .contentType(MediaType.APPLICATION_JSON).content("{\"jugadorIds\":[1]}"))

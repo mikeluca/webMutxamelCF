@@ -60,7 +60,7 @@ Devuelve a la pretemporada de su categoría a jugadores asignados por error (`EQ
 ```json
 { "jugadorIds": [1, 3] }
 ```
-200: `{ "devueltos": 2, "pretemporadaReactivada": false }`. 400 (sin tocar nada): jugador sin equipo definitivo, repetido, sin ficha, o categoría sin pretemporada.
+200: `{ "devueltos": 2, "pretemporadaReactivada": false, "avisos": [] }`. Se borran las cuotas de la temporada activa de cada jugador que no tengan ningún pago; si alguna tiene pagos se conserva y `avisos` lo cuenta (p. ej. `"Ana Pérez tiene 1 cuota con pagos que no se ha borrado: revísalas en Pagos."`). 400 (sin tocar nada): jugador sin equipo definitivo, repetido, sin ficha, o categoría sin pretemporada.
 
 ### POST `/api/app/reparto/equipos?categoria=Alevín`
 Crea el siguiente equipo de la categoría (letra siguiente, saltando la P; misma modalidad). Nace inactivo hasta que se le asigna el primer jugador.
@@ -127,3 +127,8 @@ Cuando una familia responde `NO_SIGUE` ("No seguirá: Pablo Pérez (Alevín)") o
 ## 5. Cuándo se envían
 - **1 de mayo, 09:00 (Madrid):** si existe la temporada siguiente, genera el borrador y pregunta a las familias de cada jugador formativo pendiente. También se puede lanzar con el botón "Pedir confirmación a las familias" del asistente (solo SUPER). Idempotente: solo se pregunta a quien aún no ha sido preguntado (`JUGADOR_TEMPORADA.FECHA_PREGUNTA_CONTINUIDAD`).
 - **Cada lunes, 10:00 (Madrid):** recordatorio a las cuentas con jugadores preguntados que siguen en `PENDIENTE`, hasta el inicio de la temporada siguiente.
+
+## 6. Cuotas
+- **Al asignar** el equipo definitivo (`/api/app/reparto/asignar` o el panel) se crean las cuotas del jugador de cada concepto activo de la temporada activa. Las mensuales (conceptos con "cuota" en el nombre) van de septiembre a junio si se asigna en septiembre o antes, y desde el mes de la asignación si es posterior. No se duplican las que ya tiene. Nunca para jugadores de prueba ni equipos de pretemporada.
+- **Al devolver** a la pretemporada se borran sus cuotas de la temporada activa sin pagos; las que tienen pagos se conservan y se avisa en `avisos`.
+- `GET /api/app/cuotas` solo devuelve cuotas de la temporada activa: las de otros años no las ven las familias (se gestionan en el panel, Pagos → Morosidad).

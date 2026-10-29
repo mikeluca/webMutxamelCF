@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Morosidad | Mutxamel CF</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link th:href="@{/css/estilos.css}" rel="stylesheet">
+    <link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+</head>
+<body>
+<div th:replace="~{admin/cabeceraAdmin.html}"></div>
+<main class="admin-screen-shell admin-payments-page">
+    <p class="dashboard-eyebrow mb-1">Administración Económica</p>
+    <h1 class="admin-screen-title">Morosidad</h1>
+    <p class="text-muted">Cuotas sin pagar de temporadas anteriores. Las familias no las ven en la app.</p>
+
+    <div th:if="${mensaje}" class="alert alert-success" th:text="${mensaje}"></div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+
+    <section class="payment-panel mb-4">
+        <form method="get" th:action="@{/admin/pagos/morosidad}" class="row g-3 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="temporadaId">Temporada</label>
+                <select id="temporadaId" name="temporadaId" class="form-select">
+                    <option value="">Todas las anteriores</option>
+                    <option th:each="t : ${temporadas}" th:value="${t.id}" th:text="${t.nombre}"
+                            th:selected="${temporadaId != null and temporadaId == t.id}"></option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3 form-check ms-2">
+                <input id="cobradas" name="cobradas" value="true" type="checkbox" class="form-check-input" th:checked="${cobradas}">
+                <label class="form-check-label" for="cobradas">Ver también las cobradas</label>
+            </div>
+            <div class="col-12 col-md-4 d-flex gap-2">
+                <button class="btn btn-primary" type="submit">Filtrar</button>
+                <a id="exportar" class="btn btn-outline-secondary"
+                   th:href="@{/admin/pagos/morosidad/exportar(temporadaId=${temporadaId},cobradas=${cobradas})}">Exportar CSV</a>
+            </div>
+        </form>
+    </section>
+
+    <section class="payment-panel mb-4" th:unless="${#lists.isEmpty(morosidad.totales())}">
+        <h2>Totales por temporada</h2>
+        <div class="table-responsive">
+            <table class="table align-middle" id="totales">
+                <thead><tr><th>Temporada</th><th class="text-end">Cuotas</th><th class="text-end">Importe</th><th class="text-end">Pagado</th><th class="text-end">Pendiente</th><th class="text-end">De ello, incobrable</th></tr></thead>
+                <tbody>
+                <tr th:each="t : ${morosidad.totales()}">
+                    <td th:text="${t.temporada()}"></td>
+                    <td class="text-end" th:text="${t.cuotas()}"></td>
+                    <td class="text-end" th:text="${#numbers.formatDecimal(t.importe(), 1, 'POINT', 2, 'COMMA')} + ' €'"></td>
+                    <td class="text-end" th:text="${#numbers.formatDecimal(t.pagado(), 1, 'POINT', 2, 'COMMA')} + ' €'"></td>
+                    <td class="text-end fw-bold" th:text="${#numbers.formatDecimal(t.pendiente(), 1, 'POINT', 2, 'COMMA')} + ' €'"></td>
+                    <td class="text-end" th:text="${#numbers.formatDecimal(t.pendienteIncobrable(), 1, 'POINT', 2, 'COMMA')} + ' €'"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="payment-panel">
+        <h2>Cuotas</h2>
+        <p class="dashboard-empty" th:if="${#lists.isEmpty(morosidad.filas())}">No hay cuotas pendientes de temporadas anteriores.</p>
+        <div class="table-responsive" th:unless="${#lists.isEmpty(morosidad.filas())}">
+            <table class="table table-sm align-middle" id="cuotas">
+                <thead><tr><th>Temporada</th><th>Jugador</th><th>Equipo</th><th>Concepto</th><th>Periodo</th><th class="text-end">Pendiente</th><th>Estado</th><th>Acciones</th></tr></thead>
+                <tbody>
+                <tr th:each="f : ${morosidad.filas()}" th:attr="data-cuota=${f.cuotaId()}">
+                    <td th:text="${f.temporada()}"></td>
+                    <td th:text="${f.jugador()}"></td>
+                    <td th:text="${f.equipo() != null ? f.equipo() : '-'}"></td>
+                    <td th:text="${f.concepto()}"></td>
+                    <td th:text="${f.periodo() != null ? f.periodo() : '-'}"></td>
+                    <td class="text-end" th:text="${#numbers.formatDecimal(f.pendiente(), 1, 'POINT', 2, 'COMMA')} + ' €'"></td>
+                    <td>
+                        <span class="badge"
+                              th:classappend="${f.cobrada()} ? 'bg-success' : (${f.incobrable()} ? 'bg-dark' : (${f.estado() == 'PARCIAL'} ? 'bg-warning text-dark' : 'bg-danger'))"
+                              th:text="${f.estadoVisible()}"></span>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1 flex-wrap" th:unless="${f.cobrada()}">
+                            <form method="post" th:action="@{/admin/pagos/morosidad/cobrar}"
+                                  onsubmit="return confirm('Se registrará un pago por el importe pendiente. ¿Continuar?');">
+                                <input type="hidden" name="cuotaId" th:value="${f.cuotaId()}">
+                                <input type="hidden" name="temporadaId" th:value="${temporadaId}">
+                                <input type="hidden" name="cobradas" th:value="${cobradas}">
+                                <button class="btn btn-sm btn-success" type="submit">Marcar cobrada</button>
+                            </form>
+                            <form method="post" th:action="@{/admin/pagos/morosidad/incobrable}" th:unless="${f.incobrable()}"
+                                  onsubmit="return confirm('La cuota quedará como incobrable. ¿Continuar?');">
+                                <input type="hidden" name="cuotaId" th:value="${f.cuotaId()}">
+                                <input type="hidden" name="temporadaId" th:value="${temporadaId}">
+                                <input type="hidden" name="cobradas" th:value="${cobradas}">
+                                <button class="btn btn-sm btn-outline-dark" type="submit">Incobrable</button>
+                            </form>
+                            <form method="post" th:action="@{/admin/pagos/morosidad/deshacer-incobrable}" th:if="${f.incobrable()}">
+                                <input type="hidden" name="cuotaId" th:value="${f.cuotaId()}">
+                                <input type="hidden" name="temporadaId" th:value="${temporadaId}">
+                                <input type="hidden" name="cobradas" th:value="${cobradas}">
+                                <button class="btn btn-sm btn-outline-secondary" type="submit">Deshacer incobrable</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+<div th:replace="~{admin/footerAdmin.html}"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+</body>
+</html>

@@ -27,6 +27,18 @@ public interface CuotaJugadorDao {
 
     void actualizarEstado(Long id);
 
+    // Morosidad: las cuotas de una temporada (por su concepto) que no estan pagadas -o todas, con
+    // incluirPagadas-, con el nombre del jugador, su equipo de esa temporada (JUGADOR_TEMPORADA) y lo pagado.
+    List<com.mikedev.mutxamelcf.model.CuotaMorosidad> listarParaMorosidad(Long temporadaId, boolean incluirPagadas);
+
+    // PENDIENTE o PARCIAL -> INCOBRABLE. Devuelve las filas cambiadas (0 si la cuota no existe, esta pagada
+    // o ya era incobrable).
+    int marcarIncobrable(Long id);
+
+    // INCOBRABLE -> el estado que le toca por sus pagos (PENDIENTE, PARCIAL o PAGADO). Devuelve las filas
+    // cambiadas (0 si no era incobrable).
+    int deshacerIncobrable(Long id);
+
     void eliminar(Long id);
 
     void eliminarEnLote(List<Long> ids);

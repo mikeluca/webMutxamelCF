@@ -176,8 +176,9 @@
 			if (!confirm('El jugador vuelve al equipo de pretemporada de su categoría, sin dorsal. ¿Continuar?')) return;
 			enviarJson('/admin/reparto/devolver', { jugadorIds: [Number(boton.dataset.jugador)] }).then(res => {
 				if (res.status === 200) {
-					mostrar(res.body.mensaje, 'alert-success');
-					setTimeout(() => window.location.reload(), 900);
+					const avisos = res.body.avisos || [];
+					mostrar(res.body.mensaje + (avisos.length ? ' Aviso: ' + avisos.join(' · ') : ''), avisos.length ? 'alert-warning' : 'alert-success');
+					setTimeout(() => window.location.reload(), avisos.length ? 3500 : 900);
 				} else {
 					mostrar(res.body.error || 'No se ha podido devolver al jugador.', 'alert-danger');
 				}

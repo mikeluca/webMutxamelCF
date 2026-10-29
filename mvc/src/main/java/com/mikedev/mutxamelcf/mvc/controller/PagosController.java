@@ -46,6 +46,7 @@ import com.mikedev.mutxamelcf.service.CuotaJugadorService;
 import com.mikedev.mutxamelcf.service.EquipoService;
 import com.mikedev.mutxamelcf.service.JugadorService;
 import com.mikedev.mutxamelcf.service.PagoService;
+import com.mikedev.mutxamelcf.service.PeriodosCuotas;
 import com.mikedev.mutxamelcf.service.TemporadaService;
 
 @Controller
@@ -619,43 +620,16 @@ public class PagosController {
     }
 
     private List<String> generarPeriodos(String periodoInicio, String periodoFin) {
-        if (periodoInicio == null || periodoFin == null || periodoInicio.isBlank() || periodoFin.isBlank()) {
-            return List.of();
-        }
-        try {
-            YearMonth inicio = YearMonth.parse(periodoInicio);
-            YearMonth fin = YearMonth.parse(periodoFin);
-            if (inicio.isAfter(fin) || inicio.plusMonths(24).isBefore(fin)) {
-                return List.of();
-            }
-            List<String> periodos = new ArrayList<>();
-            for (YearMonth periodo = inicio; !periodo.isAfter(fin); periodo = periodo.plusMonths(1)) {
-                periodos.add(periodo.toString());
-            }
-            return periodos;
-        } catch (DateTimeParseException exception) {
-            return List.of();
-        }
+        return PeriodosCuotas.generar(periodoInicio, periodoFin);
     }
 
     private boolean esCuotaMensual(ConceptoPagoDTO concepto) {
-        return concepto != null && concepto.getNombre() != null
-                && concepto.getNombre().trim().toUpperCase(java.util.Locale.ROOT).contains("CUOTA");
+        return concepto != null && PeriodosCuotas.esCuotaMensual(concepto.getNombre());
     }
 
     private String[] obtenerPeriodosTemporada(TemporadaDTO temporada) {
-        if (temporada != null && temporada.getNombre() != null) {
-            java.util.regex.Matcher matcher = java.util.regex.Pattern
-                    .compile("(\\d{4})\\s*[/\\-]\\s*(\\d{4})")
-                    .matcher(temporada.getNombre());
-            if (matcher.find()) {
-                return new String[] { matcher.group(1) + "-09", matcher.group(2) + "-06" };
-            }
-        }
-        int inicio = temporada != null && temporada.getFechaInicio() != null
-                ? temporada.getFechaInicio().toInstant().atZone(java.time.ZoneId.systemDefault()).getYear()
-                : YearMonth.now().getYear();
-        return new String[] { inicio + "-09", (inicio + 1) + "-06" };
+        return PeriodosCuotas.periodosTemporada(temporada == null ? null : temporada.getNombre(),
+                temporada == null ? null : temporada.getFechaInicio());
     }
 
     private boolean existeCuotaAsignada(Long jugadorId, Long conceptoPagoId, String periodo) {

@@ -54,6 +54,7 @@ class RepartoServiceImplTest {
 	private EquipoGestionDao equipoGestionDao;
 	private List<AsignacionDefinitiva> eventos;
 	private List<AlQuitarEquipoDefinitivo.QuitaDefinitiva> quitas;
+	private List<String> avisosDelHook;
 	private RepartoServiceImpl servicio;
 
 	private List<Equipo> equipos;
@@ -69,6 +70,7 @@ class RepartoServiceImplTest {
 		equipoGestionDao = mock(EquipoGestionDao.class);
 		eventos = new ArrayList<>();
 		quitas = new ArrayList<>();
+		avisosDelHook = List.of();
 
 		Temporada activa = new Temporada();
 		activa.setId(TEMPORADA);
@@ -85,7 +87,10 @@ class RepartoServiceImplTest {
 
 		AlAsignarEquipoDefinitivo hook = eventos::add;
 		servicio = new RepartoServiceImpl(temporadaDao, equipoDao, jugadorDao, jugadorTemporadaDao, categoriaPorEdad,
-				equipoGestionDao, List.of(hook), List.of(quitas::add));
+				equipoGestionDao, List.of(hook), List.of(q -> {
+			quitas.add(q);
+			return avisosDelHook;
+		}));
 	}
 
 	private static Equipo equipo(long id, String nombre, String grupo, String tipo, boolean activo) {
@@ -438,5 +443,15 @@ class RepartoServiceImplTest {
 
 		assertThatThrownBy(() -> servicio.devolverAPretemporada(new DevolucionRepartoRequest(List.of(1L))))
 				.hasMessageContaining("no tiene equipo de pretemporada");
+	}
+
+	@Test
+	void losAvisosDelHookDeQuitarLlegaranALaRespuesta() {
+		avisosDelHook = List.of("Ana Pérez tiene 1 cuota con pagos que no se ha borrado: revísalas en Pagos.");
+		fila(1, "Ana", "CONFIRMADO", ALEVIN_B, true, 7);
+
+		ResultadoDevolucionDTO resultado = servicio.devolverAPretemporada(new DevolucionRepartoRequest(List.of(1L)));
+
+		assertThat(resultado.avisos()).containsExactly(avisosDelHook.get(0));
 	}
 }

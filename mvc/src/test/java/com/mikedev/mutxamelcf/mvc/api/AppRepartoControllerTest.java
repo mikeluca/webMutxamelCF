@@ -138,7 +138,7 @@ class AppRepartoControllerTest {
 
     @Test
     void devolverALaPretemporadaDelegaYRespetaLosPermisos() {
-        ResultadoDevolucionDTO resultado = new ResultadoDevolucionDTO(1, false);
+        ResultadoDevolucionDTO resultado = new ResultadoDevolucionDTO(1, false, java.util.List.of());
         when(servicio.devolverAPretemporada(any())).thenReturn(resultado);
         DevolucionRepartoRequest peticion = new DevolucionRepartoRequest(List.of(1L));
 

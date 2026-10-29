@@ -197,6 +197,59 @@ public class CuotaJugadorDaoImpl implements CuotaJugadorDao {
     }
 
     @Override
+    public List<com.mikedev.mutxamelcf.model.CuotaMorosidad> listarParaMorosidad(Long temporadaId,
+            boolean incluirPagadas) {
+        logger.debug("Inicio listarParaMorosidad: temporadaId={}, incluirPagadas={}", temporadaId, incluirPagadas);
+        List<com.mikedev.mutxamelcf.model.CuotaMorosidad> cuotas = jdbcTemplate.query(
+                """
+                SELECT cuota.ID, concepto.TEMPORADA_ID, temporada.NOMBRE AS TEMPORADA, jugador.ID AS JUGADOR_ID,
+                       jugador.NOMBRE, jugador.APELLIDOS, ficha.EQUIPO_NOMBRE, concepto.NOMBRE AS CONCEPTO,
+                       cuota.PERIODO, cuota.IMPORTE, cuota.ESTADO,
+                       NVL((SELECT SUM(p.IMPORTE) FROM PAGOS p WHERE p.CUOTA_JUGADOR_ID = cuota.ID), 0) AS PAGADO
+                FROM CUOTAS_JUGADOR cuota
+                JOIN CONCEPTOS_PAGO concepto ON concepto.ID = cuota.CONCEPTO_PAGO_ID
+                JOIN TEMPORADAS temporada ON temporada.ID = concepto.TEMPORADA_ID
+                JOIN JUGADORES jugador ON jugador.ID = cuota.JUGADOR_ID
+                LEFT JOIN JUGADOR_TEMPORADA ficha ON ficha.JUGADOR_ID = cuota.JUGADOR_ID
+                     AND ficha.TEMPORADA_ID = concepto.TEMPORADA_ID
+                WHERE concepto.TEMPORADA_ID = ?
+                """ + (incluirPagadas ? "" : " AND cuota.ESTADO <> 'PAGADO'")
+                        + " ORDER BY jugador.APELLIDOS, jugador.NOMBRE, cuota.PERIODO, concepto.NOMBRE, cuota.ID",
+                (rs, n) -> new com.mikedev.mutxamelcf.model.CuotaMorosidad(rs.getLong("ID"), rs.getLong("TEMPORADA_ID"),
+                        rs.getString("TEMPORADA"), rs.getLong("JUGADOR_ID"),
+                        ((rs.getString("NOMBRE") == null ? "" : rs.getString("NOMBRE")) + " "
+                                + (rs.getString("APELLIDOS") == null ? "" : rs.getString("APELLIDOS"))).trim(),
+                        rs.getString("EQUIPO_NOMBRE"), rs.getString("CONCEPTO"), rs.getString("PERIODO"),
+                        rs.getBigDecimal("IMPORTE"), rs.getBigDecimal("PAGADO"), rs.getString("ESTADO")),
+                temporadaId);
+        logger.debug("Fin listarParaMorosidad: temporadaId={}, total={}", temporadaId, cuotas.size());
+        return cuotas;
+    }
+
+    @Override
+    public int marcarIncobrable(Long id) {
+        int filas = jdbcTemplate.update("UPDATE CUOTAS_JUGADOR SET ESTADO = 'INCOBRABLE' WHERE ID = ?"
+                + " AND ESTADO IN ('PENDIENTE', 'PARCIAL')", id);
+        logger.info("Cuota marcada como incobrable: id={}, filas={}", id, filas);
+        return filas;
+    }
+
+    @Override
+    public int deshacerIncobrable(Long id) {
+        int filas = jdbcTemplate.update("""
+                UPDATE CUOTAS_JUGADOR cuota
+                SET ESTADO = CASE
+                    WHEN NVL((SELECT SUM(p.IMPORTE) FROM PAGOS p WHERE p.CUOTA_JUGADOR_ID = cuota.ID), 0) >= cuota.IMPORTE THEN 'PAGADO'
+                    WHEN NVL((SELECT SUM(p.IMPORTE) FROM PAGOS p WHERE p.CUOTA_JUGADOR_ID = cuota.ID), 0) > 0 THEN 'PARCIAL'
+                    ELSE 'PENDIENTE'
+                END
+                WHERE cuota.ID = ? AND cuota.ESTADO = 'INCOBRABLE'
+                """, id);
+        logger.info("Incobrable deshecho: id={}, filas={}", id, filas);
+        return filas;
+    }
+
+    @Override
     public void eliminar(Long id) {
         logger.debug("Inicio eliminar: id={}", id);
         if (id == null) {
