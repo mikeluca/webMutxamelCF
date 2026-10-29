@@ -179,6 +179,18 @@ class EsquemaH2Test {
                 "UPDATE JUGADOR_TEMPORADA SET ESTADO = 'BAJA' WHERE BAJA = 1 AND ESTADO <> 'BAJA';");
         // El DROP CHECK va antes que el DROP COLUMN
         assertThat(script.indexOf("DROP CONSTRAINT CK_JT_BAJA_ESTADO")).isLessThan(script.indexOf("DROP COLUMN BAJA"));
+        // BAJA estaba también en el CHECK multicolumna CK_JUG_TEMP_FLAGS (ORA-12991 al borrar la columna): se
+        // sustituye por uno solo de PENDIENTE_REVISION antes del DROP COLUMN
+        assertThat(script).startsWith("-- NO EJECUTAR: ya aplicado (con la corrección manual del 30/10/2026)")
+                .contains("ALTER TABLE JUGADOR_TEMPORADA DROP CONSTRAINT CK_JUG_TEMP_FLAGS;",
+                        "ALTER TABLE JUGADOR_TEMPORADA ADD CONSTRAINT CK_JT_PENDIENTE_REVISION CHECK (PENDIENTE_REVISION IN (0, 1));");
+        assertThat(script.indexOf("ADD CONSTRAINT CK_JT_PENDIENTE_REVISION")).isLessThan(script.indexOf("DROP COLUMN BAJA"));
+        assertThat(script.indexOf("DROP CONSTRAINT CK_JUG_TEMP_FLAGS")).isLessThan(script.indexOf("DROP COLUMN BAJA"));
+        assertThat(script.substring(script.indexOf("-- Comprobación 2"))).contains("CK_JT_PENDIENTE_REVISION");
+
+        jdbc.update("INSERT INTO JUGADORES (ID, NOMBRE, APELLIDOS) VALUES (10, 'A', 'B')");
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID, PENDIENTE_REVISION)"
+                + " VALUES (10, 2, 2)")).isInstanceOf(Exception.class);
     }
 
     @Test
