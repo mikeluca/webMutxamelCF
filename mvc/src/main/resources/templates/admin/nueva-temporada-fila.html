@@ -13,16 +13,31 @@
 					<div class="small text-muted" th:if="${f.equipoActual() != null}" th:text="'Hoy: ' + ${f.equipoActual()}"></div>
 					<span class="badge text-bg-danger" th:if="${f.jugadorDeBaja()}">De baja en el panel: se queda de baja</span>
 				</td>
+				<td style="width: 190px;">
+					<span class="badge text-bg-info" th:if="${f.estado() == 'PRUEBA'}">Prueba</span>
+					<th:block th:unless="${f.estado() == 'PRUEBA'}">
+						<span class="badge" th:text="${f.continuidad()}"
+							th:classappend="${f.continuidad() == 'SIGUE'} ? 'text-bg-success' : (${f.continuidad() == 'NO_SIGUE'} ? 'text-bg-danger' : (${f.continuidad() == 'DUDA'} ? 'text-bg-warning' : 'text-bg-secondary'))"></span>
+						<div class="btn-group btn-group-sm d-flex mt-1" role="group" aria-label="Continuidad">
+							<button type="button" class="btn btn-outline-success" onclick="continuidad(this, 'SIGUE')" title="Sigue">Sí</button>
+							<button type="button" class="btn btn-outline-danger" onclick="continuidad(this, 'NO_SIGUE')" title="No sigue (propone la baja)">No</button>
+							<button type="button" class="btn btn-outline-warning" onclick="continuidad(this, 'DUDA')" title="Duda">?</button>
+							<button type="button" class="btn btn-outline-secondary" onclick="continuidad(this, 'PENDIENTE')" title="Sin respuesta">&ndash;</button>
+						</div>
+					</th:block>
+				</td>
 				<td style="width: 110px;">
 					<input type="number" class="form-control form-control-sm anio" min="1900" max="2100"
 						th:value="${f.anioNacimiento()}" placeholder="Año">
 				</td>
 				<td style="width: 200px;">
 					<select class="form-select form-select-sm equipo">
-						<option value="">Sin equipo</option>
+						<option value="">Sin equipo (entrena en su categoría)</option>
 						<option th:each="e : ${listaEquipos}" th:value="${e.id}" th:text="${e.nombre}"
 							th:selected="${f.equipoId() != null and f.equipoId().equals(e.id)}"></option>
 					</select>
+					<div class="small text-muted" th:if="${f.equipoId() == null and f.categoria() != null}"
+						th:text="'Categoría: ' + ${f.categoria()} + (${f.baja()} ? '' : ' · sin equipo definitivo')"></div>
 				</td>
 				<td style="width: 90px;">
 					<input type="number" class="form-control form-control-sm dorsal" min="0" max="99"

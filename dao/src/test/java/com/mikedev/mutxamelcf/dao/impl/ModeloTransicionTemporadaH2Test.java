@@ -355,14 +355,71 @@ class ModeloTransicionTemporadaH2Test {
     }
 
     @Test
-    void guardarSinBajaConservaUnEstadoQueNoEsBaja() {
+    void guardarEscribeElEstadoDelModeloYSoloLaBajaLoCambia() {
         JugadorTemporadaDaoImpl dao = jugadorTemporada();
-        dao.guardar(fila(false));
-        jdbc.update("UPDATE JUGADOR_TEMPORADA SET ESTADO = 'PRUEBA' WHERE JUGADOR_ID = 10");
-
-        dao.guardar(fila(false));
-
+        JugadorTemporada prueba = fila(false);
+        prueba.setEstado("PRUEBA");
+        dao.guardar(prueba);
         assertThat(estadoDeLaFila()).isEqualTo("PRUEBA");
+
+        // Quitar una baja que no existe no toca una PRUEBA...
+        JugadorTemporada leida = dao.obtener(10L, ACTIVA);
+        leida.setBaja(false);
+        dao.guardar(leida);
+        assertThat(estadoDeLaFila()).isEqualTo("PRUEBA");
+
+        // ...y marcarla la convierte en BAJA, de la que se sale a CONFIRMADO.
+        leida.setBaja(true);
+        dao.guardar(leida);
+        assertThat(estadoDeLaFila()).isEqualTo("BAJA");
+        leida.setBaja(false);
+        dao.guardar(leida);
+        assertThat(estadoDeLaFila()).isEqualTo("CONFIRMADO");
+    }
+
+    @Test
+    void guardarEscribeLaContinuidadYElEquipoDefinitivoDelModelo() {
+        JugadorTemporadaDaoImpl dao = jugadorTemporada();
+        JugadorTemporada f = fila(false);
+        f.setContinuidad("NO_SIGUE");
+        f.setFechaContinuidad(LocalDate.of(2027, 5, 3).atTime(9, 30));
+        f.setUsuarioAppContinuidadId(7L);
+        f.setEquipoDefinitivo(false);
+        dao.guardar(f);
+
+        JugadorTemporada leida = dao.obtener(10L, ACTIVA);
+        assertThat(leida.getContinuidad()).isEqualTo("NO_SIGUE");
+        assertThat(leida.getFechaContinuidad()).isEqualTo(LocalDate.of(2027, 5, 3).atTime(9, 30));
+        assertThat(leida.getUsuarioAppContinuidadId()).isEqualTo(7L);
+        assertThat(leida.isEquipoDefinitivo()).isFalse();
+
+        // Y al actualizar de nuevo la fila existente
+        leida.setContinuidad("SIGUE");
+        leida.setEquipoDefinitivo(true);
+        dao.guardar(leida);
+        assertThat(dao.obtener(10L, ACTIVA).getContinuidad()).isEqualTo("SIGUE");
+        assertThat(dao.obtener(10L, ACTIVA).isEquipoDefinitivo()).isTrue();
+    }
+
+    @Test
+    void laRevisionDependeDeLaContinuidadSoloSiSeQuedaElJugador() {
+        JugadorTemporada f = new JugadorTemporada();
+        assertThat(f.requiereRevision()).isTrue();          // CONFIRMADO + PENDIENTE
+        f.setContinuidad("DUDA");
+        assertThat(f.requiereRevision()).isTrue();
+        f.setContinuidad("SIGUE");
+        assertThat(f.requiereRevision()).isFalse();
+        f.setContinuidad("NO_SIGUE");
+        assertThat(f.requiereRevision()).isFalse();
+        f.setPendienteRevision(true);
+        assertThat(f.requiereRevision()).isTrue();
+        // Una baja confirmada o una prueba no esperan respuesta
+        JugadorTemporada baja = new JugadorTemporada();
+        baja.setBaja(true);
+        assertThat(baja.requiereRevision()).isFalse();
+        JugadorTemporada prueba = new JugadorTemporada();
+        prueba.setEstado("PRUEBA");
+        assertThat(prueba.requiereRevision()).isFalse();
     }
 
     @Test
@@ -391,12 +448,13 @@ class ModeloTransicionTemporadaH2Test {
     }
 
     @Test
-    void laBaseRechazaUnaFilaConBajaYEstadoIncoherentes() {
+    void laColumnaBajaYaNoExisteYLosCheckDeEstadoSiguen() {
         jugadorTemporada();
 
-        assertThatThrownBy(() -> jdbc.update("INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID, BAJA, ESTADO)"
-                + " VALUES (10, ?, 1, 'CONFIRMADO')", ACTIVA)).isInstanceOf(DataIntegrityViolationException.class);
-        assertThatThrownBy(() -> jdbc.update("INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID, BAJA, ESTADO)"
-                + " VALUES (10, ?, 0, 'BAJA')", ACTIVA)).isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(jdbc.queryForList("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS"
+                + " WHERE TABLE_NAME = 'JUGADOR_TEMPORADA'", String.class)).doesNotContain("BAJA")
+                .contains("ESTADO", "CONTINUIDAD", "EQUIPO_DEFINITIVO");
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID, ESTADO)"
+                + " VALUES (10, ?, 'OTRO')", ACTIVA)).isInstanceOf(DataIntegrityViolationException.class);
     }
 }

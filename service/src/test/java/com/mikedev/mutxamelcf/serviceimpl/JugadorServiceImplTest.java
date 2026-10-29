@@ -139,6 +139,24 @@ class JugadorServiceImplTest {
     }
 
     @Test
+    void unaPruebaOcultaNoCreaFilaEnLaTemporadaActiva() {
+        Jugador prueba = jugadorEnEquipo();
+        prueba.setEquipoId(null);
+        prueba.setFechaBaja(LocalDate.of(2026, 10, 27));   // ficha oculta de una prueba
+        when(jugadorDao.guardarJugador(any(Jugador.class))).thenReturn(true);
+        when(jugadorDao.obtenerPorId(10L)).thenReturn(prueba);
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporadaActiva());
+        when(jugadorTemporadaDao.esDePrueba(10L)).thenReturn(true);
+
+        JugadorDTO dto = new JugadorDTO();
+        dto.setId(10L);
+
+        assertThat(jugadorService.guardarJugador(dto)).isTrue();
+
+        verify(jugadorTemporadaDao, never()).guardar(any());
+    }
+
+    @Test
     void guardarJugadorSinTemporadaActivaNoToscaLaTabla() {
         when(jugadorDao.guardarJugador(any(Jugador.class))).thenReturn(true);
         when(jugadorDao.obtenerPorId(10L)).thenReturn(jugadorEnEquipo());

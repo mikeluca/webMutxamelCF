@@ -9,6 +9,7 @@ import java.util.List;
 public record RevisionTemporadaDTO(
 		Temporada destino,
 		List<GrupoEquipo> equipos,
+		List<GrupoCategoria> categorias,
 		List<Fila> pendientes,
 		List<Fila> sinEquipo,
 		List<Fila> bajas,
@@ -31,7 +32,14 @@ public record RevisionTemporadaDTO(
 			boolean pendiente,
 			String nota,
 			boolean dorsalRepetido,
-			boolean jugadorDeBaja) {
+			boolean jugadorDeBaja,
+			String estado,
+			String continuidad,
+			boolean equipoDefinitivo) {
+	}
+
+	/** Jugadores de una categoría formativa sin equipo: entrenan en la pretemporada de su categoría. */
+	public record GrupoCategoria(String categoria, int jugadores, List<Fila> filas) {
 	}
 
 	public record GrupoEquipo(Long equipoId, String equipoNombre, int jugadores, List<Fila> filas) {

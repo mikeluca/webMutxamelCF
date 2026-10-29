@@ -30,6 +30,7 @@ class PersonalDaoH2Test {
         jdbc = new JdbcTemplate(new DriverManagerDataSource(
                 "jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=Oracle;DB_CLOSE_DELAY=-1", "sa", ""));
         EsquemaH2.crearPersonal(jdbc);
+        EsquemaH2.crearPlantillas(jdbc);
         // JugadorDaoImpl lee el equipo de EQUIPO (por EQUIPO_ID)
         jdbc.execute("CREATE TABLE EQUIPO (ID NUMBER PRIMARY KEY, NOMBRE VARCHAR2(100), CATEGORIA VARCHAR2(100),"
                 + " DEPORTE VARCHAR2(10), ORDEN VARCHAR2(5))");

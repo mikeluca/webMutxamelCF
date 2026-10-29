@@ -29,7 +29,7 @@
 							<li><a class="dropdown-item" href="/admin/equipos">Equipos</a></li>
 							<li><a class="dropdown-item" href="/admin/cuerpo-tecnico">Cuerpo Técnico</a></li>
 							<li sec:authorize="hasAnyRole('SUPER', 'ADMIN')"><a class="dropdown-item" href="/admin/equipos-ffcv">Equipos FFCV</a></li>
-							<li sec:authorize="hasAnyRole('SUPER', 'ADMIN')"><a class="dropdown-item" href="/admin/nueva-temporada">Nueva temporada</a></li>
+							<li sec:authorize="hasRole('SUPER')"><a class="dropdown-item" href="/admin/nueva-temporada">Nueva temporada</a></li>
 							<li sec:authorize="hasAnyRole('SUPER', 'ADMIN')"><a class="dropdown-item" href="/admin/categorias-edad">Categorías por edad</a></li>
 						</ul>
 					</li>

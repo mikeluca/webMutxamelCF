@@ -316,76 +316,53 @@ class NuevaTemporadaServiceImplH2Test {
     }
 
     @Test
-    void laCategoriaPorEdadCoincideConLaDelEquipoSeQuedaEnElMismoEquipoYDorsal() {
+    void losFormativosVanASuCategoriaPorEdadSinEquipoNiDorsalNiEquipoDefinitivo() {
         datosDeLasReglas();
         asistente.generarPropuesta(DESTINO);
 
-        JugadorTemporada f = fila(1);
+        // 1: Alevín A -> Alevín; 2: Alevín B -> Infantil; 4: Juvenil A -> Juvenil; 7, 8 y 9: Infantil -> Cadete
+        Map<Long, String> categorias = Map.of(1L, "Alevín", 2L, "Infantil", 4L, "Juvenil", 7L, "Cadete", 8L, "Cadete",
+                9L, "Cadete");
 
-        assertThat(f.getEquipoId()).isEqualTo(ALEVIN_A);
-        assertThat(f.getEquipoNombre()).isEqualTo("Alevín A");
-        assertThat(f.getCategoria()).isEqualTo("Alevín");
-        assertThat(f.getDorsal()).isEqualTo(5);
-        assertThat(f.isPendienteRevision()).isFalse();
-        assertThat(f.isBaja()).isFalse();
-        assertThat(f.getNota()).isNull();
+        categorias.forEach((jugador, categoria) -> {
+            JugadorTemporada f = fila(jugador);
+            assertThat(f.getCategoria()).as("categoría " + jugador).isEqualTo(categoria);
+            assertThat(f.getEquipoId()).as("equipo " + jugador).isNull();
+            assertThat(f.getEquipoNombre()).as("nombre de equipo " + jugador).isNull();
+            assertThat(f.getDorsal()).as("dorsal " + jugador).isNull();
+            assertThat(f.isEquipoDefinitivo()).as("equipo definitivo " + jugador).isFalse();
+            assertThat(f.getEstado()).as("estado " + jugador).isEqualTo("CONFIRMADO");
+            assertThat(f.getContinuidad()).as("continuidad " + jugador).isEqualTo("PENDIENTE");
+            // Sin notas ni marca propia: lo único que lo deja pendiente es que la familia no ha contestado
+            assertThat(f.isPendienteRevision()).as("marca " + jugador).isFalse();
+            assertThat(f.getNota()).as("nota " + jugador).isNull();
+            assertThat(f.requiereRevision()).as("a revisar " + jugador).isTrue();
+        });
     }
 
     @Test
-    void siCambiaDeCategoriaVaAlEquipoEquivalenteDelMismoGrupoSinDorsal() {
+    void sinAnioDeNacimientoConservaSuCategoriaSinEquipoYPendiente() {
         datosDeLasReglas();
         asistente.generarPropuesta(DESTINO);
 
-        JugadorTemporada paso = fila(2);   // Alevín B -> Infantil B
-        assertThat(paso.getEquipoId()).isEqualTo(INFANTIL_B);
-        assertThat(paso.getCategoria()).isEqualTo("Infantil");
-        assertThat(paso.getDorsal()).isNull();
-        assertThat(paso.isPendienteRevision()).isFalse();
+        JugadorTemporada f = fila(3);   // Cadete A, sin año
 
-        JugadorTemporada otro = fila(9);   // Infantil A -> Cadete A
-        assertThat(otro.getEquipoId()).isEqualTo(CADETE_A);
-        assertThat(otro.getDorsal()).isNull();
-        assertThat(otro.isPendienteRevision()).isFalse();
-    }
-
-    @Test
-    void sinEquipoEquivalenteNiUnoSoloQuedaSinEquipoYPendiente() {
-        datosDeLasReglas();
-        asistente.generarPropuesta(DESTINO);
-
-        JugadorTemporada ninguno = fila(8);   // Infantil C -> Cadete C no existe
-        assertThat(ninguno.getEquipoId()).isNull();
-        assertThat(ninguno.isPendienteRevision()).isTrue();
-        assertThat(ninguno.getNota()).isEqualTo("Sin equipo equivalente en Cadete");
-        assertThat(ninguno.getDorsal()).isNull();
-
-        JugadorTemporada ambiguo = fila(7);   // Infantil D -> dos Cadete D
-        assertThat(ambiguo.getEquipoId()).isNull();
-        assertThat(ambiguo.isPendienteRevision()).isTrue();
-        assertThat(ambiguo.getNota()).isEqualTo("Sin equipo equivalente en Cadete");
-    }
-
-    @Test
-    void sinAnioDeNacimientoSeQuedaIgualPeroPendiente() {
-        datosDeLasReglas();
-        asistente.generarPropuesta(DESTINO);
-
-        JugadorTemporada f = fila(3);
-
-        assertThat(f.getEquipoId()).isEqualTo(CADETE_A);
-        assertThat(f.getDorsal()).isEqualTo(3);
+        assertThat(f.getEquipoId()).isNull();
+        assertThat(f.getCategoria()).isEqualTo("Cadete");
+        assertThat(f.getDorsal()).isNull();
         assertThat(f.isPendienteRevision()).isTrue();
         assertThat(f.getNota()).isEqualTo("Sin año de nacimiento");
     }
 
     @Test
-    void unJuvenilDeUltimoAnioQuedaSinEquipoPendienteYSinProponerLaBaja() {
+    void unJuvenilDeUltimoAnioQuedaSinEquipoNiCategoriaPendienteYSinProponerLaBaja() {
         datosDeLasReglas();
         asistente.generarPropuesta(DESTINO);
 
         JugadorTemporada f = fila(5);   // 19 años en 2027-28: supera la edad máxima (18)
 
         assertThat(f.getEquipoId()).isNull();
+        assertThat(f.getCategoria()).isNull();
         assertThat(f.getDorsal()).isNull();
         assertThat(f.isBaja()).isFalse();
         assertThat(f.isPendienteRevision()).isTrue();
@@ -393,7 +370,7 @@ class NuevaTemporadaServiceImplH2Test {
     }
 
     @Test
-    void losJugadoresDeCategoriasSinReglaDeEdadSeQuedanSinRevision() {
+    void filialPrimerEquipoYVeteranosSeQuedanEnSuEquipoConSuDorsalYEquipoDefinitivo() {
         datosDeLasReglas();
         asistente.generarPropuesta(DESTINO);
 
@@ -402,6 +379,10 @@ class NuevaTemporadaServiceImplH2Test {
             assertThat(f.isPendienteRevision()).as("pendiente " + id).isFalse();
             assertThat(f.isBaja()).as("baja " + id).isFalse();
             assertThat(f.getNota()).as("nota " + id).isNull();
+            assertThat(f.isEquipoDefinitivo()).as("equipo definitivo " + id).isTrue();
+            // Se quedan: no esperan la respuesta de las familias
+            assertThat(f.getContinuidad()).as("continuidad " + id).isEqualTo("SIGUE");
+            assertThat(f.requiereRevision()).as("a revisar " + id).isFalse();
         }
         assertThat(fila(13).getEquipoId()).isEqualTo(PRIMER_EQUIPO);
         assertThat(fila(13).getDorsal()).isEqualTo(1);
@@ -420,45 +401,48 @@ class NuevaTemporadaServiceImplH2Test {
 
         assertThat(fila(5).getEquipoId()).isEqualTo(FILIAL);
         assertThat(fila(5).getCategoria()).isEqualTo("Filial");
+        assertThat(fila(5).getDorsal()).isEqualTo(11);
+        assertThat(fila(5).isEquipoDefinitivo()).isTrue();
         assertThat(fila(5).isPendienteRevision()).isFalse();
     }
 
     @Test
-    void siJuegaPorAbajoSeProponeSegunSuEdadYPendiente() {
+    void siJuegaPorAbajoSeProponeSuCategoriaPorEdadYPendiente() {
         datosDeLasReglas();
         asistente.generarPropuesta(DESTINO);
 
-        JugadorTemporada f = fila(6);   // le toca Cadete, juega en Alevín A -> Cadete A
+        JugadorTemporada f = fila(6);   // le toca Cadete, juega en Alevín A
 
-        assertThat(f.getEquipoId()).isEqualTo(CADETE_A);
+        assertThat(f.getEquipoId()).isNull();
+        assertThat(f.getCategoria()).isEqualTo("Cadete");
         assertThat(f.getDorsal()).isNull();
         assertThat(f.isPendienteRevision()).isTrue();
         assertThat(f.getNota()).isEqualTo("Jugaba fuera de su categoría (Alevín)");
     }
 
     @Test
-    void siJuegaPorArribaYAhoraLeTocaSuCategoriaSeQuedaPeroPendiente() {
+    void siJuegaPorArribaYAhoraLeTocaSuCategoriaVaAEllaPeroPendiente() {
         datosDeLasReglas();
         asistente.generarPropuesta(DESTINO);
 
         JugadorTemporada f = fila(11);   // este año Cadete (juega en Juvenil A); el que viene le toca Juvenil
 
-        assertThat(f.getEquipoId()).isEqualTo(JUVENIL_A);
-        assertThat(f.getDorsal()).isEqualTo(10);
+        assertThat(f.getEquipoId()).isNull();
+        assertThat(f.getCategoria()).isEqualTo("Juvenil");
         assertThat(f.isPendienteRevision()).isTrue();
         assertThat(f.getNota()).isEqualTo("Jugaba fuera de su categoría (Juvenil)");
     }
 
     @Test
-    void unJugadorActivoSinEquipoQuedaPendiente() {
+    void unJugadorActivoSinEquipoVaAsuCategoriaPorEdad() {
         datosDeLasReglas();
         asistente.generarPropuesta(DESTINO);
 
-        JugadorTemporada f = fila(12);
+        JugadorTemporada f = fila(12);   // 2015: Infantil en 2027-28
 
         assertThat(f.getEquipoId()).isNull();
-        assertThat(f.isPendienteRevision()).isTrue();
-        assertThat(f.getNota()).isEqualTo("Sin equipo actual");
+        assertThat(f.getCategoria()).isEqualTo("Infantil");
+        assertThat(f.isPendienteRevision()).isFalse();
     }
 
     @Test
@@ -485,14 +469,262 @@ class NuevaTemporadaServiceImplH2Test {
         int creadas = asistente.regenerar(DESTINO);
 
         assertThat(creadas).isEqualTo(14);
-        assertThat(fila(3).getDorsal()).isEqualTo(3);
+        assertThat(fila(3).getEquipoId()).isNull();
+        assertThat(fila(3).getDorsal()).isNull();
         assertThat(fila(3).isPendienteRevision()).isTrue();
+    }
+
+    // ---- continuidad ------------------------------------------------------------------------------
+
+    @Test
+    void sigueResuelveLaContinuidadYDejaLaFilaSinRevisar() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+
+        asistente.marcarContinuidad(DESTINO, 1L, "SIGUE");
+
+        JugadorTemporada f = fila(1);
+        assertThat(f.getContinuidad()).isEqualTo("SIGUE");
+        assertThat(f.getFechaContinuidad()).isNotNull();
+        assertThat(f.getEstado()).isEqualTo("CONFIRMADO");
+        assertThat(f.requiereRevision()).isFalse();
+        // Las demás siguen con su respuesta pendiente
+        assertThat(fila(2).requiereRevision()).isTrue();
+    }
+
+    @Test
+    void sigueNoQuitaLaRevisionSiHayOtroMotivo() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+
+        asistente.marcarContinuidad(DESTINO, 3L, "SIGUE");   // 3: sin año de nacimiento
+
+        assertThat(fila(3).requiereRevision()).isTrue();
+    }
+
+    @Test
+    void dudaYSinRespuestaDejanLaFilaPendienteDeRevisar() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+        asistente.marcarContinuidad(DESTINO, 1L, "SIGUE");
+
+        asistente.marcarContinuidad(DESTINO, 1L, "DUDA");
+        assertThat(fila(1).requiereRevision()).isTrue();
+
+        asistente.marcarContinuidad(DESTINO, 1L, "SIGUE");
+        asistente.marcarContinuidad(DESTINO, 1L, "PENDIENTE");
+        assertThat(fila(1).requiereRevision()).isTrue();
+        assertThat(fila(1).getContinuidad()).isEqualTo("PENDIENTE");
+    }
+
+    @Test
+    void noSigueProponeLaBajaPeroQuedaPendienteHastaQueElCoordinadorLaConfirma() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+
+        asistente.marcarContinuidad(DESTINO, 1L, "NO_SIGUE");
+
+        JugadorTemporada propuesta = fila(1);
+        assertThat(propuesta.getContinuidad()).isEqualTo("NO_SIGUE");
+        assertThat(propuesta.getEstado()).isEqualTo("BAJA");
+        assertThat(propuesta.isBaja()).isTrue();
+        assertThat(propuesta.requiereRevision()).isTrue();
+        assertThat(asistente.resumenAplicacion(DESTINO).bloqueos()).anyMatch(b -> b.contains("pendiente"));
+        assertThat(asistente.revision(DESTINO).bajas()).extracting(RevisionTemporadaDTO.Fila::jugadorId)
+                .containsExactly(1L);
+
+        // El coordinador la confirma guardando la fila con la baja marcada
+        asistente.guardarFila(DESTINO, 1L, null, null, true, 2016);
+
+        assertThat(fila(1).getEstado()).isEqualTo("BAJA");
+        assertThat(fila(1).requiereRevision()).isFalse();
+    }
+
+    @Test
+    void elCoordinadorPuedeDesmarcarLaBajaDeUnNoSigueYQuedaConfirmado() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+        asistente.marcarContinuidad(DESTINO, 1L, "NO_SIGUE");
+
+        asistente.guardarFila(DESTINO, 1L, null, null, false, 2016);
+
+        assertThat(fila(1).getEstado()).isEqualTo("CONFIRMADO");
+        assertThat(fila(1).getContinuidad()).isEqualTo("NO_SIGUE");
+    }
+
+    @Test
+    void dejarElNoSigueQuitaLaBajaPropuestaYPideRevisarla() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+        asistente.marcarContinuidad(DESTINO, 1L, "NO_SIGUE");
+        asistente.guardarFila(DESTINO, 1L, null, null, true, 2016);
+
+        asistente.marcarContinuidad(DESTINO, 1L, "SIGUE");
+
+        assertThat(fila(1).getEstado()).isEqualTo("CONFIRMADO");
+        assertThat(fila(1).isPendienteRevision()).isTrue();
+    }
+
+    @Test
+    void laContinuidadValidaElValorLaFilaYElDestino() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+
+        assertThatThrownBy(() -> asistente.marcarContinuidad(DESTINO, 1L, "TAL_VEZ"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> asistente.marcarContinuidad(DESTINO, 1L, null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> asistente.marcarContinuidad(DESTINO, 99L, "SIGUE"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> asistente.marcarContinuidad(ACTIVA, 1L, "SIGUE"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void laRevisionMuestraLaContinuidadYElEstadoDeCadaFila() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+        asistente.marcarContinuidad(DESTINO, 1L, "DUDA");
+
+        RevisionTemporadaDTO.Fila f = asistente.revision(DESTINO).pendientes().stream()
+                .filter(x -> x.jugadorId() == 1L).findFirst().orElseThrow();
+
+        assertThat(f.continuidad()).isEqualTo("DUDA");
+        assertThat(f.estado()).isEqualTo("CONFIRMADO");
+        assertThat(f.equipoDefinitivo()).isFalse();
+    }
+
+    // ---- altas de prueba ----------------------------------------------------------------------------
+
+    private long altaDePrueba() {
+        // Los jugadores de prueba se crean con IDs explícitos: el siguiente generado sigue desde 1000
+        jdbc.execute("ALTER TABLE JUGADORES ALTER COLUMN ID RESTART WITH 1000");
+        asistente.anadirPrueba(DESTINO, "  Luis ", " Prueba Gil", 2016);
+        return jdbc.queryForObject("SELECT ID FROM JUGADORES WHERE NOMBRE = 'Luis'", Long.class);
+    }
+
+    @Test
+    void unaPruebaEntraEnElBorradorConSuCategoriaPorEdadSinEquipoYSinTocarLaTemporadaActiva() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+
+        long id = altaDePrueba();
+
+        JugadorTemporada f = fila(id);
+        assertThat(f.getEstado()).isEqualTo("PRUEBA");
+        assertThat(f.getCategoria()).isEqualTo("Alevín");   // 2016: 11 años en 2027-28
+        assertThat(f.getEquipoId()).isNull();
+        assertThat(f.getDorsal()).isNull();
+        assertThat(f.isEquipoDefinitivo()).isFalse();
+        assertThat(f.requiereRevision()).isFalse();
+        assertThat(jdbc.queryForMap("SELECT NOMBRE, APELLIDOS, ANIO_NACIMIENTO, CATEGORIA FROM JUGADORES WHERE ID = ?", id))
+                .containsEntry("NOMBRE", "Luis").containsEntry("APELLIDOS", "Prueba Gil")
+                .containsEntry("CATEGORIA", "Alevín");
+        // No tiene fila en la temporada activa
+        assertThat(jugadorTemporadaDao.obtener(id, ACTIVA)).isNull();
+    }
+
+    @Test
+    void unaPruebaNoSeColeEnNingunListadoDeLaTemporadaActiva() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+        long id = altaDePrueba();
+
+        // Listados de jugadores activos y plantillas
+        assertThat(jugadorDao.obtenerActivos()).extracting(j -> j.getId()).doesNotContain(id);
+        assertThat(jugadorDao.obtenerTodosPorEquipoId(ALEVIN_A)).extracting(j -> j.getId()).doesNotContain(id);
+        assertThat(jugadorDao.obtenerTodosPorCategoria("Alevín")).extracting(j -> j.getId()).doesNotContain(id);
+        // Panel de jugadores: ni activos, ni bajas, ni el listado completo
+        assertThat(jugadores.obtenerTodos()).extracting(j -> j.getId()).doesNotContain(id);
+        assertThat(jugadores.obtenerBajas()).extracting(j -> j.getId()).doesNotContain(id);
+        // Ni en el asistente como jugador sin propuesta, ni como baja en el panel
+        assertThat(jugadorTemporadaDao.jugadoresActivosSinFila(DESTINO)).extracting(j -> j.getId()).doesNotContain(id);
+        RevisionTemporadaDTO.Fila enRevision = asistente.revision(DESTINO).categorias().stream()
+                .flatMap(g -> g.filas().stream()).filter(x -> x.jugadorId() == id).findFirst().orElseThrow();
+        assertThat(enRevision.jugadorDeBaja()).isFalse();
+        // Y a la temporada activa no llega por la sincronización del servicio de jugadores
+        assertThat(jugadorTemporadaDao.esDePrueba(id)).isTrue();
+        assertThat(filas(ACTIVA)).isZero();
+    }
+
+    @Test
+    void laPruebaAparecePorCategoriaEnLaRevisionYNoBloquea() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+        long id = altaDePrueba();
+
+        RevisionTemporadaDTO revision = asistente.revision(DESTINO);
+
+        assertThat(revision.categorias().stream().filter(g -> g.categoria().equals("Alevín")).findFirst().orElseThrow()
+                .filas()).extracting(RevisionTemporadaDTO.Fila::jugadorId).contains(id);
+        assertThat(revision.pendientes()).extracting(RevisionTemporadaDTO.Fila::jugadorId).doesNotContain(id);
+        assertThat(asistente.resumenAplicacion(DESTINO).bloqueos()).noneMatch(b -> b.contains("sin fila"));
+    }
+
+    @Test
+    void laPruebaSobreviveAlRegenerarElBorrador() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+        long id = altaDePrueba();
+
+        asistente.regenerar(DESTINO);
+
+        assertThat(fila(id)).isNotNull();
+        assertThat(fila(id).getEstado()).isEqualTo("PRUEBA");
+        assertThat(filas(DESTINO)).isEqualTo(15);   // las 14 de siempre y la prueba, sin duplicarla
+    }
+
+    @Test
+    void laAltaDePruebaPideNombreApellidosYAnioDeNacimientoConCategoria() {
+        assertThatThrownBy(() -> asistente.anadirPrueba(DESTINO, "", "Gil", 2016))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("obligatorios");
+        assertThatThrownBy(() -> asistente.anadirPrueba(DESTINO, "Luis", null, 2016))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> asistente.anadirPrueba(DESTINO, "Luis", "Gil", null))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("año de nacimiento");
+        assertThatThrownBy(() -> asistente.anadirPrueba(DESTINO, "Luis", "Gil", HOY.getYear() - 2))
+                .isInstanceOf(IllegalArgumentException.class);
+        // Ninguna categoría formativa cubre 19 años o más
+        assertThatThrownBy(() -> asistente.anadirPrueba(DESTINO, "Luis", "Gil", 2000))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Ninguna categoría");
+        assertThatThrownBy(() -> asistente.anadirPrueba(ACTIVA, "Luis", "Gil", 2016))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM JUGADORES", Integer.class)).isZero();
+        assertThat(filas(DESTINO)).isZero();
+    }
+
+    @Test
+    void siFallaElAltaDeLaFilaDeLaPruebaNoQuedaElJugador() {
+        doThrow(new DataIntegrityViolationException("fallo simulado")).when(jugadorTemporadaDao)
+                .guardar(org.mockito.ArgumentMatchers.argThat(f -> "PRUEBA".equals(f.getEstado())));
+
+        assertThatThrownBy(() -> asistente.anadirPrueba(DESTINO, "Luis", "Gil", 2016))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM JUGADORES", Integer.class)).isZero();
+    }
+
+    @Test
+    void alAplicarLaPruebaPasaAJugadorActivoDeSuCategoriaSinEquipo() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+        long id = altaDePrueba();
+        resolverPendientes();
+
+        asistente.aplicar(DESTINO, "2027-28");
+
+        assertThat(jdbc.queryForMap("SELECT CATEGORIA, EQUIPO_ID, FECHA_BAJA FROM JUGADORES WHERE ID = ?", id))
+                .containsEntry("CATEGORIA", "Alevín").containsEntry("EQUIPO_ID", null)
+                .containsEntry("FECHA_BAJA", null);
+        assertThat(jugadorDao.obtenerActivos()).extracting(j -> j.getId()).contains(id);
+        assertThat(fila(id).getEstado()).isEqualTo("PRUEBA");
     }
 
     // ---- revisión -------------------------------------------------------------------------------
 
     @Test
-    void laRevisionAgrupaPorEquipoYSeparaLasListasDeTrabajo() {
+    void laRevisionAgrupaPorEquipoPorCategoriaYSeparaLasListasDeTrabajo() {
         datosDeLasReglas();
         asistente.generarPropuesta(DESTINO);
         jugador(20, 2016, ALEVIN_A, 14);   // sin propuesta
@@ -501,26 +733,35 @@ class NuevaTemporadaServiceImplH2Test {
 
         assertThat(revision.totalFilas()).isEqualTo(14);
         assertThat(revision.destino().getNombre()).isEqualTo("2027-28");
+        // Todos los formativos esperan la respuesta de las familias; los adultos no
         assertThat(revision.pendientes()).extracting(RevisionTemporadaDTO.Fila::jugadorId)
-                .containsExactlyInAnyOrder(3L, 5L, 6L, 7L, 8L, 11L, 12L);
-        assertThat(revision.sinEquipo()).extracting(RevisionTemporadaDTO.Fila::jugadorId)
-                .containsExactlyInAnyOrder(5L, 7L, 8L, 12L);
-        assertThat(revision.bajas()).isEmpty();   // ya no se proponen bajas por edad
+                .containsExactlyInAnyOrder(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 11L, 12L);
+        assertThat(revision.sinEquipo()).extracting(RevisionTemporadaDTO.Fila::jugadorId).containsExactly(5L);
+        assertThat(revision.bajas()).isEmpty();
         assertThat(revision.sinPropuesta()).extracting(RevisionTemporadaDTO.SinPropuesta::jugadorId)
                 .containsExactly(20L);
 
-        RevisionTemporadaDTO.GrupoEquipo cadeteA = revision.equipos().stream()
-                .filter(g -> g.equipoId() == CADETE_A).findFirst().orElseThrow();
-        // 3 (sin año), 6 (juega por abajo) y 9 (Infantil A -> Cadete A); no cuenta la baja propuesta
-        assertThat(cadeteA.jugadores()).isEqualTo(3);
-        assertThat(cadeteA.filas()).extracting(RevisionTemporadaDTO.Fila::jugadorId)
-                .containsExactlyInAnyOrder(3L, 6L, 9L);
+        // Con equipo: solo los adultos
+        assertThat(revision.equipos()).extracting(RevisionTemporadaDTO.GrupoEquipo::equipoNombre)
+                .containsExactly("Primer Equipo", "Veteranos");
+        assertThat(revision.equipos().get(0).filas()).extracting(RevisionTemporadaDTO.Fila::jugadorId)
+                .containsExactlyInAnyOrder(13L, 15L);
+
+        // Sin equipo, por categoría
+        assertThat(revision.categorias()).extracting(RevisionTemporadaDTO.GrupoCategoria::categoria)
+                .containsExactly("Alevín", "Cadete", "Infantil", "Juvenil");
+        RevisionTemporadaDTO.GrupoCategoria cadete = revision.categorias().stream()
+                .filter(g -> g.categoria().equals("Cadete")).findFirst().orElseThrow();
+        assertThat(cadete.jugadores()).isEqualTo(5);
+        assertThat(cadete.filas()).extracting(RevisionTemporadaDTO.Fila::jugadorId)
+                .containsExactlyInAnyOrder(3L, 6L, 7L, 8L, 9L);
     }
 
     @Test
     void avisaSiUnDorsalSeRepiteDentroDeUnEquipo() {
         datosDeLasReglas();
         asistente.generarPropuesta(DESTINO);
+        asistente.guardarFila(DESTINO, 3L, CADETE_A, 3, false, 2012);
         asistente.guardarFila(DESTINO, 6L, CADETE_A, 3, false, 2012);   // 3 ya lo tiene el jugador 3
 
         RevisionTemporadaDTO revision = asistente.revision(DESTINO);
@@ -539,8 +780,27 @@ class NuevaTemporadaServiceImplH2Test {
         asistente.guardarFila(DESTINO, 3L, CADETE_A, 3, false, 2012);
 
         assertThat(fila(3).isPendienteRevision()).isFalse();
+        assertThat(fila(3).getEquipoId()).isEqualTo(CADETE_A);
+        assertThat(fila(3).isEquipoDefinitivo()).isTrue();
         assertThat(jdbc.queryForObject("SELECT ANIO_NACIMIENTO FROM JUGADORES WHERE ID = 3", Integer.class))
                 .isEqualTo(2012);
+    }
+
+    @Test
+    void guardarSinEquipoDejaLaCategoriaPorEdadSinDorsalYRecalculaConElAnioNuevo() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+
+        asistente.guardarFila(DESTINO, 3L, null, 9, false, 2012);   // 2012: Cadete en 2027-28 (15 años)
+
+        JugadorTemporada f = fila(3);
+        assertThat(f.getEquipoId()).isNull();
+        assertThat(f.getCategoria()).isEqualTo("Cadete");
+        assertThat(f.getDorsal()).isNull();
+        assertThat(f.isEquipoDefinitivo()).isFalse();
+
+        asistente.guardarFila(DESTINO, 3L, null, null, false, 2014);   // 13 años: Infantil
+        assertThat(fila(3).getCategoria()).isEqualTo("Infantil");
     }
 
     @Test
@@ -579,7 +839,8 @@ class NuevaTemporadaServiceImplH2Test {
         asistente.anadirSinPropuesta(DESTINO, 20L);
 
         assertThat(asistente.revision(DESTINO).sinPropuesta()).isEmpty();
-        assertThat(fila(20).getEquipoId()).isEqualTo(ALEVIN_A);
+        assertThat(fila(20).getEquipoId()).isNull();
+        assertThat(fila(20).getCategoria()).isEqualTo("Alevín");
         assertThatThrownBy(() -> asistente.anadirSinPropuesta(DESTINO, 20L)).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> asistente.anadirSinPropuesta(DESTINO, 10L))
                 .isInstanceOf(IllegalArgumentException.class);   // el 10 está de baja
@@ -587,8 +848,14 @@ class NuevaTemporadaServiceImplH2Test {
 
     // ---- aplicar y activar ------------------------------------------------------------------------
 
-    /** Resuelve las filas pendientes dejándolas como están (equipo propuesto o el que se indica). */
+    /**
+     * Resuelve todo lo pendiente: la continuidad de cada jugador que sigue, el año de los adultos y las filas que
+     * necesitan una decisión (equipo propuesto o el que se indica).
+     */
     private void resolverPendientes() {
+        for (long id : new long[] { 1L, 2L, 3L, 4L, 6L, 7L, 8L, 9L, 11L, 12L }) {
+            asistente.marcarContinuidad(DESTINO, id, "SIGUE");
+        }
         asistente.guardarFila(DESTINO, 3L, CADETE_A, 3, false, 2012);
         asistente.guardarFila(DESTINO, 5L, JUVENIL_A, 11, true, 2008);
         asistente.guardarFila(DESTINO, 6L, CADETE_A, 6, false, 2012);
@@ -596,6 +863,9 @@ class NuevaTemporadaServiceImplH2Test {
         asistente.guardarFila(DESTINO, 8L, null, null, false, 2013);
         asistente.guardarFila(DESTINO, 11L, JUVENIL_A, 10, false, 2011);
         asistente.guardarFila(DESTINO, 12L, ALEVIN_B, 12, false, 2015);
+        // Todos los jugadores activos tienen que tener año de nacimiento
+        asistente.guardarFila(DESTINO, 13L, PRIMER_EQUIPO, 1, false, 1990);
+        asistente.guardarFila(DESTINO, 14L, VETERANOS, 22, false, 1988);
     }
 
     @Test
@@ -605,13 +875,47 @@ class NuevaTemporadaServiceImplH2Test {
 
         ResumenAplicacionDTO resumen = asistente.resumenAplicacion(DESTINO);
         assertThat(resumen.puedeAplicar()).isFalse();
-        assertThat(resumen.bloqueos()).anyMatch(b -> b.contains("7 fila(s) pendiente(s)"));
+        assertThat(resumen.bloqueos()).anyMatch(b -> b.contains("11 fila(s) pendiente(s)"));
 
         assertThatThrownBy(() -> asistente.aplicar(DESTINO, "2027-28"))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("pendiente");
 
         assertThat(temporadaActiva()).isEqualTo(ACTIVA);
         assertThat(equipoDe(2L)).isEqualTo(ALEVIN_B);
+    }
+
+    @Test
+    void conLaContinuidadSinResolverNoSePuedeAplicarAunqueLoDemasEsteListo() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+        resolverPendientes();
+        asistente.marcarContinuidad(DESTINO, 1L, "DUDA");
+
+        ResumenAplicacionDTO resumen = asistente.resumenAplicacion(DESTINO);
+
+        assertThat(resumen.puedeAplicar()).isFalse();
+        assertThat(resumen.bloqueos()).containsExactly("1 fila(s) pendiente(s) de revisar (incluye la continuidad sin resolver).");
+    }
+
+    @Test
+    void cualquierJugadorActivoSinAnioDeNacimientoBloqueaAplicar() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+        resolverPendientes();
+        // El 13 es un adulto: la fila no tiene nada pendiente, pero el jugador sigue sin año
+        jdbc.update("UPDATE JUGADORES SET ANIO_NACIMIENTO = NULL WHERE ID = 13");
+
+        ResumenAplicacionDTO resumen = asistente.resumenAplicacion(DESTINO);
+
+        assertThat(resumen.puedeAplicar()).isFalse();
+        assertThat(resumen.bloqueos()).containsExactly(
+                "1 jugador(es) activo(s) sin año de nacimiento: rellénalo en la revisión.");
+        assertThatThrownBy(() -> asistente.aplicar(DESTINO, "2027-28")).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("sin año de nacimiento");
+
+        asistente.guardarFila(DESTINO, 13L, PRIMER_EQUIPO, 1, false, 1990);
+
+        assertThat(asistente.resumenAplicacion(DESTINO).puedeAplicar()).isTrue();
     }
 
     @Test
@@ -641,7 +945,7 @@ class NuevaTemporadaServiceImplH2Test {
     }
 
     @Test
-    void elResumenCuentaJugadoresPorEquipoCambiosBajasYSinEquipo() {
+    void elResumenCuentaJugadoresPorEquipoYCategoriaCambiosYBajas() {
         datosDeLasReglas();
         asistente.generarPropuesta(DESTINO);
         resolverPendientes();
@@ -651,17 +955,21 @@ class NuevaTemporadaServiceImplH2Test {
         assertThat(resumen.puedeAplicar()).isTrue();
         assertThat(resumen.temporada()).isEqualTo("2027-28");
         assertThat(resumen.bajas()).isEqualTo(1);                       // jugador 5
-        assertThat(resumen.sinEquipo()).isEqualTo(1);                   // jugador 8
+        assertThat(resumen.sinEquipo()).isZero();
         Map<String, Integer> porEquipo = resumen.jugadoresPorEquipo();
-        assertThat(porEquipo).containsEntry("Alevín A", 1)              // 1
-                .containsEntry("Infantil B", 1)                         // 2
-                .containsEntry("Cadete A", 3)                           // 3, 6, 9
-                .containsEntry("Juvenil A", 2)                          // 4, 11
+        assertThat(porEquipo).containsEntry("Cadete A", 2)              // 3, 6
+                .containsEntry("Juvenil A", 1)                          // 11
                 .containsEntry("Cadete D1", 1)                          // 7
-                .containsEntry("Alevín B", 1);                          // 12
-        // Cambian de equipo: 2 (Alevín B -> Infantil B), 6 (Alevín A -> Cadete A), 7 (Infantil D -> Cadete D1),
-        // 9 (Infantil A -> Cadete A), 12 (sin equipo -> Alevín B)
-        assertThat(resumen.cambiosDeEquipo()).isEqualTo(5);
+                .containsEntry("Alevín B", 1)                           // 12
+                .containsEntry("Primer Equipo", 2)                      // 13, 15
+                .containsEntry("Veteranos", 1)                          // 14
+                .containsEntry("Alevín (sin equipo)", 1)                // 1
+                .containsEntry("Infantil (sin equipo)", 1)              // 2
+                .containsEntry("Juvenil (sin equipo)", 1)               // 4
+                .containsEntry("Cadete (sin equipo)", 2);               // 8, 9
+        // Cambian de equipo (los que tienen equipo y es otro): 6 (Alevín A -> Cadete A), 7 (Infantil D -> Cadete D1),
+        // 12 (sin equipo -> Alevín B)
+        assertThat(resumen.cambiosDeEquipo()).isEqualTo(3);
     }
 
     @Test
@@ -672,16 +980,23 @@ class NuevaTemporadaServiceImplH2Test {
 
         asistente.aplicar(DESTINO, "2027-28");
 
-        // El jugador 2 cambia de Alevín B a Infantil B sin dorsal; se copian equipo, categoría, deporte y dorsal
-        assertThat(equipoDe(2L)).isEqualTo(INFANTIL_B);
-        assertThat(jdbc.queryForMap("SELECT EQUIPO, CATEGORIA, DEPORTE, DORSAL FROM JUGADORES WHERE ID = 2"))
-                .containsEntry("EQUIPO", "Infantil B").containsEntry("CATEGORIA", "Infantil")
-                .containsEntry("DEPORTE", "F").containsEntry("DORSAL", null);
-        // Se queda: mismo equipo y dorsal
-        assertThat(jdbc.queryForMap("SELECT EQUIPO_ID, DORSAL FROM JUGADORES WHERE ID = 1"))
-                .containsEntry("DORSAL", java.math.BigDecimal.valueOf(5));
-        assertThat(equipoDe(1L)).isEqualTo(ALEVIN_A);
-        assertThat(equipoDe(9L)).isEqualTo(CADETE_A);
+        // El jugador 2 pasa de Alevín B a la categoría Infantil: sin equipo ni dorsal
+        assertThat(equipoDe(2L)).isNull();
+        assertThat(jdbc.queryForMap("SELECT CATEGORIA, DEPORTE, DORSAL FROM JUGADORES WHERE ID = 2"))
+                .containsEntry("CATEGORIA", "Infantil").containsEntry("DEPORTE", "F").containsEntry("DORSAL", null);
+        // Los formativos pierden el equipo y el dorsal y se quedan con su categoría por edad
+        assertThat(equipoDe(1L)).isNull();
+        assertThat(jdbc.queryForMap("SELECT CATEGORIA, DORSAL FROM JUGADORES WHERE ID = 1"))
+                .containsEntry("CATEGORIA", "Alevín").containsEntry("DORSAL", null);
+        assertThat(equipoDe(9L)).isNull();
+        // El coordinador les ha elegido equipo: se copian equipo, categoría, deporte y dorsal
+        assertThat(equipoDe(6L)).isEqualTo(CADETE_A);
+        assertThat(jdbc.queryForMap("SELECT EQUIPO, CATEGORIA, DEPORTE, DORSAL FROM JUGADORES WHERE ID = 6"))
+                .containsEntry("EQUIPO", "Cadete A").containsEntry("CATEGORIA", "Cadete")
+                .containsEntry("DEPORTE", "F").containsEntry("DORSAL", java.math.BigDecimal.valueOf(6));
+        // Filial, Primer Equipo y Veteranos: mismo equipo y dorsal
+        assertThat(equipoDe(15L)).isEqualTo(PRIMER_EQUIPO);
+        assertThat(jdbc.queryForObject("SELECT DORSAL FROM JUGADORES WHERE ID = 15", Integer.class)).isEqualTo(8);
         // Baja: FECHA_BAJA = hoy y sin equipo
         assertThat(equipoDe(5L)).isNull();
         assertThat(jdbc.queryForObject("SELECT FECHA_BAJA FROM JUGADORES WHERE ID = 5", Date.class))
@@ -705,9 +1020,9 @@ class NuevaTemporadaServiceImplH2Test {
         asistente.generarPropuesta(DESTINO);
         resolverPendientes();
         List<Map<String, Object>> antes = jdbc.queryForList("SELECT * FROM JUGADORES ORDER BY ID");
-        // Falla al asignar al último jugador (orden por apellidos = por id): antes ya se han tocado otros
+        // Falla al asignar al último jugador con equipo (orden por apellidos = por id): antes ya se han tocado otros
         doThrow(new DataIntegrityViolationException("fallo simulado"))
-                .when(jugadorDao).asignarPlantilla(eq(12L), any(), any(), any(), any(), any());
+                .when(jugadorDao).asignarPlantilla(eq(15L), any(), any(), any(), any(), any());
 
         assertThatThrownBy(() -> asistente.aplicar(DESTINO, "2027-28"))
                 .isInstanceOf(DataIntegrityViolationException.class);
@@ -832,7 +1147,7 @@ class NuevaTemporadaServiceImplH2Test {
     }
 
     private Map<String, Object> filaActiva(long jugadorId) {
-        return jdbc.queryForMap("SELECT EQUIPO_ID, EQUIPO_NOMBRE, CATEGORIA, DORSAL, BAJA FROM JUGADOR_TEMPORADA"
+        return jdbc.queryForMap("SELECT EQUIPO_ID, EQUIPO_NOMBRE, CATEGORIA, DORSAL, ESTADO FROM JUGADOR_TEMPORADA"
                 + " WHERE JUGADOR_ID = ? AND TEMPORADA_ID = ?", jugadorId, ACTIVA);
     }
 
@@ -844,7 +1159,7 @@ class NuevaTemporadaServiceImplH2Test {
         assertThat(filaActiva(id)).containsEntry("EQUIPO_NOMBRE", "Cadete A").containsEntry("CATEGORIA", "Cadete");
         assertThat(((Number) filaActiva(id).get("EQUIPO_ID")).longValue()).isEqualTo(CADETE_A);
         assertThat(((Number) filaActiva(id).get("DORSAL")).intValue()).isEqualTo(9);
-        assertThat(((Number) filaActiva(id).get("BAJA")).intValue()).isZero();
+        assertThat(filaActiva(id)).containsEntry("ESTADO", "CONFIRMADO");
     }
 
     @Test
@@ -870,7 +1185,7 @@ class NuevaTemporadaServiceImplH2Test {
         assertThat(equipoDe(id)).isNull();
         assertThat(jdbc.queryForObject("SELECT FECHA_BAJA FROM JUGADORES WHERE ID = ?", Date.class, id))
                 .isEqualTo(Date.valueOf(HOY));
-        assertThat(((Number) filaActiva(id).get("BAJA")).intValue()).isEqualTo(1);
+        assertThat(filaActiva(id)).containsEntry("ESTADO", "BAJA");
         assertThat(jdbc.queryForObject("SELECT ESTADO FROM JUGADOR_TEMPORADA WHERE JUGADOR_ID = ?", String.class, id))
                 .isEqualTo("BAJA");
         // La fila conserva el equipo en el que estaba
@@ -880,7 +1195,7 @@ class NuevaTemporadaServiceImplH2Test {
 
         assertThat(equipoDe(id)).isEqualTo(JUVENIL_A);
         assertThat(jdbc.queryForObject("SELECT FECHA_BAJA FROM JUGADORES WHERE ID = ?", Date.class, id)).isNull();
-        assertThat(((Number) filaActiva(id).get("BAJA")).intValue()).isZero();
+        assertThat(filaActiva(id)).containsEntry("ESTADO", "CONFIRMADO");
         assertThat(jdbc.queryForObject("SELECT ESTADO FROM JUGADOR_TEMPORADA WHERE JUGADOR_ID = ?", String.class, id))
                 .isEqualTo("CONFIRMADO");
         assertThat(filaActiva(id)).containsEntry("EQUIPO_NOMBRE", "Juvenil A");
@@ -916,8 +1231,8 @@ class NuevaTemporadaServiceImplH2Test {
     void elHistorialDevuelveUnaFilaPorTemporadaLaMasRecientePrimero() {
         jugadores.guardarJugador(dto(null, "Historia", CADETE_A, 9));
         long id = idDe("Historia");
-        jdbc.update("INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID, EQUIPO_NOMBRE, CATEGORIA, DORSAL, BAJA)"
-                + " VALUES (?, ?, 'Infantil A', 'Infantil', 4, 0)", id, PASADA);
+        jdbc.update("INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID, EQUIPO_NOMBRE, CATEGORIA, DORSAL)"
+                + " VALUES (?, ?, 'Infantil A', 'Infantil', 4)", id, PASADA);
 
         assertThat(jugadores.obtenerHistorial(id)).extracting(h -> h.temporada() + ":" + h.equipo() + ":" + h.baja())
                 .containsExactly("2026-27:Cadete A:false", "2025-26:Infantil A:false");

@@ -23,7 +23,7 @@ import com.mikedev.mutxamelcf.service.EquipoService;
 import com.mikedev.mutxamelcf.service.NuevaTemporadaService;
 
 /**
- * Asistente "Nueva temporada" del panel. Solo SUPER y ADMIN (ver SecurityConfig). Las acciones devuelven JSON con
+ * Asistente "Nueva temporada" del panel. Solo SUPER (ver SecurityConfig). Las acciones devuelven JSON con
  * {@code mensaje} o {@code error} porque las llama la propia página.
  */
 @Controller
@@ -104,6 +104,27 @@ public class NuevaTemporadaAdminController {
 		return ejecutar("guardar fila", () -> {
 			nuevaTemporadaService.guardarFila(temporadaId, jugadorId, equipoId, dorsal, baja, anioNacimiento);
 			return "Fila guardada.";
+		});
+	}
+
+	@PostMapping("/continuidad")
+	@ResponseBody
+	public ResponseEntity<Map<String, String>> continuidad(@RequestParam Long temporadaId, @RequestParam Long jugadorId,
+			@RequestParam String continuidad) {
+		return ejecutar("marcar continuidad", () -> {
+			nuevaTemporadaService.marcarContinuidad(temporadaId, jugadorId, continuidad);
+			return "Continuidad guardada.";
+		});
+	}
+
+	@PostMapping("/prueba/anadir")
+	@ResponseBody
+	public ResponseEntity<Map<String, String>> anadirPrueba(@RequestParam Long temporadaId,
+			@RequestParam String nombre, @RequestParam String apellidos,
+			@RequestParam(name = "anioNacimiento", required = false) Integer anioNacimiento) {
+		return ejecutar("añadir prueba", () -> {
+			nuevaTemporadaService.anadirPrueba(temporadaId, nombre, apellidos, anioNacimiento);
+			return "Jugador de prueba añadido al borrador.";
 		});
 	}
 

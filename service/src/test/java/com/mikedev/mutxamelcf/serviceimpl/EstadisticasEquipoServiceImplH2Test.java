@@ -522,8 +522,8 @@ class EstadisticasEquipoServiceImplH2Test {
     // ---- plantilla por temporada ---------------------------------------------------------------
 
     private void plantilla(long jugador, long temporada, Long equipo, Integer dorsal, boolean baja) {
-        jdbc.update("INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID, EQUIPO_ID, DORSAL, BAJA, ESTADO)"
-                + " VALUES (?, ?, ?, ?, ?, ?)", jugador, temporada, equipo, dorsal, baja ? 1 : 0,
+        jdbc.update("INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID, EQUIPO_ID, DORSAL, ESTADO)"
+                + " VALUES (?, ?, ?, ?, ?)", jugador, temporada, equipo, dorsal,
                 baja ? "BAJA" : "CONFIRMADO");
     }
 

@@ -15,10 +15,9 @@ public class JugadorTemporada {
 	private String equipoNombre;
 	private String categoria;
 	private Integer dorsal;
-	private boolean baja;
 	private boolean pendienteRevision;
-	private String estado;
-	private String continuidad;
+	private String estado = "CONFIRMADO";
+	private String continuidad = "PENDIENTE";
 	private LocalDateTime fechaContinuidad;
 	private Long usuarioAppContinuidadId;
 	private boolean equipoDefinitivo = true;
@@ -35,7 +34,7 @@ public class JugadorTemporada {
 	private String temporadaNombre;
 	private boolean jugadorDeBaja;
 
-	/** CONFIRMADO, PRUEBA o BAJA. Coherente con {@link #isBaja()}: BAJA solo si baja. */
+	/** CONFIRMADO, PRUEBA o BAJA (JUGADOR_TEMPORADA.ESTADO): la única fuente de verdad de la baja. */
 	public String getEstado() {
 		return estado;
 	}
@@ -133,12 +132,26 @@ public class JugadorTemporada {
 		this.dorsal = dorsal;
 	}
 
+	/** ESTADO = 'BAJA'. */
 	public boolean isBaja() {
-		return baja;
+		return "BAJA".equals(estado);
 	}
 
+	/** Baja: ESTADO = 'BAJA'. Quitarla solo cambia el ESTADO si era 'BAJA' (pasa a 'CONFIRMADO'); una PRUEBA se conserva. */
 	public void setBaja(boolean baja) {
-		this.baja = baja;
+		if (baja) {
+			this.estado = "BAJA";
+		} else if ("BAJA".equals(estado)) {
+			this.estado = "CONFIRMADO";
+		}
+	}
+
+	/**
+	 * Marcada a revisar o, si se queda (CONFIRMADO), con la continuidad sin contestar (PENDIENTE) o dudosa (DUDA).
+	 */
+	public boolean requiereRevision() {
+		return pendienteRevision
+				|| ("CONFIRMADO".equals(estado) && ("PENDIENTE".equals(continuidad) || "DUDA".equals(continuidad)));
 	}
 
 	public boolean isPendienteRevision() {

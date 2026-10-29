@@ -36,6 +36,9 @@ public interface JugadorDao {
 	/** Quita la baja y lo asigna al equipo (copiando nombre, categoría y deporte). */
 	boolean reactivar(Long id, Long equipoId, String equipoNombre, String categoria, String deporte);
 
+	/** Quita la baja (FECHA_BAJA = NULL) sin equipo y con la categoría dada: una prueba que pasa a plantilla. */
+	boolean activarSinEquipo(Long id, String categoria);
+
 	/** Asignación de plantilla al aplicar una temporada: equipo (con las copias) y dorsal. */
 	boolean asignarPlantilla(Long id, Long equipoId, String equipoNombre, String categoria, String deporte,
 			Integer dorsal);

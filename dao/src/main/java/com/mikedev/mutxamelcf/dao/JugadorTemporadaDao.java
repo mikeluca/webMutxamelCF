@@ -21,6 +21,12 @@ public interface JugadorTemporadaDao {
 	/** Borra el borrador entero de la temporada. */
 	int eliminarPorTemporada(Long temporadaId);
 
+	/** Borra las filas de la temporada salvo las PRUEBA (no salen de la plantilla actual: no se pueden regenerar). */
+	int eliminarBorradorSinPrueba(Long temporadaId);
+
+	/** Si el jugador tiene alguna fila con ESTADO = 'PRUEBA' (una prueba pendiente de pasar a plantilla). */
+	boolean esDePrueba(Long jugadorId);
+
 	/** Jugadores de la plantilla actual (sin baja) que no tienen fila en esa temporada. */
 	List<Jugador> jugadoresActivosSinFila(Long temporadaId);
 

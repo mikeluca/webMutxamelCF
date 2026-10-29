@@ -165,6 +165,23 @@ class EsquemaH2Test {
     }
 
     @Test
+    void jugadorTemporadaNoTieneLaColumnaBajaYElScriptDeSqlLaQuita() throws Exception {
+        JdbcTemplate jdbc = nuevaBase();
+        EsquemaH2.crearPersonal(jdbc);
+        EsquemaH2.crearPlantillas(jdbc);
+
+        assertThat(columnas(jdbc, "JUGADOR_TEMPORADA")).doesNotContain("BAJA")
+                .contains("ESTADO", "CONTINUIDAD", "EQUIPO_DEFINITIVO");
+
+        String script = Files.readString(Path.of("..", "sql", "2026-10-30_jugador_temporada_sin_baja.sql"));
+        assertThat(script).contains("ALTER TABLE JUGADOR_TEMPORADA DROP CONSTRAINT CK_JT_BAJA_ESTADO;",
+                "ALTER TABLE JUGADOR_TEMPORADA DROP COLUMN BAJA;",
+                "UPDATE JUGADOR_TEMPORADA SET ESTADO = 'BAJA' WHERE BAJA = 1 AND ESTADO <> 'BAJA';");
+        // El DROP CHECK va antes que el DROP COLUMN
+        assertThat(script.indexOf("DROP CONSTRAINT CK_JT_BAJA_ESTADO")).isLessThan(script.indexOf("DROP COLUMN BAJA"));
+    }
+
+    @Test
     void elModeloDeTransicionNoFallaSinLasTablasQueModifica() {
         JdbcTemplate jdbc = nuevaBase();
 

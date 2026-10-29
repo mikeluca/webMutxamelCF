@@ -169,6 +169,11 @@ public class JugadorServiceImpl implements JugadorService {
 			return;
 		}
 
+		// Una prueba dada de alta desde "Nueva temporada" todavía no existe en la temporada activa
+		if (jugador.estaDeBaja() && jugadorTemporadaDao.esDePrueba(jugador.getId())) {
+			return;
+		}
+
 		boolean deBaja = baja != null ? baja : jugador.estaDeBaja();
 		JugadorTemporada fila = jugadorTemporadaDao.obtener(jugador.getId(), activa.getId());
 		if (fila == null) {

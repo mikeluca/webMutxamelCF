@@ -163,11 +163,18 @@ public class SecurityConfig {
                                                 .hasAnyRole("SUPER", "ADMIN")
 
                                                 /*
-                                                 * Asistente "Nueva temporada" y categorias por edad:
+                                                 * Asistente "Nueva temporada": cambia la plantilla de todo el
+                                                 * club y activa la temporada; solo el rol SUPER.
+                                                 */
+                                                .requestMatchers(
+                                                                "/admin/nueva-temporada/**")
+                                                .hasRole("SUPER")
+
+                                                /*
+                                                 * Categorias por edad y fusion de cuerpo tecnico:
                                                  * solo administradores del panel (SUPER y ADMIN).
                                                  */
                                                 .requestMatchers(
-                                                                "/admin/nueva-temporada/**",
                                                                 "/admin/categorias-edad/**",
                                                                 "/admin/cuerpo-tecnico/fusionar/**",
                                                                 "/admin/cuerpo-tecnico/fusionar")

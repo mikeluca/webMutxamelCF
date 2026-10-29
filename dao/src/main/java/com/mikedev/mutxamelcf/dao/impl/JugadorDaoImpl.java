@@ -36,6 +36,14 @@ public class JugadorDaoImpl implements JugadorDao {
 
 	private static final RowMapper<Jugador> JUGADOR_ROW_MAPPER = JugadorDaoImpl::mapRow;
 
+	/**
+	 * Subconsulta: el jugador (J) tiene una fila PRUEBA, es decir, es una prueba dada de alta desde "Nueva temporada".
+	 * Mientras la temporada no se aplica su ficha tiene FECHA_BAJA solo para que los listados de jugadores activos
+	 * (todos filtran por FECHA_BAJA IS NULL) no la vean.
+	 */
+	private static final String PRUEBA_PENDIENTE = "SELECT 1 FROM JUGADOR_TEMPORADA JTP"
+			+ " WHERE JTP.JUGADOR_ID = J.ID AND JTP.ESTADO = 'PRUEBA'";
+
 	private final JdbcTemplate jdbcTemplate;
 
 	public JugadorDaoImpl(JdbcTemplate jdbcTemplate) {
@@ -156,7 +164,9 @@ public class JugadorDaoImpl implements JugadorDao {
 	@Override
 	public List<Jugador> obtenerTodos() {
 		logger.debug("Inicio obtenerTodos");
-		String sql = SELECT_JUGADOR + " ORDER BY J.DEPORTE, E.NOMBRE, J.APELLIDOS";
+		// Sin las pruebas todavía ocultas (ficha con FECHA_BAJA y una fila PRUEBA pendiente de aplicar)
+		String sql = SELECT_JUGADOR + " WHERE (J.FECHA_BAJA IS NULL OR NOT EXISTS (" + PRUEBA_PENDIENTE + "))"
+				+ " ORDER BY J.DEPORTE, E.NOMBRE, J.APELLIDOS";
 
 		List<Jugador> jugadores = jdbcTemplate.query(sql, JUGADOR_ROW_MAPPER);
 		logger.debug("Fin obtenerTodos: total={}", jugadores.size());
@@ -176,7 +186,9 @@ public class JugadorDaoImpl implements JugadorDao {
 	@Override
 	public List<Jugador> obtenerBajas() {
 		logger.debug("Inicio obtenerBajas");
-		String sql = SELECT_JUGADOR + " WHERE J.FECHA_BAJA IS NOT NULL ORDER BY J.FECHA_BAJA DESC, J.APELLIDOS";
+		// Una prueba oculta no es una baja
+		String sql = SELECT_JUGADOR + " WHERE J.FECHA_BAJA IS NOT NULL AND NOT EXISTS (" + PRUEBA_PENDIENTE + ")"
+				+ " ORDER BY J.FECHA_BAJA DESC, J.APELLIDOS";
 
 		List<Jugador> jugadores = jdbcTemplate.query(sql, JUGADOR_ROW_MAPPER);
 		logger.debug("Fin obtenerBajas: total={}", jugadores.size());
@@ -200,6 +212,13 @@ public class JugadorDaoImpl implements JugadorDao {
 				equipoId, equipoNombre, categoria, deporte, id) == 1;
 		logger.info("Jugador reactivado: id={}, reactivado={}", id, reactivado);
 		return reactivado;
+	}
+
+	@Override
+	public boolean activarSinEquipo(Long id, String categoria) {
+		return jdbcTemplate.update(
+				"UPDATE JUGADORES SET FECHA_BAJA = NULL, EQUIPO_ID = NULL, CATEGORIA = COALESCE(?, CATEGORIA) WHERE ID = ?",
+				categoria, id) == 1;
 	}
 
 	@Override

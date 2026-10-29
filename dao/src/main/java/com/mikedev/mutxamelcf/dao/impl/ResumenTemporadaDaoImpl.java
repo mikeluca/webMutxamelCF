@@ -161,7 +161,7 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 				      AND EJ.PARTIDO_ID IN (SELECT PP.ID FROM PARTIDOS PP
 				                             WHERE PP.CANCELADO = 0 AND PP.EQUIPO_ID = ?
 				                               AND PP.DIA BETWEEN ? AND ?)
-				WHERE ((JT.ID IS NOT NULL AND JT.EQUIPO_ID = ? AND JT.BAJA = 0)
+				WHERE ((JT.ID IS NOT NULL AND JT.EQUIPO_ID = ? AND JT.ESTADO <> 'BAJA')
 				    OR (JT.ID IS NULL AND J.EQUIPO_ID = ?))
 				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, COALESCE(JT.DORSAL, J.DORSAL)
 				""".formatted(SIN_RESULTADO),
@@ -209,7 +209,7 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 				      AND A.ENTRENAMIENTO_ID IN (SELECT EN.ID FROM ENTRENAMIENTOS EN
 				                                  WHERE EN.EQUIPO_ID = ? AND EN.LISTA_REVISADA = 1
 				                                    AND EN.FECHA BETWEEN ? AND ?)
-				WHERE ((JT.ID IS NOT NULL AND JT.EQUIPO_ID = ? AND JT.BAJA = 0)
+				WHERE ((JT.ID IS NOT NULL AND JT.EQUIPO_ID = ? AND JT.ESTADO <> 'BAJA')
 				    OR (JT.ID IS NULL AND J.EQUIPO_ID = ?))
 				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, COALESCE(JT.DORSAL, J.DORSAL)
 				""",

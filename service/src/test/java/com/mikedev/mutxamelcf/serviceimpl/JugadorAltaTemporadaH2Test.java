@@ -78,7 +78,7 @@ class JugadorAltaTemporadaH2Test {
                 .isEqualTo(1L);
         assertThat(jdbc.queryForObject("SELECT DORSAL FROM JUGADOR_TEMPORADA WHERE JUGADOR_ID = ?", Integer.class, id))
                 .isEqualTo(9);
-        assertThat(jdbc.queryForObject("SELECT BAJA FROM JUGADOR_TEMPORADA WHERE JUGADOR_ID = ?", Integer.class, id))
-                .isZero();
+        assertThat(jdbc.queryForObject("SELECT ESTADO FROM JUGADOR_TEMPORADA WHERE JUGADOR_ID = ?", String.class, id))
+                .isEqualTo("CONFIRMADO");
     }
 }
