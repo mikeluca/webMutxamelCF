@@ -246,30 +246,30 @@ class CoordinacionServiceImplH2Test {
         assertThat(r.resumen().sinPartido()).isEqualTo(1);
     }
 
-@Test
-void unEquipoQueNoJuegaEstaTemporadaNoSeReclamaComoPosibleImportacion() {
-    relacionFfcv(1);
-    relacionFfcv(3);
-    partido(1, VIERNES.plusDays(1), "11:00", false, null, null);
-    jdbc.update("UPDATE EQUIPO_TEMPORADA SET ACTIVO = 0 WHERE EQUIPO_ID = 3");
+    @Test
+    void unEquipoQueNoJuegaEstaTemporadaNoSeReclamaComoPosibleImportacion() {
+        relacionFfcv(1);
+        relacionFfcv(3);
+        partido(1, VIERNES.plusDays(1), "11:00", false, null, null);
+        jdbc.update("UPDATE EQUIPO_TEMPORADA SET ACTIVO = 0 WHERE EQUIPO_ID = 3");
 
-    FinDeSemanaResponse r = service.obtenerFinDeSemana(COORDINADOR, null);
+        FinDeSemanaResponse r = service.obtenerFinDeSemana(COORDINADOR, null);
 
-    assertThat(r.sinPartido()).isEmpty();
-}
+        assertThat(r.sinPartido()).isEmpty();
+    }
 
-@Test
-void elEnlaceFfcvDeOtraTemporadaNoCuentaParaLaTemporadaActiva() {
-    jdbc.update("INSERT INTO TEMPORADAS VALUES (0, '2025/2026', DATE '2025-07-01', DATE '2026-06-30', 0)");
-    jdbc.update("INSERT INTO EQUIPOS_FFCV (EQUIPO_ID, COMPETICION, LETRA, TEMPORADA_ID) VALUES (3, 'Antigua', 'A', 0)");
+    @Test
+    void elEnlaceFfcvDeOtraTemporadaNoCuentaParaLaTemporadaActiva() {
+        jdbc.update("INSERT INTO TEMPORADAS VALUES (0, '2025/2026', DATE '2025-07-01', DATE '2026-06-30', 0)");
+        jdbc.update("INSERT INTO EQUIPOS_FFCV (EQUIPO_ID, COMPETICION, LETRA, TEMPORADA_ID) VALUES (3, 'Antigua', 'A', 0)");
 
-    FinDeSemanaResponse r = service.obtenerFinDeSemana(COORDINADOR, null);
+        FinDeSemanaResponse r = service.obtenerFinDeSemana(COORDINADOR, null);
 
-    assertThat(r.sinPartido()).isEmpty();
-}
+        assertThat(r.sinPartido()).isEmpty();
+    }
 
-@Test
-void laUltimaImportacionEsLaMasRecienteDeUnPartidoFfcv() {
+    @Test
+    void laUltimaImportacionEsLaMasRecienteDeUnPartidoFfcv() {
         long ffcv = partido(1, VIERNES, "10:00", false, null, null);
         long otro = partido(1, VIERNES, "12:00", false, null, null);
         long manual = partido(1, VIERNES, "14:00", false, null, null);

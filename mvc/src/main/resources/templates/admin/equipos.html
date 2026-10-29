@@ -151,6 +151,7 @@
 								<option value="Fem">Fem</option>
 								<!--								<option value="FS">FS</option>-->
 								<option value="Esc">Escuelita</option>
+								<option value="P">Pretemporada</option>
 							</select>
 						</div>
 						<div class="form-group">
@@ -243,6 +244,7 @@
 			document.getElementById('equipoId').value = data.id || '';
 			document.getElementById('deporte').value = data.deporte || '';
 			document.getElementById('cate').value = data.categoria || '';
+			asegurarOpcionDeGrupo(data.grupo);
 			document.getElementById('grupo').value = data.grupo || '';
 			document.getElementById('modalidad').value = data.modalidad || '';
 			document.getElementById('juega').value = data.juega || '1';
@@ -250,10 +252,19 @@
 		}
 
 		// Función para actualizar el campo "nombre"
+		// Un grupo que no está en la lista (p. ej. uno creado a mano) se añade para que al editar se respete tal cual
+		function asegurarOpcionDeGrupo(grupo) {
+			const select = document.getElementById('grupo');
+			if (grupo && !Array.from(select.options).some(o => o.value === grupo)) {
+				select.add(new Option(grupo, grupo));
+			}
+		}
+
 		function actualizarNombre() {
 			const categoria = document.getElementById('cate').value;
 			const grupo = document.getElementById('grupo').value;
-			document.getElementById('nombre').value = categoria + ' ' + grupo;
+			// El equipo de pretemporada que crea el cierre de temporada se llama "<Categoría> (Pretemporada)"
+			document.getElementById('nombre').value = grupo === 'P' ? categoria + ' (Pretemporada)' : categoria + ' ' + grupo;
 		}
 
 		document.getElementById('cate').addEventListener('change', actualizarNombre);

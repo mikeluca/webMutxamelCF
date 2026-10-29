@@ -170,7 +170,7 @@ class NuevaTemporadaServiceImplH2Test {
                 CierreTemporadaDao cierreTemporadaDao, PlatformTransactionManager transactionManager,
                 NotificacionAppService notificacionAppService, Clock clock) {
             return new NuevaTemporadaServiceImpl(temporadaDao, jugadorDao, jugadorTemporadaDao, equipoDao,
-                    categoriaPorEdad, cierreTemporadaDao, transactionManager, notificacionAppService, clock);
+                    categoriaPorEdad, cierreTemporadaDao, transactionManager, notificacionAppService, clock, true);
         }
 
         @Bean
@@ -1390,6 +1390,70 @@ class NuevaTemporadaServiceImplH2Test {
         assertThat(numero("SELECT COUNT(*) FROM NOTIFICACIONES_APP")).isZero();
         assertThat(temporadaActiva()).isEqualTo(DESTINO);
         assertThat(numero("SELECT COUNT(*) FROM TEMPORADAS WHERE ACTIVA = 1")).isEqualTo(1);
+    }
+
+    // ---- cerrar temporada: seguro contra un cierre adelantado ------------------------------------------
+
+    /** El mismo servicio pero con el seguro puesto (o no) y la fecha de hoy que se indique. */
+    private NuevaTemporadaServiceImpl servicioConSeguro(boolean permitirAntes, LocalDate hoy) {
+        return new NuevaTemporadaServiceImpl(contexto.getBean(TemporadaDao.class), jugadorDao, jugadorTemporadaDao,
+                contexto.getBean(EquipoDao.class), contexto.getBean(CategoriaPorEdad.class), cierreDao,
+                contexto.getBean(PlatformTransactionManager.class), notificacionAppService,
+                Clock.fixed(hoy.atTime(10, 0).atZone(ZoneId.of("Europe/Madrid")).toInstant(), ZoneId.of("Europe/Madrid")),
+                permitirAntes);
+    }
+
+    @Test
+    void antesDeLaFechaDeInicioElCierreEstaBloqueadoYSeVeEnElResumen() {
+        prepararElCierre();
+        NuevaTemporadaServiceImpl estricto = servicioConSeguro(false, LocalDate.of(2027, 8, 31));
+
+        ResumenCierreDTO resumen = estricto.resumenCierre(DESTINO);
+
+        assertThat(resumen.puedeCerrar()).isFalse();
+        assertThat(resumen.bloqueos()).containsExactly(
+                "La temporada 2027-28 empieza el 01/09/2027: no se puede cerrar antes");
+        Map<String, Object> antes = fotoDelEstado();
+        assertThatThrownBy(() -> estricto.cerrar(DESTINO, "2027-28")).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("2027-28 empieza el 01/09/2027");
+        assertThat(fotoDelEstado()).isEqualTo(antes);
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+    }
+
+    @Test
+    void elBloqueoDeLaFechaSeSumaALosDemas() {
+        datosDeLasReglas();
+        asistente.generarPropuesta(DESTINO);
+
+        ResumenCierreDTO resumen = servicioConSeguro(false, LocalDate.of(2027, 1, 15)).resumenCierre(DESTINO);
+
+        assertThat(resumen.bloqueos()).hasSizeGreaterThan(1);
+        assertThat(resumen.bloqueos().get(0)).startsWith("La temporada 2027-28 empieza el 01/09/2027");
+        assertThat(resumen.bloqueos()).anyMatch(b -> b.contains("pendiente"));
+    }
+
+    @Test
+    void elDiaDeInicioYAPuedeCerrarse() {
+        prepararElCierre();
+        NuevaTemporadaServiceImpl estricto = servicioConSeguro(false, LocalDate.of(2027, 9, 1));
+
+        assertThat(estricto.resumenCierre(DESTINO).puedeCerrar()).isTrue();
+
+        estricto.cerrar(DESTINO, "2027-28");
+
+        assertThat(temporadaActiva()).isEqualTo(DESTINO);
+    }
+
+    @Test
+    void conLaPropiedadDeEnsayoSePuedeCerrarAntesDeLaFechaDeInicio() {
+        prepararElCierre();
+        NuevaTemporadaServiceImpl ensayo = servicioConSeguro(true, LocalDate.of(2027, 5, 10));
+
+        assertThat(ensayo.resumenCierre(DESTINO).puedeCerrar()).isTrue();
+
+        ensayo.cerrar(DESTINO, "2027-28");
+
+        assertThat(temporadaActiva()).isEqualTo(DESTINO);
     }
 
     // ---- cerrar temporada: el aviso y los fallos --------------------------------------------------------

@@ -220,47 +220,47 @@ class EquipoServiceImplTest {
         assertThat(resultado).extracting(EquipoDTO::getNombre).containsExactly("Senior A", "Senior B");
     }
 
-@Test
-void obtenerPublicosDevuelveLosPublicosDelDaoYLosOrdena() {
-    Equipo b = new Equipo(2L, "SENIOR", "B", "2", "Senior B", "F");
-    Equipo a = new Equipo(1L, "SENIOR", "A", "1", "Senior A", "F");
-    when(equipoDao.obtenerActivosPublicos()).thenReturn(List.of(b, a));
+    @Test
+    void obtenerPublicosDevuelveLosPublicosDelDaoYLosOrdena() {
+        Equipo b = new Equipo(2L, "SENIOR", "B", "2", "Senior B", "F");
+        Equipo a = new Equipo(1L, "SENIOR", "A", "1", "Senior A", "F");
+        when(equipoDao.obtenerActivosPublicos()).thenReturn(List.of(b, a));
 
-    assertThat(equipoService.obtenerPublicos()).extracting(EquipoDTO::getNombre)
-            .containsExactly("Senior A", "Senior B");
-    org.mockito.Mockito.verify(equipoDao, org.mockito.Mockito.never()).obtenerTodos();
-}
+        assertThat(equipoService.obtenerPublicos()).extracting(EquipoDTO::getNombre)
+                .containsExactly("Senior A", "Senior B");
+        org.mockito.Mockito.verify(equipoDao, org.mockito.Mockito.never()).obtenerTodos();
+    }
 
-@Test
-void elPanelDeEquiposVeTodosConSuEstadoEnLaTemporada() {
-    Equipo juega = new Equipo(1L, "SENIOR", "A", "1", "Senior A", "F");
-    juega.setActivoTemporada(true);
-    juega.setTipoTemporada("PRETEMPORADA");
-    Equipo noJuega = new Equipo(2L, "SENIOR", "B", "2", "Senior B", "F");
-    noJuega.setActivoTemporada(false);
-    when(equipoDao.obtenerTodos()).thenReturn(List.of(juega, noJuega));
+    @Test
+    void elPanelDeEquiposVeTodosConSuEstadoEnLaTemporada() {
+        Equipo juega = new Equipo(1L, "SENIOR", "A", "1", "Senior A", "F");
+        juega.setActivoTemporada(true);
+        juega.setTipoTemporada("PRETEMPORADA");
+        Equipo noJuega = new Equipo(2L, "SENIOR", "B", "2", "Senior B", "F");
+        noJuega.setActivoTemporada(false);
+        when(equipoDao.obtenerTodos()).thenReturn(List.of(juega, noJuega));
 
-    List<EquipoDTO> resultado = equipoService.obtenerTodosConEstadoTemporada();
+        List<EquipoDTO> resultado = equipoService.obtenerTodosConEstadoTemporada();
 
-    assertThat(resultado).extracting(EquipoDTO::getActivoTemporada).containsExactly(true, false);
-    assertThat(resultado.get(0).getTipoTemporada()).isEqualTo("PRETEMPORADA");
-}
+        assertThat(resultado).extracting(EquipoDTO::getActivoTemporada).containsExactly(true, false);
+        assertThat(resultado.get(0).getTipoTemporada()).isEqualTo("PRETEMPORADA");
+    }
 
-@Test
-void guardarPasaAlDaoSiElEquipoJuegaEstaTemporada() {
-    EquipoDTO dto = new EquipoDTO(null, "Senior", "A", "1", "Senior A", "F");
-    dto.setActivoTemporada(false);
-    when(equipoDao.guardar(any(Equipo.class))).thenReturn(true);
+    @Test
+    void guardarPasaAlDaoSiElEquipoJuegaEstaTemporada() {
+        EquipoDTO dto = new EquipoDTO(null, "Senior", "A", "1", "Senior A", "F");
+        dto.setActivoTemporada(false);
+        when(equipoDao.guardar(any(Equipo.class))).thenReturn(true);
 
-    equipoService.guardar(dto);
+        equipoService.guardar(dto);
 
-    org.mockito.ArgumentCaptor<Equipo> captor = org.mockito.ArgumentCaptor.forClass(Equipo.class);
-    org.mockito.Mockito.verify(equipoDao).guardar(captor.capture());
-    assertThat(captor.getValue().getActivoTemporada()).isFalse();
-}
+        org.mockito.ArgumentCaptor<Equipo> captor = org.mockito.ArgumentCaptor.forClass(Equipo.class);
+        org.mockito.Mockito.verify(equipoDao).guardar(captor.capture());
+        assertThat(captor.getValue().getActivoTemporada()).isFalse();
+    }
 
-@Test
-void obtenerTodosPorCategoriaOrdenaPorOrdenYNombre() {
+    @Test
+    void obtenerTodosPorCategoriaOrdenaPorOrdenYNombre() {
         Equipo equipo = new Equipo();
         equipo.setOrden("1");
         equipo.setNombre("Senior A");

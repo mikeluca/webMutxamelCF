@@ -72,7 +72,8 @@ public class EquipoAdminController {
 			EquipoDTO equipo = new EquipoDTO();
 			equipo.setId(id);
 			equipo.setCategoria(categoria);
-			equipo.setNombre(nombre);
+			// Grupo P: el equipo de pretemporada del cierre de temporada, que se busca por este nombre exacto
+			equipo.setNombre("P".equals(grupo.trim()) ? categoria.trim() + " (Pretemporada)" : nombre);
 			equipo.setGrupo(grupo);
 			equipo.setDeporte(deporte);
 			equipo.setModalidad(modalidadAGuardar(id, modalidad, modalidadNormalizada));

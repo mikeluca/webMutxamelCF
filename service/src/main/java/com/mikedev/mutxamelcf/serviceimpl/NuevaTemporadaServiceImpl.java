@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.serviceimpl;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -18,6 +19,7 @@ import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,11 +69,14 @@ public class NuevaTemporadaServiceImpl implements NuevaTemporadaService {
 	private final PlatformTransactionManager transactionManager;
 	private final NotificacionAppService notificacionAppService;
 	private final Clock clock;
+	private final boolean permitirCierreAntesDeInicio;
 
 	public NuevaTemporadaServiceImpl(TemporadaDao temporadaDao, JugadorDao jugadorDao,
 			JugadorTemporadaDao jugadorTemporadaDao, EquipoDao equipoDao, CategoriaPorEdad categoriaPorEdad,
 			CierreTemporadaDao cierreDao, PlatformTransactionManager transactionManager,
-			NotificacionAppService notificacionAppService, Clock clock) {
+			NotificacionAppService notificacionAppService, Clock clock,
+			@Value("${app.cierre-temporada.permitir-antes-de-inicio:false}") boolean permitirCierreAntesDeInicio) {
+		this.permitirCierreAntesDeInicio = permitirCierreAntesDeInicio;
 		this.cierreDao = cierreDao;
 		this.transactionManager = transactionManager;
 		this.notificacionAppService = notificacionAppService;
@@ -624,6 +629,13 @@ public class NuevaTemporadaServiceImpl implements NuevaTemporadaService {
 		List<JugadorTemporada> filas = jugadorTemporadaDao.listarPorTemporada(destinoId);
 
 		List<String> bloqueos = new ArrayList<>();
+		// Seguro contra un cierre adelantado: solo se puede cerrar desde el día en que empieza la temporada nueva
+		// (en DEV se puede ensayar antes con app.cierre-temporada.permitir-antes-de-inicio=true)
+		LocalDate inicio = aLocalDate(destino.getFechaInicio());
+		if (!permitirCierreAntesDeInicio && LocalDate.now(clock).isBefore(inicio)) {
+			bloqueos.add("La temporada " + destino.getNombre() + " empieza el "
+					+ inicio.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ": no se puede cerrar antes");
+		}
 		int sinFila = jugadorTemporadaDao.jugadoresActivosSinFila(destinoId).size();
 		if (sinFila > 0) {
 			bloqueos.add(sinFila + " jugador(es) activo(s) sin fila en " + destino.getNombre()

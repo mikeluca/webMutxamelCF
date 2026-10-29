@@ -160,6 +160,11 @@ public class CierreTemporadaDaoImpl implements CierreTemporadaDao {
 				""", destinoId, origenId, destinoId);
 	}
 
+	// Ninguna tabla referencia NOTIFICACIONES_APP en el código ni en sql/ (REFERENCIA_ID es un ID suelto, sin FK):
+	// no hay nada que borrar antes. Si en la base de datos hubiera una FK, este DELETE fallaría con ORA-02292 y el
+	// cierre se deshace entero. Comprobación (devuelve 0 filas si no hay ninguna):
+	// SELECT C.TABLE_NAME, C.CONSTRAINT_NAME FROM USER_CONSTRAINTS C JOIN USER_CONSTRAINTS R
+	// ON R.CONSTRAINT_NAME = C.R_CONSTRAINT_NAME WHERE C.CONSTRAINT_TYPE = 'R' AND R.TABLE_NAME = 'NOTIFICACIONES_APP'
 	@Override
 	public int eliminarNotificaciones() {
 		return jdbcTemplate.update("DELETE FROM NOTIFICACIONES_APP");
