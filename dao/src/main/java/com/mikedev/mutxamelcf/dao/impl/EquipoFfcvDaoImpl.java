@@ -74,10 +74,11 @@ public class EquipoFfcvDaoImpl implements EquipoFfcvDao {
 		logger.debug("Inicio crear: equipoId={}", equipoFfcv.getEquipoId());
 
 		KeyHolder keyHolder = new GeneratedKeyHolder();
+		long temporadaId = TemporadaActivaId.obtener(jdbcTemplate);
 
 		jdbcTemplate.update(connection -> {
 			PreparedStatement ps = connection.prepareStatement(
-					"INSERT INTO EQUIPOS_FFCV (EQUIPO_ID, COMPETICION, LETRA) VALUES (?, ?, ?)",
+					"INSERT INTO EQUIPOS_FFCV (EQUIPO_ID, COMPETICION, LETRA, TEMPORADA_ID) VALUES (?, ?, ?, ?)",
 					new String[] { "ID" });
 			ps.setLong(1, equipoFfcv.getEquipoId());
 			ps.setString(2, equipoFfcv.getCompeticion());
@@ -86,6 +87,7 @@ public class EquipoFfcvDaoImpl implements EquipoFfcvDao {
 			} else {
 				ps.setNull(3, Types.VARCHAR);
 			}
+			ps.setLong(4, temporadaId);
 			return ps;
 		}, keyHolder);
 

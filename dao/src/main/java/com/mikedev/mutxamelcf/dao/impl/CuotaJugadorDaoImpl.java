@@ -187,6 +187,7 @@ public class CuotaJugadorDaoImpl implements CuotaJugadorDao {
                 UPDATE CUOTAS_JUGADOR cuota
                 SET ESTADO = CASE
                     WHEN NVL((SELECT SUM(p.IMPORTE) FROM PAGOS p WHERE p.CUOTA_JUGADOR_ID = cuota.ID), 0) >= cuota.IMPORTE THEN 'PAGADO'
+                    WHEN cuota.ESTADO = 'INCOBRABLE' THEN 'INCOBRABLE'
                     WHEN NVL((SELECT SUM(p.IMPORTE) FROM PAGOS p WHERE p.CUOTA_JUGADOR_ID = cuota.ID), 0) > 0 THEN 'PARCIAL'
                     ELSE 'PENDIENTE'
                 END

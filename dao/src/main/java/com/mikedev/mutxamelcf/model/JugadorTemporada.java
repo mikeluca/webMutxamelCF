@@ -17,6 +17,11 @@ public class JugadorTemporada {
 	private Integer dorsal;
 	private boolean baja;
 	private boolean pendienteRevision;
+	private String estado;
+	private String continuidad;
+	private LocalDateTime fechaContinuidad;
+	private Long usuarioAppContinuidadId;
+	private boolean equipoDefinitivo = true;
 	private String nota;
 	private LocalDateTime fechaCreacion;
 	private LocalDateTime fechaActualizacion;
@@ -29,6 +34,48 @@ public class JugadorTemporada {
 	private String equipoActualNombre;
 	private String temporadaNombre;
 	private boolean jugadorDeBaja;
+
+	/** CONFIRMADO, PRUEBA o BAJA. Coherente con {@link #isBaja()}: BAJA solo si baja. */
+	public String getEstado() {
+		return estado;
+	}
+
+	public void setEstado(String estado) {
+		this.estado = estado;
+	}
+
+	/** PENDIENTE, SIGUE, NO_SIGUE o DUDA: la respuesta de la familia en el borrador. */
+	public String getContinuidad() {
+		return continuidad;
+	}
+
+	public void setContinuidad(String continuidad) {
+		this.continuidad = continuidad;
+	}
+
+	public LocalDateTime getFechaContinuidad() {
+		return fechaContinuidad;
+	}
+
+	public void setFechaContinuidad(LocalDateTime fechaContinuidad) {
+		this.fechaContinuidad = fechaContinuidad;
+	}
+
+	public Long getUsuarioAppContinuidadId() {
+		return usuarioAppContinuidadId;
+	}
+
+	public void setUsuarioAppContinuidadId(Long usuarioAppContinuidadId) {
+		this.usuarioAppContinuidadId = usuarioAppContinuidadId;
+	}
+
+	public boolean isEquipoDefinitivo() {
+		return equipoDefinitivo;
+	}
+
+	public void setEquipoDefinitivo(boolean equipoDefinitivo) {
+		this.equipoDefinitivo = equipoDefinitivo;
+	}
 
 	public boolean isJugadorDeBaja() {
 		return jugadorDeBaja;

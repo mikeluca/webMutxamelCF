@@ -20,6 +20,7 @@ public class JugadorTemporadaDaoImpl implements JugadorTemporadaDao {
 	private static final String SELECT = """
 			SELECT JT.JUGADOR_ID, JT.TEMPORADA_ID, JT.EQUIPO_ID, JT.EQUIPO_NOMBRE, JT.CATEGORIA, JT.DORSAL, JT.BAJA,
 			       JT.PENDIENTE_REVISION, JT.NOTA, JT.FECHA_CREACION, JT.FECHA_ACTUALIZACION,
+			       JT.ESTADO, JT.CONTINUIDAD, JT.FECHA_CONTINUIDAD, JT.USUARIO_APP_CONTINUIDAD_ID, JT.EQUIPO_DEFINITIVO,
 			       J.NOMBRE AS JUGADOR_NOMBRE, J.APELLIDOS AS JUGADOR_APELLIDOS, J.ANIO_NACIMIENTO,
 			       J.EQUIPO_ID AS EQUIPO_ACTUAL_ID, EA.NOMBRE AS EQUIPO_ACTUAL_NOMBRE, T.NOMBRE AS TEMPORADA_NOMBRE,
 			       CASE WHEN J.FECHA_BAJA IS NULL THEN 0 ELSE 1 END AS JUGADOR_DE_BAJA
@@ -59,21 +60,35 @@ public class JugadorTemporadaDaoImpl implements JugadorTemporadaDao {
 	public void guardar(JugadorTemporada f) {
 		Timestamp ahora = Timestamp.valueOf(LocalDateTime.now());
 
+		// BAJA y ESTADO van siempre coherentes (CK_JT_BAJA_ESTADO): baja -> 'BAJA'; al quitar la baja, 'CONFIRMADO' si
+		// estaba en 'BAJA'; si no, se conserva el ESTADO de la fila.
+		int baja = f.isBaja() ? 1 : 0;
+
 		int filas = jdbcTemplate.update("""
 				UPDATE JUGADOR_TEMPORADA SET EQUIPO_ID = ?, EQUIPO_NOMBRE = ?, CATEGORIA = ?, DORSAL = ?, BAJA = ?,
+				       ESTADO = CASE WHEN ? = 1 THEN 'BAJA' WHEN ESTADO = 'BAJA' THEN 'CONFIRMADO' ELSE ESTADO END,
 				       PENDIENTE_REVISION = ?, NOTA = ?, FECHA_ACTUALIZACION = ?
 				WHERE JUGADOR_ID = ? AND TEMPORADA_ID = ?""",
-				f.getEquipoId(), f.getEquipoNombre(), f.getCategoria(), f.getDorsal(), f.isBaja() ? 1 : 0,
+				f.getEquipoId(), f.getEquipoNombre(), f.getCategoria(), f.getDorsal(), baja, baja,
 				f.isPendienteRevision() ? 1 : 0, f.getNota(), ahora, f.getJugadorId(), f.getTemporadaId());
 
 		if (filas == 0) {
 			jdbcTemplate.update("""
 					INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID, EQUIPO_ID, EQUIPO_NOMBRE, CATEGORIA, DORSAL,
-					       BAJA, PENDIENTE_REVISION, NOTA, FECHA_CREACION, FECHA_ACTUALIZACION)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+					       BAJA, ESTADO, PENDIENTE_REVISION, NOTA, FECHA_CREACION, FECHA_ACTUALIZACION)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
 					f.getJugadorId(), f.getTemporadaId(), f.getEquipoId(), f.getEquipoNombre(), f.getCategoria(),
-					f.getDorsal(), f.isBaja() ? 1 : 0, f.isPendienteRevision() ? 1 : 0, f.getNota(), ahora, ahora);
+					f.getDorsal(), baja, estadoCoherente(f), f.isPendienteRevision() ? 1 : 0, f.getNota(), ahora, ahora);
 		}
+	}
+
+	// Estado a insertar: 'BAJA' si es baja; el del modelo si lo trae (y no es 'BAJA'); si no, 'CONFIRMADO'.
+	private static String estadoCoherente(JugadorTemporada f) {
+		if (f.isBaja()) {
+			return "BAJA";
+		}
+
+		return f.getEstado() == null || "BAJA".equals(f.getEstado()) ? "CONFIRMADO" : f.getEstado();
 	}
 
 	@Override
@@ -140,6 +155,13 @@ public class JugadorTemporadaDaoImpl implements JugadorTemporadaDao {
 		f.setDorsal(rs.wasNull() ? null : dorsal);
 		f.setBaja(rs.getInt("BAJA") == 1);
 		f.setPendienteRevision(rs.getInt("PENDIENTE_REVISION") == 1);
+		f.setEstado(rs.getString("ESTADO"));
+		f.setContinuidad(rs.getString("CONTINUIDAD"));
+		Timestamp continuidad = rs.getTimestamp("FECHA_CONTINUIDAD");
+		f.setFechaContinuidad(continuidad == null ? null : continuidad.toLocalDateTime());
+		long usuarioContinuidad = rs.getLong("USUARIO_APP_CONTINUIDAD_ID");
+		f.setUsuarioAppContinuidadId(rs.wasNull() ? null : usuarioContinuidad);
+		f.setEquipoDefinitivo(rs.getInt("EQUIPO_DEFINITIVO") == 1);
 		f.setNota(rs.getString("NOTA"));
 		Timestamp creada = rs.getTimestamp("FECHA_CREACION");
 		f.setFechaCreacion(creada == null ? null : creada.toLocalDateTime());

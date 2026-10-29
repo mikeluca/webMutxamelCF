@@ -121,6 +121,78 @@ class EsquemaH2Test {
     }
 
     @Test
+    void elModeloDeTransicionTieneLasColumnasYLasTablasDelScript() {
+        JdbcTemplate jdbc = nuevaBase();
+        jdbc.execute("CREATE TABLE EQUIPOS_FFCV (ID NUMBER PRIMARY KEY, EQUIPO_ID NUMBER, COMPETICION VARCHAR2(200),"
+                + " LETRA VARCHAR2(2), CONSTRAINT UQ_EQUIPOS_FFCV UNIQUE (COMPETICION, LETRA))");
+        EsquemaH2.crearPersonal(jdbc);
+        EsquemaH2.crearPlantillas(jdbc);
+        EsquemaH2.crearTransicion(jdbc);
+
+        assertThat(columnas(jdbc, "JUGADOR_TEMPORADA")).contains("ESTADO", "CONTINUIDAD", "FECHA_CONTINUIDAD",
+                "USUARIO_APP_CONTINUIDAD_ID", "EQUIPO_DEFINITIVO");
+        assertThat(columnas(jdbc, "EQUIPO_TEMPORADA")).containsExactly(
+                "ID", "EQUIPO_ID", "TEMPORADA_ID", "ACTIVO", "MODALIDAD", "TIPO");
+        assertThat(columnas(jdbc, "CUERPO_TECNICO_TEMPORADA")).containsExactly(
+                "ID", "CUERPO_TECNICO_ID", "TEMPORADA_ID", "EQUIPO_ID", "PUESTO");
+        assertThat(columnas(jdbc, "EQUIPOS_FFCV")).contains("TEMPORADA_ID");
+
+        // CHECK de TIPO y de MODALIDAD, y UNIQUE (EQUIPO_ID, TEMPORADA_ID)
+        jdbc.update("INSERT INTO EQUIPO_TEMPORADA (EQUIPO_ID, TEMPORADA_ID, MODALIDAD) VALUES (1, 2, 'F11')");
+        assertThat(jdbc.queryForObject("SELECT ACTIVO * 10 FROM EQUIPO_TEMPORADA", Integer.class)).isEqualTo(10);
+        assertThat(jdbc.queryForObject("SELECT TIPO FROM EQUIPO_TEMPORADA", String.class)).isEqualTo("NORMAL");
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO EQUIPO_TEMPORADA (EQUIPO_ID, TEMPORADA_ID) VALUES (1, 2)"))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update("UPDATE EQUIPO_TEMPORADA SET TIPO = 'OTRO'")).isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update("UPDATE EQUIPO_TEMPORADA SET MODALIDAD = 'F7'"))
+                .isInstanceOf(Exception.class);
+
+        // UNIQUE (CUERPO_TECNICO_ID, TEMPORADA_ID, EQUIPO_ID)
+        String ficha = "INSERT INTO CUERPO_TECNICO_TEMPORADA (CUERPO_TECNICO_ID, TEMPORADA_ID, EQUIPO_ID) VALUES (1, 2, 3)";
+        jdbc.update(ficha);
+        assertThatThrownBy(() -> jdbc.update(ficha)).isInstanceOf(Exception.class);
+
+        // CHECK de ESTADO, CONTINUIDAD y EQUIPO_DEFINITIVO en JUGADOR_TEMPORADA
+        jdbc.update("INSERT INTO JUGADORES (ID, NOMBRE, APELLIDOS) VALUES (10, 'A', 'B')");
+        jdbc.update("INSERT INTO JUGADOR_TEMPORADA (JUGADOR_ID, TEMPORADA_ID) VALUES (10, 2)");
+        assertThat(jdbc.queryForObject("SELECT ESTADO || CONTINUIDAD || EQUIPO_DEFINITIVO FROM JUGADOR_TEMPORADA",
+                String.class)).isEqualTo("CONFIRMADOPENDIENTE1");
+        assertThatThrownBy(() -> jdbc.update("UPDATE JUGADOR_TEMPORADA SET ESTADO = 'OTRO'")).isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update("UPDATE JUGADOR_TEMPORADA SET CONTINUIDAD = 'OTRO'"))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update("UPDATE JUGADOR_TEMPORADA SET EQUIPO_DEFINITIVO = 2"))
+                .isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void elModeloDeTransicionNoFallaSinLasTablasQueModifica() {
+        JdbcTemplate jdbc = nuevaBase();
+
+        EsquemaH2.crearTransicion(jdbc);
+
+        assertThat(columnas(jdbc, "EQUIPO_TEMPORADA")).isNotEmpty();
+    }
+
+    @Test
+    void elScriptDeTransicionDeSqlTieneLasMismasSentenciasQueElDeLosTests() throws Exception {
+        String original = Files.readString(Path.of("..", "sql", "2026-10-29_modelo_transicion_temporada.sql"));
+
+        assertThat(original)
+                .contains("CK_JT_ESTADO", "CK_JT_CONTINUIDAD", "CK_JT_EQUIPO_DEFINITIVO", "CK_JT_BAJA_ESTADO",
+                        "CREATE TABLE EQUIPO_TEMPORADA", "CREATE TABLE CUERPO_TECNICO_TEMPORADA",
+                        "UNIQUE (EQUIPO_ID, TEMPORADA_ID)", "UNIQUE (CUERPO_TECNICO_ID, TEMPORADA_ID, EQUIPO_ID)",
+                        "UNIQUE (TEMPORADA_ID, COMPETICION, LETRA)",
+                        "CHECK (ESTADO IN ('PENDIENTE', 'PARCIAL', 'PAGADO', 'INCOBRABLE'))",
+                        "GRANT SELECT, INSERT, UPDATE, DELETE ON EQUIPO_TEMPORADA TO USER_WEB",
+                        "GRANT SELECT, INSERT, UPDATE, DELETE ON CUERPO_TECNICO_TEMPORADA TO USER_WEB",
+                        "CREATE SYNONYM USER_WEB.EQUIPO_TEMPORADA", "CREATE SYNONYM USER_WEB.CUERPO_TECNICO_TEMPORADA");
+        for (String tabla : List.of("CLASIFICACIONES", "EQUIPOS_FFCV", "HORARIOS_ENTRENAMIENTO")) {
+            assertThat(original).contains("ALTER TABLE " + tabla + " ADD (TEMPORADA_ID NUMBER NULL);",
+                    "ALTER TABLE " + tabla + " MODIFY (TEMPORADA_ID NOT NULL);");
+        }
+    }
+
+    @Test
     void laTablaDeReportesDeComunicacionTieneElEsquemaDelScript() {
         JdbcTemplate jdbc = nuevaBase();
 

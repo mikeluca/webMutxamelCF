@@ -58,6 +58,16 @@ public final class EsquemaH2 {
         ejecutar(jdbc, "/h2/plantillas_temporada.sql");
     }
 
+    /**
+     * EQUIPO_TEMPORADA y CUERPO_TECNICO_TEMPORADA, más TEMPORADA_ID obligatorio, la UNIQUE nueva de EQUIPOS_FFCV y el
+     * CHECK de estados de CUOTAS_JUGADOR en las tablas CLASIFICACIONES, EQUIPOS_FFCV, HORARIOS_ENTRENAMIENTO y
+     * CUOTAS_JUGADOR que el test ya haya creado (sql/2026-10-29_modelo_transicion_temporada.sql). Las columnas nuevas de
+     * JUGADOR_TEMPORADA vienen con {@link #crearPlantillas}.
+     */
+    public static void crearTransicion(JdbcTemplate jdbc) {
+        ejecutar(jdbc, "/h2/transicion_temporada.sql");
+    }
+
     /** El script de ajustes tal cual, para compararlo con el de sql/. */
     public static String ajustes() {
         return leer("/h2/ajustes_post_revision.sql");

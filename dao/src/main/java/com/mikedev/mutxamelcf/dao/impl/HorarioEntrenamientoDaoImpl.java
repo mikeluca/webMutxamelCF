@@ -37,12 +37,14 @@ public class HorarioEntrenamientoDaoImpl implements HorarioEntrenamientoDao {
                     LUGAR,
                     ACTIVO,
                     USUARIO_ACTUALIZO_ID,
-                    FECHA_ACTUALIZACION
+                    FECHA_ACTUALIZACION,
+                    TEMPORADA_ID
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
+        long temporadaId = TemporadaActivaId.obtener(jdbcTemplate);
 
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, new String[] { "ID" });
@@ -60,6 +62,7 @@ public class HorarioEntrenamientoDaoImpl implements HorarioEntrenamientoDao {
             }
 
             ps.setTimestamp(7, horario.getFechaActualizacion());
+            ps.setLong(8, temporadaId);
 
             return ps;
         }, keyHolder);

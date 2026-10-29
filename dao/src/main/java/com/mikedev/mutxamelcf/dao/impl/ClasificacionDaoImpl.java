@@ -27,8 +27,9 @@ public class ClasificacionDaoImpl implements ClasificacionDao {
 			+ "ES_NUESTRO, PUNTOS, PJ, PG, PE, PP, GF, GC, FECHA_ULT_PARTIDO, FECHA_IMPORTACION";
 
 	private static final String INSERT = "INSERT INTO CLASIFICACIONES (EQUIPO_ID, COMPETICION, JORNADA, POSICION, "
-			+ "NOMBRE_EQUIPO, LETRA, ES_NUESTRO, PUNTOS, PJ, PG, PE, PP, GF, GC, FECHA_ULT_PARTIDO, FECHA_IMPORTACION) "
-			+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+			+ "NOMBRE_EQUIPO, LETRA, ES_NUESTRO, PUNTOS, PJ, PG, PE, PP, GF, GC, FECHA_ULT_PARTIDO, FECHA_IMPORTACION, "
+			+ "TEMPORADA_ID) "
+			+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 	private final JdbcTemplate jdbcTemplate;
 
@@ -50,7 +51,9 @@ public class ClasificacionDaoImpl implements ClasificacionDao {
 
 	@Override
 	public int eliminarPorEquipo(Long equipoId) {
-		int filas = jdbcTemplate.update("DELETE FROM CLASIFICACIONES WHERE EQUIPO_ID = ?", equipoId);
+		// Solo la de la temporada activa: la de las anteriores se conserva
+		int filas = jdbcTemplate.update("DELETE FROM CLASIFICACIONES WHERE EQUIPO_ID = ? AND TEMPORADA_ID = ?", equipoId,
+				TemporadaActivaId.obtener(jdbcTemplate));
 		logger.debug("Clasificación eliminada: equipoId={}, filas={}", equipoId, filas);
 		return filas;
 	}
@@ -62,6 +65,8 @@ public class ClasificacionDaoImpl implements ClasificacionDao {
 		if (filas.isEmpty()) {
 			return;
 		}
+
+		long temporadaId = TemporadaActivaId.obtener(jdbcTemplate);
 
 		jdbcTemplate.batchUpdate(INSERT, filas, filas.size(), (ps, fila) -> {
 			ps.setLong(1, fila.getEquipoId());
@@ -92,6 +97,7 @@ public class ClasificacionDaoImpl implements ClasificacionDao {
 				ps.setNull(15, Types.DATE);
 			}
 			ps.setTimestamp(16, Timestamp.valueOf(fila.getFechaImportacion()));
+			ps.setLong(17, temporadaId);
 		});
 
 		logger.debug("Fin insertarTodas");

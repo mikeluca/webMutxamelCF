@@ -870,6 +870,8 @@ class NuevaTemporadaServiceImplH2Test {
         assertThat(jdbc.queryForObject("SELECT FECHA_BAJA FROM JUGADORES WHERE ID = ?", Date.class, id))
                 .isEqualTo(Date.valueOf(HOY));
         assertThat(((Number) filaActiva(id).get("BAJA")).intValue()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT ESTADO FROM JUGADOR_TEMPORADA WHERE JUGADOR_ID = ?", String.class, id))
+                .isEqualTo("BAJA");
         // La fila conserva el equipo en el que estaba
         assertThat(filaActiva(id)).containsEntry("EQUIPO_NOMBRE", "Cadete A");
 
@@ -878,6 +880,8 @@ class NuevaTemporadaServiceImplH2Test {
         assertThat(equipoDe(id)).isEqualTo(JUVENIL_A);
         assertThat(jdbc.queryForObject("SELECT FECHA_BAJA FROM JUGADORES WHERE ID = ?", Date.class, id)).isNull();
         assertThat(((Number) filaActiva(id).get("BAJA")).intValue()).isZero();
+        assertThat(jdbc.queryForObject("SELECT ESTADO FROM JUGADOR_TEMPORADA WHERE JUGADOR_ID = ?", String.class, id))
+                .isEqualTo("CONFIRMADO");
         assertThat(filaActiva(id)).containsEntry("EQUIPO_NOMBRE", "Juvenil A");
         assertThat(filas(ACTIVA)).isEqualTo(1);
     }
