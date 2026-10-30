@@ -69,6 +69,7 @@ class ConvocatoriaServiceImplTest {
                 convocatoriaDao, convocatoriaJugadorDao, equipoGestionDao, partidoDao, comunicacionService,
                 justificacionFaltaPartidoDao, temporadaDao,
                 org.mockito.Mockito.mock(com.mikedev.mutxamelcf.service.InvitadosService.class),
+                org.mockito.Mockito.mock(com.mikedev.mutxamelcf.dao.EquipacionDao.class),
                 java.time.Clock.fixed(
                         java.time.LocalDate.of(2026, 10, 21).atTime(12, 0)
                                 .atZone(java.time.ZoneId.of("Europe/Madrid")).toInstant(),

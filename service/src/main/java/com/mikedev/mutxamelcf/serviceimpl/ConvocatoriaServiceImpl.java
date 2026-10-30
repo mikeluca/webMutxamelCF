@@ -2,6 +2,7 @@ package com.mikedev.mutxamelcf.serviceimpl;
 
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
+import com.mikedev.mutxamelcf.dao.EquipacionDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
@@ -9,6 +10,8 @@ import com.mikedev.mutxamelcf.model.ConvocatoriaGuardarRequest;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaPartido;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugadorResponse;
 import com.mikedev.mutxamelcf.model.ConvocatoriaResponse;
+import com.mikedev.mutxamelcf.model.Equipacion;
+import com.mikedev.mutxamelcf.model.EquipacionResponse;
 import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.OpcionesPushComunicacion;
@@ -45,6 +48,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
         private final JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
         private final com.mikedev.mutxamelcf.dao.TemporadaDao temporadaDao;
         private final InvitadosService invitadosService;
+        private final EquipacionDao equipacionDao;
         private final java.time.Clock clock;
 
         public ConvocatoriaServiceImpl(
@@ -56,8 +60,10 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         JustificacionFaltaPartidoDao justificacionFaltaPartidoDao,
                         com.mikedev.mutxamelcf.dao.TemporadaDao temporadaDao,
                         InvitadosService invitadosService,
+                        EquipacionDao equipacionDao,
                         java.time.Clock clock) {
 
+                this.equipacionDao = equipacionDao;
                 this.invitadosService = invitadosService;
                 this.clock = clock;
                 this.temporadaDao = temporadaDao;
@@ -136,8 +142,15 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 request.getJugadoresIds(),
                                 partido);
 
+                validarEquipaje(
+                                request.getEquipacionId(),
+                                request.getEquipacionMochilaId(),
+                                null);
+
                 Convocatoria convocatoria = new Convocatoria();
 
+                convocatoria.setEquipacionId(request.getEquipacionId());
+                convocatoria.setEquipacionMochilaId(request.getEquipacionMochilaId());
                 convocatoria.setEquipoId(equipoId);
                 convocatoria.setPartidoId(partido.getId());
                 convocatoria.setHoraConvocatoria(
@@ -213,6 +226,8 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 String equipo = equipoGestionDao.obtenerNombreEquipo(
                                 convocatoria.getEquipoId());
 
+                String equipaje = fraseEquipaje(convocatoria);
+
                 avisar(
                                 convocatoria,
                                 jugadoresIds,
@@ -221,7 +236,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 true,
                                 null,
                                 null,
-                                (jugador, esJugador) -> (esJugador
+                                (jugador, esJugador) -> TextosConvocatoria.conDucha((esJugador
                                                 ? "Has sido convocado con el equipo "
                                                 : jugador + " ha sido convocado con el equipo ")
                                                 + equipo
@@ -236,7 +251,64 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                                 + textoOVacio(convocatoria.getHoraConvocatoria())
                                                 + "h en "
                                                 + textoOVacio(convocatoria.getLugarConvocatoria())
-                                                + ".");
+                                                + "."
+                                                + (equipaje.isEmpty() ? "" : " " + equipaje)));
+        }
+
+        private String fraseEquipaje(Convocatoria convocatoria) {
+
+                return TextosConvocatoria.fraseEquipaje(
+                                equipacionPorId(convocatoria.getEquipacionId()),
+                                equipacionPorId(convocatoria.getEquipacionMochilaId()));
+        }
+
+        private Equipacion equipacionPorId(Long id) {
+
+                return id == null ? null : equipacionDao.obtenerPorId(id);
+        }
+
+        /*
+         * El equipaje es opcional. La mochila solo se indica si hay equipaje principal y distinto de ella. Un
+         * equipaje tiene que existir y estar activo, salvo que sea uno de los que la convocatoria ya tenía (un
+         * equipaje desactivado después de elegirlo no impide editar el resto de la convocatoria).
+         */
+        private void validarEquipaje(
+                        Long equipacionId,
+                        Long mochilaId,
+                        Convocatoria actual) {
+
+                if (mochilaId != null && equipacionId == null) {
+                        throw new IllegalArgumentException(
+                                        "No se puede indicar el equipaje de la mochila sin indicar el equipaje con el que van vestidos");
+                }
+
+                if (mochilaId != null && mochilaId.equals(equipacionId)) {
+                        throw new IllegalArgumentException(
+                                        "El equipaje de la mochila tiene que ser distinto del equipaje con el que van vestidos");
+                }
+
+                for (Long id : new Long[] { equipacionId, mochilaId }) {
+
+                        if (id == null) {
+                                continue;
+                        }
+
+                        Equipacion equipacion = id <= 0 ? null : equipacionDao.obtenerPorId(id);
+
+                        if (equipacion == null) {
+                                throw new IllegalArgumentException(
+                                                "El equipaje indicado no existe");
+                        }
+
+                        boolean yaLoTenia = actual != null
+                                        && (id.equals(actual.getEquipacionId()) || id.equals(actual.getEquipacionMochilaId()));
+
+                        if (!equipacion.isActiva() && !yaLoTenia) {
+                                throw new IllegalArgumentException(
+                                                "El equipaje " + equipacion.getNombre()
+                                                                + " está desactivado y no se puede elegir");
+                        }
+                }
         }
 
         /*
@@ -410,26 +482,41 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         + " a las " + textoOVacio(convocatoria.getHoraPartido()) + "h");
                 }
 
+                boolean cambiaElEquipaje = !Objects.equals(antes.equipacionId(), convocatoria.getEquipacionId())
+                                || !Objects.equals(antes.equipacionMochilaId(), convocatoria.getEquipacionMochilaId());
+
+                // Con hora, lugar o partido distintos en la misma edición, un solo aviso que lo diga todo.
+                String titulo = cambios.isEmpty() ? "Cambio de equipaje" : "Cambio en la convocatoria";
+                String equipaje = "";
+
+                if (cambiaElEquipaje) {
+
+                        cambios.add("cambio de equipaje");
+
+                        equipaje = fraseEquipaje(convocatoria);
+                        equipaje = " " + (equipaje.isEmpty() ? "Ya no hay equipaje indicado." : equipaje);
+                }
+
                 if (cambios.isEmpty()) {
                         return;
                 }
 
-                String textoCambios = String.join(" / ", cambios);
+                String textoCambios = String.join(" / ", cambios) + (cambiaElEquipaje ? "." : "") + equipaje;
 
                 avisar(
                                 convocatoria,
                                 siguen,
-                                "Cambio en la convocatoria",
+                                titulo,
                                 TIPO_PUSH_CONVOCATORIA,
                                 true,
                                 null,
                                 null,
-                                (jugador, esJugador) -> (esJugador
+                                (jugador, esJugador) -> TextosConvocatoria.conDucha((esJugador
                                                 ? "Cambio en la convocatoria del partido contra "
                                                 : "Cambio en la convocatoria de " + jugador + " del partido contra ")
                                                 + convocatoria.getRival()
                                                 + ": "
-                                                + textoCambios);
+                                                + textoCambios));
         }
 
         /* Lo que se compara al editar: la convocatoria tal como estaba antes del PUT. */
@@ -438,7 +525,9 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         String rival,
                         java.time.LocalDate fechaPartido,
                         String horaConvocatoria,
-                        String lugarConvocatoria) {
+                        String lugarConvocatoria,
+                        Long equipacionId,
+                        Long equipacionMochilaId) {
         }
 
         @Override
@@ -469,7 +558,9 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 convocatoria.getRival(),
                                 convocatoria.getFechaPartido(),
                                 limpiar(convocatoria.getHoraConvocatoria()),
-                                limpiar(convocatoria.getLugarConvocatoria()));
+                                limpiar(convocatoria.getLugarConvocatoria()),
+                                convocatoria.getEquipacionId(),
+                                convocatoria.getEquipacionMochilaId());
 
                 /*
                  * Comprobamos que el usuario puede gestionar el equipo
@@ -583,6 +674,21 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
                 convocatoria.setLugarConvocatoria(
                                 limpiar(request.getLugarConvocatoria()));
+
+                /*
+                 * El equipaje solo se modifica si el cuerpo trae equipajeIndicado = true (la app nueva lo envía
+                 * siempre): una versión que no lo conoce no trae los campos y no puede borrarlo al editar.
+                 */
+                if (request.isEquipajeIndicado()) {
+
+                        validarEquipaje(
+                                        request.getEquipacionId(),
+                                        request.getEquipacionMochilaId(),
+                                        convocatoria);
+
+                        convocatoria.setEquipacionId(request.getEquipacionId());
+                        convocatoria.setEquipacionMochilaId(request.getEquipacionMochilaId());
+                }
 
                 convocatoriaDao.actualizar(convocatoria);
 
@@ -891,6 +997,10 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 convocatoria.getLugarConvocatoria());
                 response.setUsuarioEntrenadorId(
                                 convocatoria.getUsuarioEntrenadorId());
+                response.setEquipacion(
+                                EquipacionResponse.de(equipacionPorId(convocatoria.getEquipacionId())));
+                response.setEquipacionMochila(
+                                EquipacionResponse.de(equipacionPorId(convocatoria.getEquipacionMochilaId())));
 
                 Partido partidoVinculado = convocatoria.getPartidoId() == null
                                 ? null

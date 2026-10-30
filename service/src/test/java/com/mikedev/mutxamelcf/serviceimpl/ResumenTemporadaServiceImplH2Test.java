@@ -101,7 +101,7 @@ class ResumenTemporadaServiceImplH2Test {
 
     private void convocar(long partidoId) {
         long convocatoria = siguienteId++;
-        jdbc.update("INSERT INTO CONVOCATORIAS VALUES (?, ?)", convocatoria, partidoId);
+        jdbc.update("INSERT INTO CONVOCATORIAS (ID, PARTIDO_ID) VALUES (?, ?)", convocatoria, partidoId);
         jdbc.update("INSERT INTO CONVOCATORIA_JUGADOR (CONVOCATORIA_ID, JUGADOR_ID) VALUES (?, ?)",
                 convocatoria, JUGADOR);
     }
@@ -385,7 +385,7 @@ class ResumenTemporadaServiceImplH2Test {
 
     private void convocarComoInvitado(long partidoId) {
         long convocatoria = siguienteId++;
-        jdbc.update("INSERT INTO CONVOCATORIAS VALUES (?, ?)", convocatoria, partidoId);
+        jdbc.update("INSERT INTO CONVOCATORIAS (ID, PARTIDO_ID) VALUES (?, ?)", convocatoria, partidoId);
         jdbc.update("INSERT INTO CONVOCATORIA_JUGADOR (CONVOCATORIA_ID, JUGADOR_ID, EQUIPO_ORIGEN_ID,"
                 + " ESTADO_INVITACION) VALUES (?, ?, 99, 'AUTORIZADO')", convocatoria, JUGADOR);
     }

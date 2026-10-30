@@ -85,6 +85,34 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
     }
 
     @Override
+    public boolean gestionaAlgunEquipo(Long usuarioAppId) {
+
+        String sql = """
+                SELECT COUNT(*)
+                FROM DUAL
+                WHERE EXISTS (
+                        SELECT 1
+                        FROM USUARIOS_APP_ROLES UAR
+                        INNER JOIN ROLES_APP R
+                            ON R.ID = UAR.ROL_ID
+                        WHERE UAR.USUARIO_APP_ID = ?
+                          AND R.CODIGO IN ('ADMIN_APP', 'COORDINADOR')
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM USUARIOS_APP_CUERPO_TECNICO UACT
+                        INNER JOIN CUERPO_TECNICO_EQUIPO CTE
+                            ON CTE.CUERPO_TECNICO_ID = UACT.CUERPO_TECNICO_ID
+                        WHERE UACT.USUARIO_APP_ID = ?
+                    )
+                """;
+
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, usuarioAppId, usuarioAppId);
+
+        return count != null && count > 0;
+    }
+
+    @Override
     public List<Long> obtenerJugadoresPorEquipo(Long equipoId) {
 
         String sql = """

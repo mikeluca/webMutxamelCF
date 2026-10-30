@@ -34,7 +34,7 @@ class AppPartidoConvocatoriaControllerTest {
     @Test
     void devuelveLaConvocatoria() {
         ConvocatoriaPartidoResponse respuesta = new ConvocatoriaPartidoResponse(
-                5L, "Pego", null, "11:00", "Municipal", true, "09:30", "Vestuarios", true, List.of());
+                5L, "Pego", null, "11:00", "Municipal", true, "09:30", "Vestuarios", true, List.of(), null, null);
         when(servicio.obtenerParaJugador(7L, 30L, 100L)).thenReturn(respuesta);
 
         var resultado = controller.obtener(30L, 100L, autenticado("7"));

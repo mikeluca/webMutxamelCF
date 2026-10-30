@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
+import com.mikedev.mutxamelcf.dao.EquipacionDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoLiveEventoDao;
@@ -16,6 +17,7 @@ import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.ConvocatoriaPartidoResponse;
+import com.mikedev.mutxamelcf.model.EquipacionResponse;
 import com.mikedev.mutxamelcf.model.JugadorBasico;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.service.ConvocatoriaPartidoService;
@@ -29,6 +31,7 @@ public class ConvocatoriaPartidoServiceImpl implements ConvocatoriaPartidoServic
     private final EquipoGestionDao equipoGestionDao;
     private final UsuarioAppVinculoDao usuarioAppVinculoDao;
     private final PartidoLiveEventoDao partidoLiveEventoDao;
+    private final EquipacionDao equipacionDao;
 
     public ConvocatoriaPartidoServiceImpl(
             ConvocatoriaDao convocatoriaDao,
@@ -36,7 +39,10 @@ public class ConvocatoriaPartidoServiceImpl implements ConvocatoriaPartidoServic
             PartidoDao partidoDao,
             EquipoGestionDao equipoGestionDao,
             UsuarioAppVinculoDao usuarioAppVinculoDao,
-            PartidoLiveEventoDao partidoLiveEventoDao) {
+            PartidoLiveEventoDao partidoLiveEventoDao,
+            EquipacionDao equipacionDao) {
+
+        this.equipacionDao = equipacionDao;
 
         this.convocatoriaDao = convocatoriaDao;
         this.convocatoriaJugadorDao = convocatoriaJugadorDao;
@@ -44,6 +50,11 @@ public class ConvocatoriaPartidoServiceImpl implements ConvocatoriaPartidoServic
         this.equipoGestionDao = equipoGestionDao;
         this.usuarioAppVinculoDao = usuarioAppVinculoDao;
         this.partidoLiveEventoDao = partidoLiveEventoDao;
+    }
+
+    private EquipacionResponse equipacion(Long id) {
+
+        return id == null ? null : EquipacionResponse.de(equipacionDao.obtenerPorId(id));
     }
 
     private boolean esInvitadoAutorizado(Convocatoria convocatoria, Long jugadorId) {
@@ -121,6 +132,8 @@ public class ConvocatoriaPartidoServiceImpl implements ConvocatoriaPartidoServic
                 convocatoria.getHoraConvocatoria(),
                 convocatoria.getLugarConvocatoria(),
                 ids.contains(jugadorId),
-                convocados);
+                convocados,
+                equipacion(convocatoria.getEquipacionId()),
+                equipacion(convocatoria.getEquipacionMochilaId()));
     }
 }

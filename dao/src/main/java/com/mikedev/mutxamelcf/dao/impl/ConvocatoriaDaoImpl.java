@@ -73,6 +73,12 @@ public class ConvocatoriaDaoImpl
                         convocatoria.setLugarConvocatoria(
                                         rs.getString("LUGAR_CONVOCATORIA"));
 
+                        convocatoria.setEquipacionId(
+                                        obtenerLongONulo(rs, "EQUIPACION_ID"));
+
+                        convocatoria.setEquipacionMochilaId(
+                                        obtenerLongONulo(rs, "EQUIPACION_MOCHILA_ID"));
+
                         convocatoria.setUsuarioEntrenadorId(
                                         rs.getLong(
                                                         "USUARIO_ENTRENADOR_ID"));
@@ -90,6 +96,13 @@ public class ConvocatoriaDaoImpl
                 }
         };
 
+        private static Long obtenerLongONulo(ResultSet rs, String columna) throws SQLException {
+
+                long valor = rs.getLong(columna);
+
+                return rs.wasNull() ? null : valor;
+        }
+
         @Override
         public Convocatoria guardar(Convocatoria convocatoria) {
 
@@ -99,9 +112,11 @@ public class ConvocatoriaDaoImpl
                                     PARTIDO_ID,
                                     HORA_CONVOCATORIA,
                                     LUGAR_CONVOCATORIA,
-                                    USUARIO_ENTRENADOR_ID
+                                    USUARIO_ENTRENADOR_ID,
+                                    EQUIPACION_ID,
+                                    EQUIPACION_MOCHILA_ID
                                 )
-                                VALUES (?, ?, ?, ?, ?)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
                                 """;
 
                 KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -116,6 +131,8 @@ public class ConvocatoriaDaoImpl
                         ps.setObject(3, convocatoria.getHoraConvocatoria());
                         ps.setString(4, convocatoria.getLugarConvocatoria());
                         ps.setLong(5, convocatoria.getUsuarioEntrenadorId());
+                        ps.setObject(6, convocatoria.getEquipacionId(), java.sql.Types.NUMERIC);
+                        ps.setObject(7, convocatoria.getEquipacionMochilaId(), java.sql.Types.NUMERIC);
 
                         return ps;
                 }, keyHolder);
@@ -139,7 +156,9 @@ public class ConvocatoriaDaoImpl
                                 UPDATE CONVOCATORIAS
                                 SET PARTIDO_ID = ?,
                                     HORA_CONVOCATORIA = ?,
-                                    LUGAR_CONVOCATORIA = ?
+                                    LUGAR_CONVOCATORIA = ?,
+                                    EQUIPACION_ID = ?,
+                                    EQUIPACION_MOCHILA_ID = ?
                                 WHERE ID = ?
                                 """;
 
@@ -148,6 +167,8 @@ public class ConvocatoriaDaoImpl
                                 convocatoria.getPartidoId(),
                                 convocatoria.getHoraConvocatoria(),
                                 convocatoria.getLugarConvocatoria(),
+                                convocatoria.getEquipacionId(),
+                                convocatoria.getEquipacionMochilaId(),
                                 convocatoria.getId());
         }
 
@@ -166,6 +187,8 @@ public class ConvocatoriaDaoImpl
                                     P.HORA AS HORA_PARTIDO,
                                     C.HORA_CONVOCATORIA,
                                     C.LUGAR_CONVOCATORIA,
+                                    C.EQUIPACION_ID,
+                                    C.EQUIPACION_MOCHILA_ID,
                                     C.USUARIO_ENTRENADOR_ID,
                                     C.FECHA_CREACION
                                 FROM CONVOCATORIAS C
@@ -198,6 +221,8 @@ public class ConvocatoriaDaoImpl
                                     P.HORA AS HORA_PARTIDO,
                                     C.HORA_CONVOCATORIA,
                                     C.LUGAR_CONVOCATORIA,
+                                    C.EQUIPACION_ID,
+                                    C.EQUIPACION_MOCHILA_ID,
                                     C.USUARIO_ENTRENADOR_ID,
                                     C.FECHA_CREACION
                                 FROM CONVOCATORIAS C
@@ -230,6 +255,8 @@ public class ConvocatoriaDaoImpl
                                     P.HORA AS HORA_PARTIDO,
                                     C.HORA_CONVOCATORIA,
                                     C.LUGAR_CONVOCATORIA,
+                                    C.EQUIPACION_ID,
+                                    C.EQUIPACION_MOCHILA_ID,
                                     C.USUARIO_ENTRENADOR_ID,
                                     C.FECHA_CREACION
                                 FROM CONVOCATORIAS C

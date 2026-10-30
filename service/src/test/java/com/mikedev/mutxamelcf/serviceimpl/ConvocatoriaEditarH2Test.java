@@ -47,6 +47,7 @@ class ConvocatoriaEditarH2Test {
 
     private static final Long ENTRENADOR = 1L;
     private static final Long EQUIPO = 10L;
+    private static final String DUCHA = "\n\n🚿 Ducha recomendable después del partido";
 
     private ConvocatoriaJugadorDaoImpl convocatoriaJugadorDao;
     private JustificacionFaltaPartidoDaoImpl justificacionDao;
@@ -111,6 +112,7 @@ class ConvocatoriaEditarH2Test {
                 justificacionDao,
                 temporadaDao,
                 invitadosService,
+                new com.mikedev.mutxamelcf.dao.impl.EquipacionDaoImpl(jdbc),
                 java.time.Clock.fixed(
                         LocalDate.of(2026, 10, 21).atTime(12, 0).atZone(java.time.ZoneId.of("Europe/Madrid")).toInstant(),
                         java.time.ZoneId.of("Europe/Madrid")));
@@ -703,7 +705,8 @@ class ConvocatoriaEditarH2Test {
         assertThat(aviso.getAllValues()).allSatisfy(c -> {
             assertThat(c.getTitulo()).isEqualTo("Cambio en la convocatoria");
             assertThat(c.getContenido())
-                    .isEqualTo("Cambio en la convocatoria del partido contra Pego: nueva hora de citación 10:00");
+                    .isEqualTo("Cambio en la convocatoria del partido contra Pego: nueva hora de citación 10:00"
+                            + DUCHA);
         });
         assertThat(opciones.getAllValues()).allSatisfy(o -> assertThat(o.datos())
                 .containsEntry("tipo", "CONVOCATORIA")
@@ -720,7 +723,7 @@ class ConvocatoriaEditarH2Test {
         service.actualizar(ENTRENADOR, creada.getId(), peticion);
 
         assertThat(avisoA(50).getContenido())
-                .isEqualTo("Cambio en la convocatoria del partido contra Pego: nuevo lugar Pabellón");
+                .isEqualTo("Cambio en la convocatoria del partido contra Pego: nuevo lugar Pabellón" + DUCHA);
     }
 
     @Test
@@ -734,7 +737,7 @@ class ConvocatoriaEditarH2Test {
 
         assertThat(avisoA(50).getContenido()).isEqualTo(
                 "Cambio en la convocatoria del partido contra Elx: nueva hora de citación 10:00"
-                        + " / nuevo lugar Pabellón / nuevo partido el 2026-10-25 a las 11:00h");
+                        + " / nuevo lugar Pabellón / nuevo partido el 2026-10-25 a las 11:00h" + DUCHA);
     }
 
     @Test
@@ -1030,5 +1033,271 @@ class ConvocatoriaEditarH2Test {
         verify(invitadosService).alQuitarJugadoresPropios(
                 eq(ENTRENADOR), eq(EQUIPO), eq(LocalDate.of(2026, 10, 24)), eq(List.of(100L)));
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM CONVOCATORIA_JUGADOR", Integer.class)).isZero();
+    }
+
+    // ---- equipaje ----------------------------------------------------------------------
+
+    private long equipaje(String nombre, boolean activa) {
+        jdbc.update("INSERT INTO EQUIPACIONES (NOMBRE, CAMISETA, COLOR_HEX, ACTIVA) VALUES (?, 'Blanca', '#FFFFFF', ?)",
+                nombre, activa ? 1 : 0);
+        return jdbc.queryForObject("SELECT ID FROM EQUIPACIONES WHERE NOMBRE = ?", Long.class, nombre);
+    }
+
+    private static ConvocatoriaGuardarRequest conEquipaje(ConvocatoriaGuardarRequest request, Long principal,
+            Long mochila, boolean indicado) {
+        request.setEquipacionId(principal);
+        request.setEquipacionMochilaId(mochila);
+        request.setEquipajeIndicado(indicado);
+        return request;
+    }
+
+    @Test
+    void alCrearConEquipajeSeGuardaSeDevuelveYElPushLlevaLaFraseDeEquipajeYLaDucha() {
+        usuariosPorJugador();
+        long segunda = equipaje("Segunda", true);
+        long primera = equipaje("Primera", true);
+
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR,
+                conEquipaje(request(30L, "09:30", List.of(100L)), segunda, primera, false));
+
+        assertThat(creada.getEquipacion().nombre()).isEqualTo("Segunda");
+        assertThat(creada.getEquipacion().camiseta()).isEqualTo("Blanca");
+        assertThat(creada.getEquipacion().colorHex()).isEqualTo("#FFFFFF");
+        assertThat(creada.getEquipacionMochila().nombre()).isEqualTo("Primera");
+
+        Comunicacion aviso = avisoA(50);
+        assertThat(aviso.getContenido())
+                .contains("La convocatoria es a las 09:30h en Vestuarios. Equipaje: Segunda. En la mochila: Primera.")
+                .endsWith(DUCHA);
+    }
+
+    @Test
+    void sinEquipajeNoSeMuestraNadaYLaConvocatoriaSigueSiendoValida() {
+        usuariosPorJugador();
+
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L)));
+
+        assertThat(creada.getEquipacion()).isNull();
+        assertThat(creada.getEquipacionMochila()).isNull();
+        assertThat(avisoA(50).getContenido()).doesNotContain("Equipaje").doesNotContain("mochila").endsWith(DUCHA);
+    }
+
+    @Test
+    void soloConEquipajePrincipalNoHayFraseDeMochila() {
+        usuariosPorJugador();
+        long segunda = equipaje("Segunda", true);
+
+        service.crear(ENTRENADOR, conEquipaje(request(30L, "09:30", List.of(100L)), segunda, null, false));
+
+        assertThat(avisoA(50).getContenido()).contains("Equipaje: Segunda.").doesNotContain("mochila");
+    }
+
+    @Test
+    void lasValidacionesDelEquipajeDan400ConTextoClaro() {
+        long activa = equipaje("Segunda", true);
+        long otra = equipaje("Primera", true);
+        long inactiva = equipaje("Vieja", false);
+
+        assertThatThrownBy(() -> service.crear(ENTRENADOR,
+                conEquipaje(request(30L, "09:30", List.of(100L)), 9999L, null, false)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessage("El equipaje indicado no existe");
+
+        assertThatThrownBy(() -> service.crear(ENTRENADOR,
+                conEquipaje(request(30L, "09:30", List.of(100L)), activa, 9999L, false)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessage("El equipaje indicado no existe");
+
+        assertThatThrownBy(() -> service.crear(ENTRENADOR,
+                conEquipaje(request(30L, "09:30", List.of(100L)), inactiva, null, false)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Vieja")
+                .hasMessageContaining("desactivado");
+
+        assertThatThrownBy(() -> service.crear(ENTRENADOR,
+                conEquipaje(request(30L, "09:30", List.of(100L)), null, otra, false)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("mochila")
+                .hasMessageContaining("sin indicar el equipaje");
+
+        assertThatThrownBy(() -> service.crear(ENTRENADOR,
+                conEquipaje(request(30L, "09:30", List.of(100L)), activa, activa, false)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("distinto");
+
+        // Ninguna de las cinco ha creado nada.
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM CONVOCATORIAS", Integer.class)).isZero();
+    }
+
+    @Test
+    void elPutSinEquipajeIndicadoConservaElEquipajeAunqueTraigaLosCampos() {
+        usuariosPorJugador();
+        long segunda = equipaje("Segunda", true);
+        long primera = equipaje("Primera", true);
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR,
+                conEquipaje(request(30L, "09:30", List.of(100L)), segunda, primera, false));
+        org.mockito.Mockito.clearInvocations(comunicacionService);
+
+        // App antigua: no envía nada del equipaje. Y otra que envía los campos pero sin la marca.
+        ConvocatoriaResponse editada = service.actualizar(ENTRENADOR, creada.getId(),
+                request(30L, "10:00", List.of(100L)));
+        ConvocatoriaResponse conIdsSinMarca = service.actualizar(ENTRENADOR, creada.getId(),
+                conEquipaje(request(30L, "10:00", List.of(100L)), null, null, false));
+
+        assertThat(editada.getEquipacion().nombre()).isEqualTo("Segunda");
+        assertThat(editada.getEquipacionMochila().nombre()).isEqualTo("Primera");
+        assertThat(conIdsSinMarca.getEquipacion().nombre()).isEqualTo("Segunda");
+        assertThat(jdbc.queryForObject("SELECT EQUIPACION_ID FROM CONVOCATORIAS", Long.class)).isEqualTo(segunda);
+    }
+
+    @Test
+    void elPutConEquipajeIndicadoLoCambiaYConNulosLoQuita() {
+        usuariosPorJugador();
+        long segunda = equipaje("Segunda", true);
+        long primera = equipaje("Primera", true);
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+
+        ConvocatoriaResponse conEquipaje = service.actualizar(ENTRENADOR, creada.getId(),
+                conEquipaje(request(30L, "09:30", List.of(100L)), segunda, primera, true));
+        assertThat(conEquipaje.getEquipacion().nombre()).isEqualTo("Segunda");
+        assertThat(conEquipaje.getEquipacionMochila().nombre()).isEqualTo("Primera");
+
+        ConvocatoriaResponse sinEquipaje = service.actualizar(ENTRENADOR, creada.getId(),
+                conEquipaje(request(30L, "09:30", List.of(100L)), null, null, true));
+        assertThat(sinEquipaje.getEquipacion()).isNull();
+        assertThat(sinEquipaje.getEquipacionMochila()).isNull();
+
+        // GET posterior: lo guardado.
+        assertThat(service.obtenerPorId(ENTRENADOR, creada.getId()).getEquipacion()).isNull();
+    }
+
+    @Test
+    void unEquipajeDesactivadoDespuesDeElegirloNoImpideEditarPeroNoSePuedeElegirDeNuevo() {
+        usuariosPorJugador();
+        long segunda = equipaje("Segunda", true);
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR,
+                conEquipaje(request(30L, "09:30", List.of(100L)), segunda, null, false));
+        jdbc.update("UPDATE EQUIPACIONES SET ACTIVA = 0 WHERE ID = ?", segunda);
+        long otraInactiva = equipaje("Otra", false);
+
+        ConvocatoriaResponse editada = service.actualizar(ENTRENADOR, creada.getId(),
+                conEquipaje(request(30L, "10:00", List.of(100L)), segunda, null, true));
+        assertThat(editada.getEquipacion().nombre()).isEqualTo("Segunda");
+
+        assertThatThrownBy(() -> service.actualizar(ENTRENADOR, creada.getId(),
+                conEquipaje(request(30L, "10:00", List.of(100L)), otraInactiva, null, true)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("desactivado");
+    }
+
+    @Test
+    void alCambiarSoloElEquipajeSeAvisaConCambioDeEquipajeALosQueSiguen() {
+        usuariosPorJugador();
+        long segunda = equipaje("Segunda", true);
+        long primera = equipaje("Primera", true);
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR,
+                conEquipaje(request(30L, "09:30", List.of(100L, 101L)), segunda, null, false));
+        org.mockito.Mockito.clearInvocations(comunicacionService);
+
+        service.actualizar(ENTRENADOR, creada.getId(),
+                conEquipaje(request(30L, "09:30", List.of(100L, 101L)), segunda, primera, true));
+
+        ArgumentCaptor<Comunicacion> aviso = ArgumentCaptor.forClass(Comunicacion.class);
+        ArgumentCaptor<OpcionesPushComunicacion> opciones = ArgumentCaptor.forClass(OpcionesPushComunicacion.class);
+        verify(comunicacionService, org.mockito.Mockito.times(2)).crearPrivada(
+                aviso.capture(), any(), anyLong(), opciones.capture());
+
+        assertThat(aviso.getAllValues()).allSatisfy(c -> {
+            assertThat(c.getTitulo()).isEqualTo("Cambio de equipaje");
+            assertThat(c.getContenido()).isEqualTo("Cambio en la convocatoria del partido contra Pego:"
+                    + " cambio de equipaje. Equipaje: Segunda. En la mochila: Primera." + DUCHA);
+        });
+        // Mismo tipo y pantalla que el aviso de cambio de hora o lugar.
+        assertThat(opciones.getAllValues()).allSatisfy(o -> assertThat(o.datos())
+                .containsEntry("tipo", "CONVOCATORIA")
+                .containsEntry("convocatoriaId", String.valueOf(creada.getId())));
+    }
+
+    @Test
+    void alQuitarTodoElEquipajeElAvisoLoDice() {
+        usuariosPorJugador();
+        long segunda = equipaje("Segunda", true);
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR,
+                conEquipaje(request(30L, "09:30", List.of(100L)), segunda, null, false));
+        org.mockito.Mockito.clearInvocations(comunicacionService);
+
+        service.actualizar(ENTRENADOR, creada.getId(),
+                conEquipaje(request(30L, "09:30", List.of(100L)), null, null, true));
+
+        Comunicacion aviso = avisoA(50);
+        assertThat(aviso.getTitulo()).isEqualTo("Cambio de equipaje");
+        assertThat(aviso.getContenido()).contains("Ya no hay equipaje indicado.");
+    }
+
+    @Test
+    void sinCambioDeEquipajeNoSeAvisaNiConLaMarcaNiSinElla() {
+        usuariosPorJugador();
+        long segunda = equipaje("Segunda", true);
+        long primera = equipaje("Primera", true);
+        ConvocatoriaResponse creada = service.crear(ENTRENADOR,
+                conEquipaje(request(30L, "09:30", List.of(100L)), segunda, primera, false));
+        org.mockito.Mockito.clearInvocations(comunicacionService);
+
+        service.actualizar(ENTRENADOR, creada.getId(),
+                conEquipaje(request(30L, "09:30", List.of(100L)), segunda, primera, true));
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "09:30", List.of(100L)));
+
+        verify(comunicacionService, never()).crearPrivada(any(Comunicacion.class), any(), anyLong(),
+                any(OpcionesPushComunicacion.class));
+    }
+
+    @Test
+    void siCambianLaHoraYElEquipajeALaVezSaleUnSoloAvisoQueLoDiceTodo() {
+        usuariosPorJugador();
+        long segunda = equipaje("Segunda", true);
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+
+        service.actualizar(ENTRENADOR, creada.getId(),
+                conEquipaje(request(30L, "10:00", List.of(100L)), segunda, null, true));
+
+        Comunicacion aviso = avisoA(50);
+        assertThat(aviso.getTitulo()).isEqualTo("Cambio en la convocatoria");
+        assertThat(aviso.getContenido()).isEqualTo("Cambio en la convocatoria del partido contra Pego:"
+                + " nueva hora de citación 10:00 / cambio de equipaje. Equipaje: Segunda." + DUCHA);
+        verify(comunicacionService, org.mockito.Mockito.times(1)).crearPrivada(any(Comunicacion.class), any(),
+                anyLong(), any(OpcionesPushComunicacion.class));
+    }
+
+    @Test
+    void elAvisoDeCambioDeEquipajeNoLlegaAQuienHaJustificadoSuAusencia() {
+        usuariosPorJugador();
+        long segunda = equipaje("Segunda", true);
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+        justificar(30, 101, "Examen");
+
+        service.actualizar(ENTRENADOR, creada.getId(),
+                conEquipaje(request(30L, "09:30", List.of(100L, 101L)), segunda, null, true));
+
+        assertThat(avisoA(50).getTitulo()).isEqualTo("Cambio de equipaje");
+        verify(comunicacionService, never()).crearPrivada(any(Comunicacion.class), eq(List.of(51L)), anyLong(),
+                any(OpcionesPushComunicacion.class));
+    }
+
+    @Test
+    void laFraseDeDuchaSeAnadeALosAvisosQueConvocanPeroNoALosDeQuitarDeLaConvocatoria() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+
+        // 100 sigue, 101 sale, 102 entra
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "09:30", List.of(100L, 102L)));
+
+        assertThat(avisoA(52).getContenido()).endsWith(DUCHA);
+        assertThat(avisoA(51).getContenido()).startsWith("Ya no estás convocado").doesNotContain("Ducha");
+    }
+
+    @Test
+    void laLineaDeDuchaSePuedeGuardarYLeerDeUnVarcharYUnClob() {
+        // H2 no es Oracle: esto solo comprueba que el emoji (fuera del plano básico) sobrevive a JDBC en un VARCHAR y
+        // en un CLOB. El juego de caracteres de la BD de Oracle se comprueba con las consultas del script de SQL.
+        jdbc.execute("CREATE TABLE PRUEBA_EMOJI (T VARCHAR2(500 CHAR), C CLOB)");
+        jdbc.update("INSERT INTO PRUEBA_EMOJI VALUES (?, ?)", DUCHA, DUCHA);
+
+        assertThat(jdbc.queryForObject("SELECT T FROM PRUEBA_EMOJI", String.class)).isEqualTo(DUCHA);
+        assertThat(jdbc.queryForObject("SELECT C FROM PRUEBA_EMOJI", String.class)).isEqualTo(DUCHA);
+        assertThat(DUCHA).isEqualTo("\n\n🚿 Ducha recomendable después del partido");
     }
 }

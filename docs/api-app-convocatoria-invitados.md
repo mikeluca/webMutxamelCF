@@ -2,6 +2,7 @@
 
 Contrato de los endpoints y del `data` de los push. El diseño y el flujo están en `convocatoria-invitados.md`.
 Todos son `/api/app/**`: llevan `Authorization: Bearer <JWT>` y devuelven JSON.
+El equipaje de la convocatoria (campos `equipacionId`, `equipacionMochilaId`, `equipajeIndicado` y `equipacion`/`equipacionMochila` en las respuestas) está en `api-app-equipaje-convocatoria.md`.
 
 Errores comunes (cuerpo = texto plano con el motivo, salvo el 409):
 

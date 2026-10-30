@@ -48,13 +48,16 @@ class ConvocatoriaPartidoServiceImplTest {
     private UsuarioAppVinculoDao usuarioAppVinculoDao;
     @Mock
     private PartidoLiveEventoDao partidoLiveEventoDao;
+    @Mock
+    private com.mikedev.mutxamelcf.dao.EquipacionDao equipacionDao;
 
     private ConvocatoriaPartidoServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new ConvocatoriaPartidoServiceImpl(convocatoriaDao, convocatoriaJugadorDao, partidoDao,
-                equipoGestionDao, usuarioAppVinculoDao, partidoLiveEventoDao);
+                equipoGestionDao, usuarioAppVinculoDao, partidoLiveEventoDao,
+                equipacionDao);
 
         Partido partido = new Partido();
         partido.setId(PARTIDO);
@@ -105,6 +108,38 @@ class ConvocatoriaPartidoServiceImplTest {
         assertThat(respuesta.convocado()).isTrue();
         assertThat(respuesta.convocados()).extracting(ConvocatoriaPartidoResponse.Convocado::dorsal)
                 .containsExactly(1, 9, null);
+    }
+
+    @Test
+    void devuelveElEquipajeYLaMochilaOElDetalleSinEllos() {
+        convocatoria(100L);
+        when(partidoLiveEventoDao.obtenerJugadoresBasicos(List.of(100L))).thenReturn(List.of());
+
+        // Sin equipaje: los dos a null.
+        ConvocatoriaPartidoResponse sin = service.obtenerParaJugador(USUARIO, PARTIDO, JUGADOR);
+        assertThat(sin.equipacion()).isNull();
+        assertThat(sin.equipacionMochila()).isNull();
+
+        Convocatoria conEquipaje = new Convocatoria();
+        conEquipaje.setId(5L);
+        conEquipaje.setEquipacionId(1L);
+        conEquipaje.setEquipacionMochilaId(2L);
+        when(convocatoriaDao.obtenerPorPartidoId(PARTIDO)).thenReturn(conEquipaje);
+        com.mikedev.mutxamelcf.model.Equipacion segunda = new com.mikedev.mutxamelcf.model.Equipacion();
+        segunda.setId(1L);
+        segunda.setNombre("Segunda");
+        segunda.setCamiseta("Azul");
+        segunda.setColorHex("#0000FF");
+        com.mikedev.mutxamelcf.model.Equipacion primera = new com.mikedev.mutxamelcf.model.Equipacion();
+        primera.setId(2L);
+        primera.setNombre("Primera");
+        when(equipacionDao.obtenerPorId(1L)).thenReturn(segunda);
+        when(equipacionDao.obtenerPorId(2L)).thenReturn(primera);
+
+        ConvocatoriaPartidoResponse con = service.obtenerParaJugador(USUARIO, PARTIDO, JUGADOR);
+        assertThat(con.equipacion()).isEqualTo(
+                new com.mikedev.mutxamelcf.model.EquipacionResponse(1L, "Segunda", "Azul", null, null, "#0000FF"));
+        assertThat(con.equipacionMochila().nombre()).isEqualTo("Primera");
     }
 
     @Test

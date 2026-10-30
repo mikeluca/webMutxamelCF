@@ -179,6 +179,7 @@ public class SecurityConfig {
                                                                 "/admin/reparto/**",
                                                                 "/admin/historial/**",
                                                                 "/admin/categorias-edad/**",
+                                                                "/admin/equipajes/**",
                                                                 "/admin/cuerpo-tecnico/fusionar/**",
                                                                 "/admin/cuerpo-tecnico/fusionar")
                                                 .hasAnyRole("SUPER", "ADMIN")

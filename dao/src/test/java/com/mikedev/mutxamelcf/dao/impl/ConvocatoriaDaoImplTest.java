@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -89,7 +90,7 @@ class ConvocatoriaDaoImplTest {
 
         dao.actualizar(convocatoria);
 
-        verify(jdbcTemplate).update(anyString(), eq(7L), eq("17:00"), eq("Vestuarios"), eq(1L));
+        verify(jdbcTemplate).update(anyString(), eq(7L), eq("17:00"), eq("Vestuarios"), isNull(), isNull(), eq(1L));
     }
 
     @Test

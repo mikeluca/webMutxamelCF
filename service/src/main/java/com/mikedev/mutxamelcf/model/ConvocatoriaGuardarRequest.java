@@ -34,6 +34,15 @@ public class ConvocatoriaGuardarRequest {
      */
     private List<Long> invitadosIds;
 
+    /**
+     * Equipaje con el que van vestidos al partido y el de reserva (mochila), por ID de EQUIPACIONES; null = sin indicar.
+     * En el PUT solo se aplican si equipajeIndicado es true: así una versión de la app que no conoce el equipaje no lo
+     * borra al editar la convocatoria.
+     */
+    private Long equipacionId;
+    private Long equipacionMochilaId;
+    private Boolean equipajeIndicado;
+
     public ConvocatoriaGuardarRequest() {
     }
 
@@ -67,6 +76,30 @@ public class ConvocatoriaGuardarRequest {
 
     public void setJugadoresIds(List<Long> jugadoresIds) {
         this.jugadoresIds = jugadoresIds;
+    }
+
+    public Long getEquipacionId() {
+        return equipacionId;
+    }
+
+    public void setEquipacionId(Long equipacionId) {
+        this.equipacionId = equipacionId;
+    }
+
+    public Long getEquipacionMochilaId() {
+        return equipacionMochilaId;
+    }
+
+    public void setEquipacionMochilaId(Long equipacionMochilaId) {
+        this.equipacionMochilaId = equipacionMochilaId;
+    }
+
+    public boolean isEquipajeIndicado() {
+        return Boolean.TRUE.equals(equipajeIndicado);
+    }
+
+    public void setEquipajeIndicado(Boolean equipajeIndicado) {
+        this.equipajeIndicado = equipajeIndicado;
     }
 
     public List<Long> getInvitadosIds() {

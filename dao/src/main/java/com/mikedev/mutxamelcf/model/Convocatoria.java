@@ -30,6 +30,10 @@ public class Convocatoria {
     private String horaConvocatoria;
     private String lugarConvocatoria;
 
+    /** Equipaje con el que van vestidos al partido y el de reserva (mochila). Los dos opcionales; la mochila exige el principal. */
+    private Long equipacionId;
+    private Long equipacionMochilaId;
+
     private Long usuarioEntrenadorId;
     private LocalDateTime fechaCreacion;
 
@@ -106,6 +110,22 @@ public class Convocatoria {
 
     public void setLugarConvocatoria(String lugarConvocatoria) {
         this.lugarConvocatoria = lugarConvocatoria;
+    }
+
+    public Long getEquipacionId() {
+        return equipacionId;
+    }
+
+    public void setEquipacionId(Long equipacionId) {
+        this.equipacionId = equipacionId;
+    }
+
+    public Long getEquipacionMochilaId() {
+        return equipacionMochilaId;
+    }
+
+    public void setEquipacionMochilaId(Long equipacionMochilaId) {
+        this.equipacionMochilaId = equipacionMochilaId;
     }
 
     public Long getUsuarioEntrenadorId() {

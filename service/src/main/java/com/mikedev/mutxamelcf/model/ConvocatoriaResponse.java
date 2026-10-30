@@ -23,6 +23,9 @@ public class ConvocatoriaResponse {
     private String horaConvocatoria;
     private String lugarConvocatoria;
     private Long usuarioEntrenadorId;
+    /** Equipaje con el que van vestidos al partido y el de la mochila; null si no se ha indicado. */
+    private EquipacionResponse equipacion;
+    private EquipacionResponse equipacionMochila;
     private List<ConvocatoriaJugadorResponse> jugadores;
 
     /** El partido ya tiene resultado: la convocatoria ya no se puede anular. */
@@ -117,6 +120,22 @@ public class ConvocatoriaResponse {
 
     public void setUsuarioEntrenadorId(Long usuarioEntrenadorId) {
         this.usuarioEntrenadorId = usuarioEntrenadorId;
+    }
+
+    public EquipacionResponse getEquipacion() {
+        return equipacion;
+    }
+
+    public void setEquipacion(EquipacionResponse equipacion) {
+        this.equipacion = equipacion;
+    }
+
+    public EquipacionResponse getEquipacionMochila() {
+        return equipacionMochila;
+    }
+
+    public void setEquipacionMochila(EquipacionResponse equipacionMochila) {
+        this.equipacionMochila = equipacionMochila;
     }
 
     public boolean isPartidoConResultado() {

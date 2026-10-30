@@ -137,7 +137,7 @@ class EstadisticasEquipoServiceImplH2Test {
 
     private void convocar(long partido, long jugador) {
         long convocatoria = siguienteId++;
-        jdbc.update("INSERT INTO CONVOCATORIAS VALUES (?, ?)", convocatoria, partido);
+        jdbc.update("INSERT INTO CONVOCATORIAS (ID, PARTIDO_ID) VALUES (?, ?)", convocatoria, partido);
         jdbc.update("INSERT INTO CONVOCATORIA_JUGADOR (CONVOCATORIA_ID, JUGADOR_ID) VALUES (?, ?)",
                 convocatoria, jugador);
     }
@@ -606,7 +606,7 @@ class EstadisticasEquipoServiceImplH2Test {
     /** El jugador juega el partido como invitado de otro equipo con ese estado (su equipo habitual es OTRO_EQUIPO). */
     private void convocarComoInvitado(long partido, long jugador, String estado) {
         long convocatoria = siguienteId++;
-        jdbc.update("INSERT INTO CONVOCATORIAS VALUES (?, ?)", convocatoria, partido);
+        jdbc.update("INSERT INTO CONVOCATORIAS (ID, PARTIDO_ID) VALUES (?, ?)", convocatoria, partido);
         jdbc.update("INSERT INTO CONVOCATORIA_JUGADOR (CONVOCATORIA_ID, JUGADOR_ID, EQUIPO_ORIGEN_ID,"
                 + " ESTADO_INVITACION) VALUES (?, ?, ?, ?)", convocatoria, jugador, OTRO_EQUIPO, estado);
     }

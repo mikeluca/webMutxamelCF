@@ -8,6 +8,9 @@ public interface EquipoGestionDao {
 
     boolean puedeGestionarEquipo(Long usuarioAppId, Long equipoId);
 
+    /** true si el usuario puede gestionar algún equipo (coordinador, admin o cuerpo técnico de alguno). */
+    boolean gestionaAlgunEquipo(Long usuarioAppId);
+
     List<Long> obtenerJugadoresPorEquipo(Long equipoId);
 
     String obtenerNombreEquipo(Long equipoId);

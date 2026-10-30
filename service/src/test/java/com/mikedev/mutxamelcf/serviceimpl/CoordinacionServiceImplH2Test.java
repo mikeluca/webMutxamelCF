@@ -111,7 +111,7 @@ class CoordinacionServiceImplH2Test {
     }
 
     private void convocar(long partido) {
-        jdbc.update("INSERT INTO CONVOCATORIAS VALUES (?, ?)", siguienteId++, partido);
+        jdbc.update("INSERT INTO CONVOCATORIAS (ID, PARTIDO_ID) VALUES (?, ?)", siguienteId++, partido);
     }
 
     private void descanso(long equipo, LocalDate fecha, Integer jornada) {

@@ -608,9 +608,10 @@ public class InvitadosServiceImpl implements InvitadosService {
 
             boolean esJugador = equipoGestionDao.obtenerUsuariosPorJugador(fila.getJugadorId()).contains(usuarioId);
 
-            String texto = (esJugador ? "Has sido convocado" : jugador + " ha sido convocado") + " con " + destino
-                    + detalle + "\n\nLa convocatoria es a las " + textoOVacio(convocatoria.getHoraConvocatoria())
-                    + "h en " + textoOVacio(convocatoria.getLugarConvocatoria()) + ".";
+            String texto = TextosConvocatoria.conDucha((esJugador ? "Has sido convocado" : jugador + " ha sido convocado")
+                    + " con " + destino + detalle + "\n\nLa convocatoria es a las "
+                    + textoOVacio(convocatoria.getHoraConvocatoria()) + "h en "
+                    + textoOVacio(convocatoria.getLugarConvocatoria()) + ".");
 
             avisar(List.of(usuarioId), actorId, "Convocado con otro equipo", texto, texto,
                     datosConvocatoria(convocatoria, partido));

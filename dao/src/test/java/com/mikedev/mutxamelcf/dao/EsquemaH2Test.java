@@ -276,4 +276,71 @@ class EsquemaH2Test {
                         + " (PARTIDO_ID, JUGADOR_ID, USUARIO_APP_ID, MOTIVO, FECHA_CREACION)"
                         + " VALUES (30, 101, 7, NULL, CURRENT_TIMESTAMP)")).isInstanceOf(Exception.class);
     }
+
+    @Test
+    void laTablaDeEquipacionesYLasColumnasDeEquipajeDeLaConvocatoriaTienenElEsquemaDelScript() throws Exception {
+        JdbcTemplate jdbc = new JdbcTemplate(new DriverManagerDataSource(
+                "jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=Oracle;DB_CLOSE_DELAY=-1", "sa", ""));
+        jdbc.execute("CREATE TABLE CONVOCATORIAS (ID NUMBER PRIMARY KEY, PARTIDO_ID NUMBER)");
+        EsquemaH2.crear(jdbc);
+
+        assertThat(columnas(jdbc, "EQUIPACIONES")).containsExactly(
+                "ID", "NOMBRE", "CAMISETA", "PANTALON", "MEDIAS", "COLOR_HEX", "ORDEN", "ACTIVA");
+        assertThat(columnas(jdbc, "CONVOCATORIAS")).contains("EQUIPACION_ID", "EQUIPACION_MOCHILA_ID");
+
+        // Por defecto: ORDEN 0, ACTIVA 1; el resto, opcional.
+        jdbc.update("INSERT INTO EQUIPACIONES (NOMBRE) VALUES ('Primera')");
+        jdbc.update("INSERT INTO EQUIPACIONES (NOMBRE, COLOR_HEX) VALUES ('Segunda', '#00aaFF')");
+        assertThat(jdbc.queryForObject("SELECT ORDEN * 10 + ACTIVA FROM EQUIPACIONES WHERE NOMBRE = 'Primera'",
+                Integer.class)).isEqualTo(1);
+
+        // UNIQUE (NOMBRE), CHECK de COLOR_HEX y de ACTIVA, NOMBRE obligatorio
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO EQUIPACIONES (NOMBRE) VALUES ('Primera')"))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO EQUIPACIONES (NOMBRE, COLOR_HEX) VALUES ('X', 'azul')"))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO EQUIPACIONES (NOMBRE, COLOR_HEX) VALUES ('X', '#12345G')"))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO EQUIPACIONES (NOMBRE, ACTIVA) VALUES ('X', 2)"))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO EQUIPACIONES (NOMBRE) VALUES (NULL)"))
+                .isInstanceOf(Exception.class);
+
+        // CONVOCATORIAS: sin equipaje, solo principal, y principal + mochila distinta valen; el resto no.
+        long primera = jdbc.queryForObject("SELECT ID FROM EQUIPACIONES WHERE NOMBRE = 'Primera'", Long.class);
+        long segunda = jdbc.queryForObject("SELECT ID FROM EQUIPACIONES WHERE NOMBRE = 'Segunda'", Long.class);
+        jdbc.update("INSERT INTO CONVOCATORIAS (ID, PARTIDO_ID) VALUES (1, 10)");
+        jdbc.update("INSERT INTO CONVOCATORIAS (ID, PARTIDO_ID, EQUIPACION_ID) VALUES (2, 11, ?)", primera);
+        jdbc.update("INSERT INTO CONVOCATORIAS (ID, PARTIDO_ID, EQUIPACION_ID, EQUIPACION_MOCHILA_ID)"
+                + " VALUES (3, 12, ?, ?)", primera, segunda);
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO CONVOCATORIAS (ID, PARTIDO_ID, EQUIPACION_MOCHILA_ID) VALUES (4, 13, ?)", primera))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO CONVOCATORIAS (ID, PARTIDO_ID, EQUIPACION_ID, EQUIPACION_MOCHILA_ID) VALUES (5, 14, ?, ?)",
+                primera, primera)).isInstanceOf(Exception.class);
+        // Clave ajena: un equipaje inexistente no vale, y uno en uso no se borra.
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO CONVOCATORIAS (ID, PARTIDO_ID, EQUIPACION_ID) VALUES (6, 15, 9999)"))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update("DELETE FROM EQUIPACIONES WHERE ID = ?", primera))
+                .isInstanceOf(Exception.class);
+
+        // El script de Oracle tiene lo mismo que el de H2.
+        String script = Files.readString(Path.of("..", "sql", "2026-11-03_equipajes_convocatoria.sql"));
+        assertThat(script).contains("CREATE TABLE SYSTEM.EQUIPACIONES", "NOMBRE      VARCHAR2(50 CHAR) NOT NULL",
+                "COLOR_HEX   VARCHAR2(7) NULL", "CHECK (REGEXP_LIKE(COLOR_HEX, '^#[0-9A-Fa-f]{6}$'))",
+                "ACTIVA      NUMBER(1) DEFAULT 1 NOT NULL", "ORDEN       NUMBER DEFAULT 0 NOT NULL",
+                "UQ_EQUIPACIONES_NOMBRE UNIQUE (NOMBRE)",
+                "GRANT SELECT, INSERT, UPDATE, DELETE ON SYSTEM.EQUIPACIONES TO USER_WEB",
+                "CREATE OR REPLACE SYNONYM USER_WEB.EQUIPACIONES FOR SYSTEM.EQUIPACIONES",
+                "EQUIPACION_ID          NUMBER NULL", "EQUIPACION_MOCHILA_ID  NUMBER NULL",
+                "FK_CONVOCATORIAS_EQUIPACION", "FK_CONVOCATORIAS_EQUIP_MOCHILA",
+                "EQUIPACION_MOCHILA_ID IS NULL", "EQUIPACION_ID IS NOT NULL AND EQUIPACION_ID <> EQUIPACION_MOCHILA_ID");
+    }
+
+    @Test
+    void sinTablaConvocatoriasElEsquemaDeEquipajesSeCreaIgual() {
+        assertThat(columnas(nuevaBase(), "EQUIPACIONES")).isNotEmpty();
+    }
 }
