@@ -40,6 +40,7 @@ import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.PrevisualizacionFfcv;
 import com.mikedev.mutxamelcf.model.ResultadoImportacionFfcv;
 import com.mikedev.mutxamelcf.service.ImportacionFfcvService;
+import com.mikedev.mutxamelcf.service.InvitadosService;
 
 @Service
 public class ImportacionFfcvServiceImpl implements ImportacionFfcvService {
@@ -58,19 +59,22 @@ public class ImportacionFfcvServiceImpl implements ImportacionFfcvService {
 	private final DescansoEquipoDao descansoEquipoDao;
 	private final EquipoDao equipoDao;
 	private final ConvocatoriaDao convocatoriaDao;
+	private final InvitadosService invitadosService;
 
 	public ImportacionFfcvServiceImpl(
 			PartidoDao partidoDao,
 			EquipoFfcvDao equipoFfcvDao,
 			DescansoEquipoDao descansoEquipoDao,
 			EquipoDao equipoDao,
-			ConvocatoriaDao convocatoriaDao) {
+			ConvocatoriaDao convocatoriaDao,
+			InvitadosService invitadosService) {
 
 		this.partidoDao = partidoDao;
 		this.equipoFfcvDao = equipoFfcvDao;
 		this.descansoEquipoDao = descansoEquipoDao;
 		this.equipoDao = equipoDao;
 		this.convocatoriaDao = convocatoriaDao;
+		this.invitadosService = invitadosService;
 	}
 
 	@Override
@@ -138,7 +142,19 @@ public class ImportacionFfcvServiceImpl implements ImportacionFfcvService {
 			if (fila.estado() == EstadoFilaFfcv.NUEVO) {
 				procesados.add(partidoDao.crear(construirPartido(fila)).getId());
 			} else if (fila.estado() == EstadoFilaFfcv.ACTUALIZADO) {
+				Partido anterior = partidoDao.obtenerPorId(fila.partidoId());
+				LocalDate diaAntiguo = anterior == null || anterior.getDia() == null ? null
+						: aLocalDate(anterior.getDia());
+
 				partidoDao.actualizarDatosFfcv(construirPartido(fila));
+
+				// Un aplazamiento: las invitaciones de otros equipos se anulan o se vuelven a evaluar, en esta misma
+				// transacción (los push salen al confirmarla).
+				if (diaAntiguo != null && !diaAntiguo.equals(fila.fecha())) {
+					invitadosService.alCambiarFechaPartido(
+							partidoDao.obtenerPorId(fila.partidoId()), diaAntiguo, fila.fecha());
+				}
+
 				procesados.add(fila.partidoId());
 			} else if (fila.estado() == EstadoFilaFfcv.SIN_CAMBIOS && fila.partidoId() != null) {
 				// También los que no cambian: la importación los ha comprobado.
@@ -415,6 +431,11 @@ public class ImportacionFfcvServiceImpl implements ImportacionFfcvService {
 			resueltas.add(nuevaFila(fila, EstadoFilaFfcv.NUEVO, equipoId, nombreEquipo, null, List.of()));
 		}
 
+		// Aplazamientos: un partido FFCV que ya no aparece en su fecha y otro NUEVO del mismo equipo y la misma
+		// jornada son el mismo partido movido de día. Se actualiza el existente (conserva su convocatoria) en lugar
+		// de crear uno nuevo y dejar el antiguo como desaparecido.
+		Set<Long> aplazados = emparejarAplazamientos(resueltas, ffcvExistentes, clavesVistas);
+
 		// Descansan: equipos CON relación que no aparecen en el archivo. Los
 		// equipos sin relación (Escuelita, Veteranos...) no se marcan nunca.
 		Set<Long> relacionados = new LinkedHashSet<>(relaciones.values());
@@ -433,7 +454,7 @@ public class ImportacionFfcvServiceImpl implements ImportacionFfcvService {
 		List<FfcvDesaparecido> desaparecidos = new ArrayList<>();
 
 		for (Map.Entry<String, Partido> entrada : ffcvExistentes.entrySet()) {
-			if (!clavesVistas.contains(entrada.getKey())) {
+			if (!clavesVistas.contains(entrada.getKey()) && !aplazados.contains(entrada.getValue().getId())) {
 				Partido partido = entrada.getValue();
 				Equipo equipo = equipos.get(partido.getEquipoId());
 				desaparecidos.add(new FfcvDesaparecido(
@@ -451,6 +472,63 @@ public class ImportacionFfcvServiceImpl implements ImportacionFfcvService {
 				.thenComparing(d -> d.equipoNombre() == null ? "" : d.equipoNombre()));
 
 		return new PrevisualizacionFfcv(desde, hasta, resueltas, descansan, desaparecidos, errores);
+	}
+
+	/*
+	 * Convierte en ACTUALIZADO (con el cambio de fecha) las filas NUEVAS que son un partido FFCV existente movido de
+	 * día: mismo equipo, misma jornada, sin resultado ni cancelado, y que ya no está en su fecha antigua. Cada partido
+	 * existente se empareja como mucho una vez. Devuelve los ids de los partidos emparejados.
+	 */
+	private static Set<Long> emparejarAplazamientos(
+			List<FfcvFilaPrevisualizacion> resueltas, Map<String, Partido> ffcvExistentes, Set<String> clavesVistas) {
+
+		List<Partido> sinFecha = new ArrayList<>();
+
+		for (Map.Entry<String, Partido> entrada : ffcvExistentes.entrySet()) {
+			Partido partido = entrada.getValue();
+
+			if (!clavesVistas.contains(entrada.getKey()) && !partido.isCancelado()
+					&& !CriterioResultadoPartido.tieneResultado(partido)) {
+				sinFecha.add(partido);
+			}
+		}
+
+		sinFecha.sort(Comparator.comparing(Partido::getDia));
+
+		Set<Long> emparejados = new HashSet<>();
+
+		for (int i = 0; i < resueltas.size(); i++) {
+
+			FfcvFilaPrevisualizacion fila = resueltas.get(i);
+
+			if (fila.estado() != EstadoFilaFfcv.NUEVO || fila.jornada() == null) {
+				continue;
+			}
+
+			for (Partido existente : sinFecha) {
+
+				if (emparejados.contains(existente.getId())
+						|| !existente.getEquipoId().equals(fila.equipoId())
+						|| !fila.jornada().equals(existente.getJornada())) {
+					continue;
+				}
+
+				List<String> cambios = new ArrayList<>();
+				cambios.add("Fecha: " + aLocalDate(existente.getDia()).format(FORMATO_FECHA) + " → "
+						+ fila.fecha().format(FORMATO_FECHA));
+				cambios.addAll(diferencias(existente, fila.aFilaCsv()));
+
+				resueltas.set(i, new FfcvFilaPrevisualizacion(
+						fila.fecha(), fila.competicion(), fila.letra(), fila.local(), fila.rival(), fila.campo(),
+						fila.hora(), fila.jornada(), EstadoFilaFfcv.ACTUALIZADO, fila.equipoId(), fila.equipoNombre(),
+						existente.getId(), cambios));
+
+				emparejados.add(existente.getId());
+				break;
+			}
+		}
+
+		return emparejados;
 	}
 
 	private static FfcvFilaPrevisualizacion nuevaFila(

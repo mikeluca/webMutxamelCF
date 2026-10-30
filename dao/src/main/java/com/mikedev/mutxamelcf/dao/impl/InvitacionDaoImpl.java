@@ -181,6 +181,25 @@ public class InvitacionDaoImpl implements InvitacionDao {
     }
 
     @Override
+    public List<InvitacionDetalle> deOrigenEnDias(Long equipoOrigenId, LocalDate unDia, LocalDate otroDia) {
+
+        return jdbcTemplate.query(
+                DETALLE + """
+                          AND CJ.EQUIPO_ORIGEN_ID = ?
+                          AND CJ.ESTADO_INVITACION IN ('PENDIENTE_ENTRENADOR', 'AUTORIZADO')
+                          AND P.CANCELADO = 0
+                          AND ((P.DIA >= ? AND P.DIA < ?) OR (P.DIA >= ? AND P.DIA < ?))
+                        ORDER BY P.DIA, CJ.ID
+                        """,
+                DETALLE_ROW_MAPPER,
+                equipoOrigenId,
+                dia(unDia),
+                dia(unDia.plusDays(1)),
+                dia(otroDia),
+                dia(otroDia.plusDays(1)));
+    }
+
+    @Override
     public List<PartidoDelDia> partidosDelEquipoEnDia(Long equipoId, LocalDate diaPartido) {
 
         return jdbcTemplate.query("""

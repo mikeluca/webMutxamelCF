@@ -351,4 +351,27 @@ class InvitacionDaoH2Test {
         assertThat(invitables.get(1).dorsal()).isNull();
         assertThat(sinFilaDeTemporada).isPositive();
     }
+
+    @Test
+    void deOrigenEnDiasTraeLasPendientesDeEntrenadorYLasAutorizadasDeEseEquipoEnEsosDosDias() {
+        invitado(100, 2, 2, EstadoInvitacion.AUTORIZADO);
+        invitado(100, 3, 2, EstadoInvitacion.PENDIENTE_ENTRENADOR);
+        invitado(100, 4, 2, EstadoInvitacion.PENDIENTE_COORDINACION);
+        invitado(100, 5, 2, EstadoInvitacion.RECHAZADO);
+        // De otro equipo de origen.
+        invitado(101, 1, 1, EstadoInvitacion.AUTORIZADO);
+        // El partido 12 es de otro dia (DIA + 7).
+        jdbc.update("INSERT INTO CONVOCATORIAS (ID, EQUIPO_ID, PARTIDO_ID, USUARIO_ENTRENADOR_ID) VALUES (102, 1, 12, 7)");
+        ConvocatoriaJugador otroDia = invitado(102, 1, 2, EstadoInvitacion.AUTORIZADO);
+
+        assertThat(dao.deOrigenEnDias(2L, DIA, DIA)).extracting(InvitacionDetalle::jugadorId).containsExactly(2L, 3L);
+        assertThat(dao.deOrigenEnDias(2L, DIA, DIA.plusDays(7))).extracting(InvitacionDetalle::id)
+                .contains(otroDia.getId()).hasSize(3);
+        assertThat(dao.deOrigenEnDias(2L, DIA.plusDays(1), DIA.plusDays(2))).isEmpty();
+        assertThat(dao.deOrigenEnDias(1L, DIA, DIA)).extracting(InvitacionDetalle::jugadorId).containsExactly(1L);
+
+        jdbc.update("UPDATE PARTIDOS SET CANCELADO = 1 WHERE ID = 10");
+
+        assertThat(dao.deOrigenEnDias(2L, DIA, DIA)).isEmpty();
+    }
 }

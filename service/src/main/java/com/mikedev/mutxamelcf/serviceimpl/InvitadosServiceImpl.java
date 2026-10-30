@@ -80,6 +80,8 @@ public class InvitadosServiceImpl implements InvitadosService {
     static final String TIPO_DESESTIMADA = "INVITACION_DESESTIMADA";
     static final String TIPO_ANULADA = "INVITACION_ANULADA";
     static final String TIPO_LIBERADA_COORDINACION = "INVITACION_LIBERADA_COORDINACION";
+    static final String TIPO_FECHA_CAMBIADA = "INVITACION_FECHA_CAMBIADA";
+    static final String TIPO_SOLAPAMIENTO = "INVITACION_SOLAPAMIENTO";
 
     /** El tipo del push de una convocatoria (ConvocatoriaServiceImpl): la app abre el calendario en ese día. */
     private static final String TIPO_PUSH_CONVOCATORIA = ConvocatoriaServiceImpl.TIPO_PUSH_CONVOCATORIA;
@@ -545,6 +547,13 @@ public class InvitadosServiceImpl implements InvitadosService {
             return;
         }
 
+        pedirLiberacion(fila, convocatoria, partido, actorId, dia);
+    }
+
+    /* Pasa a pendiente de su entrenador (arranca el plazo de 12 horas) y se le pide que lo libere. */
+    private void pedirLiberacion(ConvocatoriaJugador fila, Convocatoria convocatoria, Partido partido, Long actorId,
+            LocalDate dia) {
+
         fila.setEstadoInvitacion(EstadoInvitacion.PENDIENTE_ENTRENADOR);
         fila.setFechaPeticionEntrenador(LocalDateTime.now(clock));
         fila.setAviso12hEnviado(false);
@@ -932,13 +941,24 @@ public class InvitadosServiceImpl implements InvitadosService {
     private void anular(ConvocatoriaJugador fila, Convocatoria convocatoria, Partido partido, String titulo,
             String sufijoFamilia) {
 
+        anular(fila, convocatoria, partido, PlazoJustificacionPartido.dia(partido), titulo, sufijoFamilia);
+    }
+
+    /* dia: el día en que se jugaba el partido que se anula (si el partido cambia de fecha, el antiguo). */
+    private void anular(ConvocatoriaJugador fila, Convocatoria convocatoria, Partido partido, LocalDate dia,
+            String titulo, String sufijoFamilia) {
+
         String jugador = equipoGestionDao.obtenerNombreJugador(fila.getJugadorId());
         String destino = equipoGestionDao.obtenerNombreEquipo(convocatoria.getEquipoId());
-        String partidoTexto = "el partido de " + destino + " contra " + partido.getRival() + " ("
-                + textoFecha(partido) + ")";
+        String fecha = dia == null ? "sin fecha" : FECHA.format(dia);
+        String partidoTexto = "el partido de " + destino + " contra " + partido.getRival() + " (" + fecha + ")";
 
         Map<String, String> data = datos(TIPO_ANULADA, convocatoria, partido, fila);
         data.remove("convocatoriaId");
+
+        if (dia != null) {
+            data.put("fechaPartido", dia.toString());
+        }
 
         if (fila.getEstadoInvitacion() == EstadoInvitacion.AUTORIZADO) {
 
@@ -950,15 +970,155 @@ public class InvitadosServiceImpl implements InvitadosService {
                         : jugador + " ya no juega con " + destino) + " en " + partidoTexto + ".";
 
                 avisar(List.of(usuarioId), convocatoria.getUsuarioEntrenadorId(), titulo, texto, texto,
-                        Map.of("tipo", TIPO_ANULADA, "partidoId", String.valueOf(partido.getId()),
-                                "fechaPartido", fechaIso(partido)));
+                        dia == null ? Map.of("tipo", TIPO_ANULADA, "partidoId", String.valueOf(partido.getId()))
+                                : Map.of("tipo", TIPO_ANULADA, "partidoId", String.valueOf(partido.getId()),
+                                        "fechaPartido", dia.toString()));
             }
         }
 
         avisar(destinatariosEquipo(fila.getEquipoOrigenId()), convocatoria.getUsuarioEntrenadorId(), titulo,
                 jugador + sufijoFamilia + " con " + destino + ": " + partidoTexto + ".",
-                jugador + sufijoFamilia + " con " + destino + " (" + textoFecha(partido) + ").",
+                jugador + sufijoFamilia + " con " + destino + " (" + fecha + ").",
                 data);
+    }
+
+    // ==================================================================
+    // Si cambia la fecha de un partido
+    // ==================================================================
+
+    @Override
+    @Transactional
+    public void alCambiarFechaPartido(Partido partido, LocalDate diaAntiguo, LocalDate diaNuevo) {
+
+        if (partido == null || diaAntiguo == null || diaNuevo == null || diaAntiguo.equals(diaNuevo)) {
+            return;
+        }
+
+        anularInvitacionesDelPartido(partido, diaAntiguo, diaNuevo);
+        reevaluarSolapamientosDeOrigen(partido, diaAntiguo, diaNuevo);
+    }
+
+    /*
+     * El partido es el de destino: las invitaciones que no estaban rechazadas se anulan como al quitar al invitado, y
+     * quien invitó recibe un único aviso para que, si quiere, vuelva a invitarlos para la fecha nueva.
+     */
+    private void anularInvitacionesDelPartido(Partido partido, LocalDate diaAntiguo, LocalDate diaNuevo) {
+
+        Convocatoria convocatoria = convocatoriaDao.obtenerPorPartidoId(partido.getId());
+
+        if (convocatoria == null) {
+            return;
+        }
+
+        Map<Long, List<String>> nombresPorInvitador = new LinkedHashMap<>();
+        Map<Long, List<Long>> idsPorInvitador = new LinkedHashMap<>();
+
+        for (ConvocatoriaJugador fila : convocatoriaJugadorDao.obtenerTodasPorConvocatoria(convocatoria.getId())) {
+
+            if (!fila.isInvitado() || fila.getEstadoInvitacion() == EstadoInvitacion.RECHAZADO) {
+                continue;
+            }
+
+            convocatoriaJugadorDao.eliminarPorConvocatoriaYJugador(convocatoria.getId(), fila.getJugadorId());
+
+            // Si ya estaba autorizado, también se avisa a su familia; a su entrenador, si ya se le había pedido algo.
+            if (fila.getEstadoInvitacion() == EstadoInvitacion.AUTORIZADO
+                    || fila.getEstadoInvitacion() == EstadoInvitacion.PENDIENTE_ENTRENADOR) {
+
+                anular(fila, convocatoria, partido, diaAntiguo, "Partido aplazado", " ya no juega el partido");
+            }
+
+            Long invitador = fila.getUsuarioInvitaId() != null ? fila.getUsuarioInvitaId()
+                    : convocatoria.getUsuarioEntrenadorId();
+
+            if (invitador != null) {
+                nombresPorInvitador.computeIfAbsent(invitador, k -> new ArrayList<>())
+                        .add(equipoGestionDao.obtenerNombreJugador(fila.getJugadorId()));
+                idsPorInvitador.computeIfAbsent(invitador, k -> new ArrayList<>()).add(fila.getJugadorId());
+            }
+        }
+
+        String destino = equipoGestionDao.obtenerNombreEquipo(convocatoria.getEquipoId());
+
+        for (Map.Entry<Long, List<String>> entrada : nombresPorInvitador.entrySet()) {
+
+            Map<String, String> data = new LinkedHashMap<>();
+            data.put("tipo", TIPO_FECHA_CAMBIADA);
+            data.put("convocatoriaId", String.valueOf(convocatoria.getId()));
+            data.put("partidoId", String.valueOf(partido.getId()));
+            data.put("fechaPartido", diaNuevo.toString());
+            data.put("fechaAnterior", diaAntiguo.toString());
+            data.put("jugadorIds", idsPorInvitador.get(entrada.getKey()).stream().map(String::valueOf)
+                    .collect(Collectors.joining(",")));
+
+            avisar(List.of(entrada.getKey()), null,
+                    "Partido aplazado: invitaciones anuladas",
+                    "El partido de " + destino + " contra " + partido.getRival() + " pasa del "
+                            + FECHA.format(diaAntiguo) + " al " + FECHA.format(diaNuevo) + ". Se han anulado las"
+                            + " invitaciones de " + String.join(", ", entrada.getValue())
+                            + ". Si quieres, vuelve a invitarlos para la nueva fecha.",
+                    "El partido de " + destino + " pasa del " + FECHA.format(diaAntiguo) + " al "
+                            + FECHA.format(diaNuevo) + ": se han anulado tus invitaciones de otros equipos.",
+                    data);
+        }
+    }
+
+    /*
+     * El partido es el del equipo de origen: las invitaciones pendientes de su entrenador o autorizadas de ese equipo
+     * cuyo partido de destino cae en la fecha antigua o en la nueva vuelven a pasar por la regla del solapamiento.
+     */
+    private void reevaluarSolapamientosDeOrigen(Partido partido, LocalDate diaAntiguo, LocalDate diaNuevo) {
+
+        for (InvitacionDetalle invitacion : invitacionDao.deOrigenEnDias(partido.getEquipoId(), diaAntiguo, diaNuevo)) {
+
+            ConvocatoriaJugador fila = convocatoriaJugadorDao.obtenerPorId(invitacion.id());
+            Convocatoria convocatoria = convocatoriaDao.obtenerPorId(invitacion.convocatoriaId());
+            Partido destino = partidoDao.obtenerPorId(invitacion.partidoId());
+
+            if (fila == null || convocatoria == null || destino == null || invitacion.dia() == null) {
+                continue;
+            }
+
+            LocalDate dia = invitacion.dia();
+
+            boolean juega = !invitacionDao.partidosDelEquipoEnDia(fila.getEquipoOrigenId(), dia).isEmpty();
+            boolean convocado = juega && !invitacionDao.filasPropiasDelJugadorEnDia(
+                    fila.getEquipoOrigenId(), fila.getJugadorId(), dia).isEmpty();
+
+            if (!convocado) {
+
+                // Ya no hay nada que liberar: lo que esperaba a su entrenador queda autorizado.
+                if (fila.getEstadoInvitacion() == EstadoInvitacion.PENDIENTE_ENTRENADOR
+                        && autorizadaEseDia(fila.getJugadorId(), dia, fila.getId()) == null) {
+
+                    autorizar(fila, convocatoria, destino, null,
+                            juega ? AvisoEntrenadorOrigen.INFORMATIVA : AvisoEntrenadorOrigen.AUTORIZADA);
+                }
+
+                continue;
+            }
+
+            // Su equipo juega ese día y lo tiene convocado: si ya estaba autorizado vuelve a esperar a su entrenador.
+            if (fila.getEstadoInvitacion() == EstadoInvitacion.AUTORIZADO) {
+
+                pedirLiberacion(fila, convocatoria, destino, null, dia);
+
+                String jugador = equipoGestionDao.obtenerNombreJugador(fila.getJugadorId());
+                String nombreDestino = equipoGestionDao.obtenerNombreEquipo(convocatoria.getEquipoId());
+                String origen = equipoGestionDao.obtenerNombreEquipo(fila.getEquipoOrigenId());
+                Set<Long> directos = Set.copyOf(equipoGestionDao.obtenerUsuariosPorJugador(fila.getJugadorId()));
+
+                for (Long usuarioId : usuariosDelJugador(fila.getJugadorId())) {
+
+                    String texto = (directos.contains(usuarioId) ? "Dejas de estar confirmado" : jugador
+                            + " deja de estar confirmado") + " con " + nombreDestino + " el " + FECHA.format(dia)
+                            + ": " + origen + " ha cambiado un partido ese día y su entrenador tiene que liberarlo.";
+
+                    avisar(List.of(usuarioId), null, "Invitación pendiente de su entrenador", texto, texto,
+                            datos(TIPO_SOLAPAMIENTO, convocatoria, destino, fila));
+                }
+            }
+        }
     }
 
     // ==================================================================

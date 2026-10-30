@@ -36,7 +36,25 @@ alta ──────────► PENDIENTE_COORDINACION ──rechaza─�
 - "Su equipo juega" = tiene un partido **no cancelado** el mismo día.
 - A las 12 horas de pasar a `PENDIENTE_ENTRENADOR` se avisa a coordinación, una sola vez; la invitación sigue pendiente.
 - La familia puede desestimar a un invitado `AUTORIZADO` (§3.6): sigue `AUTORIZADO`, con una justificación de ausencia.
-- Se borra la fila (no hay estado "cancelado") si el entrenador lo quita, se borra la convocatoria o se cancela o borra el partido.
+- Se borra la fila (no hay estado "cancelado") si el entrenador lo quita, se borra la convocatoria, se cancela o borra el partido o el partido cambia de fecha (§1.1).
+
+### 1.1 Si cambia la fecha de un partido
+
+Cuando cambia el **día** de un partido (desde la app o el panel con "actualizar partido", o por un aplazamiento detectado al importar de la FFCV, §1.2), en la misma transacción que el cambio:
+
+- **El partido es el de destino de invitaciones:** las que no estén `RECHAZADO` (`PENDIENTE_COORDINACION`, `PENDIENTE_ENTRENADOR` o `AUTORIZADO`) se anulan como al quitar al invitado: se borra la fila y se avisa con `INVITACION_ANULADA` según el §8 (a la familia y al jugador solo si estaba autorizado; al cuerpo técnico del equipo de origen si estaba autorizado o pendiente de él), con la **fecha antigua** en `fechaPartido`. Además, a cada usuario que invitó se le manda **un** aviso `INVITACION_FECHA_CAMBIADA` con los jugadores anulados, para que, si quiere, los vuelva a invitar para la fecha nueva. Las `RECHAZADO` no se tocan.
+- **El partido es el del equipo de origen de invitaciones** `PENDIENTE_ENTRENADOR` o `AUTORIZADO` cuyo partido de destino cae en la fecha antigua o en la nueva: se vuelve a aplicar la regla del solapamiento a cada una (día del partido de destino):
+  - su equipo ya no juega ese día, o juega pero ya no lo tiene convocado ese día: si estaba `PENDIENTE_ENTRENADOR` pasa a `AUTORIZADO` (avisos de autorización del §8; si su equipo sigue jugando ese día, el de su entrenador es `INVITACION_INFORMATIVA`); si ya estaba `AUTORIZADO`, no cambia;
+  - su equipo juega ese día y lo tiene convocado: si estaba `AUTORIZADO` pasa a `PENDIENTE_ENTRENADOR` (arranca de nuevo el plazo de 12 horas): `INVITACION_LIBERAR` a su entrenador y `INVITACION_SOLAPAMIENTO` a su familia y al jugador; si ya estaba `PENDIENTE_ENTRENADOR`, no cambia.
+- Si el partido cambia de hora pero no de día, no pasa nada. El convocar o no a un jugador sigue ligado a la convocatoria, que viaja con su partido.
+
+### 1.2 Aplazamientos en la importación de la FFCV
+
+La importación identificaba cada partido por equipo y día, así que un aplazamiento salía como un partido nuevo más un "desaparecido". Ahora, un partido FFCV **desaparecido** y una fila **nueva** del mismo equipo y la **misma jornada** se tratan como el mismo partido movido de día, siempre que el existente no esté cancelado ni tenga resultado y que su fecha antigua caiga dentro del rango de fechas del archivo:
+
+- La previsualización lo muestra como `ACTUALIZADO` con el cambio `Fecha: 18/10/2026 → 17/10/2026` en `cambios`, y deja de salir en `desaparecidos`.
+- Al confirmar se actualiza el partido existente (su `DIA`, además de hora, campo, rival, jornada y local), de modo que conserva su convocatoria, sus invitados y sus estadísticas, y se aplica el §1.1.
+- Los partidos que desaparecen sin una fila nueva de la misma jornada siguen igual que antes: no se tocan y salen como aviso.
 
 ## 2. Pantalla de la convocatoria (entrenador del equipo del partido)
 
@@ -73,7 +91,7 @@ Cuerpo igual que hasta ahora, más un campo opcional:
   - En el PUT, **`null` o ausente = no se tocan**; una lista = la convocatoria queda con exactamente esos invitados (los que faltan se quitan, `[]` quita a todos).
   - Máximo **3** invitados por convocatoria, sin contar los rechazados ni los que la familia ha desestimado (400 si se pasa).
 - Un invitado nuevo queda `PENDIENTE_COORDINACION` y se avisa a coordinación. Si quien guarda es **coordinador o ADMIN_APP**, queda aprobado al momento (y pasa a `AUTORIZADO` o `PENDIENTE_ENTRENADOR` según el §1). Reinvitar a un `RECHAZADO` lo vuelve a poner `PENDIENTE_COORDINACION`.
-- 400: equipo de origen no permitido, jugador que no está activo, jugador del propio equipo, jugador con la ausencia justificada a ese partido, más de 3 invitados. Cambiar el `partidoId` de una convocatoria que tiene invitados (sin rechazar) también es 400: hay que quitarlos antes.
+- 400: equipo de origen no permitido, jugador que no está activo, jugador del propio equipo, jugador con la ausencia justificada a ese partido, más de 3 invitados. Cambiar el `partidoId` de una convocatoria que tiene invitados (sin rechazar) también es 400: hay que quitarlos antes. Cambiar la **fecha del propio partido** sí se puede: anula las invitaciones (§1.1).
 - 409 (§5): `JUGADOR_YA_INVITADO_ESE_DIA` al invitar a quien ya está autorizado con otro equipo ese día; `JUGADOR_INVITADO_ESE_DIA` si alguno de `jugadoresIds` (los que entran) ya está autorizado como invitado con otro equipo ese día (su entrenador no puede convocarlo).
 
 ### Respuesta de la convocatoria (POST, PUT, GET)
@@ -191,7 +209,9 @@ Todos los valores son texto. Cada push crea también la notificación en la band
 | `INVITACION_PLAZO` | Todos los coordinadores y ADMIN_APP | 12 horas sin liberar (una sola vez) | `invitacionId`, `partidoId`, `jugadorId`, `fechaPartido` | Lista de pendientes (§4) |
 | `INVITACION_LIBERADA_COORDINACION` | Cuerpo técnico del equipo de origen | Coordinación libera al jugador | `invitacionId`, `convocatoriaId`, `partidoId`, `jugadorId`, `fechaPartido` | Su convocatoria / calendario |
 | `INVITACION_DESESTIMADA` | Quien invitó | La familia desestima (motivo solo en la bandeja) | `convocatoriaId`, `partidoId`, `jugadorId` | La convocatoria, para elegir a otro |
-| `INVITACION_ANULADA` | Familia y jugador (solo si estaba autorizado) y cuerpo técnico del equipo de origen (si estaba autorizado o pendiente de él) | Se quita al invitado, se borra la convocatoria o se cancela o borra el partido | familia: `partidoId`, `fechaPartido`; cuerpo técnico: ídem + `invitacionId`, `jugadorId` (sin `convocatoriaId`: puede no existir ya) | Calendario en `fechaPartido` |
+| `INVITACION_ANULADA` | Familia y jugador (solo si estaba autorizado) y cuerpo técnico del equipo de origen (si estaba autorizado o pendiente de él) | Se quita al invitado, se borra la convocatoria, se cancela o borra el partido o **cambia su fecha** (§1.1; `fechaPartido` es entonces la fecha antigua) | familia: `partidoId`, `fechaPartido`; cuerpo técnico: ídem + `invitacionId`, `jugadorId` (sin `convocatoriaId`: puede no existir ya) | Calendario en `fechaPartido` |
+| `INVITACION_FECHA_CAMBIADA` | Quien invitó (uno por usuario) | El partido de destino cambia de fecha y se anulan sus invitaciones (§1.1) | `convocatoriaId`, `partidoId`, `fechaPartido` (la nueva), `fechaAnterior`, `jugadorIds` (los anulados, separados por comas) | La convocatoria, para volver a invitarlos |
+| `INVITACION_SOLAPAMIENTO` | Familia y jugador | Un invitado `AUTORIZADO` vuelve a `PENDIENTE_ENTRENADOR` porque su equipo cambia un partido y coincide con ese día (§1.1) | `invitacionId`, `convocatoriaId`, `partidoId`, `jugadorId`, `fechaPartido` | El calendario en `fechaPartido` |
 | `CONVOCATORIA` | Familia y jugador | Pasa a `AUTORIZADO` (aviso de convocatoria normal: "Has sido convocado con Cadete A…"), o deja de estar convocado con su equipo al liberarlo | `convocatoriaId`, `partidoId`, `fechaPartido` (al liberarlo, los de la convocatoria de su equipo) | El detalle de la convocatoria o el calendario, como siempre |
 
 Solo se avisa a la familia, al jugador y a su entrenador cuando el invitado queda **autorizado** (nunca en `PENDIENTE_*`). Quien provoca el cambio no recibe su propio aviso.

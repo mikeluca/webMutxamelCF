@@ -77,6 +77,13 @@ public interface InvitadosService {
     /** Se va a borrar la convocatoria: avisa a los invitados que lo necesiten. */
     void alEliminarConvocatoria(Convocatoria convocatoria, Partido partido);
 
+    /**
+     * El partido ya tiene su fecha nueva (se llama justo después de guardarla, en la misma transacción). Si es el
+     * partido de destino de invitaciones, las anula y avisa a quien invitó; si es el partido del equipo de origen de
+     * invitaciones pendientes de su entrenador o autorizadas, vuelve a evaluar su solapamiento.
+     */
+    void alCambiarFechaPartido(Partido partido, LocalDate diaAntiguo, LocalDate diaNuevo);
+
     /** Se va a cancelar o borrar el partido: avisa a los invitados de su convocatoria. */
     void alCancelarPartido(Partido partido);
 

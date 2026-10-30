@@ -436,17 +436,27 @@ public class PartidoDaoImpl implements PartidoDao {
 		logger.debug("Inicio actualizarDatosFfcv: id={}", partido.getId());
 
 		/*
-		 * Solo rival, hora, campo y jornada: el importador nunca toca el
-		 * resultado, los goles ni el resto de datos del partido.
+		 * Solo rival, hora, campo, jornada y local, y el día si viene (un aplazamiento detectado por la importación):
+		 * el importador nunca toca el resultado, los goles ni el resto de datos del partido.
 		 */
-		int filasAfectadas = jdbcTemplate.update(
-				"UPDATE PARTIDOS SET RIVAL = ?, HORA = ?, CAMPO = ?, JORNADA = ?, ES_LOCAL = ? WHERE ID = ? AND ORIGEN = 'FFCV'",
-				partido.getRival(),
-				partido.getHora(),
-				partido.getCampo(),
-				partido.getJornada(),
-				partido.isLocal() ? 1 : 0,
-				partido.getId());
+		int filasAfectadas = partido.getDia() == null
+				? jdbcTemplate.update(
+						"UPDATE PARTIDOS SET RIVAL = ?, HORA = ?, CAMPO = ?, JORNADA = ?, ES_LOCAL = ? WHERE ID = ? AND ORIGEN = 'FFCV'",
+						partido.getRival(),
+						partido.getHora(),
+						partido.getCampo(),
+						partido.getJornada(),
+						partido.isLocal() ? 1 : 0,
+						partido.getId())
+				: jdbcTemplate.update(
+						"UPDATE PARTIDOS SET RIVAL = ?, HORA = ?, CAMPO = ?, JORNADA = ?, ES_LOCAL = ?, DIA = ? WHERE ID = ? AND ORIGEN = 'FFCV'",
+						partido.getRival(),
+						partido.getHora(),
+						partido.getCampo(),
+						partido.getJornada(),
+						partido.isLocal() ? 1 : 0,
+						new java.sql.Date(partido.getDia().getTime()),
+						partido.getId());
 
 		logger.info("Partido FFCV actualizado: id={}, filasAfectadas={}", partido.getId(), filasAfectadas);
 		logger.debug("Fin actualizarDatosFfcv: id={}", partido.getId());

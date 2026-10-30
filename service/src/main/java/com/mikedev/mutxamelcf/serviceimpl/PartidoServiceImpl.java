@@ -167,11 +167,16 @@ public class PartidoServiceImpl implements PartidoService {
 			throw new SecurityException("El usuario no puede gestionar este equipo");
 		}
 
+		LocalDate diaAntes = PlazoJustificacionPartido.dia(partido);
+
 		aplicarCambios(partido, request);
 		partido.setUsuarioActualizoId(usuarioAppId);
 		partido.setFechaActualizacion(Timestamp.valueOf(LocalDateTime.now()));
 
 		partidoDao.actualizar(partido);
+
+		// Si cambia el día, las invitaciones de otros equipos se anulan o se vuelven a evaluar (misma transacción).
+		invitadosService.alCambiarFechaPartido(partido, diaAntes, PlazoJustificacionPartido.dia(partido));
 
 		logger.debug("Fin actualizar: id={}", partido.getId());
 
@@ -225,6 +230,8 @@ public class PartidoServiceImpl implements PartidoService {
 			throw new IllegalArgumentException("No se puede cambiar el equipo del partido");
 		}
 
+		LocalDate diaAntes = PlazoJustificacionPartido.dia(partido);
+
 		aplicarCambios(partido, request);
 
 		/*
@@ -236,6 +243,9 @@ public class PartidoServiceImpl implements PartidoService {
 		partido.setFechaActualizacion(Timestamp.valueOf(LocalDateTime.now()));
 
 		partidoDao.actualizar(partido);
+
+		// Si cambia el día, las invitaciones de otros equipos se anulan o se vuelven a evaluar (misma transacción).
+		invitadosService.alCambiarFechaPartido(partido, diaAntes, PlazoJustificacionPartido.dia(partido));
 
 		logger.debug("Fin actualizarComoAdmin: id={}", partido.getId());
 

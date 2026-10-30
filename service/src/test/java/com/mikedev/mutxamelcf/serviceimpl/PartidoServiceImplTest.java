@@ -1378,4 +1378,56 @@ class PartidoServiceImplTest {
 
         verify(invitadosService, never()).alCancelarPartido(any());
     }
+
+    // ---- cambio de fecha y jugadores invitados (docs/convocatoria-invitados.md) -----------------
+
+    @Test
+    void actualizarConOtraFechaAvisaAlServicioDeInvitadosConLaFechaAntiguaYLaNueva() {
+        Partido existente = new Partido();
+        existente.setId(5L);
+        existente.setEquipoId(1L);
+        existente.setDia(java.sql.Date.valueOf(LocalDate.of(2026, 2, 21)));
+
+        when(partidoDao.obtenerPorId(5L)).thenReturn(existente);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(equipoDao.obtenerEquipoPorId(1L)).thenReturn(equipo(1L));
+
+        service.actualizar(1L, 5L, requestValido());
+
+        // requestValido() es el 1/3/2026: el servicio ya ve el partido con su fecha nueva.
+        var orden = org.mockito.Mockito.inOrder(partidoDao, invitadosService);
+        orden.verify(partidoDao).actualizar(existente);
+        orden.verify(invitadosService).alCambiarFechaPartido(
+                existente, LocalDate.of(2026, 2, 21), LocalDate.of(2026, 3, 1));
+    }
+
+    @Test
+    void actualizarComoAdminConOtraFechaTambienAvisaAlServicioDeInvitados() {
+        Partido existente = new Partido();
+        existente.setId(5L);
+        existente.setEquipoId(1L);
+        existente.setDia(java.sql.Date.valueOf(LocalDate.of(2026, 2, 21)));
+
+        when(partidoDao.obtenerPorId(5L)).thenReturn(existente);
+
+        service.actualizarComoAdmin(5L, requestValido());
+
+        verify(invitadosService).alCambiarFechaPartido(
+                existente, LocalDate.of(2026, 2, 21), LocalDate.of(2026, 3, 1));
+    }
+
+    @Test
+    void siFallaLaActualizacionNoSeAvisaALosInvitados() {
+        Partido existente = new Partido();
+        existente.setId(5L);
+        existente.setEquipoId(1L);
+        existente.setDia(java.sql.Date.valueOf(LocalDate.of(2026, 2, 21)));
+
+        when(partidoDao.obtenerPorId(5L)).thenReturn(existente);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.actualizar(1L, 5L, requestValido())).isInstanceOf(SecurityException.class);
+
+        verify(invitadosService, never()).alCambiarFechaPartido(any(), any(), any());
+    }
 }

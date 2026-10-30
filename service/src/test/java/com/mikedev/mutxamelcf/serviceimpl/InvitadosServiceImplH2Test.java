@@ -1040,4 +1040,157 @@ class InvitadosServiceImplH2Test {
         assertThat(service.partidosComoInvitado(BIEL, SABADO, SABADO)).isEmpty();
         assertThat(service.partidosComoInvitado(ANA, DOMINGO, DOMINGO)).isEmpty();
     }
+
+    // ------------------------------------------------------------------ si cambia la fecha del partido
+
+    private static final LocalDate LUNES = LocalDate.of(2026, 11, 16);
+
+    /** Cambia el día del partido en la base de datos y en el objeto que ve el servicio; devuelve el día antiguo. */
+    private LocalDate cambiarDia(long partidoId, LocalDate nuevo) {
+        Partido partido = partidos.get(partidoId);
+        LocalDate antiguo = partido.getDia() instanceof Date sql ? sql.toLocalDate() : null;
+
+        jdbc.update("UPDATE PARTIDOS SET DIA = ? WHERE ID = ?", Date.valueOf(nuevo), partidoId);
+        partido.setDia(Date.valueOf(nuevo));
+
+        return antiguo;
+    }
+
+    @Test
+    void siCambiaLaFechaDelPartidoDeDestinoSeAnulanLasInvitacionesNoRechazadasYSeAvisaAQuienInvito() {
+        invitar(COORDINADOR, ANA);                  // autorizada
+        invitar(ENTRENADOR_DESTINO, ANA, BIEL, DANI);    // Biel y Dani, pendientes de coordinación
+        service.rechazar(COORDINADOR, fila(100, DANI).getId(), null);
+        avisos.clear();
+
+        LocalDate antiguo = cambiarDia(10, LUNES);
+        service.alCambiarFechaPartido(partidos.get(10L), antiguo, LUNES);
+
+        // Las anuladas desaparecen; la rechazada se queda como estaba.
+        assertThat(fila(100, ANA)).isNull();
+        assertThat(fila(100, BIEL)).isNull();
+        assertThat(fila(100, DANI).getEstadoInvitacion()).isEqualTo(EstadoInvitacion.RECHAZADO);
+
+        // Anulada la autorizada: su familia, el jugador y su entrenador, con la fecha en que se jugaba.
+        List<Aviso> anulaciones = avisosDe("INVITACION_ANULADA");
+
+        assertThat(anulaciones).hasSize(3);
+        assertThat(anulaciones).allMatch(a -> a.data().get("fechaPartido").equals("2026-11-14"));
+        assertThat(anulaciones.stream().filter(a -> a.destinos().contains(21L)).findFirst().orElseThrow().contenido())
+                .contains("Ana ya no juega con Cadete A").contains("14/11/2026");
+        assertThat(anulaciones.stream().anyMatch(a -> a.destinos().contains(ENTRENADOR_ORIGEN))).isTrue();
+        // De Biel, que solo esperaba a coordinación, no hay nada que contarle a nadie salvo a quien lo invitó.
+        assertThat(anulaciones).noneMatch(a -> a.contenido().contains("Biel"));
+
+        // A cada uno que invitó, un solo aviso con las fechas y los jugadores, para volver a invitar.
+        List<Aviso> aplazados = avisosDe("INVITACION_FECHA_CAMBIADA");
+
+        assertThat(aplazados).hasSize(2);
+
+        Aviso alCoordinador = aplazados.stream().filter(a -> a.destinos().contains(COORDINADOR)).findFirst()
+                .orElseThrow();
+        Aviso alEntrenador = aplazados.stream().filter(a -> a.destinos().contains(ENTRENADOR_DESTINO)).findFirst()
+                .orElseThrow();
+
+        assertThat(alCoordinador.data()).containsEntry("jugadorIds", "1").containsEntry("fechaPartido", "2026-11-16")
+                .containsEntry("fechaAnterior", "2026-11-14").containsEntry("convocatoriaId", "100")
+                .containsEntry("partidoId", "10");
+        assertThat(alEntrenador.data()).containsEntry("jugadorIds", "2");
+        assertThat(alEntrenador.contenido()).contains("del 14/11/2026 al 16/11/2026").contains("Biel")
+                .contains("vuelve a invitarlos para la nueva fecha");
+        assertThat(alEntrenador.push()).doesNotContain("Biel");
+    }
+
+    @Test
+    void siElPartidoNoCambiaDeDiaOSinConvocatoriaNoPasaNada() {
+        invitar(COORDINADOR, ANA);
+        avisos.clear();
+
+        service.alCambiarFechaPartido(partidos.get(10L), SABADO, SABADO);
+        service.alCambiarFechaPartido(partidos.get(10L), null, LUNES);
+        service.alCambiarFechaPartido(null, SABADO, LUNES);
+        // El partido 12 (Infantil A) no tiene convocatoria ni invitados.
+        service.alCambiarFechaPartido(partidos.get(12L), DOMINGO, LUNES);
+
+        assertThat(fila(100, ANA).getEstadoInvitacion()).isEqualTo(EstadoInvitacion.AUTORIZADO);
+        assertThat(avisos).isEmpty();
+    }
+
+    @Test
+    void siElPartidoDelEquipoDeOrigenSeVaDeEseDiaLoQueEsperabaASuEntrenadorQuedaAutorizado() {
+        convocarEnOrigen(ANA);
+        invitar(ENTRENADOR_DESTINO, ANA);
+        service.aprobar(COORDINADOR, fila(100, ANA).getId());
+        assertThat(fila(100, ANA).getEstadoInvitacion()).isEqualTo(EstadoInvitacion.PENDIENTE_ENTRENADOR);
+        avisos.clear();
+
+        // Cadete B juega el sábado 14 y lo pasan al domingo 15.
+        LocalDate antiguo = cambiarDia(11, DOMINGO);
+        service.alCambiarFechaPartido(partidos.get(11L), antiguo, DOMINGO);
+
+        assertThat(fila(100, ANA).getEstadoInvitacion()).isEqualTo(EstadoInvitacion.AUTORIZADO);
+        assertThat(fila(100, ANA).getFechaAutorizacion()).isEqualTo(ahora);
+        // Con sus avisos: la familia y el jugador (convocatoria) y su entrenador (jugará con Cadete A).
+        assertThat(avisosDe("CONVOCATORIA")).extracting(a -> a.destinos().get(0)).containsExactlyInAnyOrder(20L, 21L);
+        assertThat(avisosDe("INVITACION_AUTORIZADA")).hasSize(1);
+        assertThat(avisosDe("INVITACION_AUTORIZADA").get(0).destinos()).containsExactly(ENTRENADOR_ORIGEN);
+    }
+
+    @Test
+    void siElPartidoDelEquipoDeOrigenLlegaAEseDiaYLoTieneConvocadoLoAutorizadoVuelveAEsperarASuEntrenador() {
+        // Cadete B juega el domingo 15 y Ana está convocada con él; el sábado no juega.
+        cambiarDia(11, DOMINGO);
+        convocarEnOrigen(ANA);
+        invitar(COORDINADOR, ANA);
+        assertThat(fila(100, ANA).getEstadoInvitacion()).isEqualTo(EstadoInvitacion.AUTORIZADO);
+        avisos.clear();
+
+        // Lo adelantan al sábado 14, el día del partido al que está invitada.
+        LocalDate antiguo = cambiarDia(11, SABADO);
+        service.alCambiarFechaPartido(partidos.get(11L), antiguo, SABADO);
+
+        ConvocatoriaJugador fila = fila(100, ANA);
+
+        assertThat(fila.getEstadoInvitacion()).isEqualTo(EstadoInvitacion.PENDIENTE_ENTRENADOR);
+        assertThat(fila.getFechaPeticionEntrenador()).isEqualTo(ahora);
+        assertThat(fila.isAviso12hEnviado()).isFalse();
+
+        // Su entrenador recibe la petición de liberarlo, con su convocatoria de ese día.
+        Aviso liberar = avisosDe("INVITACION_LIBERAR").get(0);
+
+        assertThat(liberar.destinos()).containsExactly(ENTRENADOR_ORIGEN);
+        assertThat(liberar.data()).containsEntry("convocatoriaOrigenId", "101");
+
+        // Y la familia y el jugador saben que ya no está confirmado.
+        List<Aviso> solapamiento = avisosDe("INVITACION_SOLAPAMIENTO");
+
+        assertThat(solapamiento).extracting(a -> a.destinos().get(0)).containsExactlyInAnyOrder(20L, 21L);
+        assertThat(solapamiento.stream().filter(a -> a.destinos().contains(20L)).findFirst().orElseThrow().contenido())
+                .startsWith("Dejas de estar confirmado con Cadete A el 14/11/2026");
+        assertThat(convocatoriaJugadorDao.obtenerPorConvocatoria(100L)).isEmpty();
+    }
+
+    @Test
+    void laReevaluacionNoTocaLasQueSiguenIgualNiLasQueYaEsperanASuEntrenador() {
+        convocarEnOrigen(ANA);
+        invitar(ENTRENADOR_DESTINO, ANA, CARLA);
+        service.aprobar(COORDINADOR, fila(100, ANA).getId());     // pendiente de su entrenador
+        service.aprobar(COORDINADOR, fila(100, CARLA).getId());   // autorizada (Infantil A juega otro día)
+        avisos.clear();
+
+        LocalDateTime peticion = fila(100, ANA).getFechaPeticionEntrenador();
+
+        // Cadete B mueve su partido del sábado al lunes, pero tiene otro el sábado 14 en el que Ana también está
+        // convocada: nada cambia.
+        partido(14, 2, SABADO, "17:00", "Calp");
+        jdbc.update("INSERT INTO CONVOCATORIAS (ID, EQUIPO_ID, PARTIDO_ID, USUARIO_ENTRENADOR_ID) VALUES (102, 2, 14, 8)");
+        convocatoriaJugadorDao.guardar(new ConvocatoriaJugador(null, 102L, ANA));
+        LocalDate antiguo = cambiarDia(11, LUNES);
+        service.alCambiarFechaPartido(partidos.get(11L), antiguo, LUNES);
+
+        assertThat(fila(100, ANA).getEstadoInvitacion()).isEqualTo(EstadoInvitacion.PENDIENTE_ENTRENADOR);
+        assertThat(fila(100, ANA).getFechaPeticionEntrenador()).isEqualTo(peticion);
+        assertThat(fila(100, CARLA).getEstadoInvitacion()).isEqualTo(EstadoInvitacion.AUTORIZADO);
+        assertThat(avisos).isEmpty();
+    }
 }

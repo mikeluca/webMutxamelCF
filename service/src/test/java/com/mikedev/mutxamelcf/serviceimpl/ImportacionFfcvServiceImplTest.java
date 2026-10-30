@@ -29,6 +29,7 @@ import com.mikedev.mutxamelcf.model.DescansoEquipo;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.EquipoFfcv;
 import com.mikedev.mutxamelcf.model.EstadoFilaFfcv;
+import com.mikedev.mutxamelcf.model.FfcvDesaparecido;
 import com.mikedev.mutxamelcf.model.FfcvFilaPrevisualizacion;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.PrevisualizacionFfcv;
@@ -55,6 +56,7 @@ class ImportacionFfcvServiceImplTest {
     private DescansoEquipoDao descansoEquipoDao;
     private EquipoDao equipoDao;
     private ConvocatoriaDao convocatoriaDao;
+    private com.mikedev.mutxamelcf.service.InvitadosService invitadosService;
 
     private ImportacionFfcvServiceImpl service;
 
@@ -71,6 +73,7 @@ class ImportacionFfcvServiceImplTest {
         descansoEquipoDao = mock(DescansoEquipoDao.class);
         equipoDao = mock(EquipoDao.class);
         convocatoriaDao = mock(ConvocatoriaDao.class);
+        invitadosService = mock(com.mikedev.mutxamelcf.service.InvitadosService.class);
 
         // Como el DAO real: crear devuelve el partido con su id.
         long[] siguienteId = { 900L };
@@ -82,7 +85,7 @@ class ImportacionFfcvServiceImplTest {
         });
 
         service = new ImportacionFfcvServiceImpl(
-                partidoDao, equipoFfcvDao, descansoEquipoDao, equipoDao, convocatoriaDao);
+                partidoDao, equipoFfcvDao, descansoEquipoDao, equipoDao, convocatoriaDao, invitadosService);
 
         List<Equipo> equipos = List.of(
                 equipo(PRIMER_EQUIPO, "Primer Equipo"),
@@ -677,4 +680,90 @@ class ImportacionFfcvServiceImplTest {
         assertThat(service.hayImportacionParaFinDeSemana(SABADO)).isFalse();
     }
 
+
+    // ---- aplazamientos: el partido existente cambia de día (docs/convocatoria-invitados.md) ----------
+
+    /** Un partido FFCV del Filial el domingo 18/10 (jornada 4), sin resultado: el archivo lo trae el sábado 17/10. */
+    private Partido filialAplazable() {
+        Partido partido = partido(50L, FILIAL, DOMINGO, "FFCV", "C.F. Calpe", "19:30", "Camp Nou", 4);
+        partido.setResultado(null);
+        partidos.add(partido);
+        when(partidoDao.obtenerPorId(50L)).thenReturn(partido);
+        return partido;
+    }
+
+    @Test
+    void unPartidoFfcvQueCambiaDeDiaSeDetectaComoAplazamientoYNoComoNuevoMasDesaparecido() {
+        filialAplazable();
+
+        PrevisualizacionFfcv previa = service.previsualizar(archivoBasico());
+        FfcvFilaPrevisualizacion filial = fila(previa, SEGONA, "B");
+
+        assertThat(filial.estado()).isEqualTo(EstadoFilaFfcv.ACTUALIZADO);
+        assertThat(filial.partidoId()).isEqualTo(50L);
+        assertThat(filial.cambios()).contains("Fecha: 18/10/2026 → 17/10/2026");
+        assertThat(previa.desaparecidos()).isEmpty();
+    }
+
+    @Test
+    void confirmarMueveElPartidoExistenteYAvisaAlServicioDeInvitadosDentroDeLaMismaTransaccion() {
+        Partido existente = filialAplazable();
+
+        ResultadoImportacionFfcv resultado = service.confirmar(
+                "coordinador", service.previsualizar(archivoBasico()), List.of());
+
+        // Se actualiza el partido (con su convocatoria), no se crea otro; el Primer Equipo sí es nuevo.
+        assertThat(resultado.actualizados()).isEqualTo(1);
+        assertThat(resultado.creados()).isEqualTo(1);
+
+        ArgumentCaptor<Partido> captor = ArgumentCaptor.forClass(Partido.class);
+        verify(partidoDao).actualizarDatosFfcv(captor.capture());
+        assertThat(captor.getValue().getId()).isEqualTo(50L);
+        assertThat(captor.getValue().getDia()).isEqualTo(java.sql.Date.valueOf(SABADO));
+
+        var orden = org.mockito.Mockito.inOrder(partidoDao, invitadosService);
+        orden.verify(partidoDao).actualizarDatosFfcv(any(Partido.class));
+        orden.verify(invitadosService).alCambiarFechaPartido(existente, DOMINGO, SABADO);
+
+        ArgumentCaptor<java.util.Collection<Long>> ids = ArgumentCaptor.forClass(java.util.Collection.class);
+        verify(partidoDao).marcarFechaImportacion(ids.capture());
+        assertThat(ids.getValue()).contains(50L);
+        verify(partidoDao, never()).eliminar(anyLong());
+        verify(partidoDao, never()).cancelar(anyLong());
+    }
+
+    @Test
+    void unPartidoQueYaTieneResultadoNoSeTrataComoAplazado() {
+        Partido jugado = filialAplazable();
+        jugado.setResultado("2-1");
+
+        PrevisualizacionFfcv previa = service.previsualizar(archivoBasico());
+
+        assertThat(fila(previa, SEGONA, "B").estado()).isEqualTo(EstadoFilaFfcv.NUEVO);
+        assertThat(previa.desaparecidos()).extracting(FfcvDesaparecido::partidoId).containsExactly(50L);
+
+        service.confirmar("coordinador", previa, List.of());
+
+        verify(invitadosService, never()).alCambiarFechaPartido(any(), any(), any());
+    }
+
+    @Test
+    void conOtraJornadaNoSeEmparejaConElDesaparecido() {
+        filialAplazable().setJornada(3);
+
+        PrevisualizacionFfcv previa = service.previsualizar(archivoBasico());
+
+        assertThat(fila(previa, SEGONA, "B").estado()).isEqualTo(EstadoFilaFfcv.NUEVO);
+        assertThat(previa.desaparecidos()).hasSize(1);
+    }
+
+    @Test
+    void siElDiaNoCambiaNoSeAvisaALosInvitados() {
+        partidos.add(partido(50L, FILIAL, SABADO, "FFCV", "C.F. Calpe", "18:00", "Camp Nou", 4));
+
+        service.confirmar("coordinador", service.previsualizar(archivoBasico()), List.of());
+
+        verify(partidoDao).actualizarDatosFfcv(any(Partido.class));
+        verify(invitadosService, never()).alCambiarFechaPartido(any(), any(), any());
+    }
 }

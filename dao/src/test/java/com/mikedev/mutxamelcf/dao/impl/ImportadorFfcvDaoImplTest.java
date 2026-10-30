@@ -165,4 +165,26 @@ class ImportadorFfcvDaoImplTest {
         verify(jdbcTemplate).update(anyString(), eq(3L), eq(java.sql.Date.valueOf("2026-10-17")), eq((Object) null));
     }
 
+
+    @Test
+    void actualizarDatosFfcvEscribeElDiaSoloSiViene() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        PartidoDaoImpl dao = new PartidoDaoImpl(jdbcTemplate, RELOJ);
+
+        Partido partido = new Partido();
+        partido.setId(5L);
+        partido.setRival("Rival");
+        partido.setHora("10:00");
+        partido.setCampo("Campo");
+        partido.setJornada(3);
+        partido.setDia(java.sql.Date.valueOf("2026-11-21"));
+
+        dao.actualizarDatosFfcv(partido);
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(sql.capture(), eq("Rival"), eq("10:00"), eq("Campo"), eq(3), eq(1),
+                eq(java.sql.Date.valueOf("2026-11-21")), eq(5L));
+        assertThat(sql.getValue()).contains("DIA = ?", "ORIGEN = 'FFCV'")
+                .doesNotContain("RESULTADO", "GOLES", "CANCELADO", "FECHA_ACTUALIZACION");
+    }
 }

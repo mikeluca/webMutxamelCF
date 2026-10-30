@@ -37,6 +37,12 @@ public interface InvitacionDao {
     /** Las PENDIENTE_ENTRENADOR cuya petición es de antes del límite y aún sin el aviso de las 12 horas. */
     List<InvitacionDetalle> vencidasSinAviso(LocalDateTime limite);
 
+    /**
+     * Las invitaciones PENDIENTE_ENTRENADOR o AUTORIZADAS cuyo equipo de origen es ese y cuyo partido de destino (no
+     * cancelado) se juega en alguno de los dos días.
+     */
+    List<InvitacionDetalle> deOrigenEnDias(Long equipoOrigenId, LocalDate unDia, LocalDate otroDia);
+
     /** Partidos no cancelados del equipo ese día. */
     List<PartidoDelDia> partidosDelEquipoEnDia(Long equipoId, LocalDate dia);
 
