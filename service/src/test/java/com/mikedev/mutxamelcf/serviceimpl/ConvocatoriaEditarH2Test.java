@@ -1419,6 +1419,11 @@ class ConvocatoriaEditarH2Test {
 
         service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L)));
 
+        // Comprueba que la transición pendiente -> autorizado ocurrió de verdad durante la edición.
+        assertThat(jdbc.queryForObject(
+                "SELECT ESTADO_INVITACION FROM CONVOCATORIA_JUGADOR WHERE JUGADOR_ID = 103", String.class))
+                .isEqualTo("AUTORIZADO");
+        // Solo el jugador propio (usuario 50): el invitado recién autorizado (53) ya recibe su aviso de InvitadosService.
         assertThat(destinatariosDeAvisos()).containsExactly(50L);
     }
 

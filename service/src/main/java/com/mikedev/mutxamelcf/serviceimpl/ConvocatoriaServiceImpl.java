@@ -631,6 +631,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 // Los invitados autorizados antes de esta edición: los que sigan así reciben los avisos de cambio.
                 Set<Long> invitadosAutorizadosAntes = convocatoriaJugadorDao.obtenerPorConvocatoria(convocatoriaId).stream()
                                 .filter(ConvocatoriaJugador::isInvitado)
+                                .filter(convocado -> convocado.getEstadoInvitacion() == EstadoInvitacion.AUTORIZADO)
                                 .map(ConvocatoriaJugador::getJugadorId)
                                 .collect(java.util.stream.Collectors.toSet());
 
