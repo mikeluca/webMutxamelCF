@@ -904,21 +904,21 @@ class ConvocatoriaEditarH2Test {
     }
 
     @Test
-    void elPutNoTocaAlInvitadoAutorizadoNiLeAvisaComoSiFueraDelEquipo() {
+    void elPutNoTocaAlInvitadoAutorizadoYLeAvisaDelCambioComoAlResto() {
         usuariosPorJugador();
         when(equipoGestionDao.obtenerUsuariosPorJugador(150L)).thenReturn(List.of(99L));
         ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
         invitadoEnLaConvocatoria(creada.getId(), 150, com.mikedev.mutxamelcf.model.EstadoInvitacion.AUTORIZADO,
                 ENTRENADOR);
 
-        // Cambia la hora de citación: avisa a los dos del equipo, no al invitado.
+        // Cambia la hora de citación: avisa a los dos del equipo y al invitado autorizado.
         ConvocatoriaResponse editada = service.actualizar(
                 ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L, 101L)));
 
         assertThat(convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(creada.getId(), 150L)).isNotNull();
-        verify(comunicacionService, never()).crearPrivada(
+        verify(comunicacionService).crearPrivada(
                 any(Comunicacion.class), eq(List.of(99L)), anyLong(), any(OpcionesPushComunicacion.class));
-        avisosEnviados = 2;
+        avisosEnviados = 3;
         nadieMasAvisado();
 
         // Y sale en la respuesta, marcado como invitado.
@@ -1299,5 +1299,141 @@ class ConvocatoriaEditarH2Test {
         assertThat(jdbc.queryForObject("SELECT T FROM PRUEBA_EMOJI", String.class)).isEqualTo(DUCHA);
         assertThat(jdbc.queryForObject("SELECT C FROM PRUEBA_EMOJI", String.class)).isEqualTo(DUCHA);
         assertThat(DUCHA).isEqualTo("\n\n🚿 Ducha recomendable después del partido");
+    }
+
+    // ---- avisos de cambio a los invitados autorizados -------------------------------------
+
+    private void invitado(long convocatoriaId, long jugador, String estado) {
+        jdbc.update("INSERT INTO CONVOCATORIA_JUGADOR (CONVOCATORIA_ID, JUGADOR_ID, EQUIPO_ORIGEN_ID, ESTADO_INVITACION)"
+                + " VALUES (?, ?, 2, ?)", convocatoriaId, jugador, estado);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Long> destinatariosDeAvisos() {
+        ArgumentCaptor<List<Long>> destinos = ArgumentCaptor.forClass(List.class);
+        verify(comunicacionService, org.mockito.Mockito.atLeast(0)).crearPrivada(any(Comunicacion.class),
+                destinos.capture(), anyLong(), any(OpcionesPushComunicacion.class));
+        return destinos.getAllValues().stream().map(l -> l.get(0)).sorted().toList();
+    }
+
+    @Test
+    void losInvitadosAutorizadosRecibenElAvisoDeCambioDeHoraConElMismoTextoQueLosDelEquipo() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        invitado(creada.getId(), 103, "AUTORIZADO");
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L)));
+
+        ArgumentCaptor<Comunicacion> aviso = ArgumentCaptor.forClass(Comunicacion.class);
+        ArgumentCaptor<OpcionesPushComunicacion> opciones = ArgumentCaptor.forClass(OpcionesPushComunicacion.class);
+        verify(comunicacionService, org.mockito.Mockito.times(2)).crearPrivada(
+                aviso.capture(), any(), anyLong(), opciones.capture());
+        assertThat(aviso.getAllValues()).allSatisfy(c -> {
+            assertThat(c.getTitulo()).isEqualTo("Cambio en la convocatoria");
+            assertThat(c.getContenido())
+                    .isEqualTo("Cambio en la convocatoria del partido contra Pego: nueva hora de citación 10:00" + DUCHA);
+        });
+        assertThat(opciones.getAllValues()).allSatisfy(o -> assertThat(o.datos())
+                .containsEntry("tipo", "CONVOCATORIA")
+                .containsEntry("convocatoriaId", String.valueOf(creada.getId())));
+        assertThat(destinatariosDeAvisos()).containsExactly(50L, 53L);
+    }
+
+    @Test
+    void siCambianVariasCosasLosInvitadosAutorizadosRecibenUnSoloAvisoQueLoDiceTodo() {
+        usuariosPorJugador();
+        jdbc.update("INSERT INTO EQUIPACIONES (NOMBRE) VALUES ('Segunda')");
+        long segunda = jdbc.queryForObject("SELECT ID FROM EQUIPACIONES", Long.class);
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        invitado(creada.getId(), 103, "AUTORIZADO");
+
+        service.actualizar(ENTRENADOR, creada.getId(),
+                conEquipaje(request(30L, "10:00", List.of(100L)), segunda, null, true));
+
+        assertThat(destinatariosDeAvisos()).containsExactly(50L, 53L);
+        assertThat(avisoA(53).getTitulo()).isEqualTo("Cambio en la convocatoria");
+        assertThat(avisoA(53).getContenido()).isEqualTo("Cambio en la convocatoria del partido contra Pego:"
+                + " nueva hora de citación 10:00 / cambio de equipaje. Equipaje: Segunda." + DUCHA);
+    }
+
+    @Test
+    void losInvitadosAutorizadosRecibenElCambioDeEquipajeSolo() {
+        usuariosPorJugador();
+        jdbc.update("INSERT INTO EQUIPACIONES (NOMBRE) VALUES ('Segunda')");
+        long segunda = jdbc.queryForObject("SELECT ID FROM EQUIPACIONES", Long.class);
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        invitado(creada.getId(), 103, "AUTORIZADO");
+
+        service.actualizar(ENTRENADOR, creada.getId(),
+                conEquipaje(request(30L, "09:30", List.of(100L)), segunda, null, true));
+
+        assertThat(avisoA(53).getTitulo()).isEqualTo("Cambio de equipaje");
+        assertThat(avisoA(50).getTitulo()).isEqualTo("Cambio de equipaje");
+    }
+
+    @Test
+    void losInvitadosPendientesORechazadosNoRecibenAvisosDeCambio() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        invitado(creada.getId(), 102, "PENDIENTE_COORDINACION");
+        invitado(creada.getId(), 103, "RECHAZADO");
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L)));
+
+        assertThat(destinatariosDeAvisos()).containsExactly(50L);
+    }
+
+    @Test
+    void unInvitadoQueLaFamiliaHaMarcadoNoPuedeIrNoRecibeElAvisoDeCambio() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        invitado(creada.getId(), 103, "AUTORIZADO");
+        justificar(30, 103, "No puede ir");
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L)));
+
+        assertThat(destinatariosDeAvisos()).containsExactly(50L);
+    }
+
+    @Test
+    void sinCambiosNoSeAvisaNiALosInvitados() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        invitado(creada.getId(), 103, "AUTORIZADO");
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "09:30", List.of(100L)));
+
+        assertThat(destinatariosDeAvisos()).isEmpty();
+    }
+
+    @Test
+    void alInvitadoQueSeAutorizaEnLaMismaEdicionNoSeLeDuplicaElAvisoDeCambio() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        // Estaba pendiente; InvitadosService (simulado) lo autoriza durante esta edición y le manda su propio aviso.
+        invitado(creada.getId(), 103, "PENDIENTE_COORDINACION");
+        org.mockito.Mockito.doAnswer(i -> {
+            jdbc.update("UPDATE CONVOCATORIA_JUGADOR SET ESTADO_INVITACION = 'AUTORIZADO' WHERE JUGADOR_ID = 103");
+            return null;
+        }).when(invitadosService).sincronizarInvitados(anyLong(), any(), any(), any());
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L)));
+
+        assertThat(destinatariosDeAvisos()).containsExactly(50L);
+    }
+
+    @Test
+    void alInvitadoQueSeQuitaEnLaMismaEdicionNoSeLeAvisaDelCambio() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        invitado(creada.getId(), 103, "AUTORIZADO");
+        org.mockito.Mockito.doAnswer(i -> {
+            jdbc.update("DELETE FROM CONVOCATORIA_JUGADOR WHERE JUGADOR_ID = 103");
+            return null;
+        }).when(invitadosService).sincronizarInvitados(anyLong(), any(), any(), any());
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L)));
+
+        assertThat(destinatariosDeAvisos()).containsExactly(50L);
     }
 }

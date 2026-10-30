@@ -16,6 +16,7 @@ import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.OpcionesPushComunicacion;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
+import com.mikedev.mutxamelcf.model.EstadoInvitacion;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.ConvocatoriaService;
@@ -431,11 +432,13 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         Convocatoria convocatoria,
                         DatosConvocatoria antes,
                         Set<Long> idsAntes,
-                        List<Long> idsDespues) {
+                        List<Long> idsDespues,
+                        List<Long> invitadosQueSiguen) {
 
                 List<Long> anadidos = new ArrayList<>();
                 List<Long> quitados = new ArrayList<>();
                 List<Long> siguen = new ArrayList<>();
+                List<Long> avisarCambio = new ArrayList<>();
 
                 for (Long id : idsDespues) {
                         (idsAntes.contains(id) ? siguen : anadidos).add(id);
@@ -449,6 +452,9 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 }
 
                 generarNotificaciones(convocatoria, anadidos);
+
+                avisarCambio.addAll(siguen);
+                avisarCambio.addAll(invitadosQueSiguen);
 
                 avisar(
                                 convocatoria,
@@ -505,7 +511,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
                 avisar(
                                 convocatoria,
-                                siguen,
+                                avisarCambio,
                                 titulo,
                                 TIPO_PUSH_CONVOCATORIA,
                                 true,
@@ -622,6 +628,12 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                  * lista (null), los convocados no se tocan. Los invitados de
                  * otros equipos no entran aquí: van aparte (invitadosIds).
                  */
+                // Los invitados autorizados antes de esta edición: los que sigan así reciben los avisos de cambio.
+                Set<Long> invitadosAutorizadosAntes = convocatoriaJugadorDao.obtenerPorConvocatoria(convocatoriaId).stream()
+                                .filter(ConvocatoriaJugador::isInvitado)
+                                .map(ConvocatoriaJugador::getJugadorId)
+                                .collect(java.util.stream.Collectors.toSet());
+
                 List<ConvocatoriaJugador> actuales = convocatoriaJugadorDao.obtenerPorConvocatoria(
                                 convocatoriaId).stream()
                                 .filter(actual -> !actual.isInvitado())
@@ -770,11 +782,22 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                  * quitados y, si ha cambiado la citación o el partido, a los que
                  * siguen.
                  */
+                // Solo quien ya estaba autorizado y lo sigue estando: al que se autoriza o se quita en esta misma edición
+                // ya le avisa InvitadosService con su propio texto. Los pendientes y rechazados no salen de aquí, y a quien
+                // la familia ha marcado "no puede ir" lo descarta avisar().
+                List<Long> invitadosQueSiguen = convocatoriaJugadorDao.obtenerPorConvocatoria(convocatoriaId).stream()
+                                .filter(ConvocatoriaJugador::isInvitado)
+                                .filter(convocado -> convocado.getEstadoInvitacion() == EstadoInvitacion.AUTORIZADO)
+                                .map(ConvocatoriaJugador::getJugadorId)
+                                .filter(invitadosAutorizadosAntes::contains)
+                                .toList();
+
                 avisarCambios(
                                 convocatoria,
                                 antes,
                                 idsActuales,
-                                jugadoresIds);
+                                jugadoresIds,
+                                invitadosQueSiguen);
 
                 return construirResponse(convocatoria, null, usuarioAppId);
         }

@@ -74,11 +74,14 @@ Mismo `tipo` (`CONVOCATORIA`), `data` y pantalla que el resto de avisos de convo
 - **Nueva convocatoria** (también para quien entra al editar): si tiene equipaje, el mensaje añade, tras «La convocatoria es a las 10:00h en Vestuarios.», la frase `Equipaje: Segunda.` y, si hay mochila, `En la mochila: Primera.`. Sin equipaje no añade nada. Como mucho unos 130 caracteres más (cada nombre tiene un máximo de 50).
 - **Cambio de equipaje:** al editar una convocatoria, si cambia el equipaje principal o el de la mochila, aviso con título **`Cambio de equipaje`** y texto  
   `Cambio en la convocatoria del partido contra Pego: cambio de equipaje. Equipaje: Segunda. En la mochila: Primera.`  
-  (o `… cambio de equipaje. Ya no hay equipaje indicado.` si se quita). Va a los mismos destinatarios que el aviso de cambio de hora o lugar de citación: los convocados del propio equipo que siguen en la convocatoria, sus familias, **sin quien ha justificado su ausencia**.
+  (o `… cambio de equipaje. Ya no hay equipaje indicado.` si se quita). Va a los mismos destinatarios que el aviso de cambio de hora o lugar de citación: los convocados que siguen en la convocatoria (los del propio equipo y los invitados `AUTORIZADO`, ver abajo) y sus familias, **sin quien ha justificado su ausencia** ni quien la familia ha marcado "no puede ir".
 - **Si en la misma edición cambia también la hora, el lugar o el partido**, sale **un solo aviso** («Cambio en la convocatoria») que lo dice todo: `…: nueva hora de citación 10:00 / cambio de equipaje. Equipaje: Segunda.`
 - Si no cambia el equipaje no se avisa por él (un PUT sin `equipajeIndicado`, o con los mismos valores, no genera aviso).
 
-> Los invitados de otros equipos ya autorizados **no** reciben hoy los avisos de cambio de hora o lugar (solo los reciben los convocados del propio equipo), y por coherencia tampoco este. Sí ven el equipaje en el detalle de §4.
+### Invitados de otros equipos
+
+Los invitados `AUTORIZADO` (ellos y su familia) reciben los mismos avisos de cambio que los convocados del propio equipo: hora o lugar, partido y equipaje, con el mismo título, texto, `tipo` y `data`, y la línea de la ducha; y un solo aviso si cambian varias cosas. No los reciben los invitados pendientes ni rechazados. Si en la misma edición se autoriza o se quita al invitado, no recibe además el aviso de cambio: ya tiene el suyo.
+El aviso **"Convocado con otro equipo"** (cuando queda autorizado) lleva también `Equipaje: X. En la mochila: Y.` tras «La convocatoria es a las 09:30h en Vestuarios.» y, al final, la línea de la ducha.
 
 ### Ducha recomendable
 

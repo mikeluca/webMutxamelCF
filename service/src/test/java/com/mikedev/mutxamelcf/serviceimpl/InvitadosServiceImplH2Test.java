@@ -227,6 +227,7 @@ class InvitadosServiceImplH2Test {
                 comunicacionService,
                 justificacionService,
                 new ReglaInvitados(),
+                new com.mikedev.mutxamelcf.dao.impl.EquipacionDaoImpl(jdbc),
                 Clock.fixed(ahora.atZone(ZoneId.of("Europe/Madrid")).toInstant(), ZoneId.of("Europe/Madrid")));
     }
 
@@ -880,6 +881,7 @@ class InvitadosServiceImplH2Test {
                 partidoDao(), equipoDao(), categoriaEdadDao(), temporadaDao(), gestion,
                 new JustificacionFaltaPartidoDaoImpl(jdbc), mock(UsuarioAppDao.class), comunicacion(),
                 justificacionService, new ReglaInvitados(),
+                new com.mikedev.mutxamelcf.dao.impl.EquipacionDaoImpl(jdbc),
                 Clock.fixed(hora.atZone(ZoneId.of("Europe/Madrid")).toInstant(), ZoneId.of("Europe/Madrid")));
     }
 
@@ -1192,5 +1194,31 @@ class InvitadosServiceImplH2Test {
         assertThat(fila(100, ANA).getFechaPeticionEntrenador()).isEqualTo(peticion);
         assertThat(fila(100, CARLA).getEstadoInvitacion()).isEqualTo(EstadoInvitacion.AUTORIZADO);
         assertThat(avisos).isEmpty();
+    }
+
+    @Test
+    void elAvisoDeConvocadoConOtroEquipoLlevaElEquipajeYLaDuchaAlFinal() {
+        jdbc.update("INSERT INTO EQUIPACIONES (NOMBRE) VALUES ('Segunda')");
+        jdbc.update("INSERT INTO EQUIPACIONES (NOMBRE) VALUES ('Primera')");
+        jdbc.update("UPDATE CONVOCATORIAS SET EQUIPACION_ID = (SELECT ID FROM EQUIPACIONES WHERE NOMBRE = 'Segunda'),"
+                + " EQUIPACION_MOCHILA_ID = (SELECT ID FROM EQUIPACIONES WHERE NOMBRE = 'Primera') WHERE ID = 100");
+        invitar(ENTRENADOR_DESTINO, ANA);
+
+        service.aprobar(COORDINADOR, fila(100, ANA).getId());
+
+        assertThat(avisosDe("CONVOCATORIA")).isNotEmpty().allSatisfy(a -> assertThat(a.contenido())
+                .contains("La convocatoria es a las 10:00h en Vestuarios. Equipaje: Segunda. En la mochila: Primera.")
+                .endsWith("\n\n🚿 Ducha recomendable después del partido"));
+    }
+
+    @Test
+    void elAvisoDeConvocadoConOtroEquipoSinEquipajeSoloLlevaLaDucha() {
+        invitar(ENTRENADOR_DESTINO, ANA);
+
+        service.aprobar(COORDINADOR, fila(100, ANA).getId());
+
+        assertThat(avisosDe("CONVOCATORIA")).isNotEmpty().allSatisfy(a -> assertThat(a.contenido())
+                .contains("en Vestuarios.\n\n").doesNotContain("Equipaje")
+                .endsWith("🚿 Ducha recomendable después del partido"));
     }
 }

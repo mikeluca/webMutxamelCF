@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.mikedev.mutxamelcf.dao.CategoriaEdadDao;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
+import com.mikedev.mutxamelcf.dao.EquipacionDao;
 import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.InvitacionDao;
@@ -104,6 +105,7 @@ public class InvitadosServiceImpl implements InvitadosService {
     private final ComunicacionService comunicacionService;
     private final JustificacionFaltaPartidoService justificacionService;
     private final ReglaInvitados regla;
+    private final EquipacionDao equipacionDao;
     private final Clock clock;
 
     public InvitadosServiceImpl(
@@ -120,7 +122,9 @@ public class InvitadosServiceImpl implements InvitadosService {
             ComunicacionService comunicacionService,
             JustificacionFaltaPartidoService justificacionService,
             ReglaInvitados regla,
+            EquipacionDao equipacionDao,
             Clock clock) {
+        this.equipacionDao = equipacionDao;
 
         this.convocatoriaJugadorDao = convocatoriaJugadorDao;
         this.invitacionDao = invitacionDao;
@@ -604,6 +608,11 @@ public class InvitadosServiceImpl implements InvitadosService {
         String detalle = " para el partido contra " + partido.getRival() + " el " + textoFecha(partido) + " a las "
                 + textoOVacio(partido.getHora()) + "h.";
 
+        String equipaje = TextosConvocatoria.fraseEquipaje(
+                convocatoria.getEquipacionId() == null ? null : equipacionDao.obtenerPorId(convocatoria.getEquipacionId()),
+                convocatoria.getEquipacionMochilaId() == null ? null
+                        : equipacionDao.obtenerPorId(convocatoria.getEquipacionMochilaId()));
+
         for (Long usuarioId : usuariosDelJugador(fila.getJugadorId())) {
 
             boolean esJugador = equipoGestionDao.obtenerUsuariosPorJugador(fila.getJugadorId()).contains(usuarioId);
@@ -611,7 +620,8 @@ public class InvitadosServiceImpl implements InvitadosService {
             String texto = TextosConvocatoria.conDucha((esJugador ? "Has sido convocado" : jugador + " ha sido convocado")
                     + " con " + destino + detalle + "\n\nLa convocatoria es a las "
                     + textoOVacio(convocatoria.getHoraConvocatoria()) + "h en "
-                    + textoOVacio(convocatoria.getLugarConvocatoria()) + ".");
+                    + textoOVacio(convocatoria.getLugarConvocatoria()) + "."
+                    + (equipaje.isEmpty() ? "" : " " + equipaje));
 
             avisar(List.of(usuarioId), actorId, "Convocado con otro equipo", texto, texto,
                     datosConvocatoria(convocatoria, partido));
