@@ -1,4 +1,4 @@
--- PENDIENTE DE APLICAR en DEV y PRO (ver el orden respecto al despliegue más abajo)
+-- NO EJECUTAR: ya aplicado en DEV y PRO
 -- ============================================================================
 -- Equipaje de la convocatoria (docs/api-app-equipaje-convocatoria.md)
 --
@@ -112,9 +112,9 @@ SELECT PARAMETER, VALUE FROM NLS_DATABASE_PARAMETERS WHERE PARAMETER IN ('NLS_CH
 --      unos 450 caracteres con el equipaje; si es VARCHAR2(n BYTE) con n pequeño, ampliarlo o quitar la línea).
 SELECT COLUMN_NAME, DATA_TYPE, DATA_LENGTH, CHAR_LENGTH, CHAR_USED FROM DBA_TAB_COLUMNS
 WHERE OWNER = 'SYSTEM' AND TABLE_NAME = 'COMUNICACIONES' AND COLUMN_NAME IN ('TITULO', 'CONTENIDO');
---   c) Prueba del carácter (debe devolver CODIGO = 128703, que es U+1F6BF; con otro valor, p. ej. 49855, el emoji se estropea).
+--   c) Prueba del carácter: debe dar "Typ=1 Len=4: f0,9f,9a,bf" (los 4 bytes UTF-8 de U+1F6BF). Con otros bytes, el emoji se estropea.
 --      Si el cliente SQL no usa UTF-8, el emoji de este fichero puede llegar ya estropeado: la prueba usa UNISTR.
-SELECT ASCII(UNISTR('\D83D\DEBF')) AS CODIGO FROM DUAL;
+SELECT DUMP(TO_CHAR(UNISTR('D83DDEBF')), 16) AS BYTES FROM DUAL;
 
 -- Para deshacerlo (solo si hace falta, y con el código anterior desplegado):
 --   DROP INDEX SYSTEM.IDX_CONVOCATORIAS_EQUIP_MOCHILA;
