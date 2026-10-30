@@ -114,7 +114,7 @@ SELECT COLUMN_NAME, DATA_TYPE, DATA_LENGTH, CHAR_LENGTH, CHAR_USED FROM DBA_TAB_
 WHERE OWNER = 'SYSTEM' AND TABLE_NAME = 'COMUNICACIONES' AND COLUMN_NAME IN ('TITULO', 'CONTENIDO');
 --   c) Prueba del carácter: debe dar "Typ=1 Len=4: f0,9f,9a,bf" (los 4 bytes UTF-8 de U+1F6BF). Con otros bytes, el emoji se estropea.
 --      Si el cliente SQL no usa UTF-8, el emoji de este fichero puede llegar ya estropeado: la prueba usa UNISTR.
-SELECT DUMP(TO_CHAR(UNISTR('D83DDEBF')), 16) AS BYTES FROM DUAL;
+SELECT DUMP(TO_CHAR(UNISTR('\D83D\DEBF')), 16) AS BYTES FROM DUAL;
 
 -- Para deshacerlo (solo si hace falta, y con el código anterior desplegado):
 --   DROP INDEX SYSTEM.IDX_CONVOCATORIAS_EQUIP_MOCHILA;
