@@ -21,7 +21,11 @@
     { "key": "entrenamientoId", "value": "1", "type": "string" },
     { "key": "comunicacionId", "value": "1", "type": "string" },
     { "key": "notificacionId", "value": "1", "type": "string" },
-    { "key": "noticiaId", "value": "1", "type": "string" }
+    { "key": "noticiaId", "value": "1", "type": "string" },
+    { "key": "partidoId", "value": "1", "type": "string" },
+    { "key": "invitadoId", "value": "1", "type": "string" },
+    { "key": "equipoOrigenId", "value": "1", "type": "string" },
+    { "key": "invitacionId", "value": "1", "type": "string" }
   ],
   "item": [
     {
@@ -872,6 +876,145 @@
               "path": ["app", "pruebas"]
             },
             "description": "Mismas reglas que el asistente: nombre, apellidos y año de nacimiento obligatorios; la categoría sale de la edad en la temporada siguiente y el jugador queda sin equipo, en estado PRUEBA. 201 {jugadorId, categoria, temporadaId, estado}. 400 si faltan datos o ninguna categoría cubre su edad; 403 si no eres coordinador; 409 si no hay temporada siguiente."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Jugadores de otros equipos (convocatoria)",
+      "description": "Convocar a jugadores de otros equipos del club (docs/convocatoria-invitados.md y docs/api-app-convocatoria-invitados.md). Variables de colección usadas: partidoId, convocatoriaId, jugadorId, invitadoId (jugador de otro equipo), equipoOrigenId (equipo del que se invita) e invitacionId (id de la invitación: el campo `id` de la lista de pendientes). El entrenador del equipo del partido elige y añade; coordinación aprueba o rechaza; el entrenador del equipo de origen libera si su equipo juega ese día; la familia puede desestimarlo. Los errores 409 llevan un `codigo` (JUGADOR_INVITADO_ESE_DIA, JUGADOR_YA_INVITADO_ESE_DIA).",
+      "item": [
+        {
+          "name": "Equipos de los que se puede invitar (para un partido)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/partidos/{{partidoId}}/invitables/equipos",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "partidos", "{{partidoId}}", "invitables", "equipos"]
+            },
+            "description": "[{equipoId, nombre, categoria, grupo}] con los equipos permitidos por las reglas de nivel. Solo quien gestiona el equipo del partido (403 si no). No incluye equipos de pretemporada, grupo Esc o Fem ni Veteranos."
+          }
+        },
+        {
+          "name": "Jugadores invitables de un equipo (para un partido)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/partidos/{{partidoId}}/invitables/equipos/{{equipoOrigenId}}/jugadores",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "partidos", "{{partidoId}}", "invitables", "equipos", "{{equipoOrigenId}}", "jugadores"]
+            },
+            "description": "[{jugadorId, nombre, dorsal, yaInvitado, bloqueado, motivoBloqueo}]. Solo jugadores activos (sin baja, no de prueba, con equipo definitivo). bloqueado = ya está autorizado como invitado con otro equipo ese día. 400 si ese equipo no se puede invitar desde el del partido."
+          }
+        },
+        {
+          "name": "Crear convocatoria con invitados",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"partidoId\": {{partidoId}},\n  \"horaConvocatoria\": \"16:00\",\n  \"lugarConvocatoria\": \"Vestuarios\",\n  \"jugadoresIds\": [{{jugadorId}}],\n  \"invitadosIds\": [{{invitadoId}}]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/convocatorias",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "convocatorias"]
+            },
+            "description": "invitadosIds (opcional, máximo 3 sin contar rechazados ni desestimados) son jugadores de otros equipos. Quedan PENDIENTE_COORDINACION (o autorizados al momento si convoca un coordinador). 409 JUGADOR_INVITADO_ESE_DIA si alguno de jugadoresIds ya está autorizado como invitado con otro equipo ese día; 409 JUGADOR_YA_INVITADO_ESE_DIA si un invitado ya lo está con otro equipo. 400 si el equipo de origen no está permitido, el jugador no está activo o se pasa del máximo."
+          }
+        },
+        {
+          "name": "Actualizar convocatoria con invitados",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"partidoId\": {{partidoId}},\n  \"horaConvocatoria\": \"16:00\",\n  \"lugarConvocatoria\": \"Vestuarios\",\n  \"jugadoresIds\": [{{jugadorId}}],\n  \"invitadosIds\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/convocatorias/{{convocatoriaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "convocatorias", "{{convocatoriaId}}"]
+            },
+            "description": "invitadosIds null = no se tocan los invitados; con una lista, la convocatoria queda con exactamente esos (los que faltan se quitan y se avisa a su familia si ya estaban autorizados). jugadoresIds solo lleva a los del propio equipo. No se puede cambiar el partido de una convocatoria con invitados (400): hay que quitarlos antes. En la respuesta, cada jugador lleva invitado, equipoOrigen y estadoInvitacion."
+          }
+        },
+        {
+          "name": "Invitaciones pendientes (COORDINADOR)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/invitaciones/pendientes",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "invitaciones", "pendientes"]
+            },
+            "description": "Pendientes de coordinación y pendientes de su entrenador, con jugador, equipo de origen, equipo y partido de destino (fecha, hora, rival), quién convoca, solapamiento con su equipo ese día, plazoVencido (12 horas) y otraInvitacion ese día. Solo COORDINADOR y ADMIN_APP (403 para el resto)."
+          }
+        },
+        {
+          "name": "Aprobar invitación (COORDINADOR)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/invitaciones/{{invitacionId}}/aprobar",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "invitaciones", "{{invitacionId}}", "aprobar"]
+            },
+            "description": "200 con la invitación: AUTORIZADO, o PENDIENTE_ENTRENADOR si su entrenador lo tiene convocado el mismo día. 409 JUGADOR_YA_INVITADO_ESE_DIA si mientras tanto quedó autorizado con otro equipo. 400 si ya no está pendiente de coordinación."
+          }
+        },
+        {
+          "name": "Rechazar invitación (COORDINADOR)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Ese día juega con su equipo\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/invitaciones/{{invitacionId}}/rechazar",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "invitaciones", "{{invitacionId}}", "rechazar"]
+            },
+            "description": "El cuerpo es opcional (motivo de hasta 500 caracteres). Avisa al entrenador que convocó para que elija a otro; el motivo va en la bandeja, no en el push."
+          }
+        },
+        {
+          "name": "Liberar jugador (entrenador de origen o COORDINADOR)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/app/invitaciones/{{invitacionId}}/liberar",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "invitaciones", "{{invitacionId}}", "liberar"]
+            },
+            "description": "Solo para invitaciones PENDIENTE_ENTRENADOR. Quita al jugador de la convocatoria de su equipo ese día y deja la invitación AUTORIZADA (se avisa a su familia). Lo hace el cuerpo técnico del equipo de origen o coordinación (que además avisa a ese cuerpo técnico, INVITACION_LIBERADA_COORDINACION). 403 si no gestionas el equipo de origen."
+          }
+        },
+        {
+          "name": "Desestimar invitado (familia o jugador)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Tiene un cumpleaños familiar\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/app/partidos/{{partidoId}}/invitados/{{jugadorId}}/desestimar",
+              "host": ["{{baseUrl}}"],
+              "path": ["app", "partidos", "{{partidoId}}", "invitados", "{{jugadorId}}", "desestimar"]
+            },
+            "description": "Es una justificación de ausencia a ese partido (mismo motivo de 3 a 500 caracteres y mismo plazo: hasta la hora de convocatoria). 201 con la justificación. Solo para invitados AUTORIZADOS (400 si no). El jugador sigue en la lista con el motivo, que solo ve quien lo convocó; ese entrenador recibe un aviso para convocar a otro. Para retirar la desestimación: DELETE /api/app/partidos/{id}/justificaciones/{jugadorId}."
           }
         }
       ]

@@ -57,6 +57,7 @@ class ConvocatoriaEditarH2Test {
     private PartidoDao partidoDao;
     private com.mikedev.mutxamelcf.dao.TemporadaDao temporadaDao;
     private ConvocatoriaDaoImpl convocatoriaDao;
+    private com.mikedev.mutxamelcf.service.InvitadosService invitadosService;
 
     @BeforeEach
     void setUp() {
@@ -99,6 +100,7 @@ class ConvocatoriaEditarH2Test {
         convocatoriaDao = org.mockito.Mockito.spy(new ConvocatoriaDaoImpl(jdbc));
         convocatoriaJugadorDao = new ConvocatoriaJugadorDaoImpl(jdbc);
         justificacionDao = new JustificacionFaltaPartidoDaoImpl(jdbc);
+        invitadosService = org.mockito.Mockito.mock(com.mikedev.mutxamelcf.service.InvitadosService.class);
 
         service = new ConvocatoriaServiceImpl(
                 convocatoriaDao,
@@ -108,6 +110,7 @@ class ConvocatoriaEditarH2Test {
                 comunicacionService,
                 justificacionDao,
                 temporadaDao,
+                invitadosService,
                 java.time.Clock.fixed(
                         LocalDate.of(2026, 10, 21).atTime(12, 0).atZone(java.time.ZoneId.of("Europe/Madrid")).toInstant(),
                         java.time.ZoneId.of("Europe/Madrid")));
@@ -838,5 +841,194 @@ class ConvocatoriaEditarH2Test {
         assertThatThrownBy(() -> service.eliminar(2L, creada.getId())).isInstanceOf(SecurityException.class);
 
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM CONVOCATORIAS", Integer.class)).isEqualTo(1);
+    }
+
+    // ---- jugadores de otros equipos (docs/convocatoria-invitados.md) -----------------------
+
+    private ConvocatoriaJugador invitadoEnLaConvocatoria(
+            Long convocatoriaId, long jugador, com.mikedev.mutxamelcf.model.EstadoInvitacion estado, Long invita) {
+
+        ConvocatoriaJugador invitado = new ConvocatoriaJugador(null, convocatoriaId, jugador);
+        invitado.setEquipoOrigenId(11L);
+        invitado.setEstadoInvitacion(estado);
+        invitado.setUsuarioInvitaId(invita);
+
+        return convocatoriaJugadorDao.guardar(invitado);
+    }
+
+    @Test
+    void crearComprueba409YPasaLosInvitadosAlServicioDeInvitados() {
+        ConvocatoriaGuardarRequest request = request(30L, "09:30", List.of(100L));
+        request.setInvitadosIds(List.of(150L, 151L));
+
+        service.crear(ENTRENADOR, request);
+
+        verify(invitadosService).comprobarNoInvitadoEseDia(eq(List.of(100L)), any(Partido.class));
+        verify(invitadosService).sincronizarInvitados(
+                eq(ENTRENADOR), any(com.mikedev.mutxamelcf.model.Convocatoria.class), any(Partido.class),
+                eq(List.of(150L, 151L)));
+    }
+
+    @Test
+    void siUnJugadorYaEstaAutorizadoComoInvitadoEseDiaNoSeCreaLaConvocatoria() {
+        org.mockito.Mockito.doThrow(new com.mikedev.mutxamelcf.model.ConflictoInvitacionException(
+                "JUGADOR_INVITADO_ESE_DIA", "Ya está invitado", 100L, 11L, "Cadete A", LocalDate.of(2026, 10, 24)))
+                .when(invitadosService).comprobarNoInvitadoEseDia(any(), any(Partido.class));
+
+        assertThatThrownBy(() -> service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L))))
+                .isInstanceOf(com.mikedev.mutxamelcf.model.ConflictoInvitacionException.class);
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM CONVOCATORIAS", Integer.class)).isZero();
+    }
+
+    @Test
+    void elPutComprueba409SoloDeLosQueEntranYPasaLosInvitadosYLaLiberacion() {
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+
+        ConvocatoriaGuardarRequest request = request(30L, "09:30", List.of(100L, 102L));
+        request.setInvitadosIds(List.of(150L));
+
+        service.actualizar(ENTRENADOR, creada.getId(), request);
+
+        // Solo el 102 entra: el 100 ya estaba.
+        verify(invitadosService).comprobarNoInvitadoEseDia(eq(List.of(102L)), any(Partido.class));
+        // El 101 sale: quien lo estuviera pidiendo para otro partido ese día queda libre.
+        verify(invitadosService).alQuitarJugadoresPropios(
+                eq(ENTRENADOR), eq(EQUIPO), eq(LocalDate.of(2026, 10, 24)), eq(List.of(101L)));
+        verify(invitadosService).sincronizarInvitados(
+                eq(ENTRENADOR), any(com.mikedev.mutxamelcf.model.Convocatoria.class), any(Partido.class),
+                eq(List.of(150L)));
+    }
+
+    @Test
+    void elPutNoTocaAlInvitadoAutorizadoNiLeAvisaComoSiFueraDelEquipo() {
+        usuariosPorJugador();
+        when(equipoGestionDao.obtenerUsuariosPorJugador(150L)).thenReturn(List.of(99L));
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+        invitadoEnLaConvocatoria(creada.getId(), 150, com.mikedev.mutxamelcf.model.EstadoInvitacion.AUTORIZADO,
+                ENTRENADOR);
+
+        // Cambia la hora de citación: avisa a los dos del equipo, no al invitado.
+        ConvocatoriaResponse editada = service.actualizar(
+                ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L, 101L)));
+
+        assertThat(convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(creada.getId(), 150L)).isNotNull();
+        verify(comunicacionService, never()).crearPrivada(
+                any(Comunicacion.class), eq(List.of(99L)), anyLong(), any(OpcionesPushComunicacion.class));
+        avisosEnviados = 2;
+        nadieMasAvisado();
+
+        // Y sale en la respuesta, marcado como invitado.
+        ConvocatoriaJugadorResponse invitado = editada.getJugadores().stream()
+                .filter(j -> j.getJugadorId().equals(150L)).findFirst().orElseThrow();
+
+        assertThat(invitado.isInvitado()).isTrue();
+        assertThat(invitado.getEquipoOrigenId()).isEqualTo(11L);
+        assertThat(invitado.getEstadoInvitacion()).isEqualTo("AUTORIZADO");
+    }
+
+    @Test
+    void elPutConLaListaDelEquipoNoQuitaAlInvitadoAutorizado() {
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+        invitadoEnLaConvocatoria(creada.getId(), 150, com.mikedev.mutxamelcf.model.EstadoInvitacion.AUTORIZADO,
+                ENTRENADOR);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "09:30", List.of(100L)));
+
+        assertThat(convocados(creada.getId())).containsExactly(100L, 150L);
+    }
+
+    @Test
+    void siSeCambiaElPartidoConInvitadosSePideQuitarlosAntes() {
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("quita los invitados"))
+                .when(invitadosService).comprobarSinInvitadosAlCambiarPartido(creada.getId());
+
+        assertThatThrownBy(() -> service.actualizar(ENTRENADOR, creada.getId(), request(31L, "09:30", List.of(100L))))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(jdbc.queryForObject("SELECT PARTIDO_ID FROM CONVOCATORIAS WHERE ID = ?", Long.class,
+                creada.getId())).isEqualTo(30L);
+    }
+
+    @Test
+    void sinCambiarElPartidoNoSeComprueba() {
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L)));
+
+        verify(invitadosService, never()).comprobarSinInvitadosAlCambiarPartido(anyLong());
+    }
+
+    @Test
+    void elMotivoDeLaAusenciaDeUnInvitadoSoloLoVeQuienLoInvito() {
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        invitadoEnLaConvocatoria(creada.getId(), 150, com.mikedev.mutxamelcf.model.EstadoInvitacion.AUTORIZADO, 7L);
+        invitadoEnLaConvocatoria(creada.getId(), 151, com.mikedev.mutxamelcf.model.EstadoInvitacion.AUTORIZADO,
+                ENTRENADOR);
+        justificar(30, 100, "Examen");
+        justificar(30, 150, "Dentista");
+        justificar(30, 151, "Cumpleaños");
+
+        when(equipoGestionDao.puedeGestionarEquipo(7L, EQUIPO)).thenReturn(true);
+
+        ConvocatoriaResponse paraElQueInvito = service.obtenerPorId(ENTRENADOR, creada.getId());
+        ConvocatoriaResponse paraOtro = service.obtenerPorId(7L, creada.getId());
+
+        // Los del propio equipo no cambian: el motivo se ve como hasta ahora.
+        assertThat(motivo(paraElQueInvito, 100)).isEqualTo("Examen");
+        assertThat(motivo(paraOtro, 100)).isEqualTo("Examen");
+        assertThat(motivo(paraElQueInvito, 151)).isEqualTo("Cumpleaños");
+        assertThat(motivo(paraElQueInvito, 150)).isNull();
+        assertThat(motivo(paraOtro, 150)).isEqualTo("Dentista");
+        assertThat(motivo(paraOtro, 151)).isNull();
+
+        // Siguen marcados como ausencia justificada: lo único que se oculta es el motivo.
+        assertThat(paraElQueInvito.getJugadores()).filteredOn(j -> j.getJugadorId() == 150L)
+                .allMatch(ConvocatoriaJugadorResponse::isAusenciaJustificada);
+    }
+
+    private static String motivo(ConvocatoriaResponse respuesta, long jugador) {
+        return respuesta.getJugadores().stream().filter(j -> j.getJugadorId() == jugador).findFirst().orElseThrow()
+                .getMotivoAusencia();
+    }
+
+    @Test
+    void laRespuestaAnadeLosInvitadosPendientesDespuesDeLosQueJuegan() {
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+
+        ConvocatoriaJugadorResponse pendiente = new ConvocatoriaJugadorResponse(160L, "Jugador 160");
+        pendiente.setInvitado(true);
+        pendiente.setEstadoInvitacion("PENDIENTE_ENTRENADOR");
+        when(invitadosService.invitadosSinAutorizar(creada.getId())).thenReturn(List.of(pendiente));
+
+        ConvocatoriaResponse respuesta = service.obtenerPorId(ENTRENADOR, creada.getId());
+
+        assertThat(respuesta.getJugadores()).extracting(ConvocatoriaJugadorResponse::getJugadorId)
+                .containsExactly(100L, 160L);
+        assertThat(respuesta.getJugadores().get(1).getEstadoInvitacion()).isEqualTo("PENDIENTE_ENTRENADOR");
+    }
+
+    @Test
+    void eliminarAvisaSoloALosDelEquipoYLeDejaLosInvitadosAlServicioDeInvitados() {
+        usuariosPorJugador();
+        when(equipoGestionDao.obtenerUsuariosPorJugador(150L)).thenReturn(List.of(99L));
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+        invitadoEnLaConvocatoria(creada.getId(), 150, com.mikedev.mutxamelcf.model.EstadoInvitacion.AUTORIZADO,
+                ENTRENADOR);
+
+        service.eliminar(ENTRENADOR, creada.getId());
+
+        verify(comunicacionService, never()).crearPrivada(
+                any(Comunicacion.class), eq(List.of(99L)), anyLong(), any(OpcionesPushComunicacion.class));
+        avisosEnviados = 1;
+        nadieMasAvisado();
+
+        // Antes de borrar las filas, para saber quién era invitado; después, los jugadores quedan libres.
+        verify(invitadosService).alEliminarConvocatoria(
+                any(com.mikedev.mutxamelcf.model.Convocatoria.class), any(Partido.class));
+        verify(invitadosService).alQuitarJugadoresPropios(
+                eq(ENTRENADOR), eq(EQUIPO), eq(LocalDate.of(2026, 10, 24)), eq(List.of(100L)));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM CONVOCATORIA_JUGADOR", Integer.class)).isZero();
     }
 }

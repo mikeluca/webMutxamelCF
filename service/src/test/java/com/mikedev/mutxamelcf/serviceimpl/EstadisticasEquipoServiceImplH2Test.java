@@ -100,6 +100,9 @@ class EstadisticasEquipoServiceImplH2Test {
         when(equipoGestionDao.existeEquipo(EQUIPO)).thenReturn(true);
         when(equipoGestionDao.puedeGestionarEquipo(USUARIO, EQUIPO)).thenReturn(true);
         when(equipoGestionDao.equipoAdmiteEstadisticas(EQUIPO)).thenReturn(true);
+        when(equipoGestionDao.existeEquipo(OTRO_EQUIPO)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(USUARIO, OTRO_EQUIPO)).thenReturn(true);
+        when(equipoGestionDao.equipoAdmiteEstadisticas(OTRO_EQUIPO)).thenReturn(true);
 
         service = new EstadisticasEquipoServiceImpl(
                 new ResumenTemporadaDaoImpl(jdbc),
@@ -596,5 +599,109 @@ class EstadisticasEquipoServiceImplH2Test {
         jdbc.update("INSERT INTO ENTRENAMIENTO_ASISTENCIA VALUES (?, ?, 'PRESENTE')", otro, PABLO);
 
         assertThat(service.obtenerEstadisticas(USUARIO, EQUIPO).entrenamientos().sesiones()).isZero();
+    }
+
+    // ---- jugadores de otros equipos invitados (docs/convocatoria-invitados.md, §3) ----------------
+
+    /** El jugador juega el partido como invitado de otro equipo con ese estado (su equipo habitual es OTRO_EQUIPO). */
+    private void convocarComoInvitado(long partido, long jugador, String estado) {
+        long convocatoria = siguienteId++;
+        jdbc.update("INSERT INTO CONVOCATORIAS VALUES (?, ?)", convocatoria, partido);
+        jdbc.update("INSERT INTO CONVOCATORIA_JUGADOR (CONVOCATORIA_ID, JUGADOR_ID, EQUIPO_ORIGEN_ID,"
+                + " ESTADO_INVITACION) VALUES (?, ?, ?, ?)", convocatoria, jugador, OTRO_EQUIPO, estado);
+    }
+
+    @Test
+    void unInvitadoAutorizadoSaleEnLasEstadisticasDelEquipoConElQueJugoMarcadoComoInvitado() {
+        // Marta es del Cadete B (6) y juega de invitada con el Cadete A (5).
+        long conElA = partido(EQUIPO, INICIO.plusDays(5), false, 3, 0);
+        estadistica(conElA, PABLO, 1, 0, 0, 0);
+        estadistica(conElA, MARTA, 2, 1, 1, 0);
+        convocar(conElA, PABLO);
+        convocarComoInvitado(conElA, MARTA, "AUTORIZADO");
+
+        EstadisticasEquipoResponse r = service.obtenerEstadisticas(USUARIO, EQUIPO);
+
+        EstadisticasEquipoResponse.Goleador marta = r.goleadores().stream()
+                .filter(g -> g.jugadorId() == MARTA).findFirst().orElseThrow();
+
+        assertThat(marta.invitado()).isTrue();
+        assertThat(marta.goles()).isEqualTo(2);
+        assertThat(marta.asistencias()).isEqualTo(1);
+        assertThat(marta.partidos()).isEqualTo(1);
+        assertThat(r.goleadores().stream().filter(g -> g.jugadorId() == PABLO).findFirst().orElseThrow().invitado())
+                .isFalse();
+        assertThat(r.asistentes()).extracting(EstadisticasEquipoResponse.Asistente::jugadorId).containsExactly(MARTA);
+        assertThat(r.asistentes().get(0).invitado()).isTrue();
+
+        assertThat(tarjetasDe(MARTA).invitado()).isTrue();
+        assertThat(tarjetasDe(MARTA).amarillas()).isEqualTo(1);
+        assertThat(tarjetasDe(PABLO).invitado()).isFalse();
+    }
+
+    @Test
+    void lasEstadisticasDelInvitadoNoSeSumanAlEquipoDeOrigen() {
+        long conElA = partido(EQUIPO, INICIO.plusDays(5), false, 3, 0);
+        long conElB = partido(OTRO_EQUIPO, INICIO.plusDays(6), false, 1, 1);
+
+        estadistica(conElA, MARTA, 4, 2, 3, 1);
+        estadistica(conElB, MARTA, 1, 0, 1, 0);
+        convocarComoInvitado(conElA, MARTA, "AUTORIZADO");
+        convocar(conElB, MARTA);
+
+        // En las estadisticas de su propio equipo (el B) solo cuenta lo que hizo con el B.
+        EstadisticasEquipoResponse delB = service.obtenerEstadisticas(USUARIO, OTRO_EQUIPO);
+
+        assertThat(delB.goleadores()).extracting(EstadisticasEquipoResponse.Goleador::jugadorId).containsExactly(MARTA);
+        assertThat(delB.goleadores().get(0).goles()).isEqualTo(1);
+        assertThat(delB.goleadores().get(0).partidos()).isEqualTo(1);
+        assertThat(delB.goleadores().get(0).invitado()).isFalse();
+
+        TarjetasJugadorResponse tarjetasDelB = service.obtenerTarjetas(USUARIO, OTRO_EQUIPO).jugadores().stream()
+                .filter(t -> t.jugadorId() == MARTA).findFirst().orElseThrow();
+
+        assertThat(tarjetasDelB.amarillas()).isEqualTo(1);
+        assertThat(tarjetasDelB.rojas()).isZero();
+        assertThat(tarjetasDelB.invitado()).isFalse();
+    }
+
+    @Test
+    void lasTarjetasDelInvitadoSeCuentanPorSeparadoEnCadaCompeticion() {
+        // 4 amarillas con su equipo (a una de la sancion) y 2 de invitada con el A: no suman 6.
+        long conElA = partido(EQUIPO, INICIO.plusDays(5), false, 3, 0);
+        long conElB = partido(OTRO_EQUIPO, INICIO.plusDays(6), false, 1, 1);
+
+        estadistica(conElB, MARTA, 0, 0, 4, 0);
+        estadistica(conElA, MARTA, 0, 0, 2, 0);
+        convocar(conElB, MARTA);
+        convocarComoInvitado(conElA, MARTA, "AUTORIZADO");
+
+        assertThat(tarjetasDe(MARTA).amarillas()).isEqualTo(2);
+        assertThat(tarjetasDe(MARTA).estado()).isEqualTo("OK");
+
+        TarjetasJugadorResponse enElB = service.obtenerTarjetas(USUARIO, OTRO_EQUIPO).jugadores().stream()
+                .filter(t -> t.jugadorId() == MARTA).findFirst().orElseThrow();
+
+        assertThat(enElB.amarillas()).isEqualTo(4);
+        assertThat(enElB.estado()).isEqualTo("A_UNA");
+    }
+
+    @Test
+    void unInvitadoQueNoEstaAutorizadoNoSaleEnLasEstadisticasDelEquipo() {
+        long conElA = partido(EQUIPO, INICIO.plusDays(5), false, 3, 0);
+        estadistica(conElA, MARTA, 2, 1, 1, 0);
+        convocarComoInvitado(conElA, MARTA, "PENDIENTE_ENTRENADOR");
+
+        assertThat(service.obtenerEstadisticas(USUARIO, EQUIPO).goleadores()).isEmpty();
+        assertThat(tarjetas()).extracting(TarjetasJugadorResponse::jugadorId).doesNotContain(MARTA);
+    }
+
+    @Test
+    void unPartidoCanceladoNoCuentaParaElInvitado() {
+        long cancelado = partido(EQUIPO, INICIO.plusDays(5), true, null, null);
+        estadistica(cancelado, MARTA, 2, 1, 1, 0);
+        convocarComoInvitado(cancelado, MARTA, "AUTORIZADO");
+
+        assertThat(tarjetas()).extracting(TarjetasJugadorResponse::jugadorId).doesNotContain(MARTA);
     }
 }

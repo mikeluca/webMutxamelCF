@@ -337,4 +337,30 @@ class AppConvocatoriaControllerTest {
         assertThat(controller.eliminar(5L, autenticado("1")).getStatusCode())
                 .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     }
+    @Test
+    @SuppressWarnings("unchecked")
+    void crearYActualizarDevuelven409ConElCodigoSiUnJugadorYaEstaInvitadoEseDia() {
+        ConvocatoriaService service = mock(ConvocatoriaService.class);
+        AppConvocatoriaController controller = new AppConvocatoriaController(service);
+
+        ConvocatoriaGuardarRequest request = new ConvocatoriaGuardarRequest();
+        com.mikedev.mutxamelcf.model.ConflictoInvitacionException conflicto =
+                new com.mikedev.mutxamelcf.model.ConflictoInvitacionException(
+                        com.mikedev.mutxamelcf.model.ConflictoInvitacionException.JUGADOR_INVITADO_ESE_DIA,
+                        "Ana ya está convocada como invitada con Cadete A", 100L, 1L, "Cadete A",
+                        java.time.LocalDate.of(2026, 11, 14));
+        when(service.crear(1L, request)).thenThrow(conflicto);
+        when(service.actualizar(1L, 5L, request)).thenThrow(conflicto);
+
+        for (ResponseEntity<?> response : List.of(
+                controller.crear(request, autenticado("1")),
+                controller.actualizar(5L, request, autenticado("1")))) {
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+            assertThat((java.util.Map<String, Object>) response.getBody())
+                    .containsEntry("codigo", "JUGADOR_INVITADO_ESE_DIA")
+                    .containsEntry("equipoDestino", "Cadete A")
+                    .containsEntry("jugadorId", 100L);
+        }
+    }
 }

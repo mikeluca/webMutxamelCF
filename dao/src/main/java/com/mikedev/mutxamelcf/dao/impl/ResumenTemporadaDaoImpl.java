@@ -45,6 +45,7 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 				JOIN CONVOCATORIAS C ON C.ID = CJ.CONVOCATORIA_ID
 				JOIN PARTIDOS P ON P.ID = C.PARTIDO_ID
 				WHERE CJ.JUGADOR_ID = ?
+				  AND CJ.EQUIPO_ORIGEN_ID IS NULL
 				  AND P.CANCELADO = 0
 				  AND P.DIA BETWEEN ? AND ?
 				  AND (P.DIA < ? OR (P.DIA = ? AND NOT %s))
@@ -62,6 +63,12 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 				WHERE EJ.JUGADOR_ID = ?
 				  AND P.CANCELADO = 0
 				  AND P.DIA BETWEEN ? AND ?
+				  AND NOT EXISTS (SELECT 1
+				                    FROM CONVOCATORIA_JUGADOR CJX
+				                    JOIN CONVOCATORIAS CX ON CX.ID = CJX.CONVOCATORIA_ID
+				                   WHERE CX.PARTIDO_ID = EJ.PARTIDO_ID
+				                     AND CJX.JUGADOR_ID = EJ.JUGADOR_ID
+				                     AND CJX.EQUIPO_ORIGEN_ID IS NOT NULL)
 				""",
 				(rs, n) -> new EstadisticasPartidosJugador(
 						convocado == null ? 0 : convocado, rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4)),
@@ -137,6 +144,69 @@ public class ResumenTemporadaDaoImpl implements ResumenTemporadaDao {
 
 	@Override
 	public List<EstadisticasJugadorEquipo> estadisticasJugadoresDelEquipo(
+			Long equipoId, LocalDate desde, LocalDate hasta, LocalDate hoy) {
+
+		List<EstadisticasJugadorEquipo> resultado = new java.util.ArrayList<>(
+				estadisticasDeLosJugadoresDelEquipo(equipoId, desde, hasta, hoy));
+
+		resultado.addAll(estadisticasDeLosInvitados(equipoId, desde, hasta, hoy));
+
+		return resultado;
+	}
+
+	/*
+	 * Los invitados de otros equipos con invitación AUTORIZADA en algún partido del equipo en el rango (ver
+	 * docs/convocatoria-invitados.md, §3): solo cuentan los partidos y las estadísticas de los partidos de ESTE equipo,
+	 * y salen marcados como invitados. Orden de los parámetros: partidos convocados, temporada, partidos de las
+	 * estadísticas y, al final, el filtro de quién es invitado.
+	 */
+	private List<EstadisticasJugadorEquipo> estadisticasDeLosInvitados(
+			Long equipoId, LocalDate desde, LocalDate hasta, LocalDate hoy) {
+
+		return jdbcTemplate.query("""
+				SELECT J.ID, J.NOMBRE, J.APELLIDOS, COALESCE(JT.DORSAL, J.DORSAL) AS DORSAL,
+				       COALESCE(SUM(EJ.GOLES), 0) AS GOLES,
+				       COALESCE(SUM(EJ.ASISTENCIAS), 0) AS ASISTENCIAS,
+				       COALESCE(SUM(EJ.TARJETAS_AMARILLAS), 0) AS AMARILLAS,
+				       COALESCE(SUM(EJ.TARJETA_ROJA), 0) AS ROJAS,
+				       (SELECT COUNT(*)
+				          FROM CONVOCATORIA_JUGADOR CJ
+				          JOIN CONVOCATORIAS C ON C.ID = CJ.CONVOCATORIA_ID
+				          JOIN PARTIDOS P ON P.ID = C.PARTIDO_ID
+				         WHERE CJ.JUGADOR_ID = J.ID
+				           AND CJ.ESTADO_INVITACION = 'AUTORIZADO'
+				           AND P.CANCELADO = 0
+				           AND P.DIA BETWEEN ? AND ?
+				           AND P.EQUIPO_ID = ?
+				           AND (P.DIA < ? OR (P.DIA = ? AND NOT %s))) AS PARTIDOS
+				FROM JUGADORES J
+				LEFT JOIN JUGADOR_TEMPORADA JT ON JT.JUGADOR_ID = J.ID AND JT.TEMPORADA_ID = ?
+				LEFT JOIN PARTIDO_ESTADISTICAS_JUGADOR EJ
+				       ON EJ.JUGADOR_ID = J.ID
+				      AND EJ.PARTIDO_ID IN (SELECT PP.ID FROM PARTIDOS PP
+				                             WHERE PP.CANCELADO = 0 AND PP.EQUIPO_ID = ?
+				                               AND PP.DIA BETWEEN ? AND ?)
+				WHERE J.ID IN (SELECT CJI.JUGADOR_ID
+				                 FROM CONVOCATORIA_JUGADOR CJI
+				                 JOIN CONVOCATORIAS CI ON CI.ID = CJI.CONVOCATORIA_ID
+				                 JOIN PARTIDOS PI ON PI.ID = CI.PARTIDO_ID
+				                WHERE PI.EQUIPO_ID = ?
+				                  AND CJI.ESTADO_INVITACION = 'AUTORIZADO'
+				                  AND PI.CANCELADO = 0
+				                  AND PI.DIA BETWEEN ? AND ?)
+				GROUP BY J.ID, J.NOMBRE, J.APELLIDOS, COALESCE(JT.DORSAL, J.DORSAL)
+				""".formatted(SIN_RESULTADO),
+				(rs, n) -> new EstadisticasJugadorEquipo(
+						rs.getLong("ID"), nombreCompleto(rs), dorsal(rs),
+						rs.getInt("GOLES"), rs.getInt("ASISTENCIAS"), rs.getInt("AMARILLAS"), rs.getInt("ROJAS"),
+						rs.getInt("PARTIDOS"), true),
+				Date.valueOf(desde), Date.valueOf(hasta), equipoId, Date.valueOf(hoy), Date.valueOf(hoy),
+				temporadaId(desde),
+				equipoId, Date.valueOf(desde), Date.valueOf(hasta),
+				equipoId, Date.valueOf(desde), Date.valueOf(hasta));
+	}
+
+	private List<EstadisticasJugadorEquipo> estadisticasDeLosJugadoresDelEquipo(
 			Long equipoId, LocalDate desde, LocalDate hasta, LocalDate hoy) {
 
 		return jdbcTemplate.query("""

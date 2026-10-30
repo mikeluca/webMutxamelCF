@@ -31,6 +31,11 @@ public class PartidoDTO {
 	 * convocado").
 	 */
 	private Boolean convocado;
+	/**
+	 * Solo en el calendario de un jugador concreto: el partido es de otro equipo y el jugador juega en él como
+	 * invitado autorizado (docs/convocatoria-invitados.md).
+	 */
+	private boolean invitado;
 	/*
 	 * Solo en el calendario de un jugador concreto (JUGADOR/FAMILIAR): si ha
 	 * justificado su ausencia y por qué, si todavía puede justificarla (o
@@ -201,6 +206,14 @@ public class PartidoDTO {
 
 	public void setConvocado(Boolean convocado) {
 		this.convocado = convocado;
+	}
+
+	public boolean isInvitado() {
+		return invitado;
+	}
+
+	public void setInvitado(boolean invitado) {
+		this.invitado = invitado;
 	}
 
 

@@ -84,7 +84,7 @@ public class EstadisticasEquipoServiceImpl implements EstadisticasEquipoService 
 				.stream()
 				.map(j -> new TarjetasJugadorResponse(
 						j.jugadorId(), j.nombre(), j.dorsal(), j.amarillas(), j.rojas(),
-						reglaSancion.estado(j.amarillas())))
+						reglaSancion.estado(j.amarillas()), j.invitado()))
 				.sorted(Comparator
 						.comparingInt(TarjetasJugadorResponse::amarillas).reversed()
 						.thenComparing(Comparator.comparingInt(TarjetasJugadorResponse::rojas).reversed())
@@ -121,7 +121,7 @@ public class EstadisticasEquipoServiceImpl implements EstadisticasEquipoService 
 						.thenComparing(EstadisticasJugadorEquipo::nombre, String.CASE_INSENSITIVE_ORDER))
 				.limit(TOP)
 				.map(j -> new Goleador(j.jugadorId(), j.nombre(), j.dorsal(), j.goles(), j.asistencias(),
-						j.partidos()))
+						j.partidos(), j.invitado()))
 				.toList();
 
 		List<Asistente> asistentes = jugadores.stream()
@@ -132,7 +132,7 @@ public class EstadisticasEquipoServiceImpl implements EstadisticasEquipoService 
 						.thenComparing(EstadisticasJugadorEquipo::nombre, String.CASE_INSENSITIVE_ORDER))
 				.limit(TOP)
 				.map(j -> new Asistente(j.jugadorId(), j.nombre(), j.dorsal(), j.asistencias(), j.goles(),
-						j.partidos()))
+						j.partidos(), j.invitado()))
 				.toList();
 
 		PartidosEquipo partidos = resumenTemporadaDao.partidosDelEquipo(equipoId, desde, hasta);

@@ -209,6 +209,7 @@ Se ejecutan con el usuario **propietario del esquema** (`SYSTEM`), no con `USER_
 | 4 | `2026-10-30_jugador_temporada_sin_baja.sql` | Quita `JUGADOR_TEMPORADA.BAJA` (la baja es `ESTADO = 'BAJA'`) | **Justo antes** de desplegar; ventana corta (el código anterior falla con ORA-00904) |
 | 5 | `2026-10-31_pregunta_continuidad.sql` | `JUGADOR_TEMPORADA.FECHA_PREGUNTA_CONTINUIDAD` | Antes de desplegar |
 | 6 | `2026-11-01_cuentas_sin_jugadores.sql` | `USUARIOS_APP.FECHA_AVISO_SIN_JUGADORES` y `DESACTIVADA_SIN_JUGADORES` | Antes de desplegar |
+| 7 | `2026-11-02_convocatoria_invitados.sql` | Columnas de invitado en `CONVOCATORIA_JUGADOR` (`EQUIPO_ORIGEN_ID`, `ESTADO_INVITACION`, …), para convocar a jugadores de otros equipos (`convocatoria-invitados.md`) | Antes de desplegar (solo añade columnas nulas o con valor por defecto) |
 
 **Ya aplicados en PRO:** `2026-10-29_plantillas_temporada.sql` (#1) y `2026-10-30_cuerpo_tecnico_equipo_id.sql` (#1b) están en `sql/` marcados como «NO EJECUTAR». Como la copia de PRO ya los trae, **en el ensayo en DEV no se ejecutan**: solo se comprueban con las consultas de abajo.
 
@@ -237,9 +238,13 @@ SELECT column_name FROM user_tab_columns WHERE table_name = 'JUGADOR_TEMPORADA' 
 -- #6
 SELECT column_name FROM user_tab_columns WHERE table_name = 'USUARIOS_APP'
   AND column_name IN ('FECHA_AVISO_SIN_JUGADORES','DESACTIVADA_SIN_JUGADORES');                             -- 2 filas
+-- #7
+SELECT column_name FROM user_tab_columns WHERE table_name = 'CONVOCATORIA_JUGADOR'
+  AND column_name IN ('EQUIPO_ORIGEN_ID','ESTADO_INVITACION','FECHA_SOLICITUD','USUARIO_INVITA_ID','USUARIO_COORDINADOR_ID',
+                      'FECHA_COORDINACION','FECHA_PETICION_ENTRENADOR','AVISO_12H_ENVIADO','FECHA_AUTORIZACION','MOTIVO_RECHAZO'); -- 10 filas
 ```
 
-Orden de despliegue (cuando llegue a PRO): scripts #2, #5, #6 → **justo antes de desplegar** #3 y #4 → desplegar el backend → publicar la app. Nunca la app antes que el backend.
+Orden de despliegue (cuando llegue a PRO): scripts #2, #5, #6, #7 → **justo antes de desplegar** #3 y #4 → desplegar el backend → publicar la app. Nunca la app antes que el backend.
 
 ## 4. Checklist del ensayo completo
 

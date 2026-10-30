@@ -162,8 +162,16 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 		String jugador = equipoGestionDao.obtenerNombreJugador(jugadorId);
 		String rival = partido.getRival();
 
-		boolean convocado = convocatoria != null
-				&& convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(convocatoria.getId(), jugadorId) != null;
+		ConvocatoriaJugador fila = convocatoria == null ? null
+				: convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(convocatoria.getId(), jugadorId);
+
+		// Un invitado de otro equipo: solo se avisa al entrenador que lo convocó (docs/convocatoria-invitados.md, §2.6).
+		if (fila != null && fila.isInvitado()) {
+			avisarDesestimacion(partido, convocatoria, fila, motivo, usuarioAppId);
+			return;
+		}
+
+		boolean convocado = fila != null;
 
 		if (!convocado) {
 
@@ -217,6 +225,56 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 				Map.of());
 
 		registrarAvisoTrasCommit(partido.getId(), jugadorId, TipoAviso.QUITADO);
+	}
+
+	/* Quién convocó al invitado: el que lo invitó o, si la fila no lo guarda, el de la convocatoria. */
+	private static Long quienInvito(ConvocatoriaJugador fila, Convocatoria convocatoria) {
+		return fila.getUsuarioInvitaId() != null ? fila.getUsuarioInvitaId() : convocatoria.getUsuarioEntrenadorId();
+	}
+
+	private boolean esInvitadoAutorizado(Long partidoId, Long jugadorId) {
+
+		Convocatoria convocatoria = convocatoriaDao.obtenerPorPartidoId(partidoId);
+
+		if (convocatoria == null) {
+			return false;
+		}
+
+		ConvocatoriaJugador fila = convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(convocatoria.getId(), jugadorId);
+
+		return fila != null && fila.isInvitado() && fila.isConvocadoEfectivo();
+	}
+
+	/*
+	 * El invitado desestimado sigue en la lista con su motivo, que solo ve quien lo convocó. A esa persona se le avisa
+	 * para que pueda convocar a otro jugador: el motivo va en la bandeja; el push (pantalla bloqueada) no lo lleva.
+	 */
+	private void avisarDesestimacion(
+			Partido partido, Convocatoria convocatoria, ConvocatoriaJugador fila, String motivo, Long usuarioAppId) {
+
+		Long invitador = quienInvito(fila, convocatoria);
+
+		if (invitador == null || invitador.equals(usuarioAppId)) {
+			return;
+		}
+
+		String jugador = equipoGestionDao.obtenerNombreJugador(fila.getJugadorId());
+		String equipo = equipoGestionDao.obtenerNombreEquipo(partido.getEquipoId());
+		String texto = jugador + " no podrá jugar con " + equipo + " el partido contra " + partido.getRival() + " ("
+				+ textoFecha(partido) + "). Puedes convocar a otro jugador en su lugar.";
+
+		Comunicacion comunicacion = new Comunicacion();
+		comunicacion.setTitulo("Invitado no disponible");
+		comunicacion.setContenido(texto + " Motivo: " + motivo);
+
+		Map<String, String> datos = new java.util.LinkedHashMap<>();
+		datos.put("tipo", "INVITACION_DESESTIMADA");
+		datos.put("convocatoriaId", String.valueOf(convocatoria.getId()));
+		datos.put("partidoId", String.valueOf(partido.getId()));
+		datos.put("jugadorId", String.valueOf(fila.getJugadorId()));
+
+		comunicacionService.crearPrivada(comunicacion, List.of(invitador), usuarioAppId,
+				new OpcionesPushComunicacion(texto, datos));
 	}
 
 	/*
@@ -308,8 +366,23 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 
 		List<JustificacionFaltaPartidoResponse> respuesta = new ArrayList<>();
 
+		Convocatoria convocatoria = convocatoriaDao.obtenerPorPartidoId(partidoId);
+
 		for (JustificacionFaltaPartido justificacion : justificacionDao.obtenerPorPartido(partidoId)) {
-			respuesta.add(construirResponse(justificacion));
+
+			JustificacionFaltaPartidoResponse item = construirResponse(justificacion);
+
+			// El motivo de la ausencia de un invitado solo lo ve el entrenador que lo convocó.
+			ConvocatoriaJugador fila = convocatoria == null ? null
+					: convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(convocatoria.getId(),
+							justificacion.getJugadorId());
+
+			if (fila != null && fila.isInvitado() && !usuarioAppId.equals(quienInvito(fila, convocatoria))) {
+				item = new JustificacionFaltaPartidoResponse(item.partidoId(), item.jugadorId(), item.jugador(), null,
+						item.fechaCreacion());
+			}
+
+			respuesta.add(item);
 		}
 
 		return respuesta;
@@ -335,7 +408,8 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 			throw new SecurityException("No tienes permiso para justificar la ausencia de este jugador");
 		}
 
-		if (!equipoGestionDao.perteneceJugadorAEquipo(jugadorId, partido.getEquipoId())) {
+		if (!equipoGestionDao.perteneceJugadorAEquipo(jugadorId, partido.getEquipoId())
+				&& !esInvitadoAutorizado(partidoId, jugadorId)) {
 			throw new IllegalArgumentException("El jugador no pertenece al equipo de este partido");
 		}
 

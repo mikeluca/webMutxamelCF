@@ -1,7 +1,9 @@
 package com.mikedev.mutxamelcf.mvc.controller;
 
+import com.mikedev.mutxamelcf.model.ConflictoInvitacionException;
 import com.mikedev.mutxamelcf.model.ConvocatoriaGuardarRequest;
 import com.mikedev.mutxamelcf.model.ConvocatoriaResponse;
+import com.mikedev.mutxamelcf.mvc.api.ConflictoInvitacionRespuesta;
 import com.mikedev.mutxamelcf.service.ConvocatoriaService;
 
 import org.springframework.http.HttpStatus;
@@ -74,6 +76,10 @@ public class AppConvocatoriaController {
                                         .badRequest()
                                         .body(e.getMessage());
 
+                } catch (ConflictoInvitacionException e) {
+
+                        return ConflictoInvitacionRespuesta.de(e);
+
                 } catch (Exception e) {
 
                         return ResponseEntity
@@ -130,6 +136,10 @@ public class AppConvocatoriaController {
                         return ResponseEntity
                                         .badRequest()
                                         .body(e.getMessage());
+
+                } catch (ConflictoInvitacionException e) {
+
+                        return ConflictoInvitacionRespuesta.de(e);
 
                 } catch (Exception e) {
 

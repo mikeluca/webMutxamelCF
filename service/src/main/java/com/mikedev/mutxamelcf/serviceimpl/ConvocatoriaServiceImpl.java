@@ -16,6 +16,7 @@ import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.ConvocatoriaService;
+import com.mikedev.mutxamelcf.service.InvitadosService;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +44,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
         private final ComunicacionService comunicacionService;
         private final JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
         private final com.mikedev.mutxamelcf.dao.TemporadaDao temporadaDao;
+        private final InvitadosService invitadosService;
         private final java.time.Clock clock;
 
         public ConvocatoriaServiceImpl(
@@ -53,8 +55,10 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         ComunicacionService comunicacionService,
                         JustificacionFaltaPartidoDao justificacionFaltaPartidoDao,
                         com.mikedev.mutxamelcf.dao.TemporadaDao temporadaDao,
+                        InvitadosService invitadosService,
                         java.time.Clock clock) {
 
+                this.invitadosService = invitadosService;
                 this.clock = clock;
                 this.temporadaDao = temporadaDao;
                 this.justificacionFaltaPartidoDao = justificacionFaltaPartidoDao;
@@ -127,6 +131,11 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 request.getJugadoresIds(),
                                 Set.of());
 
+                // Un jugador ya autorizado como invitado con otro equipo ese día no se puede convocar.
+                invitadosService.comprobarNoInvitadoEseDia(
+                                request.getJugadoresIds(),
+                                partido);
+
                 Convocatoria convocatoria = new Convocatoria();
 
                 convocatoria.setEquipoId(equipoId);
@@ -167,7 +176,14 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 guardada,
                                 request.getJugadoresIds());
 
-                return construirResponse(guardada);
+                // Los jugadores de otros equipos quedan pendientes de coordinación (o autorizados si convoca ella).
+                invitadosService.sincronizarInvitados(
+                                usuarioAppId,
+                                guardada,
+                                partido,
+                                request.getInvitadosIds());
+
+                return construirResponse(guardada, null, usuarioAppId);
         }
 
         private void aplicarDatosPartido(
@@ -503,16 +519,22 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 // Re-apuntar la convocatoria a otro partido: el nuevo tiene que poder convocarse.
                 if (cambiaElPartido) {
                         validarPartidoConvocable(partido);
+
+                        // Los invitados dependen del día del partido: hay que quitarlos antes de cambiarlo.
+                        invitadosService.comprobarSinInvitadosAlCambiarPartido(convocatoriaId);
                 }
 
                 /*
                  * Si el request trae la lista de jugadores, la convocatoria
                  * pasa a tener esos: salen (solo su fila) los que ya no
                  * están, entran los nuevos y los demás se conservan. Sin
-                 * lista (null), los convocados no se tocan.
+                 * lista (null), los convocados no se tocan. Los invitados de
+                 * otros equipos no entran aquí: van aparte (invitadosIds).
                  */
                 List<ConvocatoriaJugador> actuales = convocatoriaJugadorDao.obtenerPorConvocatoria(
-                                convocatoriaId);
+                                convocatoriaId).stream()
+                                .filter(actual -> !actual.isInvitado())
+                                .toList();
 
                 Set<Long> idsActuales = new HashSet<>();
 
@@ -541,6 +563,13 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         partido.getId(),
                                         nuevosIds,
                                         cambiaElPartido ? Set.<Long>of() : idsActuales);
+
+                        // A quien entra ahora no se le puede convocar si ya está autorizado como invitado ese día.
+                        invitadosService.comprobarNoInvitadoEseDia(
+                                        nuevosIds.stream()
+                                                        .filter(id -> !idsActuales.contains(id))
+                                                        .toList(),
+                                        partido);
                 }
 
                 /*
@@ -601,9 +630,34 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 List<ConvocatoriaJugador> jugadoresConvocados = convocatoriaJugadorDao.obtenerPorConvocatoria(
                                 convocatoriaId);
 
+                // Solo los del propio equipo: a los invitados los avisa InvitadosService cuando se autorizan.
                 List<Long> jugadoresIds = jugadoresConvocados.stream()
+                                .filter(convocado -> !convocado.isInvitado())
                                 .map(ConvocatoriaJugador::getJugadorId)
                                 .toList();
+
+                /*
+                 * Los jugadores que este cuerpo técnico acaba de quitar quedan libres: si estaban pidiéndoselos a
+                 * este equipo para otro partido el mismo día, esas invitaciones pasan a autorizadas.
+                 */
+                if (nuevosIds != null) {
+
+                        List<Long> quitados = idsActuales.stream()
+                                        .filter(id -> !nuevosIds.contains(id))
+                                        .toList();
+
+                        invitadosService.alQuitarJugadoresPropios(
+                                        usuarioAppId,
+                                        convocatoria.getEquipoId(),
+                                        antes.fechaPartido() != null ? antes.fechaPartido() : convocatoria.getFechaPartido(),
+                                        quitados);
+                }
+
+                invitadosService.sincronizarInvitados(
+                                usuarioAppId,
+                                convocatoria,
+                                partido,
+                                request.getInvitadosIds());
 
                 /*
                  * Avisamos solo de lo que ha cambiado: a los añadidos, a los
@@ -616,7 +670,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 idsActuales,
                                 jugadoresIds);
 
-                return construirResponse(convocatoria);
+                return construirResponse(convocatoria, null, usuarioAppId);
         }
 
         @Override
@@ -646,7 +700,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         "No tienes permiso para consultar esta convocatoria");
                 }
 
-                return construirResponse(convocatoria);
+                return construirResponse(convocatoria, null, usuarioAppId);
         }
 
         @Override
@@ -698,7 +752,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         }
 
                         respuesta.add(
-                                        construirResponse(convocatoria, partidos));
+                                        construirResponse(convocatoria, partidos, usuarioAppId));
                 }
 
                 return respuesta;
@@ -740,15 +794,31 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         validarEliminable(partidoDao.obtenerPorId(convocatoria.getPartidoId()));
                 }
 
+                // Solo los del propio equipo: a los invitados los avisa InvitadosService, con su propio texto.
                 List<Long> convocados = convocatoriaJugadorDao.obtenerPorConvocatoria(convocatoriaId).stream()
+                                .filter(convocado -> !convocado.isInvitado())
                                 .map(ConvocatoriaJugador::getJugadorId)
                                 .toList();
+
+                // Antes de borrar las filas: es donde está quién era invitado y en qué estado.
+                if (convocatoria.getPartidoId() != null) {
+                        invitadosService.alEliminarConvocatoria(
+                                        convocatoria,
+                                        partidoDao.obtenerPorId(convocatoria.getPartidoId()));
+                }
 
                 // Las justificaciones de ausencia al partido NO se borran: son del partido, no de la convocatoria.
                 convocatoriaJugadorDao.eliminarPorConvocatoria(
                                 convocatoriaId);
 
                 convocatoriaDao.eliminar(convocatoriaId);
+
+                // Los jugadores de esta convocatoria quedan libres para quien los pedía el mismo día.
+                invitadosService.alQuitarJugadoresPropios(
+                                usuarioAppId,
+                                convocatoria.getEquipoId(),
+                                convocatoria.getFechaPartido(),
+                                convocados);
 
                 avisar(
                                 convocatoria,
@@ -795,16 +865,11 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 }
         }
 
-        private ConvocatoriaResponse construirResponse(
-                        Convocatoria convocatoria) {
-
-                return construirResponse(convocatoria, null);
-        }
-
         // partidos: ya cargados (listados); null = se consulta el partido de esta convocatoria.
         private ConvocatoriaResponse construirResponse(
                         Convocatoria convocatoria,
-                        Map<Long, Partido> partidos) {
+                        Map<Long, Partido> partidos,
+                        Long usuarioAppId) {
 
                 ConvocatoriaResponse response = new ConvocatoriaResponse();
 
@@ -859,13 +924,34 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
                         JustificacionFaltaPartido ausencia = justificadas.get(jugador.getJugadorId());
 
-                        jugadoresResponse.add(
-                                        new ConvocatoriaJugadorResponse(
-                                                        jugador.getJugadorId(),
-                                                        nombre,
-                                                        ausencia != null,
-                                                        ausencia != null ? ausencia.getMotivo() : null));
+                        ConvocatoriaJugadorResponse item = new ConvocatoriaJugadorResponse(
+                                        jugador.getJugadorId(),
+                                        nombre,
+                                        ausencia != null,
+                                        ausencia != null ? ausencia.getMotivo() : null);
+
+                        if (jugador.isInvitado()) {
+
+                                item.setInvitado(true);
+                                item.setEquipoOrigenId(jugador.getEquipoOrigenId());
+                                item.setEquipoOrigen(equipoGestionDao.obtenerNombreEquipo(jugador.getEquipoOrigenId()));
+                                item.setEstadoInvitacion(jugador.getEstadoInvitacion().name());
+
+                                // El motivo de la familia solo lo ve quien convocó al invitado.
+                                Long invitador = jugador.getUsuarioInvitaId() != null
+                                                ? jugador.getUsuarioInvitaId()
+                                                : convocatoria.getUsuarioEntrenadorId();
+
+                                if (!Objects.equals(invitador, usuarioAppId)) {
+                                        item.setMotivoAusencia(null);
+                                }
+                        }
+
+                        jugadoresResponse.add(item);
                 }
+
+                // Los invitados pendientes o rechazados salen aparte de los que ya juegan.
+                jugadoresResponse.addAll(invitadosService.invitadosSinAutorizar(convocatoria.getId()));
 
                 response.setJugadores(jugadoresResponse);
 

@@ -147,4 +147,55 @@ class ConvocatoriaPartidoServiceImplTest {
         assertThatThrownBy(() -> service.obtenerParaJugador(USUARIO, PARTIDO, JUGADOR))
                 .isInstanceOf(NoSuchElementException.class);
     }
+
+    // ---- jugadores de otros equipos invitados ---------------------------------------------
+
+    private ConvocatoriaJugador invitado(long jugador, com.mikedev.mutxamelcf.model.EstadoInvitacion estado) {
+        ConvocatoriaJugador fila = new ConvocatoriaJugador();
+        fila.setJugadorId(jugador);
+        fila.setEquipoOrigenId(11L);
+        fila.setEstadoInvitacion(estado);
+        return fila;
+    }
+
+    private void convocatoriaSinJugadores() {
+        Convocatoria convocatoria = new Convocatoria();
+        convocatoria.setId(5L);
+        when(convocatoriaDao.obtenerPorPartidoId(PARTIDO)).thenReturn(convocatoria);
+    }
+
+    @Test
+    void unInvitadoAutorizadoVeLaConvocatoriaDelOtroEquipoYSalePorqueEstaConvocado() {
+        convocatoria(100L, 101L);
+        when(equipoGestionDao.perteneceJugadorAEquipo(JUGADOR, EQUIPO)).thenReturn(false);
+        when(convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(5L, JUGADOR))
+                .thenReturn(invitado(JUGADOR, com.mikedev.mutxamelcf.model.EstadoInvitacion.AUTORIZADO));
+        when(partidoLiveEventoDao.obtenerJugadoresBasicos(List.of(100L, 101L))).thenReturn(List.of(
+                new JugadorBasico(100L, 9, "Pablo", "Gil"), new JugadorBasico(101L, 4, "Luis", "Mas")));
+
+        ConvocatoriaPartidoResponse respuesta = service.obtenerParaJugador(USUARIO, PARTIDO, JUGADOR);
+
+        assertThat(respuesta.convocado()).isTrue();
+        assertThat(respuesta.rival()).isEqualTo("Pego");
+    }
+
+    @Test
+    void unInvitadoPendienteDeAutorizarNoVeLaConvocatoriaDelOtroEquipo() {
+        convocatoriaSinJugadores();
+        when(equipoGestionDao.perteneceJugadorAEquipo(JUGADOR, EQUIPO)).thenReturn(false);
+        when(convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(5L, JUGADOR))
+                .thenReturn(invitado(JUGADOR, com.mikedev.mutxamelcf.model.EstadoInvitacion.PENDIENTE_ENTRENADOR));
+
+        assertThatThrownBy(() -> service.obtenerParaJugador(USUARIO, PARTIDO, JUGADOR))
+                .isInstanceOf(SecurityException.class);
+    }
+
+    @Test
+    void unJugadorDeOtroEquipoQueNoEstaInvitadoSigueSinVerla() {
+        convocatoriaSinJugadores();
+        when(equipoGestionDao.perteneceJugadorAEquipo(JUGADOR, EQUIPO)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.obtenerParaJugador(USUARIO, PARTIDO, JUGADOR))
+                .isInstanceOf(SecurityException.class);
+    }
 }

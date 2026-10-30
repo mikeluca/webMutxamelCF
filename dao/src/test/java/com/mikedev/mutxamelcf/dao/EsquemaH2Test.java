@@ -36,9 +36,11 @@ class EsquemaH2Test {
     }
 
     @Test
-    void convocatoriaJugadorQuedaSoloConIdConvocatoriaYJugador() {
+    void convocatoriaJugadorTieneSusTresColumnasYLasDelInvitado() {
         assertThat(columnas(nuevaBase(), "CONVOCATORIA_JUGADOR"))
-                .containsExactly("ID", "CONVOCATORIA_ID", "JUGADOR_ID");
+                .containsExactly("ID", "CONVOCATORIA_ID", "JUGADOR_ID", "EQUIPO_ORIGEN_ID", "ESTADO_INVITACION",
+                        "FECHA_SOLICITUD", "USUARIO_INVITA_ID", "USUARIO_COORDINADOR_ID", "FECHA_COORDINACION",
+                        "FECHA_PETICION_ENTRENADOR", "AVISO_12H_ENVIADO", "FECHA_AUTORIZACION", "MOTIVO_RECHAZO");
     }
 
     @Test

@@ -38,6 +38,7 @@ import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.PartidoDTO;
 import com.mikedev.mutxamelcf.model.PartidoGuardarRequest;
 import com.mikedev.mutxamelcf.model.ResultadoDTO;
+import com.mikedev.mutxamelcf.service.InvitadosService;
 import com.mikedev.mutxamelcf.service.PartidoService;
 
 @Service
@@ -68,6 +69,7 @@ public class PartidoServiceImpl implements PartidoService {
 	private final DescansoEquipoDao descansoEquipoDao;
 	private final JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
 	private final TemporadaDao temporadaDao;
+	private final InvitadosService invitadosService;
 	private final Clock clock;
 
 	public PartidoServiceImpl(
@@ -79,6 +81,7 @@ public class PartidoServiceImpl implements PartidoService {
 			DescansoEquipoDao descansoEquipoDao,
 			JustificacionFaltaPartidoDao justificacionFaltaPartidoDao,
 			TemporadaDao temporadaDao,
+			InvitadosService invitadosService,
 			Clock clock) {
 
 		this.partidoDao = partidoDao;
@@ -89,6 +92,7 @@ public class PartidoServiceImpl implements PartidoService {
 		this.descansoEquipoDao = descansoEquipoDao;
 		this.justificacionFaltaPartidoDao = justificacionFaltaPartidoDao;
 		this.temporadaDao = temporadaDao;
+		this.invitadosService = invitadosService;
 		this.clock = clock;
 	}
 
@@ -261,6 +265,8 @@ public class PartidoServiceImpl implements PartidoService {
 			throw new SecurityException("El usuario no puede gestionar este equipo");
 		}
 
+		invitadosService.alCancelarPartido(partido);
+
 		partidoDao.eliminar(partidoId);
 
 		logger.debug("Fin eliminar: partidoId={}", partidoId);
@@ -289,6 +295,8 @@ public class PartidoServiceImpl implements PartidoService {
 			throw new SecurityException("El usuario no puede gestionar este equipo");
 		}
 
+		invitadosService.alCancelarPartido(partido);
+
 		partidoDao.cancelar(partidoId);
 
 		logger.debug("Fin cancelar: partidoId={}", partidoId);
@@ -303,9 +311,13 @@ public class PartidoServiceImpl implements PartidoService {
 			throw new IllegalArgumentException("El ID del partido es obligatorio");
 		}
 
-		if (partidoDao.obtenerPorId(partidoId) == null) {
+		Partido existente = partidoDao.obtenerPorId(partidoId);
+
+		if (existente == null) {
 			throw new IllegalArgumentException("El partido no existe");
 		}
+
+		invitadosService.alCancelarPartido(existente);
 
 		partidoDao.eliminar(partidoId);
 
@@ -416,6 +428,24 @@ public class PartidoServiceImpl implements PartidoService {
 
 		List<PartidoDTO> resultado = obtenerPorEquipoYRangoFechas(equipoId, desde, hasta);
 
+		// Los partidos de otros equipos en los que el jugador está autorizado como invitado.
+		List<Partido> comoInvitado = jugadorId == null ? List.of()
+				: invitadosService.partidosComoInvitado(jugadorId, desde, hasta);
+
+		if (!comoInvitado.isEmpty()) {
+
+			resultado = new ArrayList<>(resultado);
+
+			for (PartidoDTO dto : toDTOList(comoInvitado)) {
+				dto.setInvitado(true);
+				resultado.add(dto);
+			}
+
+			resultado.sort(Comparator
+					.comparing(PartidoDTO::getDia, Comparator.nullsLast(Comparator.<Date>naturalOrder()))
+					.thenComparing(PartidoDTO::getHora, Comparator.nullsLast(Comparator.<String>naturalOrder())));
+		}
+
 		if (jugadorId != null) {
 
 			// Una sola consulta para las justificaciones del jugador en el rango, y
@@ -430,6 +460,10 @@ public class PartidoServiceImpl implements PartidoService {
 			Map<Long, Partido> partidos = new HashMap<>();
 
 			for (Partido p : partidoDao.obtenerPorEquipoYRangoFechas(equipoId, desde, hasta)) {
+				partidos.put(p.getId(), p);
+			}
+
+			for (Partido p : comoInvitado) {
 				partidos.put(p.getId(), p);
 			}
 

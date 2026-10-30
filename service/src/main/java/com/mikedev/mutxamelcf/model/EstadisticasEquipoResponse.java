@@ -10,11 +10,23 @@ public record EstadisticasEquipoResponse(
         Partidos partidos,
         boolean admiteEstadisticas) {
 
-    /** partidos: en cuántos partidos ya jugados estuvo convocado. */
-    public record Goleador(Long jugadorId, String nombre, Integer dorsal, int goles, int asistencias, int partidos) {
+    /** partidos: en cuántos partidos ya jugados estuvo convocado; invitado: es de otro equipo y juega aquí como invitado. */
+    public record Goleador(
+            Long jugadorId, String nombre, Integer dorsal, int goles, int asistencias, int partidos,
+            boolean invitado) {
+
+        public Goleador(Long jugadorId, String nombre, Integer dorsal, int goles, int asistencias, int partidos) {
+            this(jugadorId, nombre, dorsal, goles, asistencias, partidos, false);
+        }
     }
 
-    public record Asistente(Long jugadorId, String nombre, Integer dorsal, int asistencias, int goles, int partidos) {
+    public record Asistente(
+            Long jugadorId, String nombre, Integer dorsal, int asistencias, int goles, int partidos,
+            boolean invitado) {
+
+        public Asistente(Long jugadorId, String nombre, Integer dorsal, int asistencias, int goles, int partidos) {
+            this(jugadorId, nombre, dorsal, asistencias, goles, partidos, false);
+        }
     }
 
     /**

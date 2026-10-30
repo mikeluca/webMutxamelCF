@@ -20,7 +20,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * sql/2026-10-25_recuperar_contrasena.sql (igual con USUARIOS_APP) y
  * sql/2026-10-26_equipo_modalidad.sql (igual con EQUIPO) y
  * sql/2026-10-27_mejoras_roles.sql (igual con USUARIOS_APP_DISPOSITIVOS) y
- * sql/2026-11-01_cuentas_sin_jugadores.sql (igual con USUARIOS_APP). Los tests no deben definir su
+ * sql/2026-11-01_cuentas_sin_jugadores.sql (igual con USUARIOS_APP) y
+ * sql/2026-11-02_convocatoria_invitados.sql (columnas de invitado en CONVOCATORIA_JUGADOR). Los tests no deben definir su
  * propia versión de estas tablas.
  *
  * <p>Los scripts viven en src/test/resources/h2; el de ajustes es una copia
@@ -42,6 +43,7 @@ public final class EsquemaH2 {
         ejecutar(jdbc, "/h2/equipo_modalidad.sql");
         ejecutar(jdbc, "/h2/mejoras_roles.sql");
         ejecutar(jdbc, "/h2/cuentas_sin_jugadores.sql");
+        ejecutar(jdbc, "/h2/convocatoria_invitados.sql");
     }
 
     /**

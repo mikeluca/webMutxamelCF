@@ -749,4 +749,91 @@ class JustificacionFaltaPartidoServiceImplTest {
         var orden = inOrder(partidoDao);
         orden.verify(partidoDao, times(3)).bloquearPorId(PARTIDO);
     }
+
+    // ---- jugadores de otros equipos invitados (docs/convocatoria-invitados.md, §2.6) ----------------
+
+    private static final Long QUIEN_INVITO = 77L;
+
+    /** El 100 deja de ser del equipo y pasa a ser un invitado de otro equipo con ese estado. */
+    private void comoInvitado(com.mikedev.mutxamelcf.model.EstadoInvitacion estado) {
+        when(equipoGestionDao.perteneceJugadorAEquipo(JUGADOR, EQUIPO)).thenReturn(false);
+        when(convocatoriaDao.obtenerPorPartidoId(PARTIDO)).thenReturn(convocatoria);
+
+        ConvocatoriaJugador invitado = new ConvocatoriaJugador(null, CONVOCATORIA, JUGADOR);
+        invitado.setEquipoOrigenId(11L);
+        invitado.setEstadoInvitacion(estado);
+        invitado.setUsuarioInvitaId(QUIEN_INVITO);
+        convocatoriaJugadorDao.guardar(invitado);
+    }
+
+    @Test
+    void unInvitadoAutorizadoPuedeSerDesestimadoPorSuFamiliaYSeAvisaSoloAQuienLoInvito() {
+        comoInvitado(com.mikedev.mutxamelcf.model.EstadoInvitacion.AUTORIZADO);
+        when(equipoGestionDao.obtenerNombreEquipo(EQUIPO)).thenReturn("Cadete A");
+
+        justificar(JUGADOR, MOTIVO_SECRETO);
+
+        // Sigue en la lista con su motivo: no se le quita de la convocatoria.
+        assertThat(convocados()).containsExactly(JUGADOR);
+        assertThat(justificacionDao.obtenerPorPartidoYJugador(PARTIDO, JUGADOR).getMotivo()).isEqualTo(MOTIVO_SECRETO);
+
+        ArgumentCaptor<Comunicacion> capturaComunicacion = ArgumentCaptor.forClass(Comunicacion.class);
+        ArgumentCaptor<OpcionesPushComunicacion> capturaPush = ArgumentCaptor.forClass(OpcionesPushComunicacion.class);
+
+        // Solo a quien lo invito: ni al resto del cuerpo tecnico ni a quien desestima.
+        verify(comunicacionService).crearPrivada(capturaComunicacion.capture(), eq(List.of(QUIEN_INVITO)), eq(USUARIO),
+                capturaPush.capture());
+        verify(comunicacionService, times(1)).crearPrivada(any(), any(), anyLong(), any());
+
+        Aviso aviso = new Aviso(capturaComunicacion.getValue(), capturaPush.getValue());
+        assertThat(aviso.comunicacion().getTitulo()).isEqualTo("Invitado no disponible");
+        assertThat(aviso.comunicacion().getContenido()).contains("Jugador 100 no podrá jugar con Cadete A")
+                .contains("Puedes convocar a otro jugador en su lugar").contains(MOTIVO_SECRETO);
+        // El motivo nunca va en el push.
+        assertThat(aviso.push().contenidoPush()).doesNotContain("cita").doesNotContain("médica");
+        assertThat(aviso.push().datos()).containsEntry("tipo", "INVITACION_DESESTIMADA")
+                .containsEntry("convocatoriaId", String.valueOf(CONVOCATORIA))
+                .containsEntry("partidoId", String.valueOf(PARTIDO))
+                .containsEntry("jugadorId", String.valueOf(JUGADOR));
+        assertThat(aviso.push().datos().toString()).doesNotContain("cita");
+    }
+
+    @Test
+    void siQuienDesestimaEsAQuienLoInvitoNoSeAvisaASiMismo() {
+        comoInvitado(com.mikedev.mutxamelcf.model.EstadoInvitacion.AUTORIZADO);
+        when(vinculoDao.tieneVinculoConJugador(QUIEN_INVITO.intValue(), JUGADOR)).thenReturn(true);
+
+        service.justificar(QUIEN_INVITO, PARTIDO, peticion(JUGADOR, MOTIVO_SECRETO));
+
+        verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong(), any());
+    }
+
+    @Test
+    void unInvitadoQueTodaviaNoEstaAutorizadoNoPuedeJustificar() {
+        comoInvitado(com.mikedev.mutxamelcf.model.EstadoInvitacion.PENDIENTE_ENTRENADOR);
+
+        assertThatThrownBy(() -> justificar(JUGADOR, "Examen")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void elMotivoDeLaAusenciaDeUnInvitadoSoloLoVeQuienLoInvito() {
+        comoInvitado(com.mikedev.mutxamelcf.model.EstadoInvitacion.AUTORIZADO);
+        when(vinculoDao.tieneVinculoConJugador(USUARIO.intValue(), 101L)).thenReturn(true);
+        justificar(JUGADOR, "Examen");
+        justificar(101L, "Viaje");
+        when(equipoGestionDao.puedeGestionarEquipo(ENTRENADOR, EQUIPO)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(QUIEN_INVITO, EQUIPO)).thenReturn(true);
+
+        assertThat(service.obtener(ENTRENADOR, PARTIDO)).extracting(
+                JustificacionFaltaPartidoResponse::jugadorId, JustificacionFaltaPartidoResponse::motivo)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(100L, null),
+                        org.assertj.core.groups.Tuple.tuple(101L, "Viaje"));
+
+        assertThat(service.obtener(QUIEN_INVITO, PARTIDO)).extracting(
+                JustificacionFaltaPartidoResponse::jugadorId, JustificacionFaltaPartidoResponse::motivo)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(100L, "Examen"),
+                        org.assertj.core.groups.Tuple.tuple(101L, "Viaje"));
+    }
 }

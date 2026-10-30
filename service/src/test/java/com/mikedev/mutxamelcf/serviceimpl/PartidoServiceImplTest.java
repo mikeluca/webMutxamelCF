@@ -58,13 +58,18 @@ class PartidoServiceImplTest {
     @Mock
     private com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
 
+    @Mock
+    private com.mikedev.mutxamelcf.service.InvitadosService invitadosService;
+
     private PartidoServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new PartidoServiceImpl(
                 partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
-                descansoEquipoDao, justificacionFaltaPartidoDao, temporadaDao, java.time.Clock.systemDefaultZone());
+                descansoEquipoDao, justificacionFaltaPartidoDao, temporadaDao,
+                invitadosService,
+                java.time.Clock.systemDefaultZone());
     }
 
     private static PartidoGuardarRequest requestValido() {
@@ -934,7 +939,8 @@ class PartidoServiceImplTest {
     private PartidoServiceImpl serviceConReloj(java.time.Clock reloj) {
         return new PartidoServiceImpl(
                 partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
-                descansoEquipoDao, justificacionFaltaPartidoDao, temporadaDao, reloj);
+                descansoEquipoDao, justificacionFaltaPartidoDao, temporadaDao,
+                invitadosService, reloj);
     }
 
     // ---- ausencia justificada en el calendario del jugador (reloj fijo: miércoles 21/10/2026 10:00) ----
@@ -1251,5 +1257,125 @@ class PartidoServiceImplTest {
                 partidoDelDia("2026-10-17", "2-0"), partidoDelDia("2025-06-14", "1-0")));
 
         assertThat(service.obtenerPorEquipo(1L)).hasSize(2);
+    }
+
+    // ---- jugadores de otros equipos invitados (docs/convocatoria-invitados.md) --------------------
+
+    @Test
+    void elCalendarioDelJugadorIncluyeLosPartidosDeOtrosEquiposEnLosQueEsInvitadoAutorizado() {
+        Partido propio = partidoDelSabado(false);
+
+        Partido deOtroEquipo = new Partido();
+        deOtroEquipo.setId(9L);
+        deOtroEquipo.setEquipoId(5L);
+        deOtroEquipo.setDia(java.sql.Date.valueOf(LocalDate.of(2026, 10, 17)));
+        deOtroEquipo.setHora("10:00");
+
+        LocalDate desde = LocalDate.of(2026, 10, 1);
+        LocalDate hasta = LocalDate.of(2026, 10, 31);
+
+        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(propio));
+        when(invitadosService.partidosComoInvitado(40L, desde, hasta)).thenReturn(List.of(deOtroEquipo));
+        when(convocatoriaDao.obtenerPorPartidoId(9L)).thenReturn(convocatoriaDePartido(300L));
+        when(convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(300L, 40L))
+                .thenReturn(new com.mikedev.mutxamelcf.model.ConvocatoriaJugador(1L, 300L, 40L));
+
+        List<PartidoDTO> calendario = serviceConReloj(MIERCOLES).obtenerPorEquipoYRangoFechas(1L, desde, hasta, 40L);
+
+        // Ordenados por fecha: primero el del otro equipo (17/10), luego el propio (24/10).
+        assertThat(calendario).extracting(PartidoDTO::getId).containsExactly(9L, 1L);
+        assertThat(calendario.get(0).isInvitado()).isTrue();
+        assertThat(calendario.get(0).getConvocado()).isTrue();
+        assertThat(calendario.get(1).isInvitado()).isFalse();
+    }
+
+    @Test
+    void elCalendarioDelJugadorDeUnInvitadoTambienLlevaSuAusenciaJustificada() {
+        Partido deOtroEquipo = new Partido();
+        deOtroEquipo.setId(9L);
+        deOtroEquipo.setEquipoId(5L);
+        deOtroEquipo.setDia(java.sql.Date.valueOf(LocalDate.of(2026, 10, 24)));
+        deOtroEquipo.setHora("10:00");
+
+        LocalDate desde = LocalDate.of(2026, 10, 1);
+        LocalDate hasta = LocalDate.of(2026, 10, 31);
+
+        com.mikedev.mutxamelcf.model.JustificacionFaltaPartido justificacion =
+                new com.mikedev.mutxamelcf.model.JustificacionFaltaPartido();
+        justificacion.setPartidoId(9L);
+        justificacion.setMotivo("Examen");
+
+        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of());
+        when(invitadosService.partidosComoInvitado(40L, desde, hasta)).thenReturn(List.of(deOtroEquipo));
+        when(justificacionFaltaPartidoDao.obtenerPorJugadorYRango(40L, desde, hasta)).thenReturn(List.of(justificacion));
+        when(convocatoriaDao.obtenerPorPartidoId(9L)).thenReturn(convocatoriaDePartido(300L));
+
+        PartidoDTO partido = serviceConReloj(MIERCOLES).obtenerPorEquipoYRangoFechas(1L, desde, hasta, 40L).get(0);
+
+        assertThat(partido.isInvitado()).isTrue();
+        assertThat(partido.isAusenciaJustificada()).isTrue();
+        assertThat(partido.getMotivoAusencia()).isEqualTo("Examen");
+    }
+
+    @Test
+    void sinJugadorNoSeBuscanPartidosComoInvitado() {
+        LocalDate desde = LocalDate.of(2026, 10, 1);
+        LocalDate hasta = LocalDate.of(2026, 10, 31);
+
+        when(partidoDao.obtenerPorEquipoYRangoFechas(1L, desde, hasta)).thenReturn(List.of(partidoDelSabado(false)));
+
+        List<PartidoDTO> calendario = serviceConReloj(MIERCOLES).obtenerPorEquipoYRangoFechas(1L, desde, hasta);
+
+        assertThat(calendario).hasSize(1);
+        verify(invitadosService, never()).partidosComoInvitado(any(), any(), any());
+    }
+
+    private com.mikedev.mutxamelcf.model.Convocatoria convocatoriaDePartido(Long id) {
+        com.mikedev.mutxamelcf.model.Convocatoria convocatoria = new com.mikedev.mutxamelcf.model.Convocatoria();
+        convocatoria.setId(id);
+        return convocatoria;
+    }
+
+    @Test
+    void cancelarUnPartidoAvisaAlServicioDeInvitadosAntesDeCancelarlo() {
+        Partido partido = partidoDelSabado(false);
+
+        when(partidoDao.obtenerPorId(1L)).thenReturn(partido);
+        when(equipoGestionDao.puedeGestionarEquipo(7L, 1L)).thenReturn(true);
+
+        serviceConReloj(MIERCOLES).cancelar(7L, 1L);
+
+        var orden = org.mockito.Mockito.inOrder(invitadosService, partidoDao);
+        orden.verify(invitadosService).alCancelarPartido(partido);
+        orden.verify(partidoDao).cancelar(1L);
+    }
+
+    @Test
+    void eliminarUnPartidoAvisaAlServicioDeInvitadosAntesDeBorrarlo() {
+        Partido partido = partidoDelSabado(false);
+
+        when(partidoDao.obtenerPorId(1L)).thenReturn(partido);
+        when(equipoGestionDao.puedeGestionarEquipo(7L, 1L)).thenReturn(true);
+
+        serviceConReloj(MIERCOLES).eliminar(7L, 1L);
+        serviceConReloj(MIERCOLES).eliminarComoAdmin(1L);
+
+        var orden = org.mockito.Mockito.inOrder(invitadosService, partidoDao);
+        orden.verify(invitadosService).alCancelarPartido(partido);
+        orden.verify(partidoDao).eliminar(1L);
+        orden.verify(invitadosService).alCancelarPartido(partido);
+        orden.verify(partidoDao).eliminar(1L);
+    }
+
+    @Test
+    void siNoSePuedeCancelarNoSeAvisaALosInvitados() {
+        Partido partido = partidoDelSabado(false);
+
+        when(partidoDao.obtenerPorId(1L)).thenReturn(partido);
+        when(equipoGestionDao.puedeGestionarEquipo(7L, 1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> serviceConReloj(MIERCOLES).cancelar(7L, 1L)).isInstanceOf(SecurityException.class);
+
+        verify(invitadosService, never()).alCancelarPartido(any());
     }
 }

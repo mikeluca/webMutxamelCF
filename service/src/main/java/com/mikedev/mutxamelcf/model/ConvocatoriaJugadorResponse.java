@@ -9,6 +9,15 @@ public class ConvocatoriaJugadorResponse {
     private boolean ausenciaJustificada;
     private String motivoAusencia;
 
+    /** true si es un jugador de otro equipo invitado a esta convocatoria. */
+    private boolean invitado;
+    private Long equipoOrigenId;
+    private String equipoOrigen;
+
+    /** PENDIENTE_COORDINACION, PENDIENTE_ENTRENADOR, AUTORIZADO o RECHAZADO; null en los jugadores del propio equipo. */
+    private String estadoInvitacion;
+    private String motivoRechazo;
+
     public ConvocatoriaJugadorResponse() {
     }
 
@@ -53,6 +62,46 @@ public class ConvocatoriaJugadorResponse {
 
     public void setAusenciaJustificada(boolean ausenciaJustificada) {
         this.ausenciaJustificada = ausenciaJustificada;
+    }
+
+    public boolean isInvitado() {
+        return invitado;
+    }
+
+    public void setInvitado(boolean invitado) {
+        this.invitado = invitado;
+    }
+
+    public Long getEquipoOrigenId() {
+        return equipoOrigenId;
+    }
+
+    public void setEquipoOrigenId(Long equipoOrigenId) {
+        this.equipoOrigenId = equipoOrigenId;
+    }
+
+    public String getEquipoOrigen() {
+        return equipoOrigen;
+    }
+
+    public void setEquipoOrigen(String equipoOrigen) {
+        this.equipoOrigen = equipoOrigen;
+    }
+
+    public String getEstadoInvitacion() {
+        return estadoInvitacion;
+    }
+
+    public void setEstadoInvitacion(String estadoInvitacion) {
+        this.estadoInvitacion = estadoInvitacion;
+    }
+
+    public String getMotivoRechazo() {
+        return motivoRechazo;
+    }
+
+    public void setMotivoRechazo(String motivoRechazo) {
+        this.motivoRechazo = motivoRechazo;
     }
 
     public String getMotivoAusencia() {

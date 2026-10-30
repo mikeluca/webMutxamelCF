@@ -380,4 +380,31 @@ class ResumenTemporadaServiceImplH2Test {
                 .isInstanceOf(SecurityException.class);
     }
 
+
+    // ---- jugadores de otros equipos invitados (docs/convocatoria-invitados.md, §3) ----------------
+
+    private void convocarComoInvitado(long partidoId) {
+        long convocatoria = siguienteId++;
+        jdbc.update("INSERT INTO CONVOCATORIAS VALUES (?, ?)", convocatoria, partidoId);
+        jdbc.update("INSERT INTO CONVOCATORIA_JUGADOR (CONVOCATORIA_ID, JUGADOR_ID, EQUIPO_ORIGEN_ID,"
+                + " ESTADO_INVITACION) VALUES (?, ?, 99, 'AUTORIZADO')", convocatoria, JUGADOR);
+    }
+
+    @Test
+    void losPartidosJugadosComoInvitadoNoSeSumanAlResumenDeSuEquipo() {
+        long conSuEquipo = partido(INICIO.plusDays(10), false, "2-1");
+        long deInvitado = partido(INICIO.plusDays(17), false, "3-0");
+        convocar(conSuEquipo);
+        convocarComoInvitado(deInvitado);
+        estadistica(conSuEquipo, 1, 1, 1, 0);
+        estadistica(deInvitado, 4, 2, 3, 1);
+
+        ResumenTemporadaResponse resumen = service.obtenerResumen(USUARIO, JUGADOR);
+
+        assertThat(resumen.partidos().convocado()).isEqualTo(1);
+        assertThat(resumen.partidos().goles()).isEqualTo(1);
+        assertThat(resumen.partidos().asistencias()).isEqualTo(1);
+        assertThat(resumen.partidos().amarillas()).isEqualTo(1);
+        assertThat(resumen.partidos().rojas()).isZero();
+    }
 }

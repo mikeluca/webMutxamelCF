@@ -28,6 +28,12 @@ public class ConvocatoriaGuardarRequest {
     @NotEmpty(message = "Debes seleccionar al menos un jugador")
     private List<Long> jugadoresIds;
 
+    /**
+     * Jugadores de otros equipos invitados a esta convocatoria (docs/convocatoria-invitados.md). Con null no se toca
+     * ninguno; con una lista, la convocatoria queda con exactamente esos invitados.
+     */
+    private List<Long> invitadosIds;
+
     public ConvocatoriaGuardarRequest() {
     }
 
@@ -61,5 +67,13 @@ public class ConvocatoriaGuardarRequest {
 
     public void setJugadoresIds(List<Long> jugadoresIds) {
         this.jugadoresIds = jugadoresIds;
+    }
+
+    public List<Long> getInvitadosIds() {
+        return invitadosIds;
+    }
+
+    public void setInvitadosIds(List<Long> invitadosIds) {
+        this.invitadosIds = invitadosIds;
     }
 }

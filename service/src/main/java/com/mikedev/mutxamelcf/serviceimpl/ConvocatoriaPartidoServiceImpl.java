@@ -46,6 +46,18 @@ public class ConvocatoriaPartidoServiceImpl implements ConvocatoriaPartidoServic
         this.partidoLiveEventoDao = partidoLiveEventoDao;
     }
 
+    private boolean esInvitadoAutorizado(Convocatoria convocatoria, Long jugadorId) {
+
+        if (convocatoria == null) {
+            return false;
+        }
+
+        ConvocatoriaJugador fila = convocatoriaJugadorDao.obtenerPorConvocatoriaYJugador(
+                convocatoria.getId(), jugadorId);
+
+        return fila != null && fila.isInvitado() && fila.isConvocadoEfectivo();
+    }
+
     @Override
     @Transactional(readOnly = true)
     public ConvocatoriaPartidoResponse obtenerParaJugador(Long usuarioAppId, Long partidoId, Long jugadorId) {
@@ -73,11 +85,13 @@ public class ConvocatoriaPartidoServiceImpl implements ConvocatoriaPartidoServic
             throw new NoSuchElementException("El partido no existe");
         }
 
-        if (!equipoGestionDao.perteneceJugadorAEquipo(jugadorId, partido.getEquipoId())) {
+        Convocatoria convocatoria = convocatoriaDao.obtenerPorPartidoId(partidoId);
+
+        // Un jugador de otro equipo también la ve cuando es un invitado autorizado en este partido.
+        if (!equipoGestionDao.perteneceJugadorAEquipo(jugadorId, partido.getEquipoId())
+                && !esInvitadoAutorizado(convocatoria, jugadorId)) {
             throw new SecurityException("El jugador no pertenece al equipo de este partido");
         }
-
-        Convocatoria convocatoria = convocatoriaDao.obtenerPorPartidoId(partidoId);
 
         if (convocatoria == null) {
             throw new NoSuchElementException("El partido todavía no tiene convocatoria");
@@ -86,6 +100,7 @@ public class ConvocatoriaPartidoServiceImpl implements ConvocatoriaPartidoServic
         List<Long> ids = convocatoriaJugadorDao.obtenerPorConvocatoria(convocatoria.getId()).stream()
                 .map(ConvocatoriaJugador::getJugadorId)
                 .toList();
+        // (obtenerPorConvocatoria ya trae solo los del propio equipo y los invitados autorizados.)
 
         List<ConvocatoriaPartidoResponse.Convocado> convocados = partidoLiveEventoDao.obtenerJugadoresBasicos(ids)
                 .stream()
