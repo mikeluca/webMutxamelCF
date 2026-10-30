@@ -1,3 +1,4 @@
+-- NO EJECUTAR: ya aplicado en DEV y PRO
 -- ============================================================================
 -- Cuentas de familia sin ningún jugador activo (docs/transicion-temporada.md, decisión 27)
 --

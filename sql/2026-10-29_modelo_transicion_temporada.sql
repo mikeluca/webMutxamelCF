@@ -1,3 +1,4 @@
+-- NO EJECUTAR: ya aplicado en DEV y PRO
 -- ============================================================================
 -- Modelo de datos de la transición de temporada (docs/transicion-temporada.md, §3 y §4)
 --

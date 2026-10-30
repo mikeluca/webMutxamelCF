@@ -1,3 +1,4 @@
+-- NO EJECUTAR: ya aplicado en DEV y PRO
 -- ============================================================================
 -- JUGADOR_TEMPORADA.FECHA_PREGUNTA_CONTINUIDAD: cuándo se preguntó a las familias si el jugador sigue
 --
