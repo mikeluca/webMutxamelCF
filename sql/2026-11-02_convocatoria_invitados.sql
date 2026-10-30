@@ -1,3 +1,4 @@
+-- NO EJECUTAR: ya aplicado en DEV y PRO
 -- ============================================================================
 -- Convocatoria de jugadores de otros equipos (docs/convocatoria-invitados.md, §4)
 --
