@@ -202,14 +202,15 @@ Se ejecutan con el usuario **propietario del esquema** (`SYSTEM`), no con `USER_
 
 | # | Script | Qué hace | Cuándo en PRO |
 |---|---|---|---|
-| 1 | `2026-10-29_plantillas_temporada.sql` | `JUGADOR_TEMPORADA`, `CATEGORIAS_EDAD` y `JUGADORES.EQUIPO_ID`, `ANIO_NACIMIENTO`, `FECHA_BAJA` | Ya aplicado en PRO si PRO tiene las plantillas por temporada |
+| 1 | `2026-10-29_plantillas_temporada.sql` | `JUGADOR_TEMPORADA`, `CATEGORIAS_EDAD` y `JUGADORES.EQUIPO_ID`, `ANIO_NACIMIENTO`, `FECHA_BAJA` | **Ya aplicado en DEV y PRO** (la copia de PRO ya lo trae; no ejecutar) |
+| 1b | `2026-10-30_cuerpo_tecnico_equipo_id.sql` | Tabla `CUERPO_TECNICO_EQUIPO` (cuerpo técnico en varios equipos, N:M) | **Ya aplicado en DEV y PRO** (la copia de PRO ya lo trae; no ejecutar) |
 | 2 | `2026-10-29_modelo_transicion_temporada.sql` — **parte A** | Columnas nuevas de `JUGADOR_TEMPORADA`, `EQUIPO_TEMPORADA`, `CUERPO_TECNICO_TEMPORADA`, `TEMPORADA_ID` opcional en `CLASIFICACIONES`, `EQUIPOS_FFCV`, `HORARIOS_ENTRENAMIENTO`, estado `INCOBRABLE` | Antes de desplegar (no rompe el código anterior) |
 | 3 | `2026-10-29_modelo_transicion_temporada.sql` — **parte B** | Rellena los datos con la temporada activa y pone `TEMPORADA_ID` obligatorio | **Justo antes** de desplegar el código nuevo |
 | 4 | `2026-10-30_jugador_temporada_sin_baja.sql` | Quita `JUGADOR_TEMPORADA.BAJA` (la baja es `ESTADO = 'BAJA'`) | **Justo antes** de desplegar; ventana corta (el código anterior falla con ORA-00904) |
 | 5 | `2026-10-31_pregunta_continuidad.sql` | `JUGADOR_TEMPORADA.FECHA_PREGUNTA_CONTINUIDAD` | Antes de desplegar |
 | 6 | `2026-11-01_cuentas_sin_jugadores.sql` | `USUARIOS_APP.FECHA_AVISO_SIN_JUGADORES` y `DESACTIVADA_SIN_JUGADORES` | Antes de desplegar |
 
-**Aviso importante sobre el #1:** `sql/2026-10-29_plantillas_temporada.sql` aparece citado en el código y en los tests, pero **no está en la carpeta `sql/` del repositorio**. Antes del ensayo comprueba en PRO que su contenido ya está aplicado con las consultas de abajo; si falta, hay que recuperar ese script (o reconstruirlo desde `dao/src/test/resources/h2/plantillas_temporada.sql`) y añadirlo a `sql/`.
+**Ya aplicados en PRO:** `2026-10-29_plantillas_temporada.sql` (#1) y `2026-10-30_cuerpo_tecnico_equipo_id.sql` (#1b) están en `sql/` marcados como «NO EJECUTAR». Como la copia de PRO ya los trae, **en el ensayo en DEV no se ejecutan**: solo se comprueban con las consultas de abajo.
 
 Los scripts anteriores a `2026-10-29` (hasta `2026-10-27_mejoras_roles.sql`) se dan por aplicados en PRO.
 
@@ -220,6 +221,9 @@ Comprobación de qué hay aplicado (en PRO es solo lectura; hazla antes del ensa
 SELECT table_name FROM user_tables WHERE table_name IN ('JUGADOR_TEMPORADA','CATEGORIAS_EDAD');            -- 2 filas
 SELECT column_name FROM user_tab_columns WHERE table_name = 'JUGADORES'
   AND column_name IN ('EQUIPO_ID','ANIO_NACIMIENTO','FECHA_BAJA');                                           -- 3 filas
+-- #1b
+SELECT table_name FROM user_tables WHERE table_name = 'CUERPO_TECNICO_EQUIPO';                              -- 1 fila
+SELECT COUNT(*) FROM CUERPO_TECNICO_EQUIPO;                                                                  -- > 0
 -- #2 y #3
 SELECT table_name FROM user_tables WHERE table_name IN ('EQUIPO_TEMPORADA','CUERPO_TECNICO_TEMPORADA');     -- 2 filas
 SELECT column_name FROM user_tab_columns WHERE table_name = 'JUGADOR_TEMPORADA'
