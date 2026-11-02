@@ -40,6 +40,21 @@ van en castellano y siguen en el código de `ComunicacionesService`.
 | `{hora}`, `{horaCitacion}` | HH:mm, sin "h" detrás: `09:30` |
 | `{nombres}` | lista con la palabra de `lista.y`: `Ana, Luis y Marta` / `Ana, Luis i Marta` / `Ana, Luis and Marta` |
 
+### El campo `accion` del push de convocatoria
+
+El data de los push de convocatoria (`tipo` = `CONVOCATORIA`) lleva además `accion`, para que la app sepa qué ha pasado
+sin leer el texto (que va en el idioma de la cuenta). `tipo` y `pantalla` no cambian.
+
+| `accion` | Cuándo |
+| --- | --- |
+| `NUEVA` | Convocatoria nueva y "convocado con otro equipo" (`convocatoria.nueva.*`, `invitacion.convocado.*`) |
+| `CAMBIO` | Cambia la hora, el lugar, el partido o el equipaje (`convocatoria.cambio.*`) |
+| `QUITADO` | Quitan al jugador de la convocatoria, también al pasar a jugar con otro equipo (`convocatoria.quitado.*`, `invitacion.liberado.*`) |
+| `ANULADA` | Se borra la convocatoria (`convocatoria.anulada.*`) |
+
+Los avisos de invitados con otro `tipo` (`INVITACION_*`) no llevan `accion`. La fila de la bandeja (`NOTIFICACIONES_APP`)
+no guarda el data, así que no lleva `accion`: la app la reconoce por el título como respaldo.
+
 ### Cómo se montan los avisos de convocatoria
 
 Nueva, cambio y "convocado con otro equipo":

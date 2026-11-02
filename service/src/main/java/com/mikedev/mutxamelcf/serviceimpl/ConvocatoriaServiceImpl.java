@@ -40,6 +40,15 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
         /** Valor de "tipo" en el data del push de una convocatoria (nueva o actualizada). */
         static final String TIPO_PUSH_CONVOCATORIA = "CONVOCATORIA";
 
+        /**
+         * Valores del campo "accion" del data de los push de convocatoria: qué ha pasado, para que la app lo
+         * reconozca sin leer el texto (que va en el idioma de la cuenta). No cambian "tipo" ni "pantalla".
+         */
+        static final String ACCION_NUEVA = "NUEVA";
+        static final String ACCION_CAMBIO = "CAMBIO";
+        static final String ACCION_QUITADO = "QUITADO";
+        static final String ACCION_ANULADA = "ANULADA";
+
         private final ConvocatoriaDao convocatoriaDao;
         private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
         private final EquipoGestionDao equipoGestionDao;
@@ -240,6 +249,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 convocatoria,
                                 jugadoresIds,
                                 TIPO_PUSH_CONVOCATORIA,
+                                ACCION_NUEVA,
                                 true,
                                 null,
                                 null,
@@ -324,6 +334,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         Convocatoria convocatoria,
                         Collection<Long> jugadoresIds,
                         String tipoPush,
+                        String accion,
                         boolean conConvocatoriaId,
                         Long partidoAnteriorId,
                         java.time.LocalDate fechaPartidoPush,
@@ -389,6 +400,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 Map<String, String> datosPush = new HashMap<>();
 
                                 datosPush.put("tipo", tipoPush);
+                                datosPush.put("accion", accion);
 
                                 if (conConvocatoriaId) {
                                         datosPush.put("convocatoriaId", String.valueOf(convocatoria.getId()));
@@ -465,6 +477,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 convocatoria,
                                 quitados,
                                 TIPO_PUSH_CONVOCATORIA,
+                                ACCION_QUITADO,
                                 false,
                                 !Objects.equals(antes.partidoId(), convocatoria.getPartidoId()) ? antes.partidoId() : null,
                                 antes.fechaPartido(),
@@ -499,6 +512,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 convocatoria,
                                 avisarCambio,
                                 TIPO_PUSH_CONVOCATORIA,
+                                ACCION_CAMBIO,
                                 true,
                                 null,
                                 null,
@@ -977,6 +991,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 convocatoria,
                                 convocados,
                                 TIPO_PUSH_CONVOCATORIA,
+                                ACCION_ANULADA,
                                 false,
                                 null,
                                 null,

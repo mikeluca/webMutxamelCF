@@ -628,7 +628,8 @@ public class InvitadosServiceImpl implements InvitadosService {
 
             boolean esJugador = directos.contains(usuarioId);
 
-            avisar(List.of(usuarioId), actorId, datosConvocatoria(convocatoria, partido),
+            avisar(List.of(usuarioId), actorId,
+                    datosConvocatoria(convocatoria, partido, ConvocatoriaServiceImpl.ACCION_NUEVA),
                     idioma -> new TextoAviso(
                             textos.texto(idioma, "invitacion.convocado.titulo"),
                             TextosConvocatoria.componer(textos, idioma,
@@ -755,7 +756,8 @@ public class InvitadosServiceImpl implements InvitadosService {
 
                 boolean esJugador = directos.contains(usuarioId);
 
-                avisar(List.of(usuarioId), actorId, datosConvocatoria(convocatoriaOrigen, partidoOrigen),
+                avisar(List.of(usuarioId), actorId,
+                        datosConvocatoria(convocatoriaOrigen, partidoOrigen, ConvocatoriaServiceImpl.ACCION_QUITADO),
                         idioma -> new TextoAviso(
                                 textos.texto(idioma, "invitacion.liberado.titulo"),
                                 textos.texto(idioma,
@@ -1326,11 +1328,12 @@ public class InvitadosServiceImpl implements InvitadosService {
     }
 
     /* El data de una convocatoria normal: la app abre el detalle o el calendario en ese día. */
-    private Map<String, String> datosConvocatoria(Convocatoria convocatoria, Partido partido) {
+    private Map<String, String> datosConvocatoria(Convocatoria convocatoria, Partido partido, String accion) {
 
         Map<String, String> data = new LinkedHashMap<>();
 
         data.put("tipo", TIPO_PUSH_CONVOCATORIA);
+        data.put("accion", accion);
         data.put("convocatoriaId", String.valueOf(convocatoria.getId()));
         data.put("partidoId", String.valueOf(partido.getId()));
 

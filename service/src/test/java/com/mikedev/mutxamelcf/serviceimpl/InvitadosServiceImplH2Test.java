@@ -1292,4 +1292,22 @@ class InvitadosServiceImplH2Test {
         assertThat(aLaFamilia.contenido()).startsWith("Ana has been called up with Cadete A for the match against Pego"
                 + " on Saturday 14/11.\n\nMeet at 10:00 at Vestuarios.");
     }
+
+    @Test
+    void elPushDeConvocadoConOtroEquipoLlevaAccionNuevaYElDeLiberadoAccionQuitado() {
+        convocarEnOrigen(ANA);
+        invitar(ENTRENADOR_DESTINO, ANA);
+        service.aprobar(COORDINADOR, fila(100, ANA).getId());
+        avisos.clear();
+
+        service.liberar(ENTRENADOR_ORIGEN, fila(100, ANA).getId());
+
+        List<Aviso> deConvocatoria = avisosDe("CONVOCATORIA");
+
+        assertThat(deConvocatoria).hasSize(4);
+        // Quitado de la convocatoria de su equipo (jugador y familia) y convocado con el otro (jugador y familia).
+        assertThat(deConvocatoria).extracting(a -> a.data().get("accion"))
+                .containsExactlyInAnyOrder("QUITADO", "QUITADO", "NUEVA", "NUEVA");
+        assertThat(deConvocatoria).allSatisfy(a -> assertThat(a.data()).containsEntry("tipo", "CONVOCATORIA"));
+    }
 }

@@ -68,7 +68,19 @@ Los topics antiguos `resultados` y `noticias` se siguen publicando, en castellan
 suscriben por idioma, y se quitarán cuando la versión mínima obligue a actualizar. Una versión nueva se suscribe solo al
 topic de su idioma (y se desuscribe de los otros y de los antiguos); si el usuario cambia el idioma, cambia de topic.
 
+## Reconocer un aviso de convocatoria: `accion`
+
+El data de los push de convocatoria (`tipo` = `CONVOCATORIA`) lleva además `accion`: `"NUEVA"`, `"CAMBIO"`, `"QUITADO"` o
+`"ANULADA"`. La app debe usarlo para reconocer una convocatoria nueva en vez de comparar el título, que ahora va en el
+idioma de la cuenta. El título solo sirve de respaldo para avisos antiguos sin `accion`, y para las filas de la bandeja,
+que no guardan el data. Detalle y cuándo se envía cada una: [avisos.md](avisos.md).
+
+```json
+{ "tipo": "CONVOCATORIA", "accion": "NUEVA", "convocatoriaId": "12", "partidoId": "30", "fechaPartido": "2026-10-24" }
+```
+
 ## Lo que no cambia
 
-El `tipo`, la `pantalla` y el resto del `data` de los push son los de siempre: la app navega por ellos, no por el texto.
+El `tipo`, la `pantalla` y el resto del `data` de los push son los de siempre (solo se añade `accion`): la app navega por
+ellos, no por el texto.
 Lo que escribe la gente (motivos, nombres de equipos, rivales, equipajes, título de una noticia) llega tal cual, sin traducir.

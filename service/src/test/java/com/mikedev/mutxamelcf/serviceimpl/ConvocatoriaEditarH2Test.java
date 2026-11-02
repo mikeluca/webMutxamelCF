@@ -1612,4 +1612,52 @@ class ConvocatoriaEditarH2Test {
         assertThat(avisoA(52).getContenido()).startsWith("Change to your call-up for the match against Elx: the match"
                 + " moves to Sunday 25/10.");
     }
+
+    // ---- campo "accion" del data del push ----------------------------------------------------
+
+    private java.util.Map<String, String> dataDe(long usuario) {
+        ArgumentCaptor<OpcionesPushComunicacion> opciones = ArgumentCaptor.forClass(OpcionesPushComunicacion.class);
+        verify(comunicacionService).crearPrivada(any(Comunicacion.class), eq(List.of(usuario)), anyLong(),
+                opciones.capture());
+        return opciones.getValue().datos();
+    }
+
+    @Test
+    void elPushDeUnaConvocatoriaNuevaLlevaAccionNuevaSinCambiarTipo() {
+        usuariosPorJugador();
+
+        service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L)));
+
+        assertThat(dataDe(50)).containsEntry("tipo", "CONVOCATORIA").containsEntry("accion", "NUEVA");
+    }
+
+    @Test
+    void elPushDeUnCambioLlevaAccionCambio() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L)));
+
+        assertThat(dataDe(50)).containsEntry("tipo", "CONVOCATORIA").containsEntry("accion", "CAMBIO");
+    }
+
+    @Test
+    void elPushDeQuitarAUnJugadorLlevaAccionQuitado() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(30L, "09:30", List.of(100L)));
+
+        assertThat(dataDe(51)).containsEntry("tipo", "CONVOCATORIA").containsEntry("accion", "QUITADO");
+    }
+
+    @Test
+    void elPushDeAnularLaConvocatoriaLlevaAccionAnulada() {
+        usuariosPorJugador();
+        ConvocatoriaResponse creada = convocatoriaCon(100L);
+
+        service.eliminar(ENTRENADOR, creada.getId());
+
+        assertThat(dataDe(50)).containsEntry("tipo", "CONVOCATORIA").containsEntry("accion", "ANULADA");
+    }
 }
