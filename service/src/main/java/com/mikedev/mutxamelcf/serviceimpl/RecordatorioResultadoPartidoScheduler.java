@@ -1,7 +1,7 @@
 package com.mikedev.mutxamelcf.serviceimpl;
 
-import java.text.SimpleDateFormat;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
-import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 
@@ -46,12 +45,19 @@ public class RecordatorioResultadoPartidoScheduler {
     private final EquipoGestionDao equipoGestionDao;
     private final ComunicacionService comunicacionService;
     private final Clock clock;
+    private final TextosAvisos textos;
+    private final IdiomasUsuarios idiomas;
 
     public RecordatorioResultadoPartidoScheduler(
             PartidoDao partidoDao,
             EquipoGestionDao equipoGestionDao,
             ComunicacionService comunicacionService,
-            Clock clock) {
+            Clock clock,
+            TextosAvisos textos,
+            IdiomasUsuarios idiomas) {
+
+        this.textos = textos;
+        this.idiomas = idiomas;
 
         this.partidoDao = partidoDao;
         this.equipoGestionDao = equipoGestionDao;
@@ -128,20 +134,14 @@ public class RecordatorioResultadoPartidoScheduler {
             return;
         }
 
-        Comunicacion comunicacion = new Comunicacion();
+        String equipo = nombreEquipo(partido);
+        LocalDate dia = PlazoJustificacionPartido.dia(partido);
 
-        comunicacion.setTitulo("Resultado pendiente");
-
-        comunicacion.setContenido(
-                "Introduce el resultado del partido "
-                        + nombreEquipo(partido)
-                        + " - "
-                        + partido.getRival()
-                        + " del día "
-                        + formatearFecha(partido)
-                        + " (goles del Mutxamel - goles del rival).");
-
-        comunicacionService.crearPrivada(comunicacion, entrenadores, usuarioAutorId);
+        idiomas.crearPrivadaPorIdioma(comunicacionService, entrenadores, usuarioAutorId, null,
+                idioma -> new TextoAviso(
+                        textos.texto(idioma, "resultadoPendiente.titulo"),
+                        textos.texto(idioma, "resultadoPendiente.texto",
+                                "equipo", equipo, "rival", partido.getRival(), "fecha", textos.fecha(idioma, dia))));
     }
 
     /*
@@ -179,12 +179,4 @@ public class RecordatorioResultadoPartidoScheduler {
         return CriterioResultadoPartido.tieneResultado(partido);
     }
 
-    private static String formatearFecha(Partido partido) {
-
-        if (partido.getDia() == null) {
-            return "";
-        }
-
-        return new SimpleDateFormat("dd/MM/yyyy").format(partido.getDia());
-    }
 }

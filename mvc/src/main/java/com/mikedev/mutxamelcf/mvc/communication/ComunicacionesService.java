@@ -6,17 +6,26 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import com.mikedev.mutxamelcf.model.IdiomaApp;
 import com.mikedev.mutxamelcf.service.AvisosCuentaEmail;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 
+/**
+ * Emails del club. Los que van a usuarios de la app salen de las plantillas {@code emails/emails_es|ca|en.properties}
+ * (ver {@link PlantillasEmail}): en el idioma de la cuenta, uno solo, salvo la invitación para activar la cuenta, que
+ * va en los tres idiomas porque quien la recibe todavía no tiene la app. Los emails internos del club (pedidos,
+ * contacto, importación de la FFCV, reportes) van en castellano.
+ */
 @Service
 public class ComunicacionesService implements AvisosCuentaEmail {
 
@@ -27,6 +36,12 @@ public class ComunicacionesService implements AvisosCuentaEmail {
     private static final String REMITENTE = "contacto.web@mutxamelcf.es";
     private static final String DESTINATARIO_PEDIDOS = "mutxamelcf.pedidos@gmail.com";
     private static final String DESTINATARIO_CONTACTO = "mutxamelcf.gestion@gmail.com";
+
+    private static final String SEPARADOR_IDIOMAS = "\n\n------------------------------\n\n";
+
+    /** Orden de las secciones por rol en el email de cuenta activada. */
+    private static final List<String> SECCIONES_DE_ROL = List.of(
+            "JUGADOR", "FAMILIAR", "ENTRENADOR", "COORDINADOR", "RETRANSMISION");
 
     private final JavaMailSender emailSender;
 
@@ -51,28 +66,28 @@ public class ComunicacionesService implements AvisosCuentaEmail {
         return enviado;
     }
 
+    /**
+     * Invitación para activar la cuenta. La persona todavía no tiene la app (ni idioma elegido), así que va en
+     * castellano, valenciano e inglés, separados por una línea.
+     */
     public boolean enviarInvitacionApp(String email, String nombrePersona, String codigoActivacion) {
         logger.debug("Inicio enviarInvitacionApp: email={}", email);
 
-        String saludo = (nombrePersona == null || nombrePersona.isBlank())
-                ? "Hola"
-                : "Hola " + nombrePersona;
-
-        String contenido = saludo + ",\n\n"
-                + "Se ha creado tu acceso a la app oficial del Mutxamel Club de Futbol.\n\n"
-                + "Para activar tu cuenta abre la app, entra en \"Área Club - Activar cuenta\" "
-                + "e introduce tu email, el siguiente código y la contraseña que quieras usar:\n\n"
-                + codigoActivacion + "\n\n"
-                + "Este código caduca en 48 horas y solo se puede usar 5 veces. Si no lo usas a "
-                + "tiempo o lo introduces mal varias veces, pide a la oficina del club que te "
-                + "reenvie la invitacion.\n\n"
-                + "Si no esperabas este email, puedes ignorarlo.";
-
         boolean enviado = enviarEmail(REMITENTE, email, null,
-                "Activa tu cuenta de la app del Mutxamel CF", contenido);
+                asuntoEnLosTresIdiomas("invitacion.asunto"),
+                construirInvitacionApp(nombrePersona, codigoActivacion));
 
         logger.debug("Fin enviarInvitacionApp: enviado={}", enviado);
         return enviado;
+    }
+
+    static String construirInvitacionApp(String nombrePersona, String codigoActivacion) {
+
+        return IdiomaApp.TODOS.stream()
+                .map(idioma -> PlantillasEmail.texto(idioma, "invitacion.cuerpo",
+                        "saludo", saludo(idioma, nombrePersona, true),
+                        "codigo", codigoActivacion))
+                .collect(Collectors.joining(SEPARADOR_IDIOMAS));
     }
 
     /**
@@ -89,264 +104,120 @@ public class ComunicacionesService implements AvisosCuentaEmail {
         return enviado;
     }
 
-    private static final String SEPARADOR_IDIOMAS = "\n\n------------------------------\n\n";
-
     /**
-     * Confirma a la persona que su cuenta de la app está activada y le
-     * explica qué puede hacer según sus roles. El correo va en castellano
-     * y, tras una línea de separación, en valenciano.
+     * Confirma a la persona que su cuenta de la app está activada y le explica qué puede hacer según sus roles, en el
+     * idioma de la cuenta.
      */
-    public boolean enviarCuentaActivada(String email, String nombrePersona, Collection<String> roles) {
+    public boolean enviarCuentaActivada(String email, String nombrePersona, Collection<String> roles, String idioma) {
         logger.debug("Inicio enviarCuentaActivada");
 
         boolean enviado = enviarEmail(REMITENTE, email, null,
-                "¡Tu cuenta de la app del Mutxamel CF ya está activada! / "
-                        + "El teu compte de l'app del Mutxamel CF ja està activat!",
-                construirCuentaActivada(nombrePersona, roles));
+                PlantillasEmail.texto(idioma, "cuentaActivada.asunto"),
+                construirCuentaActivada(nombrePersona, roles, idioma));
 
         logger.debug("Fin enviarCuentaActivada: enviado={}", enviado);
         return enviado;
     }
 
-    static String construirCuentaActivada(String nombrePersona, Collection<String> roles) {
+    static String construirCuentaActivada(String nombrePersona, Collection<String> roles, String idioma) {
 
-        Set<String> codigos = roles == null ? Set.of() : new HashSet<>(roles);
+        Set<String> codigos = roles == null ? new HashSet<>() : new HashSet<>(roles);
 
-        boolean tieneNombre = nombrePersona != null && !nombrePersona.isBlank();
-
-        String saludoEs = tieneNombre ? "Hola " + nombrePersona.trim() + ":" : "Hola:";
-        String saludoCa = tieneNombre ? "Hola " + nombrePersona.trim() + ":" : "Hola:";
-
-        StringBuilder es = new StringBuilder();
-
-        es.append(saludoEs).append("\n\n")
-                .append("Tu cuenta de la app oficial del Mutxamel CF se ha activado correctamente. ")
-                .append("A partir de ahora puedes entrar en el Área Club con tu email y la contraseña que elegiste.\n\n")
-                .append("Qué puedes hacer con tu cuenta\n")
-                .append("• Ver el calendario de entrenamientos y partidos de tus equipos.\n")
-                .append("• Consultar los próximos partidos y resultados.\n")
-                .append("• Recibir avisos y mensajes privados del club, los entrenadores y la coordinación, ")
-                .append("y escribirles desde la app.\n")
-                .append("• Recibir notificaciones en el móvil. Puedes elegir cuáles en Ajustes, ")
-                .append("donde también cambias el idioma y el tema.\n");
-
-        if (codigos.contains("JUGADOR")) {
-            es.append("\nComo jugador\n")
-                    .append("• Ves en el calendario si estás convocado o no a cada partido, y tu asistencia a los entrenamientos.\n")
-                    .append("• Puedes avisar de que faltarás a un entrenamiento antes de que se celebre.\n")
-                    .append("• Puedes escribir a tu entrenador y a la coordinación.\n");
+        // ADMIN_APP ve lo mismo que un coordinador.
+        if (codigos.contains("ADMIN_APP")) {
+            codigos.add("COORDINADOR");
         }
 
-        if (codigos.contains("FAMILIAR")) {
-            es.append("\nComo familiar\n")
-                    .append("• En «Mis jugadores» ves a los jugadores vinculados a tu cuenta.\n")
-                    .append("• Ves sus convocatorias y su asistencia a los entrenamientos.\n")
-                    .append("• Puedes justificar sus faltas a un entrenamiento con antelación.\n")
-                    .append("• Puedes escribir a sus entrenadores y a la coordinación.\n");
-        }
+        String secciones = SECCIONES_DE_ROL.stream()
+                .filter(codigos::contains)
+                .map(rol -> PlantillasEmail.texto(idioma, "rol." + rol))
+                .collect(Collectors.joining());
 
-        if (codigos.contains("ENTRENADOR")) {
-            es.append("\nComo entrenador\n")
-                    .append("• En «Mis equipos» pasas lista y registras la asistencia de cada entrenamiento.\n")
-                    .append("• Preparas las convocatorias y registras las estadísticas de los partidos.\n")
-                    .append("• Gestionas los horarios y entrenamientos de tus equipos, y puedes cancelar un ")
-                    .append("entrenamiento avisando a jugadores y familias.\n")
-                    .append("• Recibes un aviso cuando una familia justifica una falta.\n")
-                    .append("• Envías avisos a tus equipos y mensajes a jugadores y familias.\n");
-        }
-
-        if (codigos.contains("COORDINADOR") || codigos.contains("ADMIN_APP")) {
-            es.append("\nComo coordinador\n")
-                    .append("• Tienes acceso a todos los equipos del club en «Mis equipos»: asistencia, ")
-                    .append("convocatorias, partidos y calendario.\n")
-                    .append("• Puedes enviar avisos a equipos o a categorías completas, y mensajes a cualquier ")
-                    .append("jugador, familia o entrenador.\n");
-        }
-
-        if (codigos.contains("RETRANSMISION")) {
-            es.append("\nComo responsable de retransmisión\n")
-                    .append("• En «Partido en directo» publicas los avisos en directo del primer equipo ")
-                    .append("durante los partidos.\n");
-        }
-
-        es.append("\nSi necesitas ayuda, escríbenos a mutxamelcf.gestion@gmail.com.\n")
-                .append("Puedes eliminar tu cuenta cuando quieras desde Ajustes › Eliminar mi cuenta.\n\n")
-                .append("¡Nos vemos en el campo!\n")
-                .append("Mutxamel CF");
-
-        StringBuilder ca = new StringBuilder();
-
-        ca.append(saludoCa).append("\n\n")
-                .append("El teu compte de l'app oficial del Mutxamel CF s'ha activat correctament. ")
-                .append("A partir d'ara pots entrar a l'Àrea Club amb el teu email i la contrasenya que vas triar.\n\n")
-                .append("Què pots fer amb el teu compte\n")
-                .append("• Veure el calendari d'entrenaments i partits dels teus equips.\n")
-                .append("• Consultar els pròxims partits i resultats.\n")
-                .append("• Rebre avisos i missatges privats del club, els entrenadors i la coordinació, ")
-                .append("i escriure'ls des de l'app.\n")
-                .append("• Rebre notificacions al mòbil. Pots triar quines a Ajustos, ")
-                .append("on també canvies l'idioma i el tema.\n");
-
-        if (codigos.contains("JUGADOR")) {
-            ca.append("\nCom a jugador\n")
-                    .append("• Veus al calendari si estàs convocat o no a cada partit, i la teua assistència als entrenaments.\n")
-                    .append("• Pots avisar que faltaràs a un entrenament abans que se celebre.\n")
-                    .append("• Pots escriure al teu entrenador i a la coordinació.\n");
-        }
-
-        if (codigos.contains("FAMILIAR")) {
-            ca.append("\nCom a familiar\n")
-                    .append("• A «Els meus jugadors» veus els jugadors vinculats al teu compte.\n")
-                    .append("• Veus les seues convocatòries i la seua assistència als entrenaments.\n")
-                    .append("• Pots justificar les seues faltes a un entrenament amb antelació.\n")
-                    .append("• Pots escriure als seus entrenadors i a la coordinació.\n");
-        }
-
-        if (codigos.contains("ENTRENADOR")) {
-            ca.append("\nCom a entrenador\n")
-                    .append("• A «Els meus equips» passes llista i registres l'assistència de cada entrenament.\n")
-                    .append("• Prepares les convocatòries i registres les estadístiques dels partits.\n")
-                    .append("• Gestiones els horaris i entrenaments dels teus equips, i pots cancel·lar un ")
-                    .append("entrenament avisant jugadors i famílies.\n")
-                    .append("• Reps un avís quan una família justifica una falta.\n")
-                    .append("• Envies avisos als teus equips i missatges a jugadors i famílies.\n");
-        }
-
-        if (codigos.contains("COORDINADOR") || codigos.contains("ADMIN_APP")) {
-            ca.append("\nCom a coordinador\n")
-                    .append("• Tens accés a tots els equips del club a «Els meus equips»: assistència, ")
-                    .append("convocatòries, partits i calendari.\n")
-                    .append("• Pots enviar avisos a equips o a categories completes, i missatges a qualsevol ")
-                    .append("jugador, família o entrenador.\n");
-        }
-
-        if (codigos.contains("RETRANSMISION")) {
-            ca.append("\nCom a responsable de retransmissió\n")
-                    .append("• A «Partit en directe» publiques els avisos en directe del primer equip ")
-                    .append("durant els partits.\n");
-        }
-
-        ca.append("\nSi necessites ajuda, escriu-nos a mutxamelcf.gestion@gmail.com.\n")
-                .append("Pots eliminar el teu compte quan vulgues des d'Ajustos › Eliminar el meu compte.\n\n")
-                .append("Ens veiem al camp!\n")
-                .append("Mutxamel CF");
-
-        return es + SEPARADOR_IDIOMAS + ca;
+        return PlantillasEmail.texto(idioma, "cuentaActivada.cuerpo",
+                "saludo", saludo(idioma, nombrePersona, false),
+                "roles", secciones);
     }
 
-    /**
-     * Código para cambiar la contraseña desde la app. El correo va en castellano y,
-     * tras una línea de separación, en valenciano.
-     */
-    public boolean enviarCodigoRecuperacion(String email, String nombrePersona, String codigo, int minutosValidez) {
+    /** Código para cambiar la contraseña desde la app, en el idioma indicado. */
+    public boolean enviarCodigoRecuperacion(String email, String nombrePersona, String codigo, int minutosValidez,
+            String idioma) {
         logger.debug("Inicio enviarCodigoRecuperacion");
 
         boolean enviado = enviarEmail(REMITENTE, email, null,
-                "Código para cambiar tu contraseña / Codi per a canviar la teua contrasenya",
-                construirCodigoRecuperacion(nombrePersona, codigo, minutosValidez));
+                PlantillasEmail.texto(idioma, "codigoRecuperacion.asunto"),
+                construirCodigoRecuperacion(nombrePersona, codigo, minutosValidez, idioma));
 
         logger.debug("Fin enviarCodigoRecuperacion: enviado={}", enviado);
         return enviado;
     }
 
-    static String construirCodigoRecuperacion(String nombrePersona, String codigo, int minutosValidez) {
+    static String construirCodigoRecuperacion(String nombrePersona, String codigo, int minutosValidez,
+            String idioma) {
 
-        String saludo = saludo(nombrePersona);
-
-        String es = saludo + "\n\n"
-                + "Has pedido cambiar la contraseña de tu cuenta de la app del Mutxamel CF. "
-                + "Abre la app, entra en \"Área Club - ¿Has olvidado tu contraseña?\" e introduce "
-                + "este código junto con la contraseña nueva:\n\n"
-                + codigo + "\n\n"
-                + "El código caduca en " + minutosValidez + " minutos y solo se puede probar 5 veces.\n\n"
-                + "Si no lo has pedido tú, ignora este mensaje: tu contraseña no cambiará.\n\n"
-                + "Mutxamel CF";
-
-        String ca = saludo + "\n\n"
-                + "Has demanat canviar la contrasenya del teu compte de l'app del Mutxamel CF. "
-                + "Obri l'app, entra a \"Àrea Club - Has oblidat la teua contrasenya?\" i introdueix "
-                + "aquest codi junt amb la contrasenya nova:\n\n"
-                + codigo + "\n\n"
-                + "El codi caduca en " + minutosValidez + " minuts i només es pot provar 5 vegades.\n\n"
-                + "Si no ho has demanat tu, ignora aquest missatge: la teua contrasenya no canviarà.\n\n"
-                + "Mutxamel CF";
-
-        return es + SEPARADOR_IDIOMAS + ca;
+        return PlantillasEmail.texto(idioma, "codigoRecuperacion.cuerpo",
+                "saludo", saludo(idioma, nombrePersona, false),
+                "codigo", codigo,
+                "minutos", String.valueOf(minutosValidez));
     }
 
     /**
-     * Avisa a una cuenta sin ningún jugador activo de que se desactivará en la fecha indicada. El correo va en
-     * castellano y, tras una línea de separación, en valenciano.
+     * Avisa a una cuenta sin ningún jugador activo de que se desactivará en la fecha indicada, en el idioma de la
+     * cuenta.
      */
     @Override
-    public boolean enviarAvisoCuentaSinJugadores(String email, String nombrePersona, LocalDate fechaDesactivacion) {
+    public boolean enviarAvisoCuentaSinJugadores(String email, String nombrePersona, LocalDate fechaDesactivacion,
+            String idioma) {
         logger.debug("Inicio enviarAvisoCuentaSinJugadores");
 
         boolean enviado = enviarEmail(REMITENTE, email, null,
-                "Tu cuenta de la app del Mutxamel CF se desactivará / El teu compte de l'app del Mutxamel CF es desactivarà",
-                construirAvisoCuentaSinJugadores(nombrePersona, fechaDesactivacion));
+                PlantillasEmail.texto(idioma, "cuentaSinJugadores.asunto"),
+                construirAvisoCuentaSinJugadores(nombrePersona, fechaDesactivacion, idioma));
 
         logger.debug("Fin enviarAvisoCuentaSinJugadores: enviado={}", enviado);
         return enviado;
     }
 
-    static String construirAvisoCuentaSinJugadores(String nombrePersona, LocalDate fechaDesactivacion) {
+    static String construirAvisoCuentaSinJugadores(String nombrePersona, LocalDate fechaDesactivacion,
+            String idioma) {
 
-        String saludo = saludo(nombrePersona);
-        String fecha = FECHA_AVISO.format(fechaDesactivacion);
-
-        String es = saludo + "\n\n"
-                + "Tu cuenta de la app del Mutxamel CF ya no tiene ningún jugador activo vinculado. "
-                + "Si sigue así, se desactivará el " + fecha + ".\n\n"
-                + "Si es un error, o si tu jugador sigue con nosotros, escríbenos a "
-                + "mutxamelcf.gestion@gmail.com y lo arreglamos. Si vuelve a haber un jugador activo "
-                + "antes de esa fecha, no pasará nada.\n\n"
-                + "Mutxamel CF";
-
-        String ca = saludo + "\n\n"
-                + "El teu compte de l'app del Mutxamel CF ja no té cap jugador actiu vinculat. "
-                + "Si continua així, es desactivarà el " + fecha + ".\n\n"
-                + "Si és un error, o si el teu jugador continua amb nosaltres, escriu-nos a "
-                + "mutxamelcf.gestion@gmail.com i ho arreglem. Si torna a haver-hi un jugador actiu "
-                + "abans d'eixa data, no passarà res.\n\n"
-                + "Mutxamel CF";
-
-        return es + SEPARADOR_IDIOMAS + ca;
+        return PlantillasEmail.texto(idioma, "cuentaSinJugadores.cuerpo",
+                "saludo", saludo(idioma, nombrePersona, false),
+                "fecha", FECHA_AVISO.format(fechaDesactivacion));
     }
 
-    /** Confirma que la contraseña de la cuenta se acaba de cambiar. */
-    public boolean enviarContrasenaCambiada(String email, String nombrePersona) {
+    /** Confirma que la contraseña de la cuenta se acaba de cambiar, en el idioma de la cuenta. */
+    public boolean enviarContrasenaCambiada(String email, String nombrePersona, String idioma) {
         logger.debug("Inicio enviarContrasenaCambiada");
 
         boolean enviado = enviarEmail(REMITENTE, email, null,
-                "Tu contraseña se ha cambiado / La teua contrasenya s'ha canviat",
-                construirContrasenaCambiada(nombrePersona));
+                PlantillasEmail.texto(idioma, "contrasenaCambiada.asunto"),
+                construirContrasenaCambiada(nombrePersona, idioma));
 
         logger.debug("Fin enviarContrasenaCambiada: enviado={}", enviado);
         return enviado;
     }
 
-    static String construirContrasenaCambiada(String nombrePersona) {
+    static String construirContrasenaCambiada(String nombrePersona, String idioma) {
 
-        String saludo = saludo(nombrePersona);
-
-        String es = saludo + "\n\n"
-                + "Tu contraseña se ha cambiado. Las sesiones abiertas en otros dispositivos se "
-                + "cerrarán y tendrás que entrar con la contraseña nueva.\n\n"
-                + "Si no has sido tú, escríbenos cuanto antes a mutxamelcf.gestion@gmail.com.\n\n"
-                + "Mutxamel CF";
-
-        String ca = saludo + "\n\n"
-                + "La teua contrasenya s'ha canviat. Les sessions obertes en altres dispositius es "
-                + "tancaran i hauràs d'entrar amb la contrasenya nova.\n\n"
-                + "Si no has sigut tu, escriu-nos com més prompte millor a mutxamelcf.gestion@gmail.com.\n\n"
-                + "Mutxamel CF";
-
-        return es + SEPARADOR_IDIOMAS + ca;
+        return PlantillasEmail.texto(idioma, "contrasenaCambiada.cuerpo",
+                "saludo", saludo(idioma, nombrePersona, false));
     }
 
-    private static String saludo(String nombrePersona) {
-        return nombrePersona == null || nombrePersona.isBlank() ? "Hola:" : "Hola " + nombrePersona.trim() + ":";
+    /** "Hola Ana:" (o "Hola Ana," en la invitación); sin nombre, "Hola:" / "Hola,". */
+    private static String saludo(String idioma, String nombrePersona, boolean invitacion) {
+
+        String prefijo = invitacion ? "saludo.invitacion." : "saludo.";
+
+        return nombrePersona == null || nombrePersona.isBlank()
+                ? PlantillasEmail.texto(idioma, prefijo + "sinNombre")
+                : PlantillasEmail.texto(idioma, prefijo + "conNombre", "nombre", nombrePersona.trim());
+    }
+
+    private static String asuntoEnLosTresIdiomas(String clave) {
+
+        return IdiomaApp.TODOS.stream()
+                .map(idioma -> PlantillasEmail.texto(idioma, clave))
+                .collect(Collectors.joining(" / "));
     }
 
     /**

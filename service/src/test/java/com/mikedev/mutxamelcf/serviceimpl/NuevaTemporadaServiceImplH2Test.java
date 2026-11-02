@@ -170,7 +170,7 @@ class NuevaTemporadaServiceImplH2Test {
                 CierreTemporadaDao cierreTemporadaDao, PlatformTransactionManager transactionManager,
                 NotificacionAppService notificacionAppService, Clock clock) {
             return new NuevaTemporadaServiceImpl(temporadaDao, jugadorDao, jugadorTemporadaDao, equipoDao,
-                    categoriaPorEdad, cierreTemporadaDao, transactionManager, notificacionAppService, clock, true);
+                    categoriaPorEdad, cierreTemporadaDao, transactionManager, notificacionAppService, clock, AvisosTest.TEXTOS, true);
         }
 
         @Bean
@@ -1147,7 +1147,7 @@ class NuevaTemporadaServiceImplH2Test {
 
         assertThat(temporadaActiva()).isEqualTo(ACTIVA);
         assertThat(numero("SELECT COUNT(*) FROM CUERPO_TECNICO_TEMPORADA")).isZero();
-        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any());
     }
 
     @Test
@@ -1424,7 +1424,7 @@ class NuevaTemporadaServiceImplH2Test {
                 contexto.getBean(EquipoDao.class), contexto.getBean(CategoriaPorEdad.class), cierreDao,
                 contexto.getBean(PlatformTransactionManager.class), notificacionAppService,
                 Clock.fixed(hoy.atTime(10, 0).atZone(ZoneId.of("Europe/Madrid")).toInstant(), ZoneId.of("Europe/Madrid")),
-                permitirAntes);
+                AvisosTest.TEXTOS, permitirAntes);
     }
 
     @Test
@@ -1441,7 +1441,7 @@ class NuevaTemporadaServiceImplH2Test {
         assertThatThrownBy(() -> estricto.cerrar(DESTINO, "2027-28")).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("2027-28 empieza el 01/09/2027");
         assertThat(fotoDelEstado()).isEqualTo(antes);
-        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any());
     }
 
     @Test
@@ -1492,12 +1492,19 @@ class NuevaTemporadaServiceImplH2Test {
                     .isActualTransactionActive();
             activaAlAvisar[0] = temporadaActiva();
             return null;
-        }).when(notificacionAppService).difundirATodos(any(), any(), any(), any());
+        }).when(notificacionAppService).difundirATodos(any(), any(), any());
 
         asistente.cerrar(DESTINO, "2027-28");
 
-        verify(notificacionAppService, times(1)).difundirATodos(eq("NOTICIA"), eq("Nueva temporada"),
-                eq("Empieza la temporada 2027-28. Los equipos se publicarán en septiembre."), isNull());
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<java.util.function.Function<String, com.mikedev.mutxamelcf.model.TextoDifusion>> texto = org.mockito.ArgumentCaptor
+                .forClass(java.util.function.Function.class);
+        verify(notificacionAppService, times(1)).difundirATodos(eq("NOTICIA"), texto.capture(), isNull());
+        assertThat(texto.getValue().apply("es").titulo()).isEqualTo("Nueva temporada");
+        assertThat(texto.getValue().apply("es").mensaje())
+                .isEqualTo("¡Empieza la temporada 2027-28! Los equipos se publicarán en septiembre.");
+        assertThat(texto.getValue().apply("ca").titulo()).isEqualTo("Nova temporada");
+        assertThat(texto.getValue().apply("en").titulo()).isEqualTo("New season");
         assertThat(dentroDeTransaccion[0]).isFalse();
         assertThat(activaAlAvisar[0]).isEqualTo(DESTINO);
     }
@@ -1505,8 +1512,7 @@ class NuevaTemporadaServiceImplH2Test {
     @Test
     void siFallaElAvisoElCierreYaHechoNoSeDeshace() {
         prepararElCierre();
-        doThrow(new RuntimeException("FCM caído")).when(notificacionAppService).difundirATodos(any(), any(), any(),
-                any());
+        doThrow(new RuntimeException("FCM caído")).when(notificacionAppService).difundirATodos(any(), any(), any());
 
         asistente.cerrar(DESTINO, "2027-28");
 
@@ -1537,7 +1543,7 @@ class NuevaTemporadaServiceImplH2Test {
 
         assertThat(fotoDelEstado()).isEqualTo(antes);
         assertThat(temporadaActiva()).isEqualTo(ACTIVA);
-        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any());
     }
 
     @Test
@@ -1552,7 +1558,7 @@ class NuevaTemporadaServiceImplH2Test {
                 .isInstanceOf(DataIntegrityViolationException.class);
 
         assertThat(fotoDelEstado()).isEqualTo(antes);
-        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any());
     }
 
     @Test
@@ -1567,7 +1573,7 @@ class NuevaTemporadaServiceImplH2Test {
         Map<String, Object> despues = fotoDelEstado();
         assertThat(despues).isEqualTo(antes);
         assertThat(temporadaActiva()).isEqualTo(ACTIVA);
-        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any());
     }
 
     @Test

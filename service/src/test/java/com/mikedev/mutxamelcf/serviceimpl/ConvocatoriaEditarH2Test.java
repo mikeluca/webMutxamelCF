@@ -52,6 +52,8 @@ class ConvocatoriaEditarH2Test {
     private ConvocatoriaJugadorDaoImpl convocatoriaJugadorDao;
     private JustificacionFaltaPartidoDaoImpl justificacionDao;
     private ConvocatoriaServiceImpl service;
+    /** El idioma de cada cuenta (las que no salen aquí, castellano). */
+    private final java.util.Map<Long, String> idiomasPorUsuario = new java.util.HashMap<>();
     private JdbcTemplate jdbc;
     private EquipoGestionDao equipoGestionDao;
     private ComunicacionService comunicacionService;
@@ -115,7 +117,7 @@ class ConvocatoriaEditarH2Test {
                 new com.mikedev.mutxamelcf.dao.impl.EquipacionDaoImpl(jdbc),
                 java.time.Clock.fixed(
                         LocalDate.of(2026, 10, 21).atTime(12, 0).atZone(java.time.ZoneId.of("Europe/Madrid")).toInstant(),
-                        java.time.ZoneId.of("Europe/Madrid")));
+                        java.time.ZoneId.of("Europe/Madrid")), AvisosTest.TEXTOS, AvisosTest.idiomas(idiomasPorUsuario));
     }
 
     private static Partido partido(Long id, LocalDate dia, String rival) {
@@ -357,7 +359,8 @@ class ConvocatoriaEditarH2Test {
         verify(comunicacionService).crearPrivada(aviso.capture(), eq(List.of(60L)), eq(ENTRENADOR));
 
         assertThat(aviso.getValue().getContenido())
-                .isEqualTo("Se han quitado de la convocatoria por ausencia justificada: Jugador 101");
+                .isEqualTo("Se han quitado de la convocatoria del partido contra Elx porque tienen la ausencia"
+                        + " justificada: Jugador 101.");
     }
 
     @Test
@@ -376,7 +379,7 @@ class ConvocatoriaEditarH2Test {
         ArgumentCaptor<Comunicacion> aviso = ArgumentCaptor.forClass(Comunicacion.class);
         verify(comunicacionService).crearPrivada(aviso.capture(), eq(List.of(60L)), eq(ENTRENADOR));
 
-        assertThat(aviso.getValue().getContenido()).endsWith("Jugador 100, Jugador 102");
+        assertThat(aviso.getValue().getContenido()).endsWith(": Jugador 100 y Jugador 102.");
     }
 
     @Test
@@ -557,7 +560,7 @@ class ConvocatoriaEditarH2Test {
 
         Comunicacion aviso = avisoA(52);
         assertThat(aviso.getTitulo()).isEqualTo("Nueva convocatoria");
-        assertThat(aviso.getContenido()).startsWith("Has sido convocado");
+        assertThat(aviso.getContenido()).startsWith("Te han convocado");
 
         avisosEnviados = 1;
         nadieMasAvisado();
@@ -571,7 +574,7 @@ class ConvocatoriaEditarH2Test {
         service.actualizar(ENTRENADOR, creada.getId(), request(30L, "09:30", List.of(100L)));
 
         assertThat(avisoA(51).getContenido())
-                .isEqualTo("Ya no estás convocado para el partido contra Pego (2026-10-24)");
+                .isEqualTo("Ya no estás en la convocatoria del partido contra Pego del sábado 24/10.");
 
         avisosEnviados = 1;
         nadieMasAvisado();
@@ -705,7 +708,7 @@ class ConvocatoriaEditarH2Test {
         assertThat(aviso.getAllValues()).allSatisfy(c -> {
             assertThat(c.getTitulo()).isEqualTo("Cambio en la convocatoria");
             assertThat(c.getContenido())
-                    .isEqualTo("Cambio en la convocatoria del partido contra Pego: nueva hora de citación 10:00"
+                    .isEqualTo("Cambio en tu convocatoria del partido contra Pego: nueva hora de citación, 10:00."
                             + DUCHA);
         });
         assertThat(opciones.getAllValues()).allSatisfy(o -> assertThat(o.datos())
@@ -723,7 +726,8 @@ class ConvocatoriaEditarH2Test {
         service.actualizar(ENTRENADOR, creada.getId(), peticion);
 
         assertThat(avisoA(50).getContenido())
-                .isEqualTo("Cambio en la convocatoria del partido contra Pego: nuevo lugar Pabellón" + DUCHA);
+                .isEqualTo("Cambio en tu convocatoria del partido contra Pego: nuevo lugar de citación, Pabellón."
+                        + DUCHA);
     }
 
     @Test
@@ -736,8 +740,9 @@ class ConvocatoriaEditarH2Test {
         service.actualizar(ENTRENADOR, creada.getId(), peticion);
 
         assertThat(avisoA(50).getContenido()).isEqualTo(
-                "Cambio en la convocatoria del partido contra Elx: nueva hora de citación 10:00"
-                        + " / nuevo lugar Pabellón / nuevo partido el 2026-10-25 a las 11:00h" + DUCHA);
+                "Cambio en tu convocatoria del partido contra Elx: nueva hora de citación, 10:00;"
+                        + " nuevo lugar de citación, Pabellón; el partido pasa al domingo 25/10 a las 11:00."
+                        + DUCHA);
     }
 
     @Test
@@ -788,7 +793,7 @@ class ConvocatoriaEditarH2Test {
 
         assertThat(aviso.getValue().getTitulo()).isEqualTo("Convocatoria anulada");
         assertThat(aviso.getValue().getContenido())
-                .isEqualTo("Se ha anulado la convocatoria del partido contra Pego (2026-10-24)");
+                .isEqualTo("Se ha anulado la convocatoria del partido contra Pego del sábado 24/10.");
         assertThat(opciones.getValue().datos())
                 .containsEntry("tipo", "CONVOCATORIA")
                 .doesNotContainKey("convocatoriaId");
@@ -1067,7 +1072,7 @@ class ConvocatoriaEditarH2Test {
 
         Comunicacion aviso = avisoA(50);
         assertThat(aviso.getContenido())
-                .contains("La convocatoria es a las 09:30h en Vestuarios. Equipaje: Segunda. En la mochila: Primera.")
+                .contains("Citación: 09:30 en Vestuarios.\n\nEquipaje: Segunda. En la mochila: Primera.")
                 .endsWith(DUCHA);
     }
 
@@ -1203,8 +1208,8 @@ class ConvocatoriaEditarH2Test {
 
         assertThat(aviso.getAllValues()).allSatisfy(c -> {
             assertThat(c.getTitulo()).isEqualTo("Cambio de equipaje");
-            assertThat(c.getContenido()).isEqualTo("Cambio en la convocatoria del partido contra Pego:"
-                    + " cambio de equipaje. Equipaje: Segunda. En la mochila: Primera." + DUCHA);
+            assertThat(c.getContenido()).isEqualTo("Cambio en tu convocatoria del partido contra Pego:"
+                    + " cambia el equipaje.\n\nEquipaje: Segunda. En la mochila: Primera." + DUCHA);
         });
         // Mismo tipo y pantalla que el aviso de cambio de hora o lugar.
         assertThat(opciones.getAllValues()).allSatisfy(o -> assertThat(o.datos())
@@ -1225,7 +1230,7 @@ class ConvocatoriaEditarH2Test {
 
         Comunicacion aviso = avisoA(50);
         assertThat(aviso.getTitulo()).isEqualTo("Cambio de equipaje");
-        assertThat(aviso.getContenido()).contains("Ya no hay equipaje indicado.");
+        assertThat(aviso.getContenido()).contains("\n\nYa no hay equipaje indicado.");
     }
 
     @Test
@@ -1256,8 +1261,8 @@ class ConvocatoriaEditarH2Test {
 
         Comunicacion aviso = avisoA(50);
         assertThat(aviso.getTitulo()).isEqualTo("Cambio en la convocatoria");
-        assertThat(aviso.getContenido()).isEqualTo("Cambio en la convocatoria del partido contra Pego:"
-                + " nueva hora de citación 10:00 / cambio de equipaje. Equipaje: Segunda." + DUCHA);
+        assertThat(aviso.getContenido()).isEqualTo("Cambio en tu convocatoria del partido contra Pego:"
+                + " nueva hora de citación, 10:00; cambia el equipaje.\n\nEquipaje: Segunda." + DUCHA);
         verify(comunicacionService, org.mockito.Mockito.times(1)).crearPrivada(any(Comunicacion.class), any(),
                 anyLong(), any(OpcionesPushComunicacion.class));
     }
@@ -1286,7 +1291,7 @@ class ConvocatoriaEditarH2Test {
         service.actualizar(ENTRENADOR, creada.getId(), request(30L, "09:30", List.of(100L, 102L)));
 
         assertThat(avisoA(52).getContenido()).endsWith(DUCHA);
-        assertThat(avisoA(51).getContenido()).startsWith("Ya no estás convocado").doesNotContain("Ducha");
+        assertThat(avisoA(51).getContenido()).startsWith("Ya no estás en la convocatoria").doesNotContain("Ducha");
     }
 
     @Test
@@ -1331,7 +1336,8 @@ class ConvocatoriaEditarH2Test {
         assertThat(aviso.getAllValues()).allSatisfy(c -> {
             assertThat(c.getTitulo()).isEqualTo("Cambio en la convocatoria");
             assertThat(c.getContenido())
-                    .isEqualTo("Cambio en la convocatoria del partido contra Pego: nueva hora de citación 10:00" + DUCHA);
+                    .isEqualTo("Cambio en tu convocatoria del partido contra Pego: nueva hora de citación, 10:00."
+                            + DUCHA);
         });
         assertThat(opciones.getAllValues()).allSatisfy(o -> assertThat(o.datos())
                 .containsEntry("tipo", "CONVOCATORIA")
@@ -1352,8 +1358,8 @@ class ConvocatoriaEditarH2Test {
 
         assertThat(destinatariosDeAvisos()).containsExactly(50L, 53L);
         assertThat(avisoA(53).getTitulo()).isEqualTo("Cambio en la convocatoria");
-        assertThat(avisoA(53).getContenido()).isEqualTo("Cambio en la convocatoria del partido contra Pego:"
-                + " nueva hora de citación 10:00 / cambio de equipaje. Equipaje: Segunda." + DUCHA);
+        assertThat(avisoA(53).getContenido()).isEqualTo("Cambio en tu convocatoria del partido contra Pego:"
+                + " nueva hora de citación, 10:00; cambia el equipaje.\n\nEquipaje: Segunda." + DUCHA);
     }
 
     @Test
@@ -1440,5 +1446,106 @@ class ConvocatoriaEditarH2Test {
         service.actualizar(ENTRENADOR, creada.getId(), request(30L, "10:00", List.of(100L)));
 
         assertThat(destinatariosDeAvisos()).containsExactly(50L);
+    }
+
+    // ---- un destinatario en cada idioma --------------------------------------------------------
+
+    @Test
+    void laConvocatoriaNuevaConEquipajeYDuchaSaleEnElIdiomaDeCadaDestinatario() {
+        usuariosPorJugador();
+        idiomasPorUsuario.put(51L, "ca");
+        idiomasPorUsuario.put(52L, "en");
+        when(equipoGestionDao.obtenerNombreEquipo(EQUIPO)).thenReturn("Cadete A");
+        long segunda = equipaje("Segunda", true);
+        long primera = equipaje("Primera", true);
+
+        service.crear(ENTRENADOR, conEquipaje(request(30L, "09:30", List.of(100L, 101L, 102L)), segunda, primera, false));
+
+        Comunicacion es = avisoA(50);
+        Comunicacion ca = avisoA(51);
+        Comunicacion en = avisoA(52);
+
+        assertThat(es.getTitulo()).isEqualTo("Nueva convocatoria");
+        assertThat(es.getContenido()).isEqualTo("Te han convocado con Cadete A para el partido contra Pego del sábado"
+                + " 24/10 a las 11:00.\n\nCitación: 09:30 en Vestuarios.\n\nEquipaje: Segunda. En la mochila: Primera."
+                + DUCHA);
+
+        assertThat(ca.getTitulo()).isEqualTo("Nova convocatòria");
+        assertThat(ca.getContenido()).isEqualTo("T'han convocat amb Cadete A per al partit contra Pego del dissabte"
+                + " 24/10 a les 11:00.\n\nCitació: 09:30 a Vestuarios.\n\nEquipació: Segunda. A la motxilla: Primera."
+                + "\n\n🚿 Dutxa recomanable després del partit");
+
+        assertThat(en.getTitulo()).isEqualTo("New call-up");
+        assertThat(en.getContenido()).isEqualTo("You've been called up with Cadete A for the match against Pego on"
+                + " Saturday 24/10 at 11:00.\n\nMeet at 09:30 at Vestuarios.\n\nKit: Segunda. In the bag: Primera."
+                + "\n\n🚿 A shower after the match is recommended");
+    }
+
+    @Test
+    void laFamiliaRecibeLaVersionFamiliaEnSuIdioma() {
+        when(equipoGestionDao.obtenerUsuariosPorJugador(100L)).thenReturn(List.of(50L));
+        when(equipoGestionDao.obtenerUsuariosFamiliaresPorJugador(100L)).thenReturn(List.of(60L, 61L));
+        when(equipoGestionDao.obtenerNombreJugador(100L)).thenReturn("Ana");
+        when(equipoGestionDao.obtenerNombreEquipo(EQUIPO)).thenReturn("Cadete A");
+        idiomasPorUsuario.put(60L, "ca");
+        idiomasPorUsuario.put(61L, "en");
+
+        service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L)));
+
+        assertThat(avisoA(50).getContenido()).startsWith("Te han convocado con Cadete A");
+        assertThat(avisoA(60).getContenido()).startsWith("Han convocat Ana amb Cadete A");
+        assertThat(avisoA(61).getContenido()).startsWith("Ana has been called up with Cadete A");
+    }
+
+    @Test
+    void elCambioCombinadoDeHoraYEquipajeSaleEnElIdiomaDeCadaDestinatario() {
+        usuariosPorJugador();
+        idiomasPorUsuario.put(51L, "ca");
+        idiomasPorUsuario.put(52L, "en");
+        long segunda = equipaje("Segunda", true);
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L, 102L);
+
+        service.actualizar(ENTRENADOR, creada.getId(),
+                conEquipaje(request(30L, "10:00", List.of(100L, 101L, 102L)), segunda, null, true));
+
+        Comunicacion es = avisoA(50);
+        Comunicacion ca = avisoA(51);
+        Comunicacion en = avisoA(52);
+
+        assertThat(es.getTitulo()).isEqualTo("Cambio en la convocatoria");
+        assertThat(es.getContenido()).isEqualTo("Cambio en tu convocatoria del partido contra Pego: nueva hora de"
+                + " citación, 10:00; cambia el equipaje.\n\nEquipaje: Segunda." + DUCHA);
+
+        assertThat(ca.getTitulo()).isEqualTo("Canvi en la convocatòria");
+        assertThat(ca.getContenido()).isEqualTo("Canvi en la teua convocatòria del partit contra Pego: nova hora de"
+                + " citació, 10:00; canvia l'equipació.\n\nEquipació: Segunda.\n\n🚿 Dutxa recomanable després del partit");
+
+        assertThat(en.getTitulo()).isEqualTo("Call-up updated");
+        assertThat(en.getContenido()).isEqualTo("Change to your call-up for the match against Pego: new meeting time,"
+                + " 10:00; the kit changes.\n\nKit: Segunda.\n\n🚿 A shower after the match is recommended");
+    }
+
+    @Test
+    void elAvisoDeQuitadosDeUnaAusenciaSaleUnoPorIdiomaDeLosEntrenadores() {
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L);
+        justificar(31, 101, "Examen");
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO)).thenReturn(List.of(60L, 61L, 62L));
+        idiomasPorUsuario.put(61L, "ca");
+        idiomasPorUsuario.put(62L, "en");
+        org.mockito.Mockito.clearInvocations(comunicacionService);
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(31L, "10:00", null));
+
+        ArgumentCaptor<Comunicacion> avisos = ArgumentCaptor.forClass(Comunicacion.class);
+        ArgumentCaptor<List<Long>> destinos = ArgumentCaptor.forClass(List.class);
+        verify(comunicacionService, org.mockito.Mockito.times(3)).crearPrivada(avisos.capture(), destinos.capture(),
+                eq(ENTRENADOR));
+
+        // Una comunicación por idioma, con los entrenadores de ese idioma, y el mismo nombre sin traducir.
+        assertThat(destinos.getAllValues()).containsExactly(List.of(60L), List.of(61L), List.of(62L));
+        assertThat(avisos.getAllValues()).extracting(Comunicacion::getTitulo)
+                .containsExactly("Quitados por ausencia justificada", "Llevats per absència justificada",
+                        "Removed: justified absence");
+        assertThat(avisos.getAllValues()).allSatisfy(c -> assertThat(c.getContenido()).contains("Jugador 101"));
     }
 }

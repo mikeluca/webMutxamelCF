@@ -15,10 +15,8 @@ import org.springframework.stereotype.Component;
 
 import com.mikedev.mutxamelcf.dao.EntrenamientoDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
-import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.Entrenamiento;
 import com.mikedev.mutxamelcf.model.EntrenamientoPendienteDeLista;
-import com.mikedev.mutxamelcf.model.OpcionesPushComunicacion;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 
 /**
@@ -61,12 +59,19 @@ public class RecordatorioListaEntrenamientoScheduler {
     private final EquipoGestionDao equipoGestionDao;
     private final ComunicacionService comunicacionService;
     private final Clock clock;
+    private final TextosAvisos textos;
+    private final IdiomasUsuarios idiomas;
 
     public RecordatorioListaEntrenamientoScheduler(
             EntrenamientoDao entrenamientoDao,
             EquipoGestionDao equipoGestionDao,
             ComunicacionService comunicacionService,
-            Clock clock) {
+            Clock clock,
+            TextosAvisos textos,
+            IdiomasUsuarios idiomas) {
+
+        this.textos = textos;
+        this.idiomas = idiomas;
 
         this.entrenamientoDao = entrenamientoDao;
         this.equipoGestionDao = equipoGestionDao;
@@ -157,19 +162,22 @@ public class RecordatorioListaEntrenamientoScheduler {
         }
 
         String equipo = equipoGestionDao.obtenerNombreEquipo(pendiente.equipoId());
-        String cuando = pendiente.fecha().equals(hoy) ? "de hoy" : "del " + DIA.format(pendiente.fecha());
+        String nombreEquipo = equipo == null ? "" : equipo.trim();
+        boolean esHoy = pendiente.fecha().equals(hoy);
 
-        Comunicacion comunicacion = new Comunicacion();
+        Map<String, String> datos = Map.of(
+                "tipo", TIPO_PUSH_PASAR_LISTA,
+                "entrenamientoId", String.valueOf(pendiente.id()));
 
-        comunicacion.setTitulo("Pasar lista");
-        comunicacion.setContenido("¿Has pasado lista del entrenamiento " + cuando + " (" + HORA.format(hora)
-                + ")? Revisa la asistencia de " + (equipo == null || equipo.isBlank() ? "tu equipo" : equipo.trim())
-                + ".");
-
-        comunicacionService.crearPrivada(comunicacion, entrenadores, autor,
-                new OpcionesPushComunicacion(null, Map.of(
-                        "tipo", TIPO_PUSH_PASAR_LISTA,
-                        "entrenamientoId", String.valueOf(pendiente.id()))));
+        idiomas.crearPrivadaPorIdioma(comunicacionService, entrenadores, autor, datos,
+                idioma -> new TextoAviso(
+                        textos.texto(idioma, "pasarLista.titulo"),
+                        esHoy
+                                ? textos.texto(idioma, "pasarLista.hoy",
+                                        "hora", textos.hora(hora), "equipo", nombreEquipo)
+                                : textos.texto(idioma, "pasarLista.otroDia",
+                                        "fecha", textos.fecha(idioma, pendiente.fecha()),
+                                        "hora", textos.hora(hora), "equipo", nombreEquipo)));
     }
 
     /*

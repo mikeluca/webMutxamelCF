@@ -90,7 +90,7 @@ class ModeracionServiceImplH2Test {
 
         service = new ModeracionServiceImpl(
                 new ReporteComunicacionDaoImpl(jdbc), comunicacionDao, comunicacionService, usuarioAppService, equipoGestionDao,
-                dispositivoAppDao, fcmPushService, Clock.fixed(AHORA.atZone(MADRID).toInstant(), MADRID));
+                dispositivoAppDao, fcmPushService, Clock.fixed(AHORA.atZone(MADRID).toInstant(), MADRID), AvisosTest.TEXTOS, AvisosTest.idiomas());
     }
 
     private static Comunicacion mensaje(long id, Long autor) {

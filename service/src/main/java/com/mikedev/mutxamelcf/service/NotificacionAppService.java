@@ -1,10 +1,12 @@
 package com.mikedev.mutxamelcf.service;
 
 import java.util.List;
+import java.util.function.Function;
 
 import com.mikedev.mutxamelcf.model.NotificacionApp;
 import com.mikedev.mutxamelcf.model.NotificacionAppResponse;
 import com.mikedev.mutxamelcf.model.NotificacionesNoLeidasResponse;
+import com.mikedev.mutxamelcf.model.TextoDifusion;
 
 public interface NotificacionAppService {
 
@@ -46,11 +48,11 @@ public interface NotificacionAppService {
          * activas de la app cuyas preferencias permitan recibir avisos de
          * este {@code tipo} (p. ej. "NOTICIA" o "RESULTADO"). A diferencia
          * de una comunicación, no hay destinatarios que elegir: es siempre
-         * todo el mundo que no lo haya desactivado.
+         * todo el mundo que no lo haya desactivado. Cada cuenta recibe el
+         * texto que genera {@code texto} para su idioma.
          */
         void difundirATodos(
                         String tipo,
-                        String titulo,
-                        String mensaje,
+                        Function<String, TextoDifusion> texto,
                         Long referenciaId);
 }

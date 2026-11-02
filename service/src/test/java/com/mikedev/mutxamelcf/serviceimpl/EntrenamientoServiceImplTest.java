@@ -52,12 +52,15 @@ class EntrenamientoServiceImplTest {
 
     private EntrenamientoServiceImpl service;
 
+    /** El idioma de cada cuenta (las que no salen aquí, castellano). */
+    private final java.util.Map<Long, String> idiomasPorUsuario = new java.util.HashMap<>();
+
     @BeforeEach
     void setUp() {
         service = new EntrenamientoServiceImpl(entrenamientoDao, asistenciaDao, equipoGestionDao,
                 comunicacionService, temporadaService,
                 java.time.Clock.fixed(java.time.Instant.parse("2026-10-21T08:00:00Z"),
-                        java.time.ZoneId.of("Europe/Madrid")));
+                        java.time.ZoneId.of("Europe/Madrid")), AvisosTest.TEXTOS, AvisosTest.idiomas(idiomasPorUsuario));
     }
 
     private static EntrenamientoGuardarRequest requestValido() {
@@ -532,5 +535,48 @@ class EntrenamientoServiceImplTest {
         when(asistenciaDao.obtenerPorEntrenamientoYJugador(5L, 10L)).thenReturn(asistencia);
 
         assertThat(service.obtenerEstadoAsistencia(30L, 10L)).isEqualTo("TARDANZA");
+    }
+
+    @Test
+    void laFaltaLlegaAlJugadorYALaFamiliaConSuVersionYEnSuIdioma() {
+        LocalDate fecha = LocalDate.now();
+        EntrenamientoGuardarRequest request = new EntrenamientoGuardarRequest(1L, fecha,
+                List.of(new EntrenamientoAsistenciaRequest(10L, "FALTA")));
+
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(equipoGestionDao.obtenerJugadoresPorEquipo(1L)).thenReturn(List.of(10L));
+        Entrenamiento guardado = new Entrenamiento();
+        guardado.setId(5L);
+        guardado.setEquipoId(1L);
+        when(entrenamientoDao.guardar(any(Entrenamiento.class))).thenReturn(guardado);
+        when(asistenciaDao.obtenerPorEntrenamiento(5L)).thenReturn(List.of());
+        when(equipoGestionDao.obtenerNombreJugador(10L)).thenReturn("Juan Perez");
+        // La cuenta del jugador (en valenciano) y dos familias: una en castellano y otra en inglés.
+        when(equipoGestionDao.obtenerUsuariosPorJugador(10L)).thenReturn(List.of(100L));
+        when(equipoGestionDao.obtenerUsuariosFamiliaresPorJugador(10L)).thenReturn(List.of(200L, 201L));
+        idiomasPorUsuario.put(100L, "ca");
+        idiomasPorUsuario.put(201L, "en");
+
+        service.crear(1L, request);
+
+        ArgumentCaptor<Comunicacion> comunicaciones = ArgumentCaptor.forClass(Comunicacion.class);
+        ArgumentCaptor<List<Long>> destinatarios = ArgumentCaptor.forClass(List.class);
+        verify(comunicacionService, times(3)).crearPrivada(comunicaciones.capture(), destinatarios.capture(), eq(1L));
+
+        // Primero la versión jugador (una por idioma); después la versión familia, una por idioma.
+        assertThat(destinatarios.getAllValues()).containsExactly(List.of(100L), List.of(200L), List.of(201L));
+
+        assertThat(comunicaciones.getAllValues().get(0).getTitulo()).isEqualTo("Falta a l'entrenament");
+        assertThat(comunicaciones.getAllValues().get(0).getContenido()).startsWith("No vas vindre a l'entrenament del "
+                + AvisosTest.TEXTOS.fecha("ca", fecha) + ".");
+
+        assertThat(comunicaciones.getAllValues().get(1).getTitulo()).isEqualTo("Falta al entrenamiento");
+        assertThat(comunicaciones.getAllValues().get(1).getContenido()).startsWith("Juan Perez no vino al entrenamiento del "
+                + AvisosTest.TEXTOS.fecha("es", fecha) + ".");
+
+        assertThat(comunicaciones.getAllValues().get(2).getTitulo()).isEqualTo("Missed training");
+        assertThat(comunicaciones.getAllValues().get(2).getContenido()).startsWith("Juan Perez didn't come to training on "
+                + AvisosTest.TEXTOS.fecha("en", fecha) + ".");
     }
 }

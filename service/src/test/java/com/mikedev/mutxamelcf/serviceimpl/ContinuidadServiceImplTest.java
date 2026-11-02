@@ -75,7 +75,7 @@ class ContinuidadServiceImplTest {
 		// Hoy: lunes 10/05/2027
 		Clock reloj = Clock.fixed(LocalDate.of(2027, 5, 10).atTime(10, 0).atZone(MADRID).toInstant(), MADRID);
 		servicio = new ContinuidadServiceImpl(nuevaTemporadaService, jugadorTemporadaDao, categoriaPorEdad, perfilAppDao,
-				vinculoDao, equipoGestionDao, notificacionAppService, fcmPushService, reloj);
+				vinculoDao, equipoGestionDao, notificacionAppService, fcmPushService, reloj, AvisosTest.TEXTOS, AvisosTest.idiomas());
 	}
 
 	private static JugadorTemporada fila(long jugadorId, String nombre, String categoria, String estado,
@@ -130,9 +130,9 @@ class ContinuidadServiceImplTest {
 		@SuppressWarnings("unchecked")
 		ArgumentCaptor<Map<String, String>> datos = ArgumentCaptor.forClass(Map.class);
 		verify(notificacionAppService).crear(50L, "CONTINUIDAD", "Continuidad en 2027/2028",
-				"¿Seguirá Pablo en la temporada 2027/2028?", SIGUIENTE);
+				"¿Seguirá Pablo en el club la temporada 2027/2028? Responde en Mis jugadores.", SIGUIENTE);
 		verify(fcmPushService).enviarNotificacionAUsuario(eq(50L), eq("CONTINUIDAD"), eq("Continuidad en 2027/2028"),
-				eq("¿Seguirá Pablo en la temporada 2027/2028?"), eq(SIGUIENTE), datos.capture());
+				eq("¿Seguirá Pablo en el club la temporada 2027/2028? Responde en Mis jugadores."), eq(SIGUIENTE), datos.capture());
 		assertThat(datos.getValue()).containsEntry("pantalla", "CONTINUIDAD").containsEntry("accion", "PREGUNTA")
 				.containsEntry("temporadaId", "7").containsEntry("jugadorIds", "1");
 	}
@@ -149,7 +149,7 @@ class ContinuidadServiceImplTest {
 
 		assertThat(resultado.usuariosAvisados()).isEqualTo(1);
 		verify(fcmPushService, times(1)).enviarNotificacionAUsuario(eq(50L), eq("CONTINUIDAD"), anyString(),
-				eq("¿Seguirán Pablo y Luis en la temporada 2027/2028?"), eq(SIGUIENTE),
+				eq("¿Seguirán Pablo y Luis en el club la temporada 2027/2028? Responde en Mis jugadores."), eq(SIGUIENTE),
 				org.mockito.ArgumentMatchers.<Map<String, String>>argThat(m -> "1,2".equals(m.get("jugadorIds"))));
 	}
 
@@ -245,7 +245,7 @@ class ContinuidadServiceImplTest {
 		assertThat(avisadas).isEqualTo(1);
 		verify(fcmPushService).enviarNotificacionAUsuario(eq(50L), eq("CONTINUIDAD"),
 				eq("Recordatorio: continuidad en 2027/2028"),
-				eq("Aún no nos has contestado. ¿Seguirá Pablo en la temporada 2027/2028?"), eq(SIGUIENTE),
+				eq("Aún no nos has contestado. ¿Seguirá Pablo en el club la temporada 2027/2028? Responde en Mis jugadores."), eq(SIGUIENTE),
 				org.mockito.ArgumentMatchers.<Map<String, String>>argThat(m -> "RECORDATORIO".equals(m.get("accion"))));
 		verify(fcmPushService, never()).enviarNotificacionAUsuario(eq(51L), anyString(), anyString(), anyString(),
 				anyLong(), anyMap());
@@ -261,7 +261,7 @@ class ContinuidadServiceImplTest {
 		Clock enJulio = Clock.fixed(LocalDate.of(2027, 7, 5).atTime(10, 0).atZone(MADRID).toInstant(), MADRID);
 		ContinuidadServiceImpl tarde = new ContinuidadServiceImpl(nuevaTemporadaService, jugadorTemporadaDao,
 				mock(CategoriaPorEdad.class), perfilAppDao, vinculoDao, equipoGestionDao, notificacionAppService,
-				fcmPushService, enJulio);
+				fcmPushService, enJulio, AvisosTest.TEXTOS, AvisosTest.idiomas());
 
 		assertThat(tarde.recordarPendientes()).isZero();
 
@@ -376,7 +376,7 @@ class ContinuidadServiceImplTest {
 		jugadorPreguntado("PENDIENTE");
 		servicio.responder(50L, 1L, "DUDA");
 		verify(fcmPushService, times(2)).enviarNotificacionAUsuario(anyLong(), eq("CONTINUIDAD_RESPUESTA"),
-				eq("Duda sobre la continuidad: Pablo Pérez (Alevín)"), anyString(), eq(1L), anyMap());
+				eq("Duda de continuidad: Pablo Pérez (Alevín)"), anyString(), eq(1L), anyMap());
 	}
 
 	@Test
@@ -430,5 +430,33 @@ class ContinuidadServiceImplTest {
 
 		verify(notificacionAppService).crear(eq(50L), eq("CONTINUIDAD"), eq("Recordatorio: continuidad en 2027/2028"),
 				anyString(), eq(SIGUIENTE));
+	}
+
+	@Test
+	void cadaCuentaRecibeLaPreguntaEnSuIdiomaConLosNombresUnidosConSuPalabra() {
+		CategoriaPorEdad categorias = mock(CategoriaPorEdad.class);
+		when(categorias.obtenerTodas()).thenReturn(List.of(new CategoriaEdad("Alevín", 10, 11, 4),
+				new CategoriaEdad("Cadete", 14, 15, 6)));
+		Clock reloj = Clock.fixed(LocalDate.of(2027, 5, 10).atTime(10, 0).atZone(MADRID).toInstant(), MADRID);
+		ContinuidadServiceImpl multiidioma = new ContinuidadServiceImpl(nuevaTemporadaService, jugadorTemporadaDao,
+				categorias, perfilAppDao, vinculoDao, equipoGestionDao, notificacionAppService, fcmPushService, reloj,
+				AvisosTest.TEXTOS, AvisosTest.idiomas(Map.of(50L, "en", 51L, "ca")));
+		when(jugadorTemporadaDao.listarPorTemporada(SIGUIENTE)).thenReturn(List.of(
+				fila(1, "Pablo", "Alevín", "CONFIRMADO", "PENDIENTE", null),
+				fila(2, "Luis", "Cadete", "CONFIRMADO", "PENDIENTE", null),
+				fila(3, "Marta", "Cadete", "CONFIRMADO", "PENDIENTE", null),
+				fila(4, "Ana", "Alevín", "CONFIRMADO", "PENDIENTE", null)));
+		cuentas(1, 50L);
+		cuentas(2, 50L);
+		cuentas(3, 50L);
+		cuentas(4, 51L);
+
+		multiidioma.pedirConfirmacion(SIGUIENTE);
+
+		verify(notificacionAppService).crear(50L, "CONTINUIDAD", "Next season: 2027/2028",
+				"Will Pablo, Luis and Marta stay at the club for the 2027/2028 season? Answer in My players.",
+				SIGUIENTE);
+		verify(notificacionAppService).crear(51L, "CONTINUIDAD", "Continuïtat en 2027/2028",
+				"Ana continuarà en el club la temporada 2027/2028? Respon en Els meus jugadors.", SIGUIENTE);
 	}
 }

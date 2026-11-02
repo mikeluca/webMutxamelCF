@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.mikedev.mutxamelcf.model.DispositivoAppRequest;
 import com.mikedev.mutxamelcf.service.DispositivoAppService;
+import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
 import jakarta.validation.Valid;
 
@@ -16,8 +17,13 @@ public class AppDispositivoController {
 
     private final DispositivoAppService dispositivoAppService;
 
+    private final UsuarioAppService usuarioAppService;
+
     public AppDispositivoController(
-            DispositivoAppService dispositivoAppService) {
+            DispositivoAppService dispositivoAppService,
+            UsuarioAppService usuarioAppService) {
+
+        this.usuarioAppService = usuarioAppService;
 
         this.dispositivoAppService = dispositivoAppService;
     }
@@ -38,6 +44,11 @@ public class AppDispositivoController {
         dispositivoAppService.registrar(
                 usuarioId,
                 request);
+
+        // La app manda el idioma al registrar el token; las versiones que no lo envían se quedan como están.
+        if (request.getIdioma() != null) {
+            usuarioAppService.actualizarIdioma(usuarioId.intValue(), request.getIdioma());
+        }
 
         return ResponseEntity.ok().build();
     }

@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.mikedev.mutxamelcf.dao.NotificacionAppDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppDao;
+import com.mikedev.mutxamelcf.model.TextoDifusion;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
 import com.mikedev.mutxamelcf.service.FcmPushService;
 import com.mikedev.mutxamelcf.service.PreferenciasNotificacionService;
@@ -64,7 +65,7 @@ class NotificacionAppServiceImplTest {
         when(preferenciasService.puedeRecibir(1L, "NOTICIA")).thenReturn(true);
         when(preferenciasService.puedeRecibir(2L, "NOTICIA")).thenReturn(false);
 
-        service.difundirATodos("NOTICIA", "Título", "Mensaje", 42L);
+        service.difundirATodos("NOTICIA", idioma -> new TextoDifusion("Título", "Mensaje"), 42L);
 
         verify(notificacionAppDao, times(1)).guardar(any());
         verify(fcmPushService).enviarNotificacionAUsuario(1L, "NOTICIA", "Título", "Mensaje", 42L);
@@ -79,10 +80,36 @@ class NotificacionAppServiceImplTest {
         when(usuarioAppDao.listarTodos()).thenReturn(List.of(usuario(1, true)));
         when(preferenciasService.puedeRecibir(1L, "RESULTADO")).thenReturn(false);
 
-        service.difundirATodos("RESULTADO", "Título", "Mensaje", null);
+        service.difundirATodos("RESULTADO", idioma -> new TextoDifusion("Título", "Mensaje"), null);
 
         verify(notificacionAppDao, never()).guardar(any());
         verify(fcmPushService, never())
                 .enviarNotificacionAUsuario(anyLong(), anyString(), anyString(), anyString(), any());
+    }
+
+    @Test
+    void difundirATodosEnviaACadaCuentaElTextoDeSuIdioma() {
+
+        when(usuarioAppDao.listarTodos()).thenReturn(List.of(usuario(1, true), usuario(2, true), usuario(3, true)));
+        when(usuarioAppDao.obtenerIdiomas(any())).thenReturn(java.util.Map.of(1L, "es", 2L, "ca", 3L, "en"));
+        when(preferenciasService.puedeRecibir(anyLong(), anyString())).thenReturn(true);
+
+        service.difundirATodos("RESULTADO", idioma -> new TextoDifusion("T-" + idioma, "M-" + idioma), null);
+
+        verify(fcmPushService).enviarNotificacionAUsuario(1L, "RESULTADO", "T-es", "M-es", null);
+        verify(fcmPushService).enviarNotificacionAUsuario(2L, "RESULTADO", "T-ca", "M-ca", null);
+        verify(fcmPushService).enviarNotificacionAUsuario(3L, "RESULTADO", "T-en", "M-en", null);
+    }
+
+    @Test
+    void unaCuentaSinIdiomaConocidoRecibeElCastellano() {
+
+        when(usuarioAppDao.listarTodos()).thenReturn(List.of(usuario(1, true)));
+        when(usuarioAppDao.obtenerIdiomas(any())).thenReturn(java.util.Map.of());
+        when(preferenciasService.puedeRecibir(1L, "NOTICIA")).thenReturn(true);
+
+        service.difundirATodos("NOTICIA", idioma -> new TextoDifusion("T-" + idioma, "M-" + idioma), null);
+
+        verify(fcmPushService).enviarNotificacionAUsuario(1L, "NOTICIA", "T-es", "M-es", null);
     }
 }

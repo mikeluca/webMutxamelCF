@@ -4,7 +4,6 @@ import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -36,16 +35,20 @@ public class CuentasSinJugadoresServiceImpl implements CuentasSinJugadoresServic
 	/** Valor de {@code tipo} de la notificación y del push. */
 	static final String TIPO = "CUENTA_SIN_JUGADORES";
 
-	private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
 	private final CuentaSinJugadoresDao dao;
 	private final NotificacionAppService notificacionAppService;
 	private final FcmPushService fcmPushService;
 	private final AvisosCuentaEmail email;
 	private final Clock clock;
+	private final TextosAvisos textos;
+	private final IdiomasUsuarios idiomas;
 
 	public CuentasSinJugadoresServiceImpl(CuentaSinJugadoresDao dao, NotificacionAppService notificacionAppService,
-			FcmPushService fcmPushService, AvisosCuentaEmail email, Clock clock) {
+			FcmPushService fcmPushService, AvisosCuentaEmail email, Clock clock, TextosAvisos textos,
+			IdiomasUsuarios idiomas) {
+		this.textos = textos;
+		this.idiomas = idiomas;
 		this.dao = dao;
 		this.notificacionAppService = notificacionAppService;
 		this.fcmPushService = fcmPushService;
@@ -142,9 +145,10 @@ public class CuentasSinJugadoresServiceImpl implements CuentasSinJugadoresServic
 		}
 
 		LocalDate desactivacion = fechaDesactivacion(fecha);
-		String titulo = "Tu cuenta se desactivará";
-		String mensaje = "No tienes ningún jugador activo vinculado a tu cuenta. Se desactivará el "
-				+ FECHA.format(desactivacion) + " si no vuelve a haber ninguno. Si es un error, escribe al club.";
+		String idioma = idiomas.idiomaDe(cuenta.id());
+		String titulo = textos.texto(idioma, "cuentaSinJugadores.titulo");
+		String mensaje = textos.texto(idioma, "cuentaSinJugadores.texto",
+				"fechaCompleta", textos.fechaCompleta(idioma, desactivacion));
 
 		try {
 			if (notificacionAppService.puedeRecibir(cuenta.id(), "COMUNICACION")) {
@@ -160,7 +164,7 @@ public class CuentasSinJugadoresServiceImpl implements CuentasSinJugadoresServic
 
 		if (cuenta.email() != null && !cuenta.email().isBlank()) {
 			try {
-				email.enviarAvisoCuentaSinJugadores(cuenta.email(), cuenta.nombre(), desactivacion);
+				email.enviarAvisoCuentaSinJugadores(cuenta.email(), cuenta.nombre(), desactivacion, idioma);
 			} catch (RuntimeException e) {
 				logger.error("No se ha podido enviar el email a la cuenta {}: {}", cuenta.id(), e.getMessage(), e);
 			}

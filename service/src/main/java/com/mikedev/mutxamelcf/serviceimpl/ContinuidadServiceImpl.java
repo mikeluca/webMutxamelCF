@@ -58,11 +58,15 @@ public class ContinuidadServiceImpl implements ContinuidadService {
 	private final NotificacionAppService notificacionAppService;
 	private final FcmPushService fcmPushService;
 	private final Clock clock;
+	private final TextosAvisos textos;
+	private final IdiomasUsuarios idiomas;
 
 	public ContinuidadServiceImpl(NuevaTemporadaService nuevaTemporadaService, JugadorTemporadaDao jugadorTemporadaDao,
 			CategoriaPorEdad categoriaPorEdad, PerfilAppDao perfilAppDao, UsuarioAppVinculoDao vinculoDao,
 			EquipoGestionDao equipoGestionDao, NotificacionAppService notificacionAppService,
-			FcmPushService fcmPushService, Clock clock) {
+			FcmPushService fcmPushService, Clock clock, TextosAvisos textos, IdiomasUsuarios idiomas) {
+		this.textos = textos;
+		this.idiomas = idiomas;
 		this.nuevaTemporadaService = nuevaTemporadaService;
 		this.jugadorTemporadaDao = jugadorTemporadaDao;
 		this.categoriaPorEdad = categoriaPorEdad;
@@ -211,17 +215,19 @@ public class ContinuidadServiceImpl implements ContinuidadService {
 		return avisadas;
 	}
 
-	/** Una notificación por cuenta con los nombres de todos sus jugadores. */
+	/** Una notificación por cuenta con los nombres de todos sus jugadores, en el idioma de la cuenta. */
 	private boolean avisarFamilia(Long cuenta, List<JugadorTemporada> filas, Temporada destino, boolean recordatorio) {
 		List<String> nombres = filas.stream().map(f -> f.getJugadorNombre() == null ? "" : f.getJugadorNombre().trim())
 				.toList();
 		String ids = filas.stream().map(f -> String.valueOf(f.getJugadorId())).collect(Collectors.joining(","));
 
-		String titulo = recordatorio ? "Recordatorio: continuidad en " + destino.getNombre()
-				: "Continuidad en " + destino.getNombre();
-		String pregunta = nombres.size() == 1 ? "¿Seguirá " + nombres.get(0) + " en la temporada " + destino.getNombre() + "?"
-				: "¿Seguirán " + unir(nombres) + " en la temporada " + destino.getNombre() + "?";
-		String mensaje = recordatorio ? "Aún no nos has contestado. " + pregunta : pregunta;
+		String idioma = idiomas.idiomaDe(cuenta);
+
+		String titulo = textos.texto(idioma, recordatorio ? "continuidad.recordatorio.titulo" : "continuidad.titulo",
+				"temporada", destino.getNombre());
+		String clave = "continuidad." + (recordatorio ? "recordatorio." : "") + (nombres.size() == 1 ? "uno" : "varios");
+		String mensaje = textos.texto(idioma, clave,
+				"nombres", textos.lista(idioma, nombres), "temporada", destino.getNombre());
 
 		Map<String, String> datos = new LinkedHashMap<>();
 		datos.put("pantalla", PANTALLA_FAMILIA);
@@ -230,14 +236,6 @@ public class ContinuidadServiceImpl implements ContinuidadService {
 		datos.put("jugadorIds", ids);
 
 		return enviar(cuenta, TIPO_FAMILIA, titulo, mensaje, destino.getId(), datos);
-	}
-
-	private static String unir(List<String> nombres) {
-		if (nombres.size() == 1) {
-			return nombres.get(0);
-		}
-
-		return String.join(", ", nombres.subList(0, nombres.size() - 1)) + " y " + nombres.get(nombres.size() - 1);
 	}
 
 	// ============================================================
@@ -304,8 +302,8 @@ public class ContinuidadServiceImpl implements ContinuidadService {
 
 		if (!limpia.equals(anterior) && ("NO_SIGUE".equals(limpia) || "DUDA".equals(limpia))) {
 			String nombre = aDto(fila, siguiente).nombre();
-			String categoria = fila.getCategoria() == null ? "" : " (" + fila.getCategoria() + ")";
-			despuesDelCommit(() -> avisarCoordinadores(jugadorId, nombre + categoria, siguiente, limpia));
+			String categoria = fila.getCategoria() == null ? "" : fila.getCategoria();
+			despuesDelCommit(() -> avisarCoordinadores(jugadorId, nombre, categoria, siguiente, limpia));
 		}
 
 		JugadorTemporada guardada = jugadorTemporadaDao.obtener(jugadorId, siguiente.getId());
@@ -313,12 +311,10 @@ public class ContinuidadServiceImpl implements ContinuidadService {
 		return aDto(guardada == null ? fila : guardada, siguiente);
 	}
 
-	private void avisarCoordinadores(Long jugadorId, String jugador, Temporada destino, String respuesta) {
+	private void avisarCoordinadores(Long jugadorId, String jugador, String categoria, Temporada destino,
+			String respuesta) {
 		boolean baja = "NO_SIGUE".equals(respuesta);
-		String titulo = baja ? "No seguirá: " + jugador : "Duda sobre la continuidad: " + jugador;
-		String mensaje = baja
-				? "Su familia ha respondido que no seguirá en " + destino.getNombre() + ". Confirma la baja en el asistente."
-				: "Su familia no sabe aún si seguirá en " + destino.getNombre() + ". Decide cuando lo sepas.";
+		String prefijo = baja ? "continuidad.noSigue" : "continuidad.duda";
 
 		Map<String, String> datos = new LinkedHashMap<>();
 		datos.put("pantalla", PANTALLA_COORDINADOR);
@@ -327,6 +323,14 @@ public class ContinuidadServiceImpl implements ContinuidadService {
 		datos.put("respuesta", respuesta);
 
 		for (Long coordinador : equipoGestionDao.obtenerCoordinadores()) {
+			String idioma = idiomas.idiomaDe(coordinador);
+
+			// Sin categoría, el título no lleva los paréntesis vacíos.
+			String titulo = textos.texto(idioma, prefijo + ".titulo", "jugador", jugador, "categoria", categoria);
+			titulo = categoria.isEmpty() ? titulo.replace(" ()", "") : titulo;
+
+			String mensaje = textos.texto(idioma, prefijo + ".texto", "temporada", destino.getNombre());
+
 			enviar(coordinador, TIPO_COORDINADOR, titulo, mensaje, jugadorId, datos);
 		}
 	}

@@ -72,6 +72,9 @@ class SesionEntrenamientoServiceImplTest {
 
     private SesionEntrenamientoServiceImpl service;
 
+    /** El idioma de cada cuenta (las que no salen aquí, castellano). */
+    private final java.util.Map<Long, String> idiomasPorUsuario = new java.util.HashMap<>();
+
     private static final Long USUARIO_ID = 1L;
     private static final Long EQUIPO_ID = 10L;
     private static final Long HORARIO_ID = 20L;
@@ -82,7 +85,7 @@ class SesionEntrenamientoServiceImplTest {
     void setUp() {
         service = new SesionEntrenamientoServiceImpl(sesionEntrenamientoDao, horarioEntrenamientoDao,
                 justificacionFaltaEntrenamientoDao, equipoGestionDao, usuarioAppVinculoDao, comunicacionService,
-                entrenamientoService, temporadaService, RELOJ);
+                entrenamientoService, temporadaService, RELOJ, AvisosTest.TEXTOS, AvisosTest.idiomas(idiomasPorUsuario));
     }
 
     /** Miércoles 21/10/2026, 12:00 en Madrid. */
@@ -115,7 +118,7 @@ class SesionEntrenamientoServiceImplTest {
         ArgumentCaptor<Comunicacion> captor = ArgumentCaptor.forClass(Comunicacion.class);
         verify(comunicacionService).crearPrivada(captor.capture(), eq(List.of(7L)), eq(USUARIO_ID));
         assertThat(captor.getValue().getContenido())
-                .isEqualTo("Pablo Gil ha retirado su justificación: asistirá al entrenamiento del 2026-10-21");
+                .isEqualTo("Pablo Gil ha retirado su justificación: vendrá al entrenamiento del miércoles 21/10.");
     }
 
     @Test
@@ -689,13 +692,19 @@ class SesionEntrenamientoServiceImplTest {
         var comunicacionCaptor = org.mockito.ArgumentCaptor.forClass(
                 com.mikedev.mutxamelcf.model.Comunicacion.class);
 
+        var pushCaptor = org.mockito.ArgumentCaptor.forClass(
+                com.mikedev.mutxamelcf.model.OpcionesPushComunicacion.class);
+
         verify(comunicacionService).crearPrivada(
-                comunicacionCaptor.capture(), eq(List.of(200L, 201L)), eq(USUARIO_ID));
+                comunicacionCaptor.capture(), eq(List.of(200L, 201L)), eq(USUARIO_ID), pushCaptor.capture());
 
         assertThat(comunicacionCaptor.getValue().getContenido())
                 .contains("Jugador Uno")
                 .contains("Alevín A")
-                .contains("Lesión");
+                .endsWith("\n\nMotivo: Lesión");
+        // El motivo solo va en la bandeja, nunca en el push.
+        assertThat(pushCaptor.getValue().contenidoPush()).contains("Jugador Uno").doesNotContain("Lesión")
+                .doesNotContain("Motivo");
     }
 
     @Test
@@ -820,5 +829,76 @@ class SesionEntrenamientoServiceImplTest {
                 USUARIO_ID, EQUIPO_ID, desde, hasta, JUGADOR_ID);
 
         assertThat(respuesta.get(0).getAsistencia()).isEqualTo("PRESENTE");
+    }
+
+    @Test
+    void laCancelacionSaleEnElIdiomaDeCadaCuentaConElMotivoLimpioEnLosDosCanales() {
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        when(sesionEntrenamientoDao.obtenerPorId(SESION_ID)).thenReturn(sesion(fecha,
+                SesionEntrenamiento.ESTADO_PROGRAMADA));
+        when(equipoGestionDao.puedeGestionarEquipo(USUARIO_ID, EQUIPO_ID)).thenReturn(true);
+        when(equipoGestionDao.obtenerNombreEquipo(EQUIPO_ID)).thenReturn("Alevin A");
+        when(equipoGestionDao.obtenerJugadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of(JUGADOR_ID));
+        when(equipoGestionDao.obtenerUsuariosPorJugador(JUGADOR_ID)).thenReturn(List.of(100L));
+        when(equipoGestionDao.obtenerUsuariosFamiliaresPorJugador(JUGADOR_ID)).thenReturn(List.of(200L, 201L));
+        idiomasPorUsuario.put(200L, "ca");
+        idiomasPorUsuario.put(201L, "en");
+
+        // Espacios y puntos finales sobrantes del motivo que escribe el entrenador.
+        service.cancelar(USUARIO_ID, SESION_ID, "  Lluvia intensa. . ");
+
+        org.mockito.ArgumentCaptor<com.mikedev.mutxamelcf.model.Comunicacion> avisos = org.mockito.ArgumentCaptor
+                .forClass(com.mikedev.mutxamelcf.model.Comunicacion.class);
+        verify(comunicacionService, org.mockito.Mockito.times(3)).crearPrivada(avisos.capture(), any(), eq(USUARIO_ID));
+
+        assertThat(avisos.getAllValues().get(0).getTitulo()).isEqualTo("Entrenamiento cancelado");
+        assertThat(avisos.getAllValues().get(0).getContenido()).isEqualTo("Se ha cancelado el entrenamiento de Alevin A"
+                + " del " + AvisosTest.TEXTOS.fecha("es", fecha) + " a las 18:00.\n\nMotivo: Lluvia intensa");
+        assertThat(avisos.getAllValues().get(1).getTitulo()).isEqualTo("Entrenament cancel·lat");
+        assertThat(avisos.getAllValues().get(1).getContenido()).isEqualTo("S'ha cancel·lat l'entrenament de Alevin A"
+                + " del " + AvisosTest.TEXTOS.fecha("ca", fecha) + " a les 18:00.\n\nMotiu: Lluvia intensa");
+        assertThat(avisos.getAllValues().get(2).getTitulo()).isEqualTo("Training cancelled");
+        assertThat(avisos.getAllValues().get(2).getContenido()).isEqualTo("The Alevin A training session on "
+                + AvisosTest.TEXTOS.fecha("en", fecha) + " at 18:00 has been cancelled.\n\nReason: Lluvia intensa");
+    }
+
+    private void prepararCancelacionConUnaCuenta(SesionEntrenamiento sesion) {
+        when(sesionEntrenamientoDao.obtenerPorId(SESION_ID)).thenReturn(sesion);
+        when(equipoGestionDao.puedeGestionarEquipo(USUARIO_ID, EQUIPO_ID)).thenReturn(true);
+        when(equipoGestionDao.obtenerNombreEquipo(EQUIPO_ID)).thenReturn("Alevin A");
+        when(equipoGestionDao.obtenerJugadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of(JUGADOR_ID));
+        when(equipoGestionDao.obtenerUsuariosPorJugador(JUGADOR_ID)).thenReturn(List.of(100L));
+        when(equipoGestionDao.obtenerUsuariosFamiliaresPorJugador(JUGADOR_ID)).thenReturn(List.of());
+    }
+
+    @Test
+    void laCancelacionDeUnaSesionSinHoraUsaElTextoSinHora() {
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        SesionEntrenamiento sinHora = sesion(fecha, SesionEntrenamiento.ESTADO_PROGRAMADA);
+        sinHora.setHora(null);
+        prepararCancelacionConUnaCuenta(sinHora);
+
+        service.cancelar(USUARIO_ID, SESION_ID, "Campo cerrado");
+
+        org.mockito.ArgumentCaptor<com.mikedev.mutxamelcf.model.Comunicacion> aviso = org.mockito.ArgumentCaptor
+                .forClass(com.mikedev.mutxamelcf.model.Comunicacion.class);
+        verify(comunicacionService).crearPrivada(aviso.capture(), eq(List.of(100L)), eq(USUARIO_ID));
+
+        assertThat(aviso.getValue().getContenido()).isEqualTo("Se ha cancelado el entrenamiento de Alevin A del "
+                + AvisosTest.TEXTOS.fecha("es", fecha) + ".\n\nMotivo: Campo cerrado");
+    }
+
+    @Test
+    void siDelMotivoSoloQuedanPuntosNoSeAnadeElParrafoDeMotivo() {
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        prepararCancelacionConUnaCuenta(sesion(fecha, SesionEntrenamiento.ESTADO_PROGRAMADA));
+
+        service.cancelar(USUARIO_ID, SESION_ID, " .. ");
+
+        org.mockito.ArgumentCaptor<com.mikedev.mutxamelcf.model.Comunicacion> aviso = org.mockito.ArgumentCaptor
+                .forClass(com.mikedev.mutxamelcf.model.Comunicacion.class);
+        verify(comunicacionService).crearPrivada(aviso.capture(), eq(List.of(100L)), eq(USUARIO_ID));
+
+        assertThat(aviso.getValue().getContenido()).doesNotContain("Motivo").doesNotContain("\n\n");
     }
 }

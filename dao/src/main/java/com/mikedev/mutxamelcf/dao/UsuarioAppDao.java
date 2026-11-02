@@ -1,7 +1,9 @@
 package com.mikedev.mutxamelcf.dao;
 
 import java.sql.Timestamp;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import com.mikedev.mutxamelcf.model.UsuarioApp;
 
@@ -87,4 +89,13 @@ public interface UsuarioAppDao {
      * FECHA_CAMBIO_PASSWORD.
      */
     void restablecerPassword(int id, String passwordHash, Timestamp ahora);
+
+    /** El idioma de la cuenta ("es", "ca" o "en"); "es" si la cuenta no existe. */
+    String obtenerIdioma(long id);
+
+    /** El idioma de cada cuenta indicada (las que no existen no aparecen en el mapa). */
+    Map<Long, String> obtenerIdiomas(Collection<Long> ids);
+
+    /** Guarda el idioma de la cuenta; cualquier valor que no sea "es", "ca" o "en" se guarda como "es". */
+    void actualizarIdioma(long id, String idioma);
 }

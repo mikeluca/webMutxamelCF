@@ -1,8 +1,13 @@
 package com.mikedev.mutxamelcf.dao.impl;
 
 import java.sql.Timestamp;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import com.mikedev.mutxamelcf.model.IdiomaApp;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -431,6 +436,51 @@ public class UsuarioAppDaoImpl implements UsuarioAppDao {
                 """;
 
         jdbcTemplate.update(sql, passwordHash, ahora, id);
+    }
+
+    @Override
+    public String obtenerIdioma(long id) {
+
+        List<String> idiomas = jdbcTemplate.queryForList(
+                "SELECT IDIOMA FROM USUARIOS_APP WHERE ID = ?", String.class, id);
+
+        return idiomas.isEmpty() ? IdiomaApp.ES : IdiomaApp.normalizar(idiomas.get(0));
+    }
+
+    @Override
+    public Map<Long, String> obtenerIdiomas(Collection<Long> ids) {
+
+        Map<Long, String> idiomas = new HashMap<>();
+
+        if (ids == null || ids.isEmpty()) {
+            return idiomas;
+        }
+
+        List<Long> lista = ids.stream().filter(id -> id != null).distinct().toList();
+
+        // Trozos de 500: Oracle admite como mucho 1000 valores en un IN.
+        for (int desde = 0; desde < lista.size(); desde += 500) {
+
+            List<Long> trozo = lista.subList(desde, Math.min(desde + 500, lista.size()));
+            String marcas = String.join(",", Collections.nCopies(trozo.size(), "?"));
+
+            jdbcTemplate.query(
+                    "SELECT ID, IDIOMA FROM USUARIOS_APP WHERE ID IN (" + marcas + ")",
+                    rs -> {
+                        idiomas.put(rs.getLong("ID"), IdiomaApp.normalizar(rs.getString("IDIOMA")));
+                    },
+                    trozo.toArray());
+        }
+
+        return idiomas;
+    }
+
+    @Override
+    public void actualizarIdioma(long id, String idioma) {
+
+        jdbcTemplate.update(
+                "UPDATE USUARIOS_APP SET IDIOMA = ? WHERE ID = ?",
+                IdiomaApp.normalizar(idioma), id);
     }
 
     private UsuarioApp mapearUsuario(

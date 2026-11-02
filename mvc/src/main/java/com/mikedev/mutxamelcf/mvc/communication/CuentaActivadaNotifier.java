@@ -49,7 +49,8 @@ public class CuentaActivadaNotifier {
             comunicacionesService.enviarCuentaActivada(
                     usuario.getEmail(),
                     usuarioAppService.obtenerNombreDePila(usuarioAppId),
-                    roles);
+                    roles,
+                    usuarioAppService.obtenerIdioma(usuarioAppId));
 
         } catch (Exception e) {
 

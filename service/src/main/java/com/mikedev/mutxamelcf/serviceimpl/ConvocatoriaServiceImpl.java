@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.BiFunction;
 
 @Service
 public class ConvocatoriaServiceImpl implements ConvocatoriaService {
@@ -51,6 +50,8 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
         private final InvitadosService invitadosService;
         private final EquipacionDao equipacionDao;
         private final java.time.Clock clock;
+        private final TextosAvisos textos;
+        private final IdiomasUsuarios idiomas;
 
         public ConvocatoriaServiceImpl(
                         ConvocatoriaDao convocatoriaDao,
@@ -62,7 +63,12 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         com.mikedev.mutxamelcf.dao.TemporadaDao temporadaDao,
                         InvitadosService invitadosService,
                         EquipacionDao equipacionDao,
-                        java.time.Clock clock) {
+                        java.time.Clock clock,
+                        TextosAvisos textos,
+                        IdiomasUsuarios idiomas) {
+
+                this.textos = textos;
+                this.idiomas = idiomas;
 
                 this.equipacionDao = equipacionDao;
                 this.invitadosService = invitadosService;
@@ -227,40 +233,30 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 String equipo = equipoGestionDao.obtenerNombreEquipo(
                                 convocatoria.getEquipoId());
 
-                String equipaje = fraseEquipaje(convocatoria);
+                Equipacion principal = equipacionPorId(convocatoria.getEquipacionId());
+                Equipacion mochila = equipacionPorId(convocatoria.getEquipacionMochilaId());
 
                 avisar(
                                 convocatoria,
                                 jugadoresIds,
-                                "Nueva convocatoria",
                                 TIPO_PUSH_CONVOCATORIA,
                                 true,
                                 null,
                                 null,
-                                (jugador, esJugador) -> TextosConvocatoria.conDucha((esJugador
-                                                ? "Has sido convocado con el equipo "
-                                                : jugador + " ha sido convocado con el equipo ")
-                                                + equipo
-                                                + " para el partido contra "
-                                                + convocatoria.getRival()
-                                                + " el día "
-                                                + textoFecha(convocatoria)
-                                                + " a las "
-                                                + textoOVacio(convocatoria.getHoraPartido())
-                                                + "h.\n\n"
-                                                + "La convocatoria es a las "
-                                                + textoOVacio(convocatoria.getHoraConvocatoria())
-                                                + "h en "
-                                                + textoOVacio(convocatoria.getLugarConvocatoria())
-                                                + "."
-                                                + (equipaje.isEmpty() ? "" : " " + equipaje)));
-        }
-
-        private String fraseEquipaje(Convocatoria convocatoria) {
-
-                return TextosConvocatoria.fraseEquipaje(
-                                equipacionPorId(convocatoria.getEquipacionId()),
-                                equipacionPorId(convocatoria.getEquipacionMochilaId()));
+                                (jugador, esJugador, idioma) -> new TextoAviso(
+                                                textos.texto(idioma, "convocatoria.nueva.titulo"),
+                                                TextosConvocatoria.componer(textos, idioma,
+                                                                textos.texto(idioma,
+                                                                                esJugador ? "convocatoria.nueva.jugador"
+                                                                                                : "convocatoria.nueva.familia",
+                                                                                "jugador", jugador,
+                                                                                "equipo", equipo,
+                                                                                "rival", textoOVacio(convocatoria.getRival()),
+                                                                                "fecha", textos.fecha(idioma, convocatoria.getFechaPartido()),
+                                                                                "hora", TextosConvocatoria.hora(textos, convocatoria.getHoraPartido()),
+                                                                                "horaCitacion", TextosConvocatoria.hora(textos, convocatoria.getHoraConvocatoria()),
+                                                                                "lugar", textoOVacio(convocatoria.getLugarConvocatoria())),
+                                                                TextosConvocatoria.parrafoEquipaje(textos, idioma, principal, mochila))));
         }
 
         private Equipacion equipacionPorId(Long id) {
@@ -318,15 +314,20 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
          * (no según el título): con convocatoriaId abre el detalle de la convocatoria, y
          * fechaPartido (yyyy-MM-dd) lleva al calendario en ese día.
          */
+        /** Genera el aviso para un jugador y un destinatario, en el idioma de este. */
+        @FunctionalInterface
+        private interface GeneradorAviso {
+                TextoAviso generar(String jugador, boolean esJugador, String idioma);
+        }
+
         private void avisar(
                         Convocatoria convocatoria,
                         Collection<Long> jugadoresIds,
-                        String titulo,
                         String tipoPush,
                         boolean conConvocatoriaId,
                         Long partidoAnteriorId,
                         java.time.LocalDate fechaPartidoPush,
-                        BiFunction<String, Boolean, String> mensaje) {
+                        GeneradorAviso mensaje) {
 
                 if (jugadoresIds.isEmpty()) {
                         return;
@@ -377,9 +378,13 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
                                 Comunicacion comunicacion = new Comunicacion();
 
-                                comunicacion.setTitulo(titulo);
-                                comunicacion.setContenido(
-                                                mensaje.apply(jugador, usuariosDirectos.contains(usuarioId)));
+                                TextoAviso aviso = mensaje.generar(
+                                                jugador,
+                                                usuariosDirectos.contains(usuarioId),
+                                                idiomas.idiomaDe(usuarioId));
+
+                                comunicacion.setTitulo(aviso.titulo());
+                                comunicacion.setContenido(aviso.contenido());
 
                                 Map<String, String> datosPush = new HashMap<>();
 
@@ -459,70 +464,88 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 avisar(
                                 convocatoria,
                                 quitados,
-                                "Convocatoria actualizada",
                                 TIPO_PUSH_CONVOCATORIA,
                                 false,
                                 !Objects.equals(antes.partidoId(), convocatoria.getPartidoId()) ? antes.partidoId() : null,
                                 antes.fechaPartido(),
-                                (jugador, esJugador) -> (esJugador
-                                                ? "Ya no estás convocado"
-                                                : jugador + " ya no está convocado")
-                                                + " para el partido contra "
-                                                + antes.rival()
-                                                + " ("
-                                                + (antes.fechaPartido() != null ? antes.fechaPartido() : "")
-                                                + ")");
+                                (jugador, esJugador, idioma) -> new TextoAviso(
+                                                textos.texto(idioma, "convocatoria.quitado.titulo"),
+                                                textos.texto(idioma,
+                                                                esJugador ? "convocatoria.quitado.jugador"
+                                                                                : "convocatoria.quitado.familia",
+                                                                "jugador", jugador,
+                                                                "rival", textoOVacio(antes.rival()),
+                                                                "fecha", textos.fecha(idioma, antes.fechaPartido()))));
 
-                List<String> cambios = new ArrayList<>();
-
-                if (!Objects.equals(antes.horaConvocatoria(), convocatoria.getHoraConvocatoria())) {
-                        cambios.add("nueva hora de citación " + textoOVacio(convocatoria.getHoraConvocatoria()));
-                }
-
-                if (!Objects.equals(antes.lugarConvocatoria(), convocatoria.getLugarConvocatoria())) {
-                        cambios.add("nuevo lugar " + textoOVacio(convocatoria.getLugarConvocatoria()));
-                }
-
-                if (!Objects.equals(antes.partidoId(), convocatoria.getPartidoId())) {
-                        cambios.add("nuevo partido el " + textoFecha(convocatoria)
-                                        + " a las " + textoOVacio(convocatoria.getHoraPartido()) + "h");
-                }
-
+                boolean cambiaHora = !Objects.equals(antes.horaConvocatoria(), convocatoria.getHoraConvocatoria());
+                boolean cambiaLugar = !Objects.equals(antes.lugarConvocatoria(), convocatoria.getLugarConvocatoria());
+                boolean cambiaPartido = !Objects.equals(antes.partidoId(), convocatoria.getPartidoId());
                 boolean cambiaElEquipaje = !Objects.equals(antes.equipacionId(), convocatoria.getEquipacionId())
                                 || !Objects.equals(antes.equipacionMochilaId(), convocatoria.getEquipacionMochilaId());
 
-                // Con hora, lugar o partido distintos en la misma edición, un solo aviso que lo diga todo.
-                String titulo = cambios.isEmpty() ? "Cambio de equipaje" : "Cambio en la convocatoria";
-                String equipaje = "";
-
-                if (cambiaElEquipaje) {
-
-                        cambios.add("cambio de equipaje");
-
-                        equipaje = fraseEquipaje(convocatoria);
-                        equipaje = " " + (equipaje.isEmpty() ? "Ya no hay equipaje indicado." : equipaje);
-                }
-
-                if (cambios.isEmpty()) {
+                if (!cambiaHora && !cambiaLugar && !cambiaPartido && !cambiaElEquipaje) {
                         return;
                 }
 
-                String textoCambios = String.join(" / ", cambios) + (cambiaElEquipaje ? "." : "") + equipaje;
+                Equipacion principal = equipacionPorId(convocatoria.getEquipacionId());
+                Equipacion mochila = equipacionPorId(convocatoria.getEquipacionMochilaId());
+
+                // Con hora, lugar o partido distintos en la misma edición, un solo aviso que lo diga todo.
+                String claveTitulo = cambiaHora || cambiaLugar || cambiaPartido
+                                ? "convocatoria.cambio.titulo"
+                                : "convocatoria.cambioEquipaje.titulo";
 
                 avisar(
                                 convocatoria,
                                 avisarCambio,
-                                titulo,
                                 TIPO_PUSH_CONVOCATORIA,
                                 true,
                                 null,
                                 null,
-                                (jugador, esJugador) -> TextosConvocatoria.conDucha((esJugador
-                                                ? "Cambio en la convocatoria del partido contra "
-                                                : "Cambio en la convocatoria de " + jugador + " del partido contra ")
-                                                + convocatoria.getRival()
-                                                + ": "
-                                                + textoCambios));
+                                (jugador, esJugador, idioma) -> {
+
+                                        List<String> cambios = new ArrayList<>();
+
+                                        if (cambiaHora) {
+                                                cambios.add(textos.texto(idioma, "cambio.hora",
+                                                                "hora", TextosConvocatoria.hora(textos, convocatoria.getHoraConvocatoria())));
+                                        }
+
+                                        if (cambiaLugar) {
+                                                cambios.add(textos.texto(idioma, "cambio.lugar",
+                                                                "lugar", textoOVacio(convocatoria.getLugarConvocatoria())));
+                                        }
+
+                                        if (cambiaPartido) {
+                                                cambios.add(textos.texto(idioma, "cambio.partido",
+                                                                "fecha", textos.fecha(idioma, convocatoria.getFechaPartido()),
+                                                                "hora", TextosConvocatoria.hora(textos, convocatoria.getHoraPartido())));
+                                        }
+
+                                        if (cambiaElEquipaje) {
+                                                cambios.add(textos.texto(idioma, "cambio.equipaje"));
+                                        }
+
+                                        String equipaje = "";
+
+                                        if (cambiaElEquipaje) {
+                                                equipaje = TextosConvocatoria.parrafoEquipaje(textos, idioma, principal, mochila);
+
+                                                if (equipaje.isEmpty()) {
+                                                        equipaje = textos.texto(idioma, "equipaje.ninguno");
+                                                }
+                                        }
+
+                                        String base = textos.texto(idioma,
+                                                        esJugador ? "convocatoria.cambio.jugador" : "convocatoria.cambio.familia",
+                                                        "jugador", jugador,
+                                                        "rival", textoOVacio(convocatoria.getRival()),
+                                                        "cambios", String.join("; ", cambios));
+
+                                        return new TextoAviso(
+                                                        textos.texto(idioma, claveTitulo),
+                                                        TextosConvocatoria.componer(textos, idioma, base, equipaje));
+                                });
         }
 
         /* Lo que se compara al editar: la convocatoria tal como estaba antes del PUT. */
@@ -712,7 +735,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                  * avisa al cuerpo técnico.
                  */
                 if (nuevosIds == null && cambiaElPartido) {
-                        quitarJustificadosDelPartidoNuevo(convocatoria, partido.getId(), actuales, usuarioAppId);
+                        quitarJustificadosDelPartidoNuevo(convocatoria, partido, actuales, usuarioAppId);
                 }
 
                 if (nuevosIds != null) {
@@ -953,19 +976,18 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                 avisar(
                                 convocatoria,
                                 convocados,
-                                "Convocatoria anulada",
                                 TIPO_PUSH_CONVOCATORIA,
                                 false,
                                 null,
                                 null,
-                                (jugador, esJugador) -> (esJugador
-                                                ? "Se ha anulado la convocatoria del partido contra "
-                                                : "Se ha anulado la convocatoria de " + jugador
-                                                                + " del partido contra ")
-                                                + convocatoria.getRival()
-                                                + " ("
-                                                + textoFecha(convocatoria)
-                                                + ")");
+                                (jugador, esJugador, idioma) -> new TextoAviso(
+                                                textos.texto(idioma, "convocatoria.anulada.titulo"),
+                                                textos.texto(idioma,
+                                                                esJugador ? "convocatoria.anulada.jugador"
+                                                                                : "convocatoria.anulada.familia",
+                                                                "jugador", jugador,
+                                                                "rival", textoOVacio(convocatoria.getRival()),
+                                                                "fecha", textos.fecha(idioma, convocatoria.getFechaPartido()))));
         }
 
         /*
@@ -1094,14 +1116,14 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
 
         private void quitarJustificadosDelPartidoNuevo(
                         Convocatoria convocatoria,
-                        Long partidoNuevoId,
+                        Partido partidoNuevo,
                         List<ConvocatoriaJugador> actuales,
                         Long usuarioAppId) {
 
                 Set<Long> justificados = new HashSet<>();
 
                 for (JustificacionFaltaPartido justificacion : justificacionFaltaPartidoDao
-                                .obtenerPorPartido(partidoNuevoId)) {
+                                .obtenerPorPartido(partidoNuevo.getId())) {
 
                         justificados.add(justificacion.getJugadorId());
                 }
@@ -1138,14 +1160,20 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                         return;
                 }
 
-                Comunicacion comunicacion = new Comunicacion();
+                String rival = textoOVacio(partidoNuevo.getRival());
 
-                comunicacion.setTitulo("Convocatoria actualizada");
-                comunicacion.setContenido(
-                                "Se han quitado de la convocatoria por ausencia justificada: "
-                                                + String.join(", ", nombres));
+                idiomas.porIdioma(destinatarios, (idioma, ids) -> {
 
-                comunicacionService.crearPrivada(comunicacion, destinatarios, usuarioAppId);
+                        Comunicacion comunicacion = new Comunicacion();
+
+                        comunicacion.setTitulo(textos.texto(idioma, "convocatoria.quitadosAusencia.titulo"));
+                        comunicacion.setContenido(
+                                        textos.texto(idioma, "convocatoria.quitadosAusencia.texto",
+                                                        "rival", rival,
+                                                        "nombres", textos.lista(idioma, nombres)));
+
+                        comunicacionService.crearPrivada(comunicacion, ids, usuarioAppId);
+                });
         }
 
         /*

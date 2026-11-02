@@ -1129,6 +1129,16 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
     }
 
     @Override
+    public String obtenerIdioma(int usuarioAppId) {
+        return usuarioAppDao.obtenerIdioma(usuarioAppId);
+    }
+
+    @Override
+    public void actualizarIdioma(int usuarioAppId, String idioma) {
+        usuarioAppDao.actualizarIdioma(usuarioAppId, idioma);
+    }
+
+    @Override
     public String obtenerNombreDePila(int usuarioAppId) {
 
         for (VinculoUsuarioApp vinculo : usuarioAppVinculoDao.obtenerVinculos(usuarioAppId)) {

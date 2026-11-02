@@ -118,7 +118,7 @@ class ModeracionTransaccionalTest {
                     new ReporteComunicacionDaoImpl(jdbcTemplate), comunicacionDao, comunicacionService,
                     usuarioAppService, equipoGestionDao, mock(DispositivoAppDao.class), mock(FcmPushService.class),
                     Clock.fixed(LocalDateTime.of(2026, 10, 21, 12, 0).atZone(ZoneId.of("Europe/Madrid")).toInstant(),
-                            ZoneId.of("Europe/Madrid")));
+                            ZoneId.of("Europe/Madrid")), AvisosTest.TEXTOS, AvisosTest.idiomas());
         }
     }
 

@@ -49,6 +49,7 @@ class RecuperacionContrasenaTest {
     void setUp() {
         usuarioAppService = mock(UsuarioAppService.class);
         comunicaciones = mock(ComunicacionesService.class);
+        when(usuarioAppService.obtenerIdioma(anyInt())).thenReturn("es");
         reenvio = mock(ReenvioActivacion.class);
         RecuperacionContrasena recuperacion = new RecuperacionContrasena(
                 usuarioAppService, comunicaciones, reenvio,
@@ -103,11 +104,11 @@ class RecuperacionContrasenaTest {
             assertThat(respuesta.getHeaders()).isEqualTo(inexistente.getHeaders());
         }
 
-        verify(comunicaciones).enviarCodigoRecuperacion("ana@example.com", null, "123456", 30);
+        verify(comunicaciones).enviarCodigoRecuperacion("ana@example.com", null, "123456", 30, "es");
         verify(comunicaciones, never()).enviarCodigoRecuperacion(
-                org.mockito.ArgumentMatchers.eq("off@example.com"), any(), anyString(), anyInt());
+                org.mockito.ArgumentMatchers.eq("off@example.com"), any(), anyString(), anyInt(), any());
         verify(comunicaciones, never()).enviarCodigoRecuperacion(
-                org.mockito.ArgumentMatchers.eq("nuevo@example.com"), any(), anyString(), anyInt());
+                org.mockito.ArgumentMatchers.eq("nuevo@example.com"), any(), anyString(), anyInt(), any());
         verify(usuarioAppService, never()).generarCodigoRecuperacion(1);
         verify(usuarioAppService, never()).generarCodigoRecuperacion(2);
     }
@@ -184,7 +185,7 @@ class RecuperacionContrasenaTest {
 
         InOrder orden = inOrder(usuarioAppService, comunicaciones);
         orden.verify(usuarioAppService).restablecerPassword("ana@example.com", "123456", "nueva-clave-1");
-        orden.verify(comunicaciones).enviarContrasenaCambiada("ana@example.com", "Ana");
+        orden.verify(comunicaciones).enviarContrasenaCambiada("ana@example.com", "Ana", "es");
     }
 
     @Test
@@ -201,8 +202,39 @@ class RecuperacionContrasenaTest {
 
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(respuesta.getBody()).isEqualTo("Código incorrecto o caducado");
-        verify(comunicaciones, never()).enviarContrasenaCambiada(anyString(), any());
+        verify(comunicaciones, never()).enviarContrasenaCambiada(anyString(), any(), any());
         verify(usuarioAppService, never()).login(anyString(), anyString());
+    }
+
+    @Test
+    void elCodigoSaleEnElIdiomaQueMandaLaPeticionYSiNoEnElDeLaCuenta() {
+        when(usuarioAppService.obtenerPorEmail("ana@example.com")).thenReturn(cuenta(3, "ana@example.com", true, true));
+        when(usuarioAppService.generarCodigoRecuperacion(3)).thenReturn("123456");
+        when(usuarioAppService.obtenerIdioma(3)).thenReturn("ca");
+
+        RecuperarPasswordRequest conIdioma = new RecuperarPasswordRequest();
+        conIdioma.setEmail("ana@example.com");
+        conIdioma.setIdioma("en");
+        controller.recuperar(conIdioma, http("1.1.1.1"));
+
+        verify(comunicaciones).enviarCodigoRecuperacion("ana@example.com", null, "123456", 30, "en");
+
+        // Sin idioma en la petición (otra cuenta: el límite es por email): el idioma guardado de la cuenta.
+        when(usuarioAppService.obtenerPorEmail("pau@example.com")).thenReturn(cuenta(4, "pau@example.com", true, true));
+        when(usuarioAppService.generarCodigoRecuperacion(4)).thenReturn("654321");
+        when(usuarioAppService.obtenerIdioma(4)).thenReturn("ca");
+
+        controller.recuperar(sinIdioma("pau@example.com"), http("1.1.1.2"));
+
+        verify(comunicaciones).enviarCodigoRecuperacion("pau@example.com", null, "654321", 30, "ca");
+        // La petición no es de confianza: no cambia el idioma guardado de la cuenta.
+        verify(usuarioAppService, never()).actualizarIdioma(anyInt(), anyString());
+    }
+
+    private static RecuperarPasswordRequest sinIdioma(String email) {
+        RecuperarPasswordRequest request = new RecuperarPasswordRequest();
+        request.setEmail(email);
+        return request;
     }
 
     @Test
@@ -223,7 +255,7 @@ class RecuperacionContrasenaTest {
 
         verify(usuarioAppService, org.mockito.Mockito.times(5)).generarCodigoRecuperacion(3);
         verify(comunicaciones, org.mockito.Mockito.times(5)).enviarCodigoRecuperacion(
-                anyString(), any(), anyString(), anyInt());
+                anyString(), any(), anyString(), anyInt(), any());
     }
 
     @Test

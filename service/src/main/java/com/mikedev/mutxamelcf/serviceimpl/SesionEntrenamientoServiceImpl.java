@@ -21,7 +21,6 @@ import com.mikedev.mutxamelcf.dao.HorarioEntrenamientoDao;
 import com.mikedev.mutxamelcf.dao.JustificacionFaltaEntrenamientoDao;
 import com.mikedev.mutxamelcf.dao.SesionEntrenamientoDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
-import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.HorarioEntrenamiento;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaEntrenamiento;
 import com.mikedev.mutxamelcf.model.TemporadaDTO;
@@ -50,6 +49,8 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
     private final EntrenamientoService entrenamientoService;
     private final TemporadaService temporadaService;
     private final Clock clock;
+    private final TextosAvisos textos;
+    private final IdiomasUsuarios idiomas;
     private final LimitadorAvisos limitadorAvisos;
 
     /** Como mucho un aviso del mismo tipo por jugador y sesión en este tiempo. */
@@ -66,7 +67,12 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
             ComunicacionService comunicacionService,
             EntrenamientoService entrenamientoService,
             TemporadaService temporadaService,
-            Clock clock) {
+            Clock clock,
+            TextosAvisos textos,
+            IdiomasUsuarios idiomas) {
+
+        this.textos = textos;
+        this.idiomas = idiomas;
 
         this.clock = clock;
         this.limitadorAvisos = new LimitadorAvisos(clock, INTERVALO_AVISOS);
@@ -349,17 +355,10 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
 
         String equipo = equipoGestionDao.obtenerNombreEquipo(sesion.getEquipoId());
 
-        String fecha = sesion.getFecha() != null ? sesion.getFecha().toString() : "";
+        // El motivo lo escribe el entrenador y va en la bandeja y en el push, sin espacios ni puntos finales sobrantes.
+        String motivo = TextosAvisos.sinPuntoFinal(sesion.getMotivoCancelacion());
 
-        String titulo = "Entrenamiento cancelado";
-
-        String mensaje = "El entrenamiento del equipo "
-                + equipo
-                + " del día "
-                + fecha
-                + " ha sido cancelado. Motivo: "
-                + sesion.getMotivoCancelacion()
-                + ".";
+        boolean conHora = sesion.getHora() != null && !sesion.getHora().isBlank();
 
         List<Long> jugadoresEquipo = equipoGestionDao.obtenerJugadoresPorEquipo(sesion.getEquipoId());
 
@@ -374,14 +373,18 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
 
             for (Long usuarioId : destinatariosUnicos) {
 
-                Comunicacion comunicacion = new Comunicacion();
-                comunicacion.setTitulo(titulo);
-                comunicacion.setContenido(mensaje);
+                idiomas.crearPrivadaPorIdioma(comunicacionService, List.of(usuarioId), usuarioAppId, null,
+                        idioma -> {
+                            String base = conHora
+                                    ? textos.texto(idioma, "entrenamientoCancelado.texto",
+                                            "equipo", equipo, "fecha", textos.fecha(idioma, sesion.getFecha()),
+                                            "hora", TextosConvocatoria.hora(textos, sesion.getHora()))
+                                    : textos.texto(idioma, "entrenamientoCancelado.textoSinHora",
+                                            "equipo", equipo, "fecha", textos.fecha(idioma, sesion.getFecha()));
 
-                comunicacionService.crearPrivada(
-                        comunicacion,
-                        List.of(usuarioId),
-                        usuarioAppId);
+                            return new TextoAviso(textos.texto(idioma, "entrenamientoCancelado.titulo"),
+                                    textos.conMotivo(idioma, base, motivo));
+                        });
             }
         }
     }
@@ -570,21 +573,15 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
 
         String equipo = equipoGestionDao.obtenerNombreEquipo(sesion.getEquipoId());
         String jugador = equipoGestionDao.obtenerNombreJugador(jugadorId);
-        String fecha = sesion.getFecha() != null ? sesion.getFecha().toString() : "";
 
-        Comunicacion comunicacion = new Comunicacion();
+        // El motivo lo escribe la familia: solo en la bandeja, nunca en el push.
+        idiomas.crearPrivadaPorIdioma(comunicacionService, entrenadores, usuarioAppId, null, idioma -> {
+            String base = textos.texto(idioma, "faltaJustificada.texto",
+                    "jugador", jugador, "equipo", equipo, "fecha", textos.fecha(idioma, sesion.getFecha()));
 
-        comunicacion.setTitulo("Falta justificada");
-
-        comunicacion.setContenido(
-                jugador
-                        + " ("
-                        + equipo
-                        + ") ha justificado su falta al entrenamiento del día "
-                        + fecha
-                        + (motivo != null && !motivo.isBlank() ? ". Motivo: " + motivo + "." : "."));
-
-        comunicacionService.crearPrivada(comunicacion, entrenadores, usuarioAppId);
+            return new TextoAviso(textos.texto(idioma, "faltaJustificada.titulo"),
+                    textos.conMotivo(idioma, base, motivo), base);
+        });
     }
 
     @Override
@@ -687,15 +684,13 @@ public class SesionEntrenamientoServiceImpl implements SesionEntrenamientoServic
         }
 
         String jugador = equipoGestionDao.obtenerNombreJugador(jugadorId);
-        String fecha = sesion.getFecha() != null ? sesion.getFecha().toString() : "";
 
         // Sin motivo: ni en el contenido ni en el push (se ve en la pantalla bloqueada).
-        Comunicacion comunicacion = new Comunicacion();
-
-        comunicacion.setTitulo("Justificación retirada");
-        comunicacion.setContenido(jugador + " ha retirado su justificación: asistirá al entrenamiento del " + fecha);
-
-        comunicacionService.crearPrivada(comunicacion, entrenadores, usuarioAppId);
+        idiomas.crearPrivadaPorIdioma(comunicacionService, entrenadores, usuarioAppId, null,
+                idioma -> new TextoAviso(
+                        textos.texto(idioma, "justificacionRetirada.titulo"),
+                        textos.texto(idioma, "justificacionRetirada.texto",
+                                "jugador", jugador, "fecha", textos.fecha(idioma, sesion.getFecha()))));
     }
 
     @Override

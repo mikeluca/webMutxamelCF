@@ -1,16 +1,21 @@
 package com.mikedev.mutxamelcf.serviceimpl;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.dao.NotificacionAppDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppDao;
+import com.mikedev.mutxamelcf.model.IdiomaApp;
 import com.mikedev.mutxamelcf.model.NotificacionApp;
 import com.mikedev.mutxamelcf.model.NotificacionAppResponse;
 import com.mikedev.mutxamelcf.model.NotificacionesNoLeidasResponse;
+import com.mikedev.mutxamelcf.model.TextoDifusion;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
 import com.mikedev.mutxamelcf.service.FcmPushService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
@@ -193,11 +198,16 @@ public class NotificacionAppServiceImpl
         @Override
         public void difundirATodos(
                         String tipo,
-                        String titulo,
-                        String mensaje,
+                        Function<String, TextoDifusion> texto,
                         Long referenciaId) {
 
                 List<UsuarioApp> usuarios = usuarioAppDao.listarTodos();
+
+                Map<Long, String> idiomas = usuarioAppDao.obtenerIdiomas(
+                                usuarios.stream().map(u -> (long) u.getId()).toList());
+
+                // Los textos se generan una vez por idioma, no una vez por cuenta.
+                Map<String, TextoDifusion> textos = new HashMap<>();
 
                 for (UsuarioApp usuario : usuarios) {
 
@@ -211,13 +221,16 @@ public class NotificacionAppServiceImpl
                                 continue;
                         }
 
-                        crear(usuarioId, tipo, titulo, mensaje, referenciaId);
+                        String idioma = IdiomaApp.normalizar(idiomas.get(usuarioId));
+                        TextoDifusion t = textos.computeIfAbsent(idioma, texto);
+
+                        crear(usuarioId, tipo, t.titulo(), t.mensaje(), referenciaId);
 
                         fcmPushService.enviarNotificacionAUsuario(
                                         usuarioId,
                                         tipo,
-                                        titulo,
-                                        mensaje,
+                                        t.titulo(),
+                                        t.mensaje(),
                                         referenciaId);
                 }
         }

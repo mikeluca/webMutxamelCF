@@ -78,7 +78,7 @@ class PartidoEstadisticaServiceImplTest {
                 partidoDao, estadisticaJugadorDao, equipoGestionDao, convocatoriaDao, convocatoriaJugadorDao,
                 temporadaDao, resumenTemporadaDao, comunicacionService, new ReglaSancionAmarillas(5, 1),
                 org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class),
-                java.time.Clock.systemDefaultZone());
+                java.time.Clock.systemDefaultZone(), AvisosTest.TEXTOS, AvisosTest.idiomas());
     }
 
     private static Date fechaHaceDias(long dias) {
@@ -356,7 +356,7 @@ class PartidoEstadisticaServiceImplTest {
         service.guardar(USUARIO_ID, PARTIDO_ID, conAmarillas(1, false));
 
         assertThat(avisoEnviado().getContenido())
-                .isEqualTo("Pablo acumula 4 amarillas: a una de posible sanción.");
+                .isEqualTo("Pablo lleva 4 amarillas: con una más, posible sanción.");
     }
 
     @Test
@@ -395,7 +395,7 @@ class PartidoEstadisticaServiceImplTest {
         service.guardar(USUARIO_ID, PARTIDO_ID, conAmarillas(0, true));
 
         assertThat(avisoEnviado().getContenido())
-                .isEqualTo("Pablo ha visto la roja en el partido contra Rival CF: posible sanción.");
+                .isEqualTo("Pablo ha visto la roja en el partido contra Rival CF: posible sanción. Compruébalo en la FFCV.");
     }
 
     @Test
@@ -470,7 +470,7 @@ class PartidoEstadisticaServiceImplTest {
 
         // Una única comunicación, no una por jugador.
         assertThat(avisoEnviado().getContenido()).isEqualTo(
-                "Pablo acumula 4 amarillas: a una de posible sanción.\n"
+                "Pablo lleva 4 amarillas: con una más, posible sanción.\n"
                         + "Luis llega a 5 amarillas: posible sanción. Compruébalo en la FFCV.");
     }
 

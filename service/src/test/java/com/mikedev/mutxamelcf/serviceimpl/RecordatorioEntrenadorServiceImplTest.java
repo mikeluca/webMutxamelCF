@@ -91,7 +91,7 @@ class RecordatorioEntrenadorServiceImplTest {
 		when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO)).thenReturn(List.of(50L, 51L));
 
 		service = new RecordatorioEntrenadorServiceImpl(
-				partidoDao, convocatoriaDao, equipoGestionDao, comunicacionService, reloj);
+				partidoDao, convocatoriaDao, equipoGestionDao, comunicacionService, reloj, AvisosTest.TEXTOS, AvisosTest.idiomas());
 	}
 
 	private Partido partido(LocalDate dia, String hora) {
@@ -137,7 +137,7 @@ class RecordatorioEntrenadorServiceImplTest {
 				opciones.capture());
 
 		assertThat(aviso.getValue().getContenido())
-				.isEqualTo("Recuerda publicar la convocatoria del partido contra Pego C.F. (24/10/2026 11:00)");
+				.isEqualTo("Coordinación te recuerda que publiques la convocatoria del partido contra Pego C.F. del sábado 24/10 a las 11:00.");
 		assertThat(opciones.getValue().datos())
 				.containsEntry("tipo", "CONVOCATORIA_PENDIENTE")
 				.containsEntry("equipoId", "10")
@@ -189,7 +189,7 @@ class RecordatorioEntrenadorServiceImplTest {
 				opciones.capture());
 
 		assertThat(aviso.getValue().getContenido())
-				.isEqualTo("Falta el resultado del partido contra Pego C.F. (18/10/2026)");
+				.isEqualTo("Coordinación te recuerda que introduzcas el resultado del partido contra Pego C.F. del domingo 18/10.");
 		assertThat(opciones.getValue().datos())
 				.containsEntry("tipo", "RESULTADO_PENDIENTE")
 				.containsEntry("partidoId", "30");

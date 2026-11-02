@@ -17,8 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
-import com.mikedev.mutxamelcf.model.Comunicacion;
-import com.mikedev.mutxamelcf.model.OpcionesPushComunicacion;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.RecordatorioEntrenadorService;
@@ -36,6 +34,8 @@ public class RecordatorioEntrenadorServiceImpl implements RecordatorioEntrenador
 	private final EquipoGestionDao equipoGestionDao;
 	private final ComunicacionService comunicacionService;
 	private final Clock clock;
+	private final TextosAvisos textos;
+	private final IdiomasUsuarios idiomas;
 
 	/** Cuándo se envió el último recordatorio de cada partido y tipo. En memoria: se pierde al reiniciar. */
 	private final Map<String, LocalDateTime> ultimos = new ConcurrentHashMap<>();
@@ -45,7 +45,12 @@ public class RecordatorioEntrenadorServiceImpl implements RecordatorioEntrenador
 			ConvocatoriaDao convocatoriaDao,
 			EquipoGestionDao equipoGestionDao,
 			ComunicacionService comunicacionService,
-			Clock clock) {
+			Clock clock,
+			TextosAvisos textos,
+			IdiomasUsuarios idiomas) {
+
+		this.textos = textos;
+		this.idiomas = idiomas;
 
 		this.partidoDao = partidoDao;
 		this.convocatoriaDao = convocatoriaDao;
@@ -131,28 +136,31 @@ public class RecordatorioEntrenadorServiceImpl implements RecordatorioEntrenador
 		}
 
 		LocalDate dia = PlazoJustificacionPartido.dia(partido);
-		String fecha = dia == null ? "sin fecha" : FECHA.format(dia);
-		String hora = partido.getHora() == null || partido.getHora().isBlank() ? "" : " " + partido.getHora().trim();
+		String rival = partido.getRival();
+		boolean conHora = partido.getHora() != null && !partido.getHora().isBlank();
 
-		Comunicacion comunicacion = new Comunicacion();
-
-		Map<String, String> datos;
-
-		if (esConvocatoria) {
-			comunicacion.setTitulo("Convocatoria pendiente");
-			comunicacion.setContenido("Recuerda publicar la convocatoria del partido contra "
-					+ partido.getRival() + " (" + fecha + hora + ")");
-			datos = datosPush(PUSH_CONVOCATORIA_PENDIENTE, partido, dia);
-		} else {
-			comunicacion.setTitulo("Resultado pendiente");
-			comunicacion.setContenido("Falta el resultado del partido contra " + partido.getRival() + " (" + fecha + ")");
-			datos = datosPush(PUSH_RESULTADO_PENDIENTE, partido, dia);
-		}
+		Map<String, String> datos = esConvocatoria
+				? datosPush(PUSH_CONVOCATORIA_PENDIENTE, partido, dia)
+				: datosPush(PUSH_RESULTADO_PENDIENTE, partido, dia);
 
 		// El remitente es el coordinador que lo pide.
 		try {
-			comunicacionService.crearPrivada(comunicacion, entrenadores, usuarioAppId,
-					new OpcionesPushComunicacion(null, datos));
+			idiomas.crearPrivadaPorIdioma(comunicacionService, entrenadores, usuarioAppId, datos, idioma -> {
+
+				String fecha = textos.fecha(idioma, dia);
+
+				if (!esConvocatoria) {
+					return new TextoAviso(textos.texto(idioma, "recordatorioResultado.titulo"),
+							textos.texto(idioma, "recordatorioResultado.texto", "rival", rival, "fecha", fecha));
+				}
+
+				return new TextoAviso(textos.texto(idioma, "recordatorioConvocatoria.titulo"),
+						conHora
+								? textos.texto(idioma, "recordatorioConvocatoria.texto", "rival", rival,
+										"fecha", fecha, "hora", TextosConvocatoria.hora(textos, partido.getHora()))
+								: textos.texto(idioma, "recordatorioConvocatoria.textoSinHora", "rival", rival,
+										"fecha", fecha));
+			});
 		} catch (RuntimeException e) {
 			// Si no se ha enviado no gasta el límite (solo se libera si la reserva sigue siendo la nuestra).
 			ultimos.remove(clave, ahora);

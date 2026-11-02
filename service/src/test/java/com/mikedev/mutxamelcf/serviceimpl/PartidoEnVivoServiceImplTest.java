@@ -46,6 +46,7 @@ import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse;
 import com.mikedev.mutxamelcf.model.Partido;
+import com.mikedev.mutxamelcf.model.TextoDifusion;
 import com.mikedev.mutxamelcf.model.PartidoEstadisticaJugador;
 import com.mikedev.mutxamelcf.service.FcmPushService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
@@ -164,7 +165,22 @@ class PartidoEnVivoServiceImplTest {
         service = new PartidoEnVivoServiceImpl(
                 eventoDao, partidoDao, equipoDao, equipoGestionDao, convocatoriaDao,
                 convocatoriaJugadorDao, estadisticaDao, notificacionAppService, usuarioAppService, fcmPushService,
-                reloj);
+                reloj, AvisosTest.TEXTOS);
+    }
+
+    /** Las difusiones a todos hechas hasta ahora (en orden), como las verían las cuentas del idioma. */
+    @SuppressWarnings("unchecked")
+    private List<TextoDifusion> todasLasDifusiones(String idioma) {
+        ArgumentCaptor<java.util.function.Function<String, TextoDifusion>> captor = ArgumentCaptor
+                .forClass(java.util.function.Function.class);
+        verify(notificacionAppService, org.mockito.Mockito.atLeast(0)).difundirATodos(eq("RESULTADO"), captor.capture(),
+                isNull());
+        return captor.getAllValues().stream().map(f -> f.apply(idioma)).toList();
+    }
+
+    private TextoDifusion difusion(String idioma, int posicion) {
+        List<TextoDifusion> todas = todasLasDifusiones(idioma);
+        return todas.get(posicion < 0 ? todas.size() + posicion : posicion);
     }
 
     private static Partido partido(Long id, String rival, LocalDate dia, String hora) {
@@ -192,7 +208,7 @@ class PartidoEnVivoServiceImplTest {
         assertThatThrownBy(() -> service.obtenerPartidosDisponibles(USUARIO))
                 .isInstanceOf(SecurityException.class);
 
-        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any());
     }
 
     @Test
@@ -241,7 +257,7 @@ class PartidoEnVivoServiceImplTest {
         assertThatThrownBy(() -> service.enviarGolContra(USUARIO, PARTIDO))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any());
         verify(fcmPushService, never()).enviarATopic(any(), any(), any());
     }
 
@@ -403,9 +419,9 @@ class PartidoEnVivoServiceImplTest {
         EstadoPartidoEnVivoResponse estado = service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
 
         assertThat(estado.golesFavor()).isEqualTo(1);
-        // Y solo se difundió una vez.
-        verify(notificacionAppService, times(1)).difundirATodos(eq("RESULTADO"), org.mockito.ArgumentMatchers.startsWith("⚽ ¡GOOOL del Mutxamel CF!"),
-                any(), isNull());
+        // Y solo se difundió una vez (inicio del partido + un gol).
+        assertThat(todasLasDifusiones("es")).extracting(TextoDifusion::titulo)
+                .containsExactly("⚽ ¡Empieza el partido!", "⚽ ¡GOOOL del Mutxamel CF!");
     }
 
     @Test
@@ -527,12 +543,16 @@ class PartidoEnVivoServiceImplTest {
 
         service.deshacer(USUARIO, PARTIDO, conGol.ultimoEventoDeshacible().id());
 
-        ArgumentCaptor<String> mensaje = ArgumentCaptor.forClass(String.class);
-        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), eq("↩️ Gol anulado"), mensaje.capture(),
-                isNull());
-        verify(fcmPushService).enviarATopic(eq("resultados"), eq("↩️ Gol anulado"), eq(mensaje.getValue()));
+        TextoDifusion anulado = todasLasDifusiones("es").stream()
+                .filter(t -> t.titulo().equals("↩️ Gol anulado")).findFirst().orElseThrow();
 
-        assertThat(mensaje.getValue()).isEqualTo("Gol anulado. Mutxamel CF 0 - 1 Pego C.F.");
+        assertThat(anulado.mensaje()).isEqualTo("Se anula el último gol. Mutxamel CF 0 - 1 Pego C.F.");
+        verify(fcmPushService).enviarATopic("resultados_es", "↩️ Gol anulado", anulado.mensaje());
+        verify(fcmPushService).enviarATopic("resultados_ca", "↩️ Gol anul·lat",
+                "S'anul·la l'últim gol. Mutxamel CF 0 - 1 Pego C.F.");
+        verify(fcmPushService).enviarATopic("resultados_en", "↩️ Goal disallowed",
+                "The last goal has been disallowed. Mutxamel CF 0 - 1 Pego C.F.");
+        verify(fcmPushService).enviarATopic("resultados", "↩️ Gol anulado", anulado.mensaje());
     }
 
     @Test
@@ -544,7 +564,7 @@ class PartidoEnVivoServiceImplTest {
                 descanso.ultimoEventoDeshacible().id());
 
         assertThat(estado.fase()).isEqualTo(EstadoPartidoEnVivoResponse.PRIMERA_PARTE);
-        verify(notificacionAppService, never()).difundirATodos(any(), eq("↩️ Gol anulado"), any(), any());
+        assertThat(todasLasDifusiones("es")).extracting(TextoDifusion::titulo).doesNotContain("↩️ Gol anulado");
     }
 
     // ---- difusión ------------------------------------------------------------------------
@@ -554,12 +574,17 @@ class PartidoEnVivoServiceImplTest {
         empezarPartido();
         service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
 
-        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), eq("⚽ ¡Comienza el partido!"),
-                eq("Mutxamel CF - Pego C.F."), isNull());
-        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), org.mockito.ArgumentMatchers.startsWith("⚽ ¡GOOOL del Mutxamel CF!"),
-                eq("Pablo Garcia (1')\n\nMutxamel CF 1 - 0 Pego C.F."), isNull());
-        verify(fcmPushService).enviarATopic(eq("resultados"), org.mockito.ArgumentMatchers.startsWith("⚽ ¡GOOOL del Mutxamel CF!"),
-                eq("Pablo Garcia (1')\n\nMutxamel CF 1 - 0 Pego C.F."));
+        assertThat(difusion("es", 0)).isEqualTo(
+                new TextoDifusion("⚽ ¡Empieza el partido!", "Mutxamel CF - Pego C.F."));
+        assertThat(difusion("es", 1)).isEqualTo(new TextoDifusion("⚽ ¡GOOOL del Mutxamel CF!",
+                "Pablo Garcia (1')\n\nMutxamel CF 1 - 0 Pego C.F."));
+
+        // El mismo gol, en un topic por idioma (el marcador no cambia) y, en castellano, en el antiguo.
+        String marcador = "Pablo Garcia (1')\n\nMutxamel CF 1 - 0 Pego C.F.";
+        verify(fcmPushService).enviarATopic("resultados_es", "⚽ ¡GOOOL del Mutxamel CF!", marcador);
+        verify(fcmPushService).enviarATopic("resultados_ca", "⚽ GOOOL del Mutxamel CF!", marcador);
+        verify(fcmPushService).enviarATopic("resultados_en", "⚽ GOAL for Mutxamel CF!", marcador);
+        verify(fcmPushService).enviarATopic("resultados", "⚽ ¡GOOOL del Mutxamel CF!", marcador);
     }
 
     @Test
@@ -571,10 +596,10 @@ class PartidoEnVivoServiceImplTest {
 
         service.enviarFinalPartido(USUARIO, PARTIDO);
 
-        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), eq("🏁 Final del partido"),
-                eq("Mutxamel CF 2 - 0 Pego C.F.\n\nGoleadores: Pablo Garcia, Gol en propia puerta del rival"
-                        + "\n\nHa finalizado el partido."),
-                isNull());
+        assertThat(difusion("es", -1)).isEqualTo(new TextoDifusion("🏁 Final del partido",
+                "Mutxamel CF 2 - 0 Pego C.F.\n\nGoleadores: Pablo Garcia, Gol en propia puerta del rival"));
+        assertThat(difusion("ca", -1).mensaje()).isEqualTo(
+                "Mutxamel CF 2 - 0 Pego C.F.\n\nGolejadors: Pablo Garcia, Gol en pròpia porta del rival");
     }
 
     // ---- final: guarda el resultado -------------------------------------------------------
@@ -847,7 +872,7 @@ class PartidoEnVivoServiceImplTest {
         PartidoEnVivoServiceImpl otro = new PartidoEnVivoServiceImpl(
                 eventoDao, partidoDao, equipoDao, equipoGestionDao, convocatoriaDao,
                 convocatoriaJugadorDao, estadisticaDao, notificacionAppService, usuarioAppService, fcmPushService,
-                tardeEnMadrid);
+                tardeEnMadrid, AvisosTest.TEXTOS);
 
         assertThatThrownBy(() -> otro.enviarInicioPartido(USUARIO, PARTIDO))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -859,8 +884,8 @@ class PartidoEnVivoServiceImplTest {
     void laAlineacionSeSigueDifundiendoSinPartido() {
         service.enviarAlineacion(USUARIO, "1, 2, 3", "4, 5");
 
-        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), eq("📋 Alineación del Mutxamel CF"),
-                eq("Once inicial: 1, 2, 3\n\nSuplentes: 4, 5"), isNull());
+        assertThat(difusion("es", 0)).isEqualTo(new TextoDifusion("📋 Alineación del Mutxamel CF",
+                "Once inicial: 1, 2, 3\n\nSuplentes: 4, 5"));
     }
 
     // ---- bloqueo del partido y segundos restantes ------------------------------------------
@@ -1116,8 +1141,9 @@ class PartidoEnVivoServiceImplTest {
 
         service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
 
-        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), eq("⚽ ¡GOOOL del Mutxamel CF!"),
-                eq("Pablo Garcia (23')\n\nMutxamel CF 1 - 0 Pego C.F."), isNull());
+        assertThat(difusion("es", -1).titulo()).isEqualTo("⚽ ¡GOOOL del Mutxamel CF!");
+        assertThat(difusion("es", -1).mensaje()).isEqualTo("Pablo Garcia (23')\n\nMutxamel CF 1 - 0 Pego C.F.");
+        assertThat(difusion("en", -1).mensaje()).isEqualTo("Pablo Garcia (23')\n\nMutxamel CF 1 - 0 Pego C.F.");
     }
 
     @Test
@@ -1127,8 +1153,10 @@ class PartidoEnVivoServiceImplTest {
 
         service.enviarGolContra(USUARIO, PARTIDO);
 
-        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), eq("Gol en contra"),
-                eq("Minuto 10'\n\nMutxamel CF 0 - 1 Pego C.F."), isNull());
+        assertThat(difusion("es", -1)).isEqualTo(
+                new TextoDifusion("Gol del rival", "Minuto 10'\n\nMutxamel CF 0 - 1 Pego C.F."));
+        assertThat(difusion("ca", -1).titulo()).isEqualTo("Gol del rival");
+        assertThat(difusion("en", -1).titulo()).isEqualTo("Opponent goal");
     }
 
     // ---- corregir el minuto -------------------------------------------------------------
@@ -1147,7 +1175,7 @@ class PartidoEnVivoServiceImplTest {
 
         assertThat(estado.eventos()).filteredOn(e -> e.id().equals(idPrimero)).singleElement()
                 .satisfies(e -> assertThat(e.minuto()).isEqualTo(12));
-        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any());
         verify(fcmPushService, never()).enviarATopic(any(), any(), any());
     }
 

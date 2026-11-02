@@ -118,6 +118,8 @@ class JustificacionFaltaPartidoServiceImplTest {
     private Partido partido;
     private Convocatoria convocatoria;
     private JustificacionFaltaPartidoServiceImpl service;
+    /** El idioma de cada cuenta (las que no salen aquí, castellano). */
+    private final java.util.Map<Long, String> idiomasPorUsuario = new java.util.HashMap<>();
 
     @BeforeEach
     void setUp() {
@@ -156,7 +158,7 @@ class JustificacionFaltaPartidoServiceImplTest {
 
         service = new JustificacionFaltaPartidoServiceImpl(
                 justificacionDao, partidoDao, convocatoriaDao, convocatoriaJugadorDao, equipoGestionDao,
-                vinculoDao, comunicacionService, reloj);
+                vinculoDao, comunicacionService, reloj, AvisosTest.TEXTOS, AvisosTest.idiomas(idiomasPorUsuario));
     }
 
     private static JustificacionFaltaRequest peticion(Long jugadorId, String motivo) {
@@ -380,7 +382,7 @@ class JustificacionFaltaPartidoServiceImplTest {
         Aviso aviso = unicoAviso();
 
         assertThat(aviso.push().contenidoPush())
-                .isEqualTo("Jugador 100 no podrá jugar el partido contra Pego C.F. (24/10/2026). Ausencia justificada.");
+                .isEqualTo("Jugador 100 no podrá jugar el partido contra Pego C.F. del sábado 24/10.");
         // El motivo solo se lee dentro de la app.
         assertThat(aviso.comunicacion().getContenido()).contains(MOTIVO_SECRETO);
         assertThat(aviso.push().contenidoPush()).doesNotContain("cita");
@@ -410,10 +412,9 @@ class JustificacionFaltaPartidoServiceImplTest {
 
         Aviso aviso = unicoAviso();
 
-        // El rival ya termina en punto ("Pego C.F."): el texto del aviso añade el suyo.
         assertThat(aviso.push().contenidoPush()).isEqualTo(
-                "Jugador 100 está convocado y ha justificado su ausencia para el partido contra Pego C.F."
-                        + ". Edita la convocatoria para sustituirlo.");
+                "Jugador 100 está en la convocatoria y no podrá jugar el partido contra Pego C.F. del sábado 24/10."
+                        + " Edita la convocatoria para poner a otro jugador en su lugar.");
         assertThat(aviso.push().datos())
                 .containsEntry("tipo", "CONVOCATORIA_EDITAR")
                 .containsEntry("convocatoriaId", String.valueOf(CONVOCATORIA));
@@ -447,8 +448,8 @@ class JustificacionFaltaPartidoServiceImplTest {
         Aviso aviso = unicoAviso();
 
         assertThat(aviso.push().contenidoPush()).isEqualTo(
-                "Jugador 100 ha justificado su ausencia y se ha quitado de la convocatoria del partido contra"
-                        + " Pego C.F. (no quedan más jugadores disponibles).");
+                "Jugador 100 no podrá jugar el partido contra Pego C.F. del sábado 24/10 y se ha quitado de la"
+                        + " convocatoria: no quedan más jugadores disponibles.");
         assertThat(aviso.push().contenidoPush()).doesNotContain("cita");
         assertThat(aviso.push().datos().toString()).doesNotContain("cita");
         assertThat(aviso.comunicacion().getContenido()).contains(MOTIVO_SECRETO);
@@ -512,7 +513,8 @@ class JustificacionFaltaPartidoServiceImplTest {
         Aviso aviso = unicoAviso();
 
         assertThat(aviso.push().contenidoPush()).isEqualTo(
-                "Jugador 100 ya puede jugar el partido contra Pego C.F.; no se ha añadido a la convocatoria.");
+                "Jugador 100 ya puede jugar el partido contra Pego C.F. del sábado 24/10. No se ha añadido a la"
+                        + " convocatoria: si cuentas con Jugador 100, edítala.");
         assertThat(aviso.comunicacion().getContenido()).doesNotContain("cita");
     }
 
@@ -786,7 +788,7 @@ class JustificacionFaltaPartidoServiceImplTest {
         verify(comunicacionService, times(1)).crearPrivada(any(), any(), anyLong(), any());
 
         Aviso aviso = new Aviso(capturaComunicacion.getValue(), capturaPush.getValue());
-        assertThat(aviso.comunicacion().getTitulo()).isEqualTo("Invitado no disponible");
+        assertThat(aviso.comunicacion().getTitulo()).isEqualTo("Un invitado no puede ir");
         assertThat(aviso.comunicacion().getContenido()).contains("Jugador 100 no podrá jugar con Cadete A")
                 .contains("Puedes convocar a otro jugador en su lugar").contains(MOTIVO_SECRETO);
         // El motivo nunca va en el push.
@@ -835,5 +837,37 @@ class JustificacionFaltaPartidoServiceImplTest {
                 .containsExactly(
                         org.assertj.core.groups.Tuple.tuple(100L, "Examen"),
                         org.assertj.core.groups.Tuple.tuple(101L, "Viaje"));
+    }
+
+    // ---- un destinatario en cada idioma --------------------------------------------------------
+
+    @Test
+    void laAusenciaSaleEnElIdiomaDeCadaEntrenadorConElMotivoSoloEnLaBandejaYSinTraducirlo() {
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO)).thenReturn(List.of(ENTRENADOR, 56L, 57L));
+        idiomasPorUsuario.put(56L, "ca");
+        idiomasPorUsuario.put(57L, "en");
+
+        justificar(JUGADOR, MOTIVO_SECRETO);
+
+        ArgumentCaptor<Comunicacion> comunicaciones = ArgumentCaptor.forClass(Comunicacion.class);
+        ArgumentCaptor<List<Long>> destinatarios = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<OpcionesPushComunicacion> pushes = ArgumentCaptor.forClass(OpcionesPushComunicacion.class);
+        verify(comunicacionService, times(3)).crearPrivada(comunicaciones.capture(), destinatarios.capture(),
+                eq(USUARIO), pushes.capture());
+
+        // Una comunicación por idioma, cada una con los entrenadores de ese idioma.
+        assertThat(destinatarios.getAllValues()).containsExactly(List.of(ENTRENADOR), List.of(56L), List.of(57L));
+        assertThat(comunicaciones.getAllValues()).extracting(Comunicacion::getTitulo)
+                .containsExactly("Ausencia justificada", "Absència justificada", "Justified absence");
+        assertThat(comunicaciones.getAllValues()).extracting(Comunicacion::getContenido).containsExactly(
+                "Jugador 100 no podrá jugar el partido contra Pego C.F. del sábado 24/10.\n\nMotivo: " + MOTIVO_SECRETO,
+                "Jugador 100 no podrà jugar el partit contra Pego C.F. del dissabte 24/10.\n\nMotiu: " + MOTIVO_SECRETO,
+                "Jugador 100 won't be able to play the match against Pego C.F. on Saturday 24/10.\n\nReason: "
+                        + MOTIVO_SECRETO);
+        // El push lleva el texto sin el motivo (que se escribió en un idioma y no se traduce).
+        assertThat(pushes.getAllValues()).extracting(OpcionesPushComunicacion::contenidoPush).containsExactly(
+                "Jugador 100 no podrá jugar el partido contra Pego C.F. del sábado 24/10.",
+                "Jugador 100 no podrà jugar el partit contra Pego C.F. del dissabte 24/10.",
+                "Jugador 100 won't be able to play the match against Pego C.F. on Saturday 24/10.");
     }
 }

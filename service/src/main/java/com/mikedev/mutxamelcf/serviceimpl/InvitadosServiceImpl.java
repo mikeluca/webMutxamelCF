@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -33,7 +34,7 @@ import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.dao.TemporadaDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppDao;
 import com.mikedev.mutxamelcf.model.CategoriaEdad;
-import com.mikedev.mutxamelcf.model.Comunicacion;
+import com.mikedev.mutxamelcf.model.Equipacion;
 import com.mikedev.mutxamelcf.model.ConflictoInvitacionException;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
@@ -51,7 +52,6 @@ import com.mikedev.mutxamelcf.model.JugadorInvitableResponse;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaPartido;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaPartidoResponse;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaRequest;
-import com.mikedev.mutxamelcf.model.OpcionesPushComunicacion;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.Temporada;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
@@ -107,6 +107,8 @@ public class InvitadosServiceImpl implements InvitadosService {
     private final ReglaInvitados regla;
     private final EquipacionDao equipacionDao;
     private final Clock clock;
+    private final TextosAvisos textos;
+    private final IdiomasUsuarios idiomas;
 
     public InvitadosServiceImpl(
             ConvocatoriaJugadorDao convocatoriaJugadorDao,
@@ -123,7 +125,11 @@ public class InvitadosServiceImpl implements InvitadosService {
             JustificacionFaltaPartidoService justificacionService,
             ReglaInvitados regla,
             EquipacionDao equipacionDao,
-            Clock clock) {
+            Clock clock,
+            TextosAvisos textos,
+            IdiomasUsuarios idiomas) {
+        this.textos = textos;
+        this.idiomas = idiomas;
         this.equipacionDao = equipacionDao;
 
         this.convocatoriaJugadorDao = convocatoriaJugadorDao;
@@ -366,7 +372,7 @@ public class InvitadosServiceImpl implements InvitadosService {
         if (fila.getEstadoInvitacion() == EstadoInvitacion.AUTORIZADO
                 || fila.getEstadoInvitacion() == EstadoInvitacion.PENDIENTE_ENTRENADOR) {
 
-            anular(fila, convocatoria, partido, "Ya no estás convocado", " ya no está convocado");
+            anular(fila, convocatoria, partido, "invitacion.anulada.quitado.titulo");
         }
     }
 
@@ -515,15 +521,19 @@ public class InvitadosServiceImpl implements InvitadosService {
 
         String jugador = equipoGestionDao.obtenerNombreJugador(fila.getJugadorId());
         String equipo = equipoGestionDao.obtenerNombreEquipo(convocatoria.getEquipoId());
-        String contexto = " para el partido de " + equipo + " contra " + partido.getRival() + " (" + textoFecha(partido)
-                + ")";
+                String motivoRechazo = fila.getMotivoRechazo();
 
         avisar(destinatarioInvitador(fila, convocatoria), usuarioAppId,
-                "Invitación rechazada",
-                "Coordinación ha rechazado a " + jugador + contexto + "." + (fila.getMotivoRechazo() != null
-                        ? " Motivo: " + fila.getMotivoRechazo() : "") + " Elige a otro jugador.",
-                "Coordinación ha rechazado a " + jugador + contexto + ". Elige a otro jugador.",
-                datos(TIPO_RECHAZADA, convocatoria, partido, fila));
+                datos(TIPO_RECHAZADA, convocatoria, partido, fila),
+                idioma -> {
+                    String base = textos.texto(idioma, "invitacion.rechazada.texto",
+                            "jugador", jugador, "equipo", equipo, "rival", textoOVacio(partido.getRival()),
+                            "fecha", fecha(idioma, partido));
+
+                    // El motivo lo escribe coordinación: solo en la bandeja, nunca en el push.
+                    return new TextoAviso(textos.texto(idioma, "invitacion.rechazada.titulo"),
+                            textos.conMotivo(idioma, base, motivoRechazo), base);
+                });
 
         return respuesta(fila);
     }
@@ -574,14 +584,16 @@ public class InvitadosServiceImpl implements InvitadosService {
                 .findFirst()
                 .ifPresent(propia -> data.put("convocatoriaOrigenId", String.valueOf(propia.getConvocatoriaId())));
 
-        avisar(destinatariosEquipo(fila.getEquipoOrigenId()), actorId,
-                "Libera a un jugador para otro equipo",
-                jugador + " ha sido invitado por " + destino + " para el partido contra " + partido.getRival() + " ("
-                        + textoFecha(partido) + ") y coincide con un partido de " + origen + " ese día, donde lo tienes"
-                        + " convocado. Si puede jugar con " + destino + ", quítalo de tu convocatoria para liberarlo.",
-                jugador + " ha sido invitado por " + destino + " el " + textoFecha(partido)
-                        + " y coincide con tu partido. Libéralo de tu convocatoria si puede jugar con ellos.",
-                data);
+        avisar(destinatariosEquipo(fila.getEquipoOrigenId()), actorId, data,
+                idioma -> {
+                    Map<String, String> p = Map.of("destino", destino, "jugador", jugador,
+                            "rival", textoOVacio(partido.getRival()), "fecha", fecha(idioma, partido),
+                            "origen", origen);
+
+                    return new TextoAviso(textos.texto(idioma, "invitacion.liberar.titulo"),
+                            textos.texto(idioma, "invitacion.liberar.texto", p),
+                            textos.texto(idioma, "invitacion.liberar.push", p));
+                });
     }
 
     private enum AvisoEntrenadorOrigen {
@@ -605,47 +617,50 @@ public class InvitadosServiceImpl implements InvitadosService {
 
         Map<String, String> data = datos(TIPO_AUTORIZADA, convocatoria, partido, fila);
 
-        String detalle = " para el partido contra " + partido.getRival() + " el " + textoFecha(partido) + " a las "
-                + textoOVacio(partido.getHora()) + "h.";
+        Equipacion principal = convocatoria.getEquipacionId() == null ? null
+                : equipacionDao.obtenerPorId(convocatoria.getEquipacionId());
+        Equipacion mochila = convocatoria.getEquipacionMochilaId() == null ? null
+                : equipacionDao.obtenerPorId(convocatoria.getEquipacionMochilaId());
 
-        String equipaje = TextosConvocatoria.fraseEquipaje(
-                convocatoria.getEquipacionId() == null ? null : equipacionDao.obtenerPorId(convocatoria.getEquipacionId()),
-                convocatoria.getEquipacionMochilaId() == null ? null
-                        : equipacionDao.obtenerPorId(convocatoria.getEquipacionMochilaId()));
+        Set<Long> directos = Set.copyOf(equipoGestionDao.obtenerUsuariosPorJugador(fila.getJugadorId()));
 
         for (Long usuarioId : usuariosDelJugador(fila.getJugadorId())) {
 
-            boolean esJugador = equipoGestionDao.obtenerUsuariosPorJugador(fila.getJugadorId()).contains(usuarioId);
+            boolean esJugador = directos.contains(usuarioId);
 
-            String texto = TextosConvocatoria.conDucha((esJugador ? "Has sido convocado" : jugador + " ha sido convocado")
-                    + " con " + destino + detalle + "\n\nLa convocatoria es a las "
-                    + textoOVacio(convocatoria.getHoraConvocatoria()) + "h en "
-                    + textoOVacio(convocatoria.getLugarConvocatoria()) + "."
-                    + (equipaje.isEmpty() ? "" : " " + equipaje));
-
-            avisar(List.of(usuarioId), actorId, "Convocado con otro equipo", texto, texto,
-                    datosConvocatoria(convocatoria, partido));
+            avisar(List.of(usuarioId), actorId, datosConvocatoria(convocatoria, partido),
+                    idioma -> new TextoAviso(
+                            textos.texto(idioma, "invitacion.convocado.titulo"),
+                            TextosConvocatoria.componer(textos, idioma,
+                                    textos.texto(idioma,
+                                            esJugador ? "invitacion.convocado.jugador" : "invitacion.convocado.familia",
+                                            "jugador", jugador, "destino", destino,
+                                            "rival", textoOVacio(partido.getRival()),
+                                            "fecha", fecha(idioma, partido),
+                                            "hora", TextosConvocatoria.hora(textos, partido.getHora()),
+                                            "horaCitacion", TextosConvocatoria.hora(textos, convocatoria.getHoraConvocatoria()),
+                                            "lugar", textoOVacio(convocatoria.getLugarConvocatoria())),
+                                    TextosConvocatoria.parrafoEquipaje(textos, idioma, principal, mochila))));
         }
 
         if (aviso == AvisoEntrenadorOrigen.AUTORIZADA) {
 
-            avisar(destinatariosEquipo(fila.getEquipoOrigenId()), actorId,
-                    "Jugador convocado con otro equipo",
-                    jugador + " jugará con " + destino + " el partido contra " + partido.getRival() + " ("
-                            + textoFecha(partido) + ").",
-                    jugador + " jugará con " + destino + " el " + textoFecha(partido) + ".",
-                    data);
+            avisar(destinatariosEquipo(fila.getEquipoOrigenId()), actorId, data,
+                    idioma -> new TextoAviso(
+                            textos.texto(idioma, "invitacion.autorizadaOrigen.titulo"),
+                            textos.texto(idioma, "invitacion.autorizadaOrigen.texto",
+                                    "jugador", jugador, "destino", destino,
+                                    "rival", textoOVacio(partido.getRival()), "fecha", fecha(idioma, partido))));
 
         } else if (aviso == AvisoEntrenadorOrigen.INFORMATIVA) {
 
             avisar(destinatariosEquipo(fila.getEquipoOrigenId()), actorId,
-                    "Jugador convocado con otro equipo el día de tu partido",
-                    jugador + " jugará con " + destino + " el partido contra " + partido.getRival() + " ("
-                            + textoFecha(partido) + "). Ese día " + origen + " también juega y no lo tenías"
-                            + " convocado: ya no podrás convocarlo.",
-                    jugador + " jugará con " + destino + " el " + textoFecha(partido)
-                            + ". Ya no podrás convocarlo ese día.",
-                    datos(TIPO_INFORMATIVA, convocatoria, partido, fila));
+                    datos(TIPO_INFORMATIVA, convocatoria, partido, fila),
+                    idioma -> new TextoAviso(
+                            textos.texto(idioma, "invitacion.informativa.titulo"),
+                            textos.texto(idioma, "invitacion.informativa.texto",
+                                    "jugador", jugador, "destino", destino, "origen", origen,
+                                    "rival", textoOVacio(partido.getRival()), "fecha", fecha(idioma, partido))));
         }
     }
 
@@ -687,7 +702,8 @@ public class InvitadosServiceImpl implements InvitadosService {
             }
         }
 
-        quitarDeLaConvocatoriaDeOrigen(fila, dia, usuarioAppId);
+        quitarDeLaConvocatoriaDeOrigen(fila, dia, usuarioAppId,
+                equipoGestionDao.obtenerNombreEquipo(convocatoria.getEquipoId()));
 
         autorizar(fila, convocatoria, partido, usuarioAppId, AvisoEntrenadorOrigen.NINGUNO);
 
@@ -697,19 +713,19 @@ public class InvitadosServiceImpl implements InvitadosService {
             String destino = equipoGestionDao.obtenerNombreEquipo(convocatoria.getEquipoId());
 
             avisar(destinatariosEquipo(fila.getEquipoOrigenId()), usuarioAppId,
-                    "Coordinación ha liberado a un jugador",
-                    "Coordinación ha liberado a " + jugador + " para que juegue con " + destino + " el "
-                            + textoFecha(partido) + " y lo ha quitado de tu convocatoria.",
-                    "Coordinación ha liberado a " + jugador + " para jugar con " + destino + " el "
-                            + textoFecha(partido) + ".",
-                    datos(TIPO_LIBERADA_COORDINACION, convocatoria, partido, fila));
+                    datos(TIPO_LIBERADA_COORDINACION, convocatoria, partido, fila),
+                    idioma -> new TextoAviso(
+                            textos.texto(idioma, "invitacion.liberadaCoordinacion.titulo"),
+                            textos.texto(idioma, "invitacion.liberadaCoordinacion.texto",
+                                    "jugador", jugador, "destino", destino, "fecha", fecha(idioma, partido))));
         }
 
         return respuesta(fila);
     }
 
     /* Lo quita de la convocatoria de su equipo ese día y avisa a su familia de que ya no está convocado con él. */
-    private void quitarDeLaConvocatoriaDeOrigen(ConvocatoriaJugador invitacion, LocalDate dia, Long actorId) {
+    private void quitarDeLaConvocatoriaDeOrigen(ConvocatoriaJugador invitacion, LocalDate dia, Long actorId,
+            String destino) {
 
         if (dia == null) {
             return;
@@ -727,19 +743,25 @@ public class InvitadosServiceImpl implements InvitadosService {
             Partido partidoOrigen = convocatoriaOrigen == null ? null
                     : partidoDao.obtenerPorId(convocatoriaOrigen.getPartidoId());
 
+            // Una fila propia siempre cuelga de una convocatoria con partido; sin él no hay nada que contar.
+            if (partidoOrigen == null) {
+                continue;
+            }
+
+            Set<Long> directos = Set.copyOf(equipoGestionDao.obtenerUsuariosPorJugador(invitacion.getJugadorId()));
+
             for (Long usuarioId : usuariosDelJugador(invitacion.getJugadorId())) {
 
-                boolean esJugador = equipoGestionDao.obtenerUsuariosPorJugador(invitacion.getJugadorId())
-                        .contains(usuarioId);
+                boolean esJugador = directos.contains(usuarioId);
 
-                String texto = (esJugador ? "Ya no estás convocado" : jugador + " ya no está convocado") + " con " + origen
-                        + (partidoOrigen != null ? " para el partido contra " + partidoOrigen.getRival() + " ("
-                                + textoFecha(partidoOrigen) + ")" : "")
-                        + ": va a jugar con otro equipo ese día.";
-
-                avisar(List.of(usuarioId), actorId, "Convocatoria actualizada", texto, texto,
-                        partidoOrigen != null ? datosConvocatoria(convocatoriaOrigen, partidoOrigen)
-                                : Map.of("tipo", TIPO_PUSH_CONVOCATORIA, "fechaPartido", dia.toString()));
+                avisar(List.of(usuarioId), actorId, datosConvocatoria(convocatoriaOrigen, partidoOrigen),
+                        idioma -> new TextoAviso(
+                                textos.texto(idioma, "invitacion.liberado.titulo"),
+                                textos.texto(idioma,
+                                        esJugador ? "invitacion.liberado.jugador" : "invitacion.liberado.familia",
+                                        "jugador", jugador, "origen", origen, "destino", destino,
+                                        "rival", textoOVacio(partidoOrigen.getRival()),
+                                        "fecha", fecha(idioma, partidoOrigen))));
             }
         }
     }
@@ -920,7 +942,7 @@ public class InvitadosServiceImpl implements InvitadosService {
             if (fila.isInvitado() && (fila.getEstadoInvitacion() == EstadoInvitacion.AUTORIZADO
                     || fila.getEstadoInvitacion() == EstadoInvitacion.PENDIENTE_ENTRENADOR)) {
 
-                anular(fila, convocatoria, partido, "Se ha anulado la convocatoria", " ha perdido la convocatoria");
+                anular(fila, convocatoria, partido, "invitacion.anulada.borrada.titulo");
             }
         }
     }
@@ -940,7 +962,7 @@ public class InvitadosServiceImpl implements InvitadosService {
             if (fila.isInvitado() && (fila.getEstadoInvitacion() == EstadoInvitacion.AUTORIZADO
                     || fila.getEstadoInvitacion() == EstadoInvitacion.PENDIENTE_ENTRENADOR)) {
 
-                anular(fila, convocatoria, partido, "Partido cancelado o anulado", " ya no juega el partido");
+                anular(fila, convocatoria, partido, "invitacion.anulada.cancelado.titulo");
             }
         }
     }
@@ -949,20 +971,18 @@ public class InvitadosServiceImpl implements InvitadosService {
      * Avisa de que el invitado deja de jugar este partido: a su familia (y a él) si ya estaba autorizado, y a su
      * entrenador si ya se le había contado (autorizado o pendiente de él).
      */
-    private void anular(ConvocatoriaJugador fila, Convocatoria convocatoria, Partido partido, String titulo,
-            String sufijoFamilia) {
+    private void anular(ConvocatoriaJugador fila, Convocatoria convocatoria, Partido partido, String claveTitulo) {
 
-        anular(fila, convocatoria, partido, PlazoJustificacionPartido.dia(partido), titulo, sufijoFamilia);
+        anular(fila, convocatoria, partido, PlazoJustificacionPartido.dia(partido), claveTitulo);
     }
 
     /* dia: el día en que se jugaba el partido que se anula (si el partido cambia de fecha, el antiguo). */
     private void anular(ConvocatoriaJugador fila, Convocatoria convocatoria, Partido partido, LocalDate dia,
-            String titulo, String sufijoFamilia) {
+            String claveTitulo) {
 
         String jugador = equipoGestionDao.obtenerNombreJugador(fila.getJugadorId());
         String destino = equipoGestionDao.obtenerNombreEquipo(convocatoria.getEquipoId());
-        String fecha = dia == null ? "sin fecha" : FECHA.format(dia);
-        String partidoTexto = "el partido de " + destino + " contra " + partido.getRival() + " (" + fecha + ")";
+        String rival = textoOVacio(partido.getRival());
 
         Map<String, String> data = datos(TIPO_ANULADA, convocatoria, partido, fila);
         data.remove("convocatoriaId");
@@ -977,20 +997,28 @@ public class InvitadosServiceImpl implements InvitadosService {
 
             for (Long usuarioId : usuariosDelJugador(fila.getJugadorId())) {
 
-                String texto = (directos.contains(usuarioId) ? "Ya no juegas con " + destino
-                        : jugador + " ya no juega con " + destino) + " en " + partidoTexto + ".";
+                boolean esJugador = directos.contains(usuarioId);
 
-                avisar(List.of(usuarioId), convocatoria.getUsuarioEntrenadorId(), titulo, texto, texto,
+                avisar(List.of(usuarioId), convocatoria.getUsuarioEntrenadorId(),
                         dia == null ? Map.of("tipo", TIPO_ANULADA, "partidoId", String.valueOf(partido.getId()))
                                 : Map.of("tipo", TIPO_ANULADA, "partidoId", String.valueOf(partido.getId()),
-                                        "fechaPartido", dia.toString()));
+                                        "fechaPartido", dia.toString()),
+                        idioma -> textoAnulada(idioma, claveTitulo, esJugador, jugador, destino, rival, dia));
             }
         }
 
-        avisar(destinatariosEquipo(fila.getEquipoOrigenId()), convocatoria.getUsuarioEntrenadorId(), titulo,
-                jugador + sufijoFamilia + " con " + destino + ": " + partidoTexto + ".",
-                jugador + sufijoFamilia + " con " + destino + " (" + fecha + ").",
-                data);
+        // Al entrenador de su equipo de origen le sirve el mismo texto que a la familia.
+        avisar(destinatariosEquipo(fila.getEquipoOrigenId()), convocatoria.getUsuarioEntrenadorId(), data,
+                idioma -> textoAnulada(idioma, claveTitulo, false, jugador, destino, rival, dia));
+    }
+
+    private TextoAviso textoAnulada(String idioma, String claveTitulo, boolean esJugador, String jugador,
+            String destino, String rival, LocalDate dia) {
+
+        return new TextoAviso(
+                textos.texto(idioma, claveTitulo),
+                textos.texto(idioma, esJugador ? "invitacion.anulada.jugador" : "invitacion.anulada.familia",
+                        "jugador", jugador, "destino", destino, "rival", rival, "fecha", textos.fecha(idioma, dia)));
     }
 
     // ==================================================================
@@ -1036,7 +1064,7 @@ public class InvitadosServiceImpl implements InvitadosService {
             if (fila.getEstadoInvitacion() == EstadoInvitacion.AUTORIZADO
                     || fila.getEstadoInvitacion() == EstadoInvitacion.PENDIENTE_ENTRENADOR) {
 
-                anular(fila, convocatoria, partido, diaAntiguo, "Partido aplazado", " ya no juega el partido");
+                anular(fila, convocatoria, partido, diaAntiguo, "invitacion.anulada.aplazado.titulo");
             }
 
             Long invitador = fila.getUsuarioInvitaId() != null ? fila.getUsuarioInvitaId()
@@ -1062,15 +1090,18 @@ public class InvitadosServiceImpl implements InvitadosService {
             data.put("jugadorIds", idsPorInvitador.get(entrada.getKey()).stream().map(String::valueOf)
                     .collect(Collectors.joining(",")));
 
-            avisar(List.of(entrada.getKey()), null,
-                    "Partido aplazado: invitaciones anuladas",
-                    "El partido de " + destino + " contra " + partido.getRival() + " pasa del "
-                            + FECHA.format(diaAntiguo) + " al " + FECHA.format(diaNuevo) + ". Se han anulado las"
-                            + " invitaciones de " + String.join(", ", entrada.getValue())
-                            + ". Si quieres, vuelve a invitarlos para la nueva fecha.",
-                    "El partido de " + destino + " pasa del " + FECHA.format(diaAntiguo) + " al "
-                            + FECHA.format(diaNuevo) + ": se han anulado tus invitaciones de otros equipos.",
-                    data);
+            avisar(List.of(entrada.getKey()), null, data,
+                    idioma -> {
+                        Map<String, String> p = Map.of("destino", destino,
+                                "rival", textoOVacio(partido.getRival()),
+                                "fechaAntigua", textos.fecha(idioma, diaAntiguo),
+                                "fechaNueva", textos.fecha(idioma, diaNuevo),
+                                "nombres", textos.lista(idioma, entrada.getValue()));
+
+                        return new TextoAviso(textos.texto(idioma, "invitacion.aplazadas.titulo"),
+                                textos.texto(idioma, "invitacion.aplazadas.texto", p),
+                                textos.texto(idioma, "invitacion.aplazadas.push", p));
+                    });
         }
     }
 
@@ -1121,12 +1152,15 @@ public class InvitadosServiceImpl implements InvitadosService {
 
                 for (Long usuarioId : usuariosDelJugador(fila.getJugadorId())) {
 
-                    String texto = (directos.contains(usuarioId) ? "Dejas de estar confirmado" : jugador
-                            + " deja de estar confirmado") + " con " + nombreDestino + " el " + FECHA.format(dia)
-                            + ": " + origen + " ha cambiado un partido ese día y su entrenador tiene que liberarlo.";
+                    boolean esJugador = directos.contains(usuarioId);
 
-                    avisar(List.of(usuarioId), null, "Invitación pendiente de su entrenador", texto, texto,
-                            datos(TIPO_SOLAPAMIENTO, convocatoria, destino, fila));
+                    avisar(List.of(usuarioId), null, datos(TIPO_SOLAPAMIENTO, convocatoria, destino, fila),
+                            idioma -> new TextoAviso(
+                                    textos.texto(idioma, "invitacion.enEspera.titulo"),
+                                    textos.texto(idioma,
+                                            esJugador ? "invitacion.enEspera.jugador" : "invitacion.enEspera.familia",
+                                            "jugador", jugador, "destino", nombreDestino, "origen", origen,
+                                            "fecha", textos.fecha(idioma, dia))));
                 }
             }
         }
@@ -1166,14 +1200,17 @@ public class InvitadosServiceImpl implements InvitadosService {
                 data.put("fechaPartido", invitacion.dia().toString());
             }
 
-            avisar(destinatariosCoordinacion(null), null,
-                    "Invitación sin liberar",
-                    "Hace más de 12 horas que se pidió a " + invitacion.equipoOrigen() + " que libere a "
-                            + invitacion.jugador() + " para jugar con " + invitacion.equipoDestino()
-                            + " el " + (invitacion.dia() != null ? FECHA.format(invitacion.dia()) : "") + " y sigue sin"
-                            + " respuesta. Puedes liberarlo desde la lista de invitaciones.",
-                    "Una invitación lleva más de 12 horas esperando que su entrenador libere al jugador.",
-                    data);
+            avisar(destinatariosCoordinacion(null), null, data,
+                    idioma -> {
+                        Map<String, String> p = Map.of("origen", textoOVacio(invitacion.equipoOrigen()),
+                                "jugador", textoOVacio(invitacion.jugador()),
+                                "destino", textoOVacio(invitacion.equipoDestino()),
+                                "fecha", textos.fecha(idioma, invitacion.dia()));
+
+                        return new TextoAviso(textos.texto(idioma, "invitacion.plazo.titulo"),
+                                textos.texto(idioma, "invitacion.plazo.texto", p),
+                                textos.texto(idioma, "invitacion.plazo.push", p));
+                    });
 
             avisadas++;
         }
@@ -1196,18 +1233,23 @@ public class InvitadosServiceImpl implements InvitadosService {
         String destino = equipoGestionDao.obtenerNombreEquipo(convocatoria.getEquipoId());
         String origen = equipoGestionDao.obtenerNombreEquipo(fila.getEquipoOrigenId());
 
-        avisar(destinatariosCoordinacion(actorId), actorId,
-                "Jugador invitado pendiente de aprobar",
-                destino + " quiere convocar a " + jugador + " (" + origen + ") para el partido contra "
-                        + partido.getRival() + " el " + textoFecha(partido) + ".",
-                destino + " quiere convocar a un jugador de " + origen + " el " + textoFecha(partido)
-                        + ". Revísalo en la lista de invitaciones.",
-                datos(TIPO_PENDIENTE, convocatoria, partido, fila));
+        avisar(destinatariosCoordinacion(actorId), actorId, datos(TIPO_PENDIENTE, convocatoria, partido, fila),
+                idioma -> {
+                    Map<String, String> p = Map.of("destino", destino, "jugador", jugador, "origen", origen,
+                            "rival", textoOVacio(partido.getRival()), "fecha", fecha(idioma, partido));
+
+                    return new TextoAviso(textos.texto(idioma, "invitacion.pendiente.titulo"),
+                            textos.texto(idioma, "invitacion.pendiente.texto", p),
+                            textos.texto(idioma, "invitacion.pendiente.push", p));
+                });
     }
 
-    /** Envía un aviso privado (bandeja + push tras el commit) a cada destinatario, sin repetidos ni al propio actor. */
-    private void avisar(Collection<Long> destinatarios, Long remitenteId, String titulo, String contenido,
-            String contenidoPush, Map<String, String> data) {
+    /**
+     * Envía un aviso privado (bandeja + push tras el commit) a cada destinatario, sin repetidos ni al propio actor. Una
+     * comunicación por idioma: cada destinatario recibe el texto en el idioma de su cuenta.
+     */
+    private void avisar(Collection<Long> destinatarios, Long remitenteId, Map<String, String> data,
+            Function<String, TextoAviso> texto) {
 
         Set<Long> destinos = new LinkedHashSet<>(destinatarios);
 
@@ -1220,14 +1262,9 @@ public class InvitadosServiceImpl implements InvitadosService {
             return;
         }
 
-        Comunicacion comunicacion = new Comunicacion();
-        comunicacion.setTitulo(titulo);
-        comunicacion.setContenido(contenido);
-
         Long remitente = remitenteId != null ? remitenteId : destinos.iterator().next();
 
-        comunicacionService.crearPrivada(comunicacion, List.copyOf(destinos), remitente,
-                new OpcionesPushComunicacion(contenidoPush, data));
+        idiomas.crearPrivadaPorIdioma(comunicacionService, List.copyOf(destinos), remitente, data, texto);
     }
 
     private List<Long> destinatariosCoordinacion(Long excluir) {
@@ -1509,6 +1546,10 @@ public class InvitadosServiceImpl implements InvitadosService {
         LocalDate dia = PlazoJustificacionPartido.dia(partido);
 
         return dia == null ? "" : dia.toString();
+    }
+
+    private String fecha(String idioma, Partido partido) {
+        return textos.fecha(idioma, PlazoJustificacionPartido.dia(partido));
     }
 
     private static String textoOVacio(String valor) {

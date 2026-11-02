@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -42,7 +43,9 @@ import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse.EventoEnVivo;
 import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse.PartidoDisponible;
 import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse.UltimoEventoDeshacible;
 import com.mikedev.mutxamelcf.model.JugadorBasico;
+import com.mikedev.mutxamelcf.model.IdiomaApp;
 import com.mikedev.mutxamelcf.model.Partido;
+import com.mikedev.mutxamelcf.model.TextoDifusion;
 import com.mikedev.mutxamelcf.model.PartidoEstadisticaJugador;
 import com.mikedev.mutxamelcf.model.PartidoLiveEvento;
 import com.mikedev.mutxamelcf.service.FcmPushService;
@@ -103,6 +106,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     private final UsuarioAppService usuarioAppService;
     private final FcmPushService fcmPushService;
     private final Clock clock;
+    private final TextosAvisos textos;
 
     /** Duración de cada parte según la modalidad del equipo (retransmision.minutos-parte.*). */
     @Value("${retransmision.minutos-parte.F11:45}")
@@ -125,7 +129,10 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             NotificacionAppService notificacionAppService,
             UsuarioAppService usuarioAppService,
             FcmPushService fcmPushService,
-            Clock clock) {
+            Clock clock,
+            TextosAvisos textos) {
+
+        this.textos = textos;
 
         this.eventoDao = eventoDao;
         this.partidoDao = partidoDao;
@@ -149,9 +156,9 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
         validarRolRetransmision(usuarioId);
 
-        String mensaje = "Once inicial: " + onceInicial + "\n\nSuplentes: " + suplentes;
-
-        difundir("📋 Alineación del Mutxamel CF", mensaje);
+        difundir(idioma -> new TextoDifusion(
+                textos.texto(idioma, "directo.alineacion.titulo"),
+                textos.texto(idioma, "directo.alineacion.texto", "once", onceInicial, "suplentes", suplentes)));
     }
 
     @Override
@@ -619,7 +626,11 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         if (PartidoLiveEvento.GOL_FAVOR.equals(evento.getTipo())
                 || PartidoLiveEvento.GOL_CONTRA.equals(evento.getTipo())) {
 
-            difundirTrasCommit("↩️ Gol anulado", "Gol anulado. " + textoMarcador(partido, estado));
+            String marcador = textoMarcador(partido, estado);
+
+            difundirTrasCommit(idioma -> new TextoDifusion(
+                    textos.texto(idioma, "directo.golAnulado.titulo"),
+                    textos.texto(idioma, "directo.golAnulado.texto", "marcador", marcador)));
         }
 
         logger.info("Evento de directo deshecho: partidoId={}, tipo={}", partidoId, evento.getTipo());
@@ -760,11 +771,14 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
     private void difundirEvento(Partido partido, PartidoLiveEvento evento, EstadoPartidoEnVivoResponse estado) {
 
+        String rival = nombreRival(partido);
         String marcador = textoMarcador(partido, estado);
 
         switch (evento.getTipo()) {
             case PartidoLiveEvento.INICIO ->
-                difundirTrasCommit("⚽ ¡Comienza el partido!", "Mutxamel CF - " + nombreRival(partido));
+                difundirTrasCommit(idioma -> new TextoDifusion(
+                        textos.texto(idioma, "directo.inicio.titulo"),
+                        textos.texto(idioma, "directo.inicio.texto", "rival", rival)));
             case PartidoLiveEvento.GOL_FAVOR -> {
                 String autor = estado.eventos().stream()
                         .filter(e -> e.id() != null && e.id().equals(evento.getId()))
@@ -772,23 +786,46 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
                         .findFirst()
                         .orElse(null);
 
-                String minuto = evento.getMinuto() == null ? "" : " (" + evento.getMinuto() + "')";
+                Integer minuto = evento.getMinuto();
 
-                difundirTrasCommit("⚽ ¡GOOOL del Mutxamel CF!", textoAutor(autor) + minuto + "\n\n" + marcador);
+                difundirTrasCommit(idioma -> new TextoDifusion(
+                        textos.texto(idioma, "directo.gol.titulo"),
+                        minuto == null
+                                ? textos.texto(idioma, "directo.gol.textoSinMinuto",
+                                        "autor", textoAutor(idioma, autor), "marcador", marcador)
+                                : textos.texto(idioma, "directo.gol.texto",
+                                        "autor", textoAutor(idioma, autor), "minuto", String.valueOf(minuto),
+                                        "marcador", marcador)));
             }
-            case PartidoLiveEvento.GOL_CONTRA -> difundirTrasCommit("Gol en contra",
-                (evento.getMinuto() == null ? "" : "Minuto " + evento.getMinuto() + "'\n\n") + marcador);
-            case PartidoLiveEvento.DESCANSO -> difundirTrasCommit("⏸️ Descanso", marcador);
-            case PartidoLiveEvento.SEGUNDA_PARTE ->
-                difundirTrasCommit("▶️ ¡Comienza la segunda parte!", "Mutxamel CF - " + nombreRival(partido));
-            case PartidoLiveEvento.FINAL -> {
-                String goleadores = estado.goleadores().isEmpty()
-                        ? "Sin goleadores"
-                        : String.join(", ", estado.goleadores().stream().map(PartidoEnVivoServiceImpl::textoAutor)
-                                .toList());
+            case PartidoLiveEvento.GOL_CONTRA -> {
+                Integer minuto = evento.getMinuto();
 
-                difundirTrasCommit("🏁 Final del partido",
-                        marcador + "\n\nGoleadores: " + goleadores + "\n\nHa finalizado el partido.");
+                difundirTrasCommit(idioma -> new TextoDifusion(
+                        textos.texto(idioma, "directo.golContra.titulo"),
+                        minuto == null
+                                ? textos.texto(idioma, "directo.golContra.textoSinMinuto", "marcador", marcador)
+                                : textos.texto(idioma, "directo.golContra.texto",
+                                        "minuto", String.valueOf(minuto), "marcador", marcador)));
+            }
+            case PartidoLiveEvento.DESCANSO ->
+                difundirTrasCommit(idioma -> new TextoDifusion(
+                        textos.texto(idioma, "directo.descanso.titulo"),
+                        textos.texto(idioma, "directo.descanso.texto", "marcador", marcador)));
+            case PartidoLiveEvento.SEGUNDA_PARTE ->
+                difundirTrasCommit(idioma -> new TextoDifusion(
+                        textos.texto(idioma, "directo.segundaParte.titulo"),
+                        textos.texto(idioma, "directo.segundaParte.texto", "rival", rival)));
+            case PartidoLiveEvento.FINAL -> {
+                List<String> autores = estado.goleadores();
+
+                difundirTrasCommit(idioma -> new TextoDifusion(
+                        textos.texto(idioma, "directo.final.titulo"),
+                        textos.texto(idioma, "directo.final.texto",
+                                "marcador", marcador,
+                                "goleadores", autores.isEmpty()
+                                        ? textos.texto(idioma, "directo.sinGoleadores")
+                                        : autores.stream().map(a -> textoAutor(idioma, a))
+                                                .collect(Collectors.joining(", ")))));
             }
             default -> {
                 // sin difusión
@@ -796,15 +833,16 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         }
     }
 
-    private static String textoAutor(String autor) {
+    private String textoAutor(String idioma, String autor) {
 
         if (autor == null || autor.isBlank()) {
-            return "Gol del Mutxamel CF";
+            return textos.texto(idioma, "directo.golSinAutor");
         }
 
-        return PROPIA_PUERTA.equals(autor) ? "Gol en propia puerta del rival" : autor;
+        return PROPIA_PUERTA.equals(autor) ? textos.texto(idioma, "directo.golPropiaPuerta") : autor;
     }
 
+    /** "Mutxamel CF 2 - 1 Rival": no cambia con el idioma. */
     private String textoMarcador(Partido partido, EstadoPartidoEnVivoResponse estado) {
         return "Mutxamel CF " + estado.golesFavor() + " - " + estado.golesContra() + " " + nombreRival(partido);
     }
@@ -813,33 +851,41 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
      * Difunde cuando la transacción ya ha confirmado el evento (para no avisar
      * de algo que luego se revierte); sin transacción, al momento.
      */
-    private void difundirTrasCommit(String titulo, String mensaje) {
+    private void difundirTrasCommit(Function<String, TextoDifusion> texto) {
 
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
 
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    difundir(titulo, mensaje);
+                    difundir(texto);
                 }
             });
 
         } else {
 
-            difundir(titulo, mensaje);
+            difundir(texto);
         }
     }
 
     /**
-     * Envía el aviso por los dos canales: a los usuarios con cuenta
-     * (por dispositivo, vía NotificacionAppService) y al topic de FCM
-     * "resultados" (suscripción anónima sin cuenta). La app se encarga
-     * de que un usuario con cuenta no reciba el aviso dos veces.
+     * Envía el aviso por los dos canales: a los usuarios con cuenta (por dispositivo, vía NotificacionAppService, cada
+     * uno en su idioma) y a los topics de FCM de resultados (suscripción anónima sin cuenta), uno por idioma. La app
+     * se encarga de que un usuario con cuenta no reciba el aviso dos veces.
      */
-    private void difundir(String titulo, String mensaje) {
+    private void difundir(Function<String, TextoDifusion> texto) {
 
-        notificacionAppService.difundirATodos(TIPO_PUSH, titulo, mensaje, null);
-        fcmPushService.enviarATopic(TOPIC_RESULTADOS, titulo, mensaje);
+        notificacionAppService.difundirATodos(TIPO_PUSH, texto, null);
+
+        for (String idioma : IdiomaApp.TODOS) {
+            TextoDifusion t = texto.apply(idioma);
+            fcmPushService.enviarATopic(TOPIC_RESULTADOS + "_" + idioma, t.titulo(), t.mensaje());
+        }
+
+        // TODO: quitar el topic antiguo "resultados" cuando la versión mínima de la app obligue a actualizar (las
+        // versiones que aún no se suscriben por idioma solo escuchan este, y lo reciben en castellano).
+        TextoDifusion castellano = texto.apply(IdiomaApp.ES);
+        fcmPushService.enviarATopic(TOPIC_RESULTADOS, castellano.titulo(), castellano.mensaje());
     }
 
     // ------------------------------------------------------------------

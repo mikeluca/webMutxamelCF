@@ -135,6 +135,12 @@ public interface UsuarioAppService {
      */
     String obtenerNombreDePila(int usuarioAppId);
 
+    /** El idioma de la cuenta ("es", "ca" o "en"). */
+    String obtenerIdioma(int usuarioAppId);
+
+    /** Guarda el idioma de la cuenta; cualquier valor que no sea "es", "ca" o "en" se guarda como "es". */
+    void actualizarIdioma(int usuarioAppId, String idioma);
+
     /**
      * Cambia el nombre propio de la cuenta (el que se muestra cuando no
      * tiene ficha vinculada). Sin ficha el nombre es obligatorio; los

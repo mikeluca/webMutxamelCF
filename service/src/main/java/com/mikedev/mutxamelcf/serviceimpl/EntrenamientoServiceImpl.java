@@ -3,9 +3,9 @@ package com.mikedev.mutxamelcf.serviceimpl;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.mikedev.mutxamelcf.dao.EntrenamientoAsistenciaDao;
 import com.mikedev.mutxamelcf.dao.EntrenamientoDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
-import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.Entrenamiento;
 import com.mikedev.mutxamelcf.model.EntrenamientoAsistencia;
 import com.mikedev.mutxamelcf.model.EntrenamientoAsistenciaRequest;
@@ -43,7 +42,6 @@ public class EntrenamientoServiceImpl
                         "MAL_COMPORTAMIENTO",
                         "RETRASO");
 
-        private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
         private final EntrenamientoDao entrenamientoDao;
         private final EntrenamientoAsistenciaDao asistenciaDao;
@@ -51,6 +49,8 @@ public class EntrenamientoServiceImpl
         private final ComunicacionService comunicacionService;
         private final TemporadaService temporadaService;
         private final Clock clock;
+        private final TextosAvisos textos;
+        private final IdiomasUsuarios idiomas;
 
         public EntrenamientoServiceImpl(
                         EntrenamientoDao entrenamientoDao,
@@ -58,7 +58,12 @@ public class EntrenamientoServiceImpl
                         EquipoGestionDao equipoGestionDao,
                         ComunicacionService comunicacionService,
                         TemporadaService temporadaService,
-                        Clock clock) {
+                        Clock clock,
+                        TextosAvisos textos,
+                        IdiomasUsuarios idiomas) {
+
+                this.textos = textos;
+                this.idiomas = idiomas;
 
                 this.clock = clock;
                 this.entrenamientoDao = entrenamientoDao;
@@ -423,8 +428,6 @@ public class EntrenamientoServiceImpl
                 String nombreEquipo = equipoGestionDao.obtenerNombreEquipo(
                                 equipoId);
 
-                String fechaTexto = fecha.format(FORMATO_FECHA);
-
                 for (EntrenamientoAsistenciaRequest asistencia : asistencias) {
 
                         Long jugadorId = asistencia.getJugadorId();
@@ -435,7 +438,7 @@ public class EntrenamientoServiceImpl
 
                                 crearComunicacionFalta(
                                                 jugadorId,
-                                                fechaTexto,
+                                                fecha,
                                                 usuarioAppId);
                         }
 
@@ -444,55 +447,39 @@ public class EntrenamientoServiceImpl
                                 crearComunicacionMalComportamiento(
                                                 jugadorId,
                                                 nombreEquipo,
-                                                fechaTexto,
+                                                fecha,
                                                 usuarioAppId);
                         }
                 }
         }
 
+        /*
+         * La cuenta del propio jugador recibe la versión "jugador" y las familias la versión "familia", cada una en
+         * el idioma de su cuenta (una comunicación por versión e idioma).
+         */
         private void crearComunicacionFalta(
                         Long jugadorId,
-                        String fechaTexto,
+                        LocalDate fecha,
                         Long usuarioAppId) {
 
                 String nombreJugador = equipoGestionDao.obtenerNombreJugador(
                                 jugadorId);
 
-                String mensaje = "Hola.\n\n"
-                                + nombreJugador
-                                + " no acudió al entrenamiento el dia "
-                                + fechaTexto
-                                + ".\n\n Por favor avisen al entrenador de las ausencias "
-                                + "para un mejor control de los ejercicios del equipo.\n\n "
-                                + "Muchas gracias.";
-
-                Set<Long> destinatarios = new HashSet<>();
-
                 /*
                  * Usuario directamente asociado al jugador.
                  */
-                destinatarios.addAll(
+                Set<Long> directos = new LinkedHashSet<>(
                                 equipoGestionDao.obtenerUsuariosPorJugador(
                                                 jugadorId));
 
                 /*
-                 * Usuarios familiares asociados al jugador.
+                 * Usuarios familiares asociados al jugador (si además es el propio jugador, cuenta como jugador).
                  */
-                destinatarios.addAll(
+                Set<Long> familiares = new LinkedHashSet<>(
                                 equipoGestionDao.obtenerUsuariosFamiliaresPorJugador(
                                                 jugadorId));
 
-                if (destinatarios.isEmpty()) {
-                        return;
-                }
-
-                Comunicacion comunicacion = new Comunicacion();
-
-                comunicacion.setTitulo(
-                                "Falta al entrenamiento");
-
-                comunicacion.setContenido(
-                                mensaje);
+                familiares.removeAll(directos);
 
                 /*
                  * La propia capa de comunicaciones se encarga de:
@@ -502,27 +489,41 @@ public class EntrenamientoServiceImpl
                  * 3. Crear NOTIFICACIONES_APP
                  * 4. Enviar FCM
                  */
-                comunicacionService.crearPrivada(
-                                comunicacion,
-                                new ArrayList<>(destinatarios),
-                                usuarioAppId);
+                enviarFalta(directos, "falta.jugador", nombreJugador, fecha, usuarioAppId);
+                enviarFalta(familiares, "falta.familia", nombreJugador, fecha, usuarioAppId);
+        }
+
+        private void enviarFalta(
+                        Set<Long> destinatarios,
+                        String claveTexto,
+                        String nombreJugador,
+                        LocalDate fecha,
+                        Long usuarioAppId) {
+
+                if (destinatarios.isEmpty()) {
+                        return;
+                }
+
+                idiomas.crearPrivadaPorIdioma(
+                                comunicacionService,
+                                destinatarios,
+                                usuarioAppId,
+                                null,
+                                idioma -> new TextoAviso(
+                                                textos.texto(idioma, "falta.titulo"),
+                                                textos.texto(idioma, claveTexto,
+                                                                "jugador", nombreJugador,
+                                                                "fecha", textos.fecha(idioma, fecha))));
         }
 
         private void crearComunicacionMalComportamiento(
                         Long jugadorId,
                         String nombreEquipo,
-                        String fechaTexto,
+                        LocalDate fecha,
                         Long usuarioAppId) {
 
                 String nombreJugador = equipoGestionDao.obtenerNombreJugador(
                                 jugadorId);
-
-                String mensaje = nombreJugador
-                                + " del equipo "
-                                + nombreEquipo
-                                + " ha tenido un mal comportamiento "
-                                + "en el entrenamiento del dia "
-                                + fechaTexto;
 
                 List<Long> coordinadores = equipoGestionDao.obtenerCoordinadores();
 
@@ -530,22 +531,21 @@ public class EntrenamientoServiceImpl
                         return;
                 }
 
-                Comunicacion comunicacion = new Comunicacion();
-
-                comunicacion.setTitulo(
-                                "Mal comportamiento");
-
-                comunicacion.setContenido(
-                                mensaje);
-
                 /*
                  * Únicamente los coordinadores reciben
                  * esta comunicación.
                  */
-                comunicacionService.crearPrivada(
-                                comunicacion,
+                idiomas.crearPrivadaPorIdioma(
+                                comunicacionService,
                                 coordinadores,
-                                usuarioAppId);
+                                usuarioAppId,
+                                null,
+                                idioma -> new TextoAviso(
+                                                textos.texto(idioma, "malComportamiento.titulo"),
+                                                textos.texto(idioma, "malComportamiento.texto",
+                                                                "jugador", nombreJugador,
+                                                                "equipo", nombreEquipo,
+                                                                "fecha", textos.fecha(idioma, fecha))));
         }
 
         private EntrenamientoResponse construirResponse(

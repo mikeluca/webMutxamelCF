@@ -38,4 +38,18 @@ public class DispositivoAppRequest {
     public void setPlataforma(String plataforma) {
         this.plataforma = plataforma;
     }
+
+    /**
+     * Idioma de la app ("es", "ca" o "en"); opcional: las versiones que no lo envían se quedan como están.
+     */
+    @Size(max = 20, message = "El idioma no puede superar los 20 caracteres")
+    private String idioma;
+
+    public String getIdioma() {
+        return idioma;
+    }
+
+    public void setIdioma(String idioma) {
+        this.idioma = idioma;
+    }
 }

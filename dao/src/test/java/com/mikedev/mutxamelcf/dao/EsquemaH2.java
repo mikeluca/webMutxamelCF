@@ -22,6 +22,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * sql/2026-10-27_mejoras_roles.sql (igual con USUARIOS_APP_DISPOSITIVOS) y
  * sql/2026-11-01_cuentas_sin_jugadores.sql (igual con USUARIOS_APP) y
  * sql/2026-11-02_convocatoria_invitados.sql (columnas de invitado en CONVOCATORIA_JUGADOR) y
+ * sql/2026-11-04_idioma_usuario_app.sql (columna IDIOMA de USUARIOS_APP, igual que arriba) y
  * sql/2026-11-03_equipajes_convocatoria.sql (tabla EQUIPACIONES y, si el test ya tiene CONVOCATORIAS, sus columnas de
  * equipaje). Los tests no deben definir su
  * propia versión de estas tablas.
@@ -47,6 +48,7 @@ public final class EsquemaH2 {
         ejecutar(jdbc, "/h2/cuentas_sin_jugadores.sql");
         ejecutar(jdbc, "/h2/convocatoria_invitados.sql");
         ejecutar(jdbc, "/h2/equipajes_convocatoria.sql");
+        ejecutar(jdbc, "/h2/idioma_usuario_app.sql");
     }
 
     /**

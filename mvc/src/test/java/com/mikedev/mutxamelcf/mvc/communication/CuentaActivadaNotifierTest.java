@@ -45,11 +45,12 @@ class CuentaActivadaNotifierTest {
         when(usuarioAppService.obtenerPorId(4)).thenReturn(usuario);
         when(usuarioAppService.obtenerRoles(4)).thenReturn(List.of(rol("FAMILIAR"), rol("ENTRENADOR")));
         when(usuarioAppService.obtenerNombreDePila(4)).thenReturn("Ana");
+        when(usuarioAppService.obtenerIdioma(4)).thenReturn("ca");
 
         notifier.notificar(4);
 
         verify(comunicacionesService).enviarCuentaActivada(
-                "ana@example.com", "Ana", List.of("FAMILIAR", "ENTRENADOR"));
+                "ana@example.com", "Ana", List.of("FAMILIAR", "ENTRENADOR"), "ca");
     }
 
     @Test
@@ -58,7 +59,7 @@ class CuentaActivadaNotifierTest {
 
         notifier.notificar(4);
 
-        verify(comunicacionesService, never()).enviarCuentaActivada(anyString(), any(), any());
+        verify(comunicacionesService, never()).enviarCuentaActivada(anyString(), any(), any(), any());
     }
 
     @Test
@@ -69,7 +70,7 @@ class CuentaActivadaNotifierTest {
         when(usuarioAppService.obtenerPorId(4)).thenReturn(usuario);
         when(usuarioAppService.obtenerRoles(4)).thenReturn(List.of());
         doThrow(new RuntimeException("smtp caído")).when(comunicacionesService)
-                .enviarCuentaActivada(anyString(), any(), any());
+                .enviarCuentaActivada(anyString(), any(), any(), any());
 
         notifier.notificar(4);
     }

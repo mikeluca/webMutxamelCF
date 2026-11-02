@@ -73,7 +73,7 @@ class ConvocatoriaServiceImplTest {
                 java.time.Clock.fixed(
                         java.time.LocalDate.of(2026, 10, 21).atTime(12, 0)
                                 .atZone(java.time.ZoneId.of("Europe/Madrid")).toInstant(),
-                        java.time.ZoneId.of("Europe/Madrid")));
+                        java.time.ZoneId.of("Europe/Madrid")), AvisosTest.TEXTOS, AvisosTest.idiomas());
     }
 
     private ConvocatoriaGuardarRequest requestValido() {

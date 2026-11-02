@@ -327,7 +327,7 @@ class CuerpoTecnicoEquipoH2Test {
 
         return new RecordatorioEntrenadorServiceImpl(partidoDao, mock(com.mikedev.mutxamelcf.dao.ConvocatoriaDao.class),
                 new EquipoGestionDaoImpl(jdbc), comunicacionService,
-                Clock.fixed(Instant.parse("2026-10-27T10:00:00Z"), ZoneId.of("Europe/Madrid")));
+                Clock.fixed(Instant.parse("2026-10-27T10:00:00Z"), ZoneId.of("Europe/Madrid")), AvisosTest.TEXTOS, AvisosTest.idiomas());
     }
 
     @Test

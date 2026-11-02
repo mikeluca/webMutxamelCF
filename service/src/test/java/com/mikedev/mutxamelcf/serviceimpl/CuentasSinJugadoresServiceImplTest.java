@@ -46,7 +46,7 @@ class CuentasSinJugadoresServiceImplTest {
 		notificaciones = mock(NotificacionAppService.class);
 		push = mock(FcmPushService.class);
 		email = mock(AvisosCuentaEmail.class);
-		servicio = new CuentasSinJugadoresServiceImpl(dao, notificaciones, push, email, RELOJ);
+		servicio = new CuentasSinJugadoresServiceImpl(dao, notificaciones, push, email, RELOJ, AvisosTest.TEXTOS, AvisosTest.idiomas());
 
 		when(dao.listarSinJugadoresActivos(any())).thenReturn(List.of());
 		when(dao.listarMarcadas()).thenReturn(List.of());
@@ -76,10 +76,10 @@ class CuentasSinJugadoresServiceImplTest {
 		assertThat(r).isEqualTo(new ResultadoCuentasSinJugadores(1, 0, 0, 0));
 		verify(dao).marcarAviso(1L, Timestamp.valueOf("2027-03-10 04:00:00"));
 		verify(notificaciones).crear(eq(1L), eq("CUENTA_SIN_JUGADORES"), eq("Tu cuenta se desactivará"),
-				org.mockito.ArgumentMatchers.contains("10/06/2027"), eq(1L));
+				org.mockito.ArgumentMatchers.contains("10/6/2027"), eq(1L));
 		verify(push).enviarNotificacionAUsuario(eq(1L), eq("CUENTA_SIN_JUGADORES"), anyString(), anyString(), eq(1L),
 				eq(Map.of("fechaDesactivacion", "2027-06-10")));
-		verify(email).enviarAvisoCuentaSinJugadores("u1@x.es", "Ana", LocalDate.of(2027, 6, 10));
+		verify(email).enviarAvisoCuentaSinJugadores("u1@x.es", "Ana", LocalDate.of(2027, 6, 10), "es");
 	}
 
 	@Test
@@ -90,7 +90,7 @@ class CuentasSinJugadoresServiceImplTest {
 
 		assertThat(r).isEqualTo(new ResultadoCuentasSinJugadores(0, 0, 0, 0));
 		verify(dao, never()).marcarAviso(anyLong(), any());
-		verify(email, never()).enviarAvisoCuentaSinJugadores(anyString(), any(), any());
+		verify(email, never()).enviarAvisoCuentaSinJugadores(anyString(), any(), any(), any());
 		verify(dao, never()).desactivar(anyLong());
 	}
 
@@ -100,7 +100,7 @@ class CuentasSinJugadoresServiceImplTest {
 		when(dao.marcarAviso(eq(1L), any())).thenReturn(0);
 
 		assertThat(servicio.procesar().avisadas()).isZero();
-		verify(email, never()).enviarAvisoCuentaSinJugadores(anyString(), any(), any());
+		verify(email, never()).enviarAvisoCuentaSinJugadores(anyString(), any(), any(), any());
 	}
 
 	@Test
@@ -109,7 +109,7 @@ class CuentasSinJugadoresServiceImplTest {
 		when(dao.marcarAviso(eq(1L), any())).thenReturn(1);
 
 		assertThat(servicio.procesar().avisadas()).isEqualTo(1);
-		verify(email, never()).enviarAvisoCuentaSinJugadores(anyString(), any(), any());
+		verify(email, never()).enviarAvisoCuentaSinJugadores(anyString(), any(), any(), any());
 		verify(push).enviarNotificacionAUsuario(eq(1L), anyString(), anyString(), anyString(), anyLong(), any());
 	}
 
@@ -122,7 +122,7 @@ class CuentasSinJugadoresServiceImplTest {
 		servicio.procesar();
 
 		verify(push, never()).enviarNotificacionAUsuario(anyLong(), anyString(), anyString(), anyString(), anyLong(), any());
-		verify(email).enviarAvisoCuentaSinJugadores(eq("u1@x.es"), any(), any());
+		verify(email).enviarAvisoCuentaSinJugadores(eq("u1@x.es"), any(), any(), any());
 	}
 
 	@Test
@@ -133,7 +133,7 @@ class CuentasSinJugadoresServiceImplTest {
 				anyString(), anyLong(), any());
 
 		assertThat(servicio.procesar().avisadas()).isEqualTo(1);
-		verify(email).enviarAvisoCuentaSinJugadores(eq("u1@x.es"), any(), any());
+		verify(email).enviarAvisoCuentaSinJugadores(eq("u1@x.es"), any(), any(), any());
 	}
 
 	@Test
@@ -240,6 +240,26 @@ class CuentasSinJugadoresServiceImplTest {
 		when(dao.marcarAviso(eq(2L), any())).thenReturn(1);
 
 		assertThat(servicio.procesar().avisadas()).isEqualTo(1);
-		verify(email).enviarAvisoCuentaSinJugadores(eq("u2@x.es"), any(), any());
+		verify(email).enviarAvisoCuentaSinJugadores(eq("u2@x.es"), any(), any(), any());
+	}
+
+	@Test
+	void elAvisoSaleEnElIdiomaDeCadaCuenta() {
+		CuentasSinJugadoresServiceImpl multiidioma = new CuentasSinJugadoresServiceImpl(dao, notificaciones, push, email,
+				RELOJ, AvisosTest.TEXTOS, AvisosTest.idiomas(Map.of(2L, "ca", 3L, "en")));
+		sinJugadores(cuenta(1, true, null, false), cuenta(2, true, null, false), cuenta(3, true, null, false));
+		when(dao.marcarAviso(anyLong(), any())).thenReturn(1);
+
+		multiidioma.procesar();
+
+		verify(notificaciones).crear(eq(1L), eq("CUENTA_SIN_JUGADORES"), eq("Tu cuenta se desactivará"),
+				org.mockito.ArgumentMatchers.contains("el 10/6/2027"), eq(1L));
+		verify(notificaciones).crear(eq(2L), eq("CUENTA_SIN_JUGADORES"), eq("El teu compte es desactivarà"),
+				org.mockito.ArgumentMatchers.contains("el 10/6/2027"), eq(2L));
+		verify(notificaciones).crear(eq(3L), eq("CUENTA_SIN_JUGADORES"), eq("Your account will be deactivated"),
+				org.mockito.ArgumentMatchers.contains("on 10/6/2027"), eq(3L));
+		verify(email).enviarAvisoCuentaSinJugadores("u1@x.es", "Ana", LocalDate.of(2027, 6, 10), "es");
+		verify(email).enviarAvisoCuentaSinJugadores("u2@x.es", "Ana", LocalDate.of(2027, 6, 10), "ca");
+		verify(email).enviarAvisoCuentaSinJugadores("u3@x.es", "Ana", LocalDate.of(2027, 6, 10), "en");
 	}
 }

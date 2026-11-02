@@ -63,7 +63,7 @@ class RecordatorioResultadoPartidoSchedulerTest {
 
     @BeforeEach
     void setUp() {
-        scheduler = new RecordatorioResultadoPartidoScheduler(partidoDao, equipoGestionDao, comunicacionService, RELOJ);
+        scheduler = new RecordatorioResultadoPartidoScheduler(partidoDao, equipoGestionDao, comunicacionService, RELOJ, AvisosTest.TEXTOS, AvisosTest.idiomas());
 
         when(equipoGestionDao.obtenerNombreEquipo(EQUIPO_ID)).thenReturn("Cadete A");
         when(equipoGestionDao.obtenerEntrenadoresPorEquipo(EQUIPO_ID)).thenReturn(List.of(100L));
@@ -172,7 +172,7 @@ class RecordatorioResultadoPartidoSchedulerTest {
         // 12:00 en Madrid = 10:00 UTC (horario de verano en octubre).
         Clock relojUtc = Clock.fixed(Instant.parse("2026-10-17T10:00:00Z"), MADRID);
         RecordatorioResultadoPartidoScheduler otro = new RecordatorioResultadoPartidoScheduler(
-                partidoDao, equipoGestionDao, comunicacionService, relojUtc);
+                partidoDao, equipoGestionDao, comunicacionService, relojUtc, AvisosTest.TEXTOS, AvisosTest.idiomas());
 
         otro.enviarRecordatoriosDeResultadoPendiente();
 
@@ -351,8 +351,8 @@ class RecordatorioResultadoPartidoSchedulerTest {
         ArgumentCaptor<Comunicacion> captor = ArgumentCaptor.forClass(Comunicacion.class);
         verify(comunicacionService).crearPrivada(captor.capture(), any(), anyLong());
         assertThat(captor.getValue().getContenido()).isEqualTo(
-                "Introduce el resultado del partido Cadete A - Rival CF del día 17/10/2026"
-                        + " (goles del Mutxamel - goles del rival).");
+                "Falta el resultado del partido Cadete A - Rival CF del sábado 17/10."
+                        + " Introdúcelo como goles del Mutxamel - goles del rival.");
     }
 
     @Test

@@ -45,6 +45,7 @@ import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO.GrupoCategoria;
 import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO.GrupoEquipo;
 import com.mikedev.mutxamelcf.model.RevisionTemporadaDTO.SinPropuesta;
 import com.mikedev.mutxamelcf.model.Temporada;
+import com.mikedev.mutxamelcf.model.TextoDifusion;
 import com.mikedev.mutxamelcf.service.CategoriaPorEdad;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
 import com.mikedev.mutxamelcf.service.NuevaTemporadaService;
@@ -69,14 +70,16 @@ public class NuevaTemporadaServiceImpl implements NuevaTemporadaService {
 	private final PlatformTransactionManager transactionManager;
 	private final NotificacionAppService notificacionAppService;
 	private final Clock clock;
+	private final TextosAvisos textos;
 	private final boolean permitirCierreAntesDeInicio;
 
 	public NuevaTemporadaServiceImpl(TemporadaDao temporadaDao, JugadorDao jugadorDao,
 			JugadorTemporadaDao jugadorTemporadaDao, EquipoDao equipoDao, CategoriaPorEdad categoriaPorEdad,
 			CierreTemporadaDao cierreDao, PlatformTransactionManager transactionManager,
-			NotificacionAppService notificacionAppService, Clock clock,
+			NotificacionAppService notificacionAppService, Clock clock, TextosAvisos textos,
 			@Value("${app.cierre-temporada.permitir-antes-de-inicio:false}") boolean permitirCierreAntesDeInicio) {
 		this.permitirCierreAntesDeInicio = permitirCierreAntesDeInicio;
+		this.textos = textos;
 		this.cierreDao = cierreDao;
 		this.transactionManager = transactionManager;
 		this.notificacionAppService = notificacionAppService;
@@ -798,8 +801,11 @@ public class NuevaTemporadaServiceImpl implements NuevaTemporadaService {
 
 	private void avisarCambioDeTemporada(Temporada destino) {
 		try {
-			notificacionAppService.difundirATodos(TIPO_AVISO, "Nueva temporada",
-					"Empieza la temporada " + destino.getNombre() + ". Los equipos se publicarán en septiembre.", null);
+			notificacionAppService.difundirATodos(TIPO_AVISO,
+					idioma -> new TextoDifusion(
+							textos.texto(idioma, "temporadaNueva.titulo"),
+							textos.texto(idioma, "temporadaNueva.texto", "temporada", destino.getNombre())),
+					null);
 		} catch (RuntimeException e) {
 			logger.error("La temporada {} está cerrada, pero ha fallado el aviso a los usuarios de la app: {}",
 					destino.getNombre(), e.getMessage(), e);

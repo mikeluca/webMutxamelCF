@@ -47,6 +47,8 @@ public class ModeracionServiceImpl implements ModeracionService {
 	private final DispositivoAppDao dispositivoAppDao;
 	private final FcmPushService fcmPushService;
 	private final Clock clock;
+	private final TextosAvisos textos;
+	private final IdiomasUsuarios idiomas;
 
 	public ModeracionServiceImpl(
 			ReporteComunicacionDao reporteDao,
@@ -56,7 +58,12 @@ public class ModeracionServiceImpl implements ModeracionService {
 			EquipoGestionDao equipoGestionDao,
 			DispositivoAppDao dispositivoAppDao,
 			FcmPushService fcmPushService,
-			Clock clock) {
+			Clock clock,
+			TextosAvisos textos,
+			IdiomasUsuarios idiomas) {
+
+		this.textos = textos;
+		this.idiomas = idiomas;
 
 		this.reporteDao = reporteDao;
 		this.comunicacionDao = comunicacionDao;
@@ -121,9 +128,11 @@ public class ModeracionServiceImpl implements ModeracionService {
 
 			try {
 
+				String idioma = idiomas.idiomaDe(adminId);
+
 				fcmPushService.enviarNotificacionAUsuario(
-						adminId, TIPO_PUSH_REPORTE, "Nuevo mensaje reportado",
-						"Hay un mensaje pendiente de revisar en Moderación.", reporteId,
+						adminId, TIPO_PUSH_REPORTE, textos.texto(idioma, "reporte.titulo"),
+						textos.texto(idioma, "reporte.texto"), reporteId,
 						Map.of("reporteId", String.valueOf(reporteId)));
 
 			} catch (Exception e) {

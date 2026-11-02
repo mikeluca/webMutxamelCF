@@ -76,6 +76,8 @@ public class AppAuthController {
 
             rateLimiter.registrarExito(clave);
 
+            guardarIdioma(response.getUsuarioId(), request.getIdioma());
+
             return ResponseEntity.ok(response);
 
         } catch (IllegalArgumentException e) {
@@ -125,6 +127,9 @@ public class AppAuthController {
 
             rateLimiter.registrarExito(clave);
 
+            // El código ya está comprobado: el idioma de la petición pasa a ser el de la cuenta (y el del email).
+            guardarIdioma(usuario.getId(), request.getIdioma());
+
             cuentaActivadaNotifier.notificar(usuario.getId());
 
             LoginAppResponse loginResponse = usuarioAppService.login(
@@ -159,7 +164,7 @@ public class AppAuthController {
             @Valid @RequestBody RecuperarPasswordRequest request,
             HttpServletRequest httpRequest) {
 
-        recuperacionContrasena.solicitar(request.getEmail(), httpRequest.getRemoteAddr());
+        recuperacionContrasena.solicitar(request.getEmail(), httpRequest.getRemoteAddr(), request.getIdioma());
 
         return ResponseEntity.noContent().build();
     }
@@ -199,6 +204,8 @@ public class AppAuthController {
 
             rateLimiter.registrarExito(clave);
 
+            guardarIdioma(usuario.getId(), request.getIdioma());
+
             recuperacionContrasena.avisarContrasenaCambiada(usuario.getId());
 
             LoginAppResponse loginResponse = usuarioAppService.login(
@@ -214,6 +221,14 @@ public class AppAuthController {
             return ResponseEntity
                     .badRequest()
                     .body(e.getMessage());
+        }
+    }
+
+    /** Guarda el idioma que manda la app, si lo manda (sin él, la cuenta se queda como está). */
+    private void guardarIdioma(int usuarioId, String idioma) {
+
+        if (idioma != null) {
+            usuarioAppService.actualizarIdioma(usuarioId, idioma);
         }
     }
 

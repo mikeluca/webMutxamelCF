@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,13 +25,11 @@ import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
-import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaPartido;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaPartidoResponse;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaRequest;
-import com.mikedev.mutxamelcf.model.OpcionesPushComunicacion;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
 import com.mikedev.mutxamelcf.service.JustificacionFaltaPartidoService;
@@ -60,6 +59,8 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 	private final UsuarioAppVinculoDao usuarioAppVinculoDao;
 	private final ComunicacionService comunicacionService;
 	private final Clock clock;
+	private final TextosAvisos textos;
+	private final IdiomasUsuarios idiomas;
 	private final LimitadorAvisos limitadorAvisos;
 
 	public JustificacionFaltaPartidoServiceImpl(
@@ -70,7 +71,12 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 			EquipoGestionDao equipoGestionDao,
 			UsuarioAppVinculoDao usuarioAppVinculoDao,
 			ComunicacionService comunicacionService,
-			Clock clock) {
+			Clock clock,
+			TextosAvisos textos,
+			IdiomasUsuarios idiomas) {
+
+		this.textos = textos;
+		this.idiomas = idiomas;
 
 		this.justificacionDao = justificacionDao;
 		this.partidoDao = partidoDao;
@@ -179,14 +185,9 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 				return;
 			}
 
-			String fecha = textoFecha(partido);
-
-			enviar(partido.getEquipoId(), usuarioAppId,
-					"Ausencia justificada",
-					jugador + " no podrá jugar el partido contra " + rival + " (" + fecha + "). Ausencia justificada."
-							+ " Motivo: " + motivo,
-					jugador + " no podrá jugar el partido contra " + rival + " (" + fecha + "). Ausencia justificada.",
-					Map.of());
+			enviar(partido.getEquipoId(), usuarioAppId, Map.of(),
+					idioma -> conMotivo(idioma, "ausencia.justificada", "ausencia.justificada.texto",
+							motivo, "jugador", jugador, "rival", rival, "fecha", fecha(idioma, partido)));
 
 			registrarAvisoTrasCommit(partido.getId(), jugadorId, TipoAviso.JUSTIFICADA);
 			return;
@@ -198,15 +199,11 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 				return;
 			}
 
-			String texto = jugador + " está convocado y ha justificado su ausencia para el partido contra " + rival
-					+ ". Edita la convocatoria para sustituirlo.";
-
 			enviar(partido.getEquipoId(), usuarioAppId,
-					"Convocado con ausencia justificada",
-					texto + " Motivo: " + motivo,
-					texto,
 					Map.of("tipo", TIPO_PUSH_CONVOCATORIA_EDITAR,
-							"convocatoriaId", String.valueOf(convocatoria.getId())));
+							"convocatoriaId", String.valueOf(convocatoria.getId())),
+					idioma -> conMotivo(idioma, "ausencia.convocado", "ausencia.convocado.texto",
+							motivo, "jugador", jugador, "rival", rival, "fecha", fecha(idioma, partido)));
 
 			registrarAvisoTrasCommit(partido.getId(), jugadorId, TipoAviso.CONVOCADO_SUSTITUIR);
 			return;
@@ -215,16 +212,28 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 		// Nadie con quien sustituirlo: se le quita de la convocatoria. Este aviso se envía siempre.
 		convocatoriaJugadorDao.eliminarPorConvocatoriaYJugador(convocatoria.getId(), jugadorId);
 
-		String texto = jugador + " ha justificado su ausencia y se ha quitado de la convocatoria del partido contra "
-				+ rival + " (no quedan más jugadores disponibles).";
-
-		enviar(partido.getEquipoId(), usuarioAppId,
-				"Quitado de la convocatoria",
-				texto + " Motivo: " + motivo,
-				texto,
-				Map.of());
+		enviar(partido.getEquipoId(), usuarioAppId, Map.of(),
+				idioma -> conMotivo(idioma, "ausencia.quitado", "ausencia.quitado.texto",
+						motivo, "jugador", jugador, "rival", rival, "fecha", fecha(idioma, partido)));
 
 		registrarAvisoTrasCommit(partido.getId(), jugadorId, TipoAviso.QUITADO);
+	}
+
+	/**
+	 * El aviso con el motivo que ha escrito la familia como párrafo aparte, solo en la bandeja: el push (que se ve en la
+	 * pantalla bloqueada) lleva el texto sin él.
+	 */
+	private TextoAviso conMotivo(String idioma, String claveTitulo, String claveTexto, String motivo,
+			String... parametros) {
+
+		String base = textos.texto(idioma, claveTexto, parametros);
+
+		return new TextoAviso(textos.texto(idioma, claveTitulo + ".titulo"), textos.conMotivo(idioma, base, motivo),
+				base);
+	}
+
+	private String fecha(String idioma, Partido partido) {
+		return textos.fecha(idioma, PlazoJustificacionPartido.dia(partido));
 	}
 
 	/* Quién convocó al invitado: el que lo invitó o, si la fila no lo guarda, el de la convocatoria. */
@@ -260,12 +269,6 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 
 		String jugador = equipoGestionDao.obtenerNombreJugador(fila.getJugadorId());
 		String equipo = equipoGestionDao.obtenerNombreEquipo(partido.getEquipoId());
-		String texto = jugador + " no podrá jugar con " + equipo + " el partido contra " + partido.getRival() + " ("
-				+ textoFecha(partido) + "). Puedes convocar a otro jugador en su lugar.";
-
-		Comunicacion comunicacion = new Comunicacion();
-		comunicacion.setTitulo("Invitado no disponible");
-		comunicacion.setContenido(texto + " Motivo: " + motivo);
 
 		Map<String, String> datos = new java.util.LinkedHashMap<>();
 		datos.put("tipo", "INVITACION_DESESTIMADA");
@@ -273,8 +276,10 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 		datos.put("partidoId", String.valueOf(partido.getId()));
 		datos.put("jugadorId", String.valueOf(fila.getJugadorId()));
 
-		comunicacionService.crearPrivada(comunicacion, List.of(invitador), usuarioAppId,
-				new OpcionesPushComunicacion(texto, datos));
+		idiomas.crearPrivadaPorIdioma(comunicacionService, List.of(invitador), usuarioAppId, datos,
+				idioma -> conMotivo(idioma, "invitacion.desestimada", "invitacion.desestimada.texto", motivo,
+						"jugador", jugador, "equipo", equipo, "rival", partido.getRival(),
+						"fecha", fecha(idioma, partido)));
 	}
 
 	/*
@@ -332,10 +337,14 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 		}
 
 		String jugador = equipoGestionDao.obtenerNombreJugador(jugadorId);
-		String texto = jugador + " ya puede jugar el partido contra " + partido.getRival()
-				+ "; no se ha añadido a la convocatoria.";
 
-		enviar(partido.getEquipoId(), usuarioAppId, "Ausencia retirada", texto, texto, Map.of());
+		enviar(partido.getEquipoId(), usuarioAppId, Map.of(),
+				idioma -> {
+					String texto = textos.texto(idioma, "ausencia.retirada.texto", "jugador", jugador,
+							"rival", partido.getRival(), "fecha", fecha(idioma, partido));
+
+					return new TextoAviso(textos.texto(idioma, "ausencia.retirada.titulo"), texto, texto);
+				});
 
 		registrarAvisoTrasCommit(partidoId, jugadorId, TipoAviso.RETIRADA);
 	}
@@ -500,16 +509,8 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 		return limitadorAvisos.ultimoTipo(claveAviso(partidoId, jugadorId));
 	}
 
-	private String textoFecha(Partido partido) {
-
-		LocalDate dia = PlazoJustificacionPartido.dia(partido);
-
-		return dia == null ? "sin fecha" : FECHA.format(dia);
-	}
-
 	private void enviar(
-			Long equipoId, Long usuarioAppId, String titulo, String contenido, String contenidoPush,
-			Map<String, String> datosPush) {
+			Long equipoId, Long usuarioAppId, Map<String, String> datosPush, Function<String, TextoAviso> texto) {
 
 		List<Long> entrenadores = new ArrayList<>(equipoGestionDao.obtenerEntrenadoresPorEquipo(equipoId));
 
@@ -532,12 +533,7 @@ public class JustificacionFaltaPartidoServiceImpl implements JustificacionFaltaP
 			return;
 		}
 
-		Comunicacion comunicacion = new Comunicacion();
-		comunicacion.setTitulo(titulo);
-		comunicacion.setContenido(contenido);
-
-		comunicacionService.crearPrivada(comunicacion, entrenadores, usuarioAppId,
-				new OpcionesPushComunicacion(contenidoPush, datosPush));
+		idiomas.crearPrivadaPorIdioma(comunicacionService, entrenadores, usuarioAppId, datosPush, texto);
 	}
 
 	private JustificacionFaltaPartidoResponse construirResponse(JustificacionFaltaPartido justificacion) {

@@ -63,7 +63,7 @@ class RecordatorioListaEntrenamientoSchedulerTest {
     private void ahora(int hora, int minuto) {
         scheduler = new RecordatorioListaEntrenamientoScheduler(
                 entrenamientoDao, equipoGestionDao, comunicacionService,
-                Clock.fixed(LocalDateTime.of(HOY, LocalTime.of(hora, minuto)).atZone(MADRID).toInstant(), MADRID));
+                Clock.fixed(LocalDateTime.of(HOY, LocalTime.of(hora, minuto)).atZone(MADRID).toInstant(), MADRID), AvisosTest.TEXTOS, AvisosTest.idiomas());
     }
 
     private Entrenamiento entrenamiento(long id) {
@@ -91,7 +91,7 @@ class RecordatorioListaEntrenamientoSchedulerTest {
         ArgumentCaptor<OpcionesPushComunicacion> o = ArgumentCaptor.forClass(OpcionesPushComunicacion.class);
         verify(comunicacionService).crearPrivada(c.capture(), eq(List.of(11L)), eq(30L), o.capture());
         assertThat(c.getValue().getContenido())
-                .isEqualTo("¿Has pasado lista del entrenamiento de hoy (18:00)? Revisa la asistencia de Cadete A.");
+                .isEqualTo("¿Has pasado lista del entrenamiento de hoy a las 18:00? Revisa la asistencia de Cadete A.");
         assertThat(o.getValue().datos()).containsEntry("tipo", "PASAR_LISTA").containsEntry("entrenamientoId", "1");
         verify(entrenamientoDao).marcarAvisoListaEnviado(1L);
     }
@@ -155,7 +155,7 @@ class RecordatorioListaEntrenamientoSchedulerTest {
 
         ArgumentCaptor<Comunicacion> c = ArgumentCaptor.forClass(Comunicacion.class);
         verify(comunicacionService).crearPrivada(c.capture(), anyList(), anyLong(), any());
-        assertThat(c.getValue().getContenido()).contains("(21:00)");
+        assertThat(c.getValue().getContenido()).contains("a las 21:00");
     }
 
     @Test
@@ -178,7 +178,7 @@ class RecordatorioListaEntrenamientoSchedulerTest {
 
         ArgumentCaptor<Comunicacion> c = ArgumentCaptor.forClass(Comunicacion.class);
         verify(comunicacionService).crearPrivada(c.capture(), anyList(), anyLong(), any());
-        assertThat(c.getValue().getContenido()).contains("del 20/10");
+        assertThat(c.getValue().getContenido()).contains("del martes 20/10");
     }
 
     @Test

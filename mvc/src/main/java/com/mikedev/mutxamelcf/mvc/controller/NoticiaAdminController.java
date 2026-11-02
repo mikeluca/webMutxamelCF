@@ -20,12 +20,15 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.util.HtmlUtils;
 
 import com.mikedev.mutxamelcf.model.EquipoDTO;
+import com.mikedev.mutxamelcf.model.IdiomaApp;
 import com.mikedev.mutxamelcf.model.NoticiaDTO;
 import com.mikedev.mutxamelcf.model.NoticiaForm;
+import com.mikedev.mutxamelcf.model.TextoDifusion;
 import com.mikedev.mutxamelcf.service.EquipoService;
 import com.mikedev.mutxamelcf.service.FcmPushService;
 import com.mikedev.mutxamelcf.service.NoticiaService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
+import com.mikedev.mutxamelcf.serviceimpl.TextosAvisos;
 
 @Controller
 @RequestMapping("/admin")
@@ -43,8 +46,11 @@ public class NoticiaAdminController {
 
 	private final FcmPushService fcmPushService;
 
+	private final TextosAvisos textos;
+
 	public NoticiaAdminController(NoticiaService noticiaService, EquipoService equiposService,
-			NotificacionAppService notificacionAppService, FcmPushService fcmPushService) {
+			NotificacionAppService notificacionAppService, FcmPushService fcmPushService, TextosAvisos textos) {
+		this.textos = textos;
 		this.noticiaService = noticiaService;
 		this.equiposService = equiposService;
 		this.notificacionAppService = notificacionAppService;
@@ -123,24 +129,39 @@ public class NoticiaAdminController {
 				 * cada edición posterior.
 				 */
 				if (noticiaExistente == null) {
+					String tituloNoticia = noticia.getTitulo();
+					Long noticiaId = (long) noticia.getId();
+
 					notificacionAppService.difundirATodos(
 							"NOTICIA",
-							"📰 Nueva noticia",
-							noticia.getTitulo(),
-							(long) noticia.getId());
+							idioma -> new TextoDifusion(
+									textos.texto(idioma, "noticia.titulo"),
+									tituloNoticia),
+							noticiaId);
 
 					/*
 					 * Además del aviso a usuarios con cuenta (arriba),
-					 * publicamos en el topic "noticias" de FCM para
-					 * quien lo siga sin tener cuenta en la app. El
-					 * título se guarda HTML-escapado (ver arriba); lo
-					 * desescapamos para que el push muestre texto
-					 * plano.
+					 * publicamos en los topics de noticias de FCM (uno por
+					 * idioma) para quien los siga sin tener cuenta en la
+					 * app. El título de la noticia se guarda HTML-escapado
+					 * (ver arriba); lo desescapamos para que el push
+					 * muestre texto plano. No se traduce.
 					 */
+					String tituloPlano = HtmlUtils.htmlUnescape(tituloNoticia);
+
+					for (String idioma : IdiomaApp.TODOS) {
+						fcmPushService.enviarATopic(
+								TOPIC_NOTICIAS + "_" + idioma,
+								textos.texto(idioma, "noticia.titulo"),
+								tituloPlano);
+					}
+
+					// TODO: quitar el topic antiguo "noticias" cuando la versión mínima de la app obligue a actualizar
+					// (las versiones que aún no se suscriben por idioma solo escuchan este, y lo reciben en castellano).
 					fcmPushService.enviarATopic(
 							TOPIC_NOTICIAS,
-							HtmlUtils.htmlUnescape(noticia.getTitulo()),
-							"Nueva noticia publicada en la web del club");
+							textos.texto(IdiomaApp.ES, "noticia.titulo"),
+							tituloPlano);
 				}
 
 				logger.debug("Fin guardarNoticia: resultado=OK");

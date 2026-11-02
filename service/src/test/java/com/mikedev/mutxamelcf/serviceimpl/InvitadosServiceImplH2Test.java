@@ -92,6 +92,8 @@ class InvitadosServiceImplH2Test {
     private JdbcTemplate jdbc;
     private ConvocatoriaJugadorDaoImpl convocatoriaJugadorDao;
     private InvitadosServiceImpl service;
+    /** El idioma de cada cuenta (las que no salen aquí, castellano). */
+    private final Map<Long, String> idiomasPorUsuario = new java.util.HashMap<>();
     private EquipoGestionDao gestion;
     private JustificacionFaltaPartidoService justificacionService;
     private final List<Aviso> avisos = new ArrayList<>();
@@ -228,7 +230,7 @@ class InvitadosServiceImplH2Test {
                 justificacionService,
                 new ReglaInvitados(),
                 new com.mikedev.mutxamelcf.dao.impl.EquipacionDaoImpl(jdbc),
-                Clock.fixed(ahora.atZone(ZoneId.of("Europe/Madrid")).toInstant(), ZoneId.of("Europe/Madrid")));
+                Clock.fixed(ahora.atZone(ZoneId.of("Europe/Madrid")).toInstant(), ZoneId.of("Europe/Madrid")), AvisosTest.TEXTOS, AvisosTest.idiomas(idiomasPorUsuario));
     }
 
     // ------------------------------------------------------------------ montaje
@@ -409,7 +411,7 @@ class InvitadosServiceImplH2Test {
         Aviso familia = avisos.stream().filter(a -> a.destinos().contains(31L)).findFirst().orElseThrow();
         assertThat(familia.tipo()).isEqualTo("CONVOCATORIA");
         assertThat(familia.data()).containsEntry("convocatoriaId", "100").containsEntry("partidoId", "10");
-        assertThat(familia.contenido()).contains("Cadete A").contains("10:00h en Vestuarios");
+        assertThat(familia.contenido()).contains("Cadete A").contains("Citación: 10:00 en Vestuarios");
 
         // ... y el entrenador de Infantil A, que juega otro día, un aviso de que jugará con Cadete A.
         assertThat(avisosDe("INVITACION_AUTORIZADA")).hasSize(1);
@@ -431,7 +433,7 @@ class InvitadosServiceImplH2Test {
         assertThat(avisosDe("CONVOCATORIA")).extracting(a -> a.destinos().get(0))
                 .containsExactlyInAnyOrder(20L, 21L);
         assertThat(avisosDe("CONVOCATORIA").stream().filter(a -> a.destinos().contains(20L)).findFirst().orElseThrow()
-                .contenido()).startsWith("Has sido convocado con Cadete A");
+                .contenido()).startsWith("Te han convocado con Cadete A");
     }
 
     @Test
@@ -450,7 +452,8 @@ class InvitadosServiceImplH2Test {
         Aviso aviso = avisosDe("INVITACION_LIBERAR").get(0);
 
         assertThat(aviso.destinos()).containsExactly(ENTRENADOR_ORIGEN);
-        assertThat(aviso.contenido()).contains("coincide con un partido de Cadete B").contains("quítalo de tu convocatoria");
+        assertThat(aviso.contenido()).contains("ese día Ana está en tu convocatoria de Cadete B")
+                .contains("quita a Ana de tu convocatoria");
         // Para llevarlo a su propia convocatoria de ese día.
         assertThat(aviso.data()).containsEntry("convocatoriaOrigenId", "101").containsEntry("invitacionId",
                 String.valueOf(fila.getId()));
@@ -683,9 +686,9 @@ class InvitadosServiceImplH2Test {
         List<Aviso> aFamilia = avisos.stream().filter(a -> a.destinos().contains(21L)).toList();
 
         assertThat(aFamilia).hasSize(2);
-        assertThat(aFamilia.get(0).contenido()).contains("Biel ya no está convocado".replace("Biel", "Ana"))
-                .contains("Cadete B");
-        assertThat(aFamilia.get(1).contenido()).contains("Ana ha sido convocado con Cadete A");
+        assertThat(aFamilia.get(0).contenido()).contains("Ana ya no está en la convocatoria de Cadete B")
+                .contains("ese día juega con Cadete A");
+        assertThat(aFamilia.get(1).contenido()).contains("Han convocado a Ana con Cadete A");
         // Quien lo libera no recibe aviso de lo que acaba de hacer.
         assertThat(avisos).noneMatch(a -> a.destinos().contains(ENTRENADOR_ORIGEN));
         assertThat(avisosDe("INVITACION_LIBERADA_COORDINACION")).isEmpty();
@@ -706,7 +709,8 @@ class InvitadosServiceImplH2Test {
         Aviso aviso = avisosDe("INVITACION_LIBERADA_COORDINACION").get(0);
 
         assertThat(aviso.destinos()).containsExactly(ENTRENADOR_ORIGEN);
-        assertThat(aviso.contenido()).contains("Coordinación ha liberado a Ana").contains("lo ha quitado de tu convocatoria");
+        assertThat(aviso.contenido()).contains("Coordinación ha quitado a Ana de tu convocatoria")
+                .contains("para que juegue con Cadete A");
     }
 
     @Test
@@ -882,7 +886,7 @@ class InvitadosServiceImplH2Test {
                 new JustificacionFaltaPartidoDaoImpl(jdbc), mock(UsuarioAppDao.class), comunicacion(),
                 justificacionService, new ReglaInvitados(),
                 new com.mikedev.mutxamelcf.dao.impl.EquipacionDaoImpl(jdbc),
-                Clock.fixed(hora.atZone(ZoneId.of("Europe/Madrid")).toInstant(), ZoneId.of("Europe/Madrid")));
+                Clock.fixed(hora.atZone(ZoneId.of("Europe/Madrid")).toInstant(), ZoneId.of("Europe/Madrid")), AvisosTest.TEXTOS, AvisosTest.idiomas(idiomasPorUsuario));
     }
 
     // Los mismos colaboradores del setUp, para reconstruir el servicio con otro reloj.
@@ -1079,7 +1083,7 @@ class InvitadosServiceImplH2Test {
         assertThat(anulaciones).hasSize(3);
         assertThat(anulaciones).allMatch(a -> a.data().get("fechaPartido").equals("2026-11-14"));
         assertThat(anulaciones.stream().filter(a -> a.destinos().contains(21L)).findFirst().orElseThrow().contenido())
-                .contains("Ana ya no juega con Cadete A").contains("14/11/2026");
+                .contains("Ana ya no juega con Cadete A el partido contra").contains("sábado 14/11");
         assertThat(anulaciones.stream().anyMatch(a -> a.destinos().contains(ENTRENADOR_ORIGEN))).isTrue();
         // De Biel, que solo esperaba a coordinación, no hay nada que contarle a nadie salvo a quien lo invitó.
         assertThat(anulaciones).noneMatch(a -> a.contenido().contains("Biel"));
@@ -1098,7 +1102,7 @@ class InvitadosServiceImplH2Test {
                 .containsEntry("fechaAnterior", "2026-11-14").containsEntry("convocatoriaId", "100")
                 .containsEntry("partidoId", "10");
         assertThat(alEntrenador.data()).containsEntry("jugadorIds", "2");
-        assertThat(alEntrenador.contenido()).contains("del 14/11/2026 al 16/11/2026").contains("Biel")
+        assertThat(alEntrenador.contenido()).contains("del sábado 14/11 al lunes 16/11").contains("Biel")
                 .contains("vuelve a invitarlos para la nueva fecha");
         assertThat(alEntrenador.push()).doesNotContain("Biel");
     }
@@ -1168,7 +1172,7 @@ class InvitadosServiceImplH2Test {
 
         assertThat(solapamiento).extracting(a -> a.destinos().get(0)).containsExactlyInAnyOrder(20L, 21L);
         assertThat(solapamiento.stream().filter(a -> a.destinos().contains(20L)).findFirst().orElseThrow().contenido())
-                .startsWith("Dejas de estar confirmado con Cadete A el 14/11/2026");
+                .startsWith("Tu convocatoria con Cadete A del sábado 14/11 queda en espera");
         assertThat(convocatoriaJugadorDao.obtenerPorConvocatoria(100L)).isEmpty();
     }
 
@@ -1207,7 +1211,7 @@ class InvitadosServiceImplH2Test {
         service.aprobar(COORDINADOR, fila(100, ANA).getId());
 
         assertThat(avisosDe("CONVOCATORIA")).isNotEmpty().allSatisfy(a -> assertThat(a.contenido())
-                .contains("La convocatoria es a las 10:00h en Vestuarios. Equipaje: Segunda. En la mochila: Primera.")
+                .contains("Citación: 10:00 en Vestuarios.\n\nEquipaje: Segunda. En la mochila: Primera.")
                 .endsWith("\n\n🚿 Ducha recomendable después del partido"));
     }
 
@@ -1220,5 +1224,52 @@ class InvitadosServiceImplH2Test {
         assertThat(avisosDe("CONVOCATORIA")).isNotEmpty().allSatisfy(a -> assertThat(a.contenido())
                 .contains("en Vestuarios.\n\n").doesNotContain("Equipaje")
                 .endsWith("🚿 Ducha recomendable después del partido"));
+    }
+
+    // ---- un destinatario en cada idioma --------------------------------------------------------
+
+    @Test
+    void alLiberarloElJugadorYSuFamiliaRecibenElAvisoDeJuegaConOtroEquipoCadaUnoEnSuIdioma() {
+        idiomasPorUsuario.put(20L, "ca");
+        idiomasPorUsuario.put(21L, "en");
+        convocarEnOrigen(ANA);
+        invitar(ENTRENADOR_DESTINO, ANA);
+        service.aprobar(COORDINADOR, fila(100, ANA).getId());
+        avisos.clear();
+
+        service.liberar(ENTRENADOR_ORIGEN, fila(100, ANA).getId());
+
+        // 20 es la cuenta del propio jugador (en valenciano): versión "jugador".
+        Aviso alJugador = avisos.stream().filter(a -> a.destinos().contains(20L) && a.titulo().startsWith("Juga"))
+                .findFirst().orElseThrow();
+        assertThat(alJugador.titulo()).isEqualTo("Juga amb un altre equip");
+        assertThat(alJugador.contenido()).isEqualTo("Ja no estàs en la convocatòria de Cadete B per al partit contra"
+                + " Denia del dissabte 14/11: eixe dia jugues amb Cadete A.");
+
+        // 21 es la familia (en inglés): versión "familia" del mismo aviso.
+        Aviso aLaFamilia = avisos.stream().filter(a -> a.destinos().contains(21L) && a.titulo().startsWith("Playing"))
+                .findFirst().orElseThrow();
+        assertThat(aLaFamilia.contenido()).isEqualTo("Ana is no longer in the Cadete B call-up for the match against"
+                + " Denia on Saturday 14/11: that day they're playing with Cadete A.");
+    }
+
+    @Test
+    void siSuEquipoMueveUnPartidoAEseDiaElAvisoDeEnEsperaSaleEnElIdiomaDeCadaCuenta() {
+        idiomasPorUsuario.put(20L, "en");
+        idiomasPorUsuario.put(21L, "ca");
+        cambiarDia(11, DOMINGO);
+        convocarEnOrigen(ANA);
+        invitar(COORDINADOR, ANA);
+        avisos.clear();
+
+        LocalDate antiguo = cambiarDia(11, SABADO);
+        service.alCambiarFechaPartido(partidos.get(11L), antiguo, SABADO);
+
+        List<Aviso> solapamiento = avisosDe("INVITACION_SOLAPAMIENTO");
+
+        assertThat(solapamiento.stream().filter(a -> a.destinos().contains(20L)).findFirst().orElseThrow().contenido())
+                .startsWith("Your call-up with Cadete A on Saturday 14/11 is on hold");
+        assertThat(solapamiento.stream().filter(a -> a.destinos().contains(21L)).findFirst().orElseThrow().contenido())
+                .startsWith("La convocatòria de Ana amb Cadete A del dissabte 14/11 queda en espera");
     }
 }

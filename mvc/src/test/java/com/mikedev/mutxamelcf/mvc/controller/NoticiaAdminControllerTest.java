@@ -45,7 +45,7 @@ class NoticiaAdminControllerTest {
         fcmPushService = mock(FcmPushService.class);
 
         controller = new NoticiaAdminController(noticiaService, equiposService, notificacionAppService,
-                fcmPushService);
+                fcmPushService, new com.mikedev.mutxamelcf.serviceimpl.TextosAvisos());
     }
 
     @Test
@@ -151,7 +151,7 @@ class NoticiaAdminControllerTest {
         verify(noticiaService).guardarNoticia(captor.capture());
         assertEquals(3, captor.getValue().getImagen().length);
         assertEquals(fechaOriginal, captor.getValue().getFecha());
-        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any());
         verify(fcmPushService, never()).enviarATopic(any(), any(), any());
     }
 
@@ -167,19 +167,27 @@ class NoticiaAdminControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Noticia generada correctamente.", response.getBody().get("mensaje"));
-        verify(notificacionAppService).difundirATodos(org.mockito.ArgumentMatchers.eq("NOTICIA"), any(), any(), any());
 
-        org.mockito.ArgumentCaptor<String> tituloCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(fcmPushService).enviarATopic(
-                org.mockito.ArgumentMatchers.eq("noticias"),
-                tituloCaptor.capture(),
-                any());
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<java.util.function.Function<String, com.mikedev.mutxamelcf.model.TextoDifusion>> texto = org.mockito.ArgumentCaptor
+                .forClass(java.util.function.Function.class);
+        verify(notificacionAppService).difundirATodos(org.mockito.ArgumentMatchers.eq("NOTICIA"), texto.capture(), any());
 
-        assertEquals("Titulo nuevo", tituloCaptor.getValue());
+        // A las cuentas: el título "Nueva noticia" en su idioma y, de cuerpo, el título de la noticia tal cual.
+        assertEquals("📰 Nueva noticia", texto.getValue().apply("es").titulo());
+        assertEquals("📰 Nova notícia", texto.getValue().apply("ca").titulo());
+        assertEquals("📰 New article", texto.getValue().apply("en").titulo());
+        assertEquals("Titulo nuevo", texto.getValue().apply("en").mensaje());
+
+        // Al topic de cada idioma, y al antiguo "noticias" en castellano.
+        verify(fcmPushService).enviarATopic("noticias_es", "📰 Nueva noticia", "Titulo nuevo");
+        verify(fcmPushService).enviarATopic("noticias_ca", "📰 Nova notícia", "Titulo nuevo");
+        verify(fcmPushService).enviarATopic("noticias_en", "📰 New article", "Titulo nuevo");
+        verify(fcmPushService).enviarATopic("noticias", "📰 Nueva noticia", "Titulo nuevo");
     }
 
     @Test
-    void guardarNoticiaNuevaDesescapaElTituloAntesDePublicarEnElTopic() {
+    void guardarNoticiaNuevaDesescapaElTituloAntesDePublicarEnLosTopics() {
         NoticiaForm form = new NoticiaForm();
         form.setTitulo("Ana & Juan");
         form.setContenido("Contenido");
@@ -188,15 +196,12 @@ class NoticiaAdminControllerTest {
 
         controller.guardarNoticia(form);
 
-        org.mockito.ArgumentCaptor<String> tituloCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(fcmPushService).enviarATopic(
-                org.mockito.ArgumentMatchers.eq("noticias"),
-                tituloCaptor.capture(),
-                any());
-
         // El titulo se guarda escapado ("Ana &amp; Juan"); el push debe llevarlo
         // desescapado, como texto plano legible.
-        assertEquals("Ana & Juan", tituloCaptor.getValue());
+        verify(fcmPushService).enviarATopic(org.mockito.ArgumentMatchers.eq("noticias_es"), any(),
+                org.mockito.ArgumentMatchers.eq("Ana & Juan"));
+        verify(fcmPushService).enviarATopic(org.mockito.ArgumentMatchers.eq("noticias"), any(),
+                org.mockito.ArgumentMatchers.eq("Ana & Juan"));
     }
 
     @Test

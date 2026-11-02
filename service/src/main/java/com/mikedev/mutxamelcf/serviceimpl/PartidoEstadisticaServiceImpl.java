@@ -11,6 +11,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import java.time.Clock;
 
@@ -32,7 +34,6 @@ import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoEstadisticaJugadorDao;
 import com.mikedev.mutxamelcf.dao.ResumenTemporadaDao;
 import com.mikedev.mutxamelcf.dao.TemporadaDao;
-import com.mikedev.mutxamelcf.model.Comunicacion;
 import com.mikedev.mutxamelcf.model.EstadisticasJugadorEquipo;
 import com.mikedev.mutxamelcf.model.Temporada;
 import com.mikedev.mutxamelcf.service.ComunicacionService;
@@ -63,6 +64,8 @@ public class PartidoEstadisticaServiceImpl
     private final ReglaSancionAmarillas reglaSancion;
     private final PlatformTransactionManager transactionManager;
     private final Clock clock;
+    private final TextosAvisos textos;
+    private final IdiomasUsuarios idiomas;
 
     public PartidoEstadisticaServiceImpl(
             PartidoDao partidoDao,
@@ -75,7 +78,12 @@ public class PartidoEstadisticaServiceImpl
             ComunicacionService comunicacionService,
             ReglaSancionAmarillas reglaSancion,
             PlatformTransactionManager transactionManager,
-            Clock clock) {
+            Clock clock,
+            TextosAvisos textos,
+            IdiomasUsuarios idiomas) {
+
+        this.textos = textos;
+        this.idiomas = idiomas;
 
         this.transactionManager = transactionManager;
         this.clock = clock;
@@ -285,7 +293,8 @@ public class PartidoEstadisticaServiceImpl
             Map<Long, Boolean> rojaAntes,
             Long usuarioAppId) {
 
-        List<String> avisos = new ArrayList<>();
+        // Una línea por jugador, que se redacta en el idioma de cada destinatario.
+        List<Function<String, String>> avisos = new ArrayList<>();
 
         for (PartidoEstadisticaJugadorRequest jugador : jugadores) {
 
@@ -305,13 +314,14 @@ public class PartidoEstadisticaServiceImpl
             String nombre = equipoGestionDao.obtenerNombreJugador(id);
 
             if (umbralSancion > 0) {
-                avisos.add(nombre + " llega a " + umbralSancion + " amarillas: posible sanción."
-                        + " Compruébalo en la FFCV.");
+                avisos.add(idioma -> textos.texto(idioma, "tarjetas.sancion",
+                        "jugador", nombre, "n", String.valueOf(umbralSancion)));
             } else if (rojaNueva) {
-                avisos.add(nombre + " ha visto la roja en el partido contra " + partido.getRival()
-                        + ": posible sanción.");
+                avisos.add(idioma -> textos.texto(idioma, "tarjetas.roja",
+                        "jugador", nombre, "rival", partido.getRival()));
             } else {
-                avisos.add(nombre + " acumula " + amarillasDespues + " amarillas: a una de posible sanción.");
+                avisos.add(idioma -> textos.texto(idioma, "tarjetas.aUna",
+                        "jugador", nombre, "n", String.valueOf(amarillasDespues)));
             }
         }
 
@@ -336,13 +346,8 @@ public class PartidoEstadisticaServiceImpl
             return;
         }
 
-        // Una sola comunicación por guardado, con una línea por jugador.
-        Comunicacion comunicacion = new Comunicacion();
-
-        comunicacion.setTitulo("Tarjetas");
-        comunicacion.setContenido(String.join("\n", avisos));
-
-        enviarTrasElCommit(comunicacion, destinatarios, usuarioAppId);
+        // Una sola comunicación por guardado e idioma, con una línea por jugador.
+        enviarTrasElCommit(avisos, destinatarios, usuarioAppId);
     }
 
     /*
@@ -352,7 +357,8 @@ public class PartidoEstadisticaServiceImpl
      * afterCommit la transacción ya está cerrada, así que se hace en una
      * transacción nueva (REQUIRES_NEW).
      */
-    private void enviarTrasElCommit(Comunicacion comunicacion, List<Long> destinatarios, Long usuarioAppId) {
+    private void enviarTrasElCommit(List<Function<String, String>> avisos, List<Long> destinatarios,
+            Long usuarioAppId) {
 
         Runnable envio = () -> {
             try {
@@ -360,8 +366,11 @@ public class PartidoEstadisticaServiceImpl
                 TransactionTemplate plantilla = new TransactionTemplate(transactionManager);
                 plantilla.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
-                plantilla.executeWithoutResult(
-                        estado -> comunicacionService.crearPrivada(comunicacion, destinatarios, usuarioAppId));
+                plantilla.executeWithoutResult(estado -> idiomas.crearPrivadaPorIdioma(
+                        comunicacionService, destinatarios, usuarioAppId, null,
+                        idioma -> new TextoAviso(
+                                textos.texto(idioma, "tarjetas.titulo"),
+                                avisos.stream().map(aviso -> aviso.apply(idioma)).collect(Collectors.joining("\n")))));
 
             } catch (Exception e) {
 

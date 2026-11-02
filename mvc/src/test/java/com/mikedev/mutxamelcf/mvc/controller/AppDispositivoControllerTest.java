@@ -23,7 +23,7 @@ class AppDispositivoControllerTest {
     @Test
     void registrarDevuelve401SiNoHayAutenticacion() {
         DispositivoAppService service = mock(DispositivoAppService.class);
-        AppDispositivoController controller = new AppDispositivoController(service);
+        AppDispositivoController controller = new AppDispositivoController(service, mock(com.mikedev.mutxamelcf.service.UsuarioAppService.class));
 
         ResponseEntity<Void> response = controller.registrar(new DispositivoAppRequest(), null);
 
@@ -33,7 +33,7 @@ class AppDispositivoControllerTest {
     @Test
     void registrarDelegaEnElServicioConElUsuarioAutenticado() {
         DispositivoAppService service = mock(DispositivoAppService.class);
-        AppDispositivoController controller = new AppDispositivoController(service);
+        AppDispositivoController controller = new AppDispositivoController(service, mock(com.mikedev.mutxamelcf.service.UsuarioAppService.class));
 
         DispositivoAppRequest request = new DispositivoAppRequest();
         Authentication auth = new TestingAuthenticationToken("1", null);
@@ -50,7 +50,7 @@ class AppDispositivoControllerTest {
         // N-01: una peticion sin token valido no debe recibir 401 aqui,
         // o la app entra en un bucle de logout -> DELETE -> 401 -> logout.
         DispositivoAppService service = mock(DispositivoAppService.class);
-        AppDispositivoController controller = new AppDispositivoController(service);
+        AppDispositivoController controller = new AppDispositivoController(service, mock(com.mikedev.mutxamelcf.service.UsuarioAppService.class));
 
         ResponseEntity<Void> response = controller.desregistrar("token-fcm", null);
 
@@ -61,7 +61,7 @@ class AppDispositivoControllerTest {
     @Test
     void desregistrarDevuelve204SiLaAutenticacionEsAnonima() {
         DispositivoAppService service = mock(DispositivoAppService.class);
-        AppDispositivoController controller = new AppDispositivoController(service);
+        AppDispositivoController controller = new AppDispositivoController(service, mock(com.mikedev.mutxamelcf.service.UsuarioAppService.class));
 
         Authentication anonimo = new AnonymousAuthenticationToken(
                 "clave", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")));
@@ -75,7 +75,7 @@ class AppDispositivoControllerTest {
     @Test
     void desregistrarDelegaEnElServicioConElUsuarioAutenticado() {
         DispositivoAppService service = mock(DispositivoAppService.class);
-        AppDispositivoController controller = new AppDispositivoController(service);
+        AppDispositivoController controller = new AppDispositivoController(service, mock(com.mikedev.mutxamelcf.service.UsuarioAppService.class));
 
         Authentication auth = new TestingAuthenticationToken("1", null);
         auth.setAuthenticated(true);
@@ -84,5 +84,35 @@ class AppDispositivoControllerTest {
 
         assertThat(response.getStatusCodeValue()).isEqualTo(200);
         verify(service).desactivar(1L, "token-fcm");
+    }
+
+    @Test
+    void registrarGuardaElIdiomaQueMandaLaApp() {
+        DispositivoAppService service = mock(DispositivoAppService.class);
+        com.mikedev.mutxamelcf.service.UsuarioAppService usuarios = mock(com.mikedev.mutxamelcf.service.UsuarioAppService.class);
+        AppDispositivoController controller = new AppDispositivoController(service, usuarios);
+
+        DispositivoAppRequest request = new DispositivoAppRequest();
+        request.setIdioma("ca");
+        Authentication auth = new TestingAuthenticationToken("7", null);
+        auth.setAuthenticated(true);
+
+        controller.registrar(request, auth);
+
+        verify(usuarios).actualizarIdioma(7, "ca");
+    }
+
+    @Test
+    void registrarSinIdiomaDejaElDeLaCuentaComoEstaba() {
+        DispositivoAppService service = mock(DispositivoAppService.class);
+        com.mikedev.mutxamelcf.service.UsuarioAppService usuarios = mock(com.mikedev.mutxamelcf.service.UsuarioAppService.class);
+        AppDispositivoController controller = new AppDispositivoController(service, usuarios);
+
+        Authentication auth = new TestingAuthenticationToken("7", null);
+        auth.setAuthenticated(true);
+
+        controller.registrar(new DispositivoAppRequest(), auth);
+
+        verify(usuarios, never()).actualizarIdioma(org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.any());
     }
 }

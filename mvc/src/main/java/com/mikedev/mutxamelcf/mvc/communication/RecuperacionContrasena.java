@@ -84,7 +84,7 @@ public class RecuperacionContrasena {
     }
 
     /** Atiende una petición de /recuperar. Nunca lanza ni revela si el email tiene cuenta. */
-    public void solicitar(String email, String ip) {
+    public void solicitar(String email, String ip, String idiomaPeticion) {
 
         String normalizado = email == null ? "" : email.trim().toLowerCase();
 
@@ -93,7 +93,7 @@ public class RecuperacionContrasena {
             return;
         }
 
-        ejecutar(() -> procesar(normalizado));
+        ejecutar(() -> procesar(normalizado, idiomaPeticion));
     }
 
     /** Email de "Tu contraseña se ha cambiado"; se llama cuando la transacción ya se ha confirmado. */
@@ -111,7 +111,8 @@ public class RecuperacionContrasena {
 
                 comunicacionesService.enviarContrasenaCambiada(
                         usuario.getEmail(),
-                        usuarioAppService.obtenerNombreDePila(usuarioAppId));
+                        usuarioAppService.obtenerNombreDePila(usuarioAppId),
+                        usuarioAppService.obtenerIdioma(usuarioAppId));
 
             } catch (Exception e) {
                 logger.warn("No se ha podido enviar el aviso de contraseña cambiada: usuarioAppId={}, error={}",
@@ -129,7 +130,7 @@ public class RecuperacionContrasena {
         }
     }
 
-    private void procesar(String email) {
+    private void procesar(String email, String idiomaPeticion) {
 
         try {
 
@@ -147,7 +148,9 @@ public class RecuperacionContrasena {
                         usuario.getEmail(),
                         usuarioAppService.obtenerNombreDePila(usuario.getId()),
                         codigo,
-                        UsuarioAppService.MINUTOS_VALIDEZ_RECUPERACION);
+                        UsuarioAppService.MINUTOS_VALIDEZ_RECUPERACION,
+                        // El idioma que manda la app en esta petición; si no lo trae, el de la cuenta.
+                        idiomaPeticion != null ? idiomaPeticion : usuarioAppService.obtenerIdioma(usuario.getId()));
 
                 if (!enviado) {
                     logger.warn("No se ha podido enviar el código de recuperación: usuarioAppId={}", usuario.getId());
