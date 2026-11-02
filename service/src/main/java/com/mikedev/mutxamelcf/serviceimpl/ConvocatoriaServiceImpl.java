@@ -247,8 +247,8 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                                 textos.texto(idioma, "convocatoria.nueva.titulo"),
                                                 TextosConvocatoria.componer(textos, idioma,
                                                                 textos.texto(idioma,
-                                                                                esJugador ? "convocatoria.nueva.jugador"
-                                                                                                : "convocatoria.nueva.familia",
+                                                                                esJugador ? "convocatoria.nueva.jugador" + TextosConvocatoria.sufijoSinHora(convocatoria.getHoraPartido())
+                                                                                                : "convocatoria.nueva.familia" + TextosConvocatoria.sufijoSinHora(convocatoria.getHoraPartido()),
                                                                                 "jugador", jugador,
                                                                                 "equipo", equipo,
                                                                                 "rival", textoOVacio(convocatoria.getRival()),
@@ -517,7 +517,7 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                         }
 
                                         if (cambiaPartido) {
-                                                cambios.add(textos.texto(idioma, "cambio.partido",
+                                                cambios.add(textos.texto(idioma, "cambio.partido" + TextosConvocatoria.sufijoSinHora(convocatoria.getHoraPartido()),
                                                                 "fecha", textos.fecha(idioma, convocatoria.getFechaPartido()),
                                                                 "hora", TextosConvocatoria.hora(textos, convocatoria.getHoraPartido())));
                                         }

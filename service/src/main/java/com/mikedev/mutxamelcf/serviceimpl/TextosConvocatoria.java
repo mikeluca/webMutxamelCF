@@ -47,6 +47,11 @@ final class TextosConvocatoria {
         return texto.append("\n\n").append(textos.texto(idioma, "ducha")).toString();
     }
 
+    /** "SinHora" si el partido no tiene hora (se usan las claves *SinHora del catálogo); si la tiene, vacío. */
+    static String sufijoSinHora(String horaGuardada) {
+        return horaGuardada == null || horaGuardada.isBlank() ? "SinHora" : "";
+    }
+
     /** La hora guardada como texto, como HH:mm; si no tiene forma de hora, el texto tal cual (vacío si es nulo). */
     static String hora(TextosAvisos textos, String horaGuardada) {
 

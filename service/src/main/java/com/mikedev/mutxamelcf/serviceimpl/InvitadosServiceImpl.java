@@ -633,7 +633,8 @@ public class InvitadosServiceImpl implements InvitadosService {
                             textos.texto(idioma, "invitacion.convocado.titulo"),
                             TextosConvocatoria.componer(textos, idioma,
                                     textos.texto(idioma,
-                                            esJugador ? "invitacion.convocado.jugador" : "invitacion.convocado.familia",
+                                            (esJugador ? "invitacion.convocado.jugador" : "invitacion.convocado.familia")
+                                                    + TextosConvocatoria.sufijoSinHora(partido.getHora()),
                                             "jugador", jugador, "destino", destino,
                                             "rival", textoOVacio(partido.getRival()),
                                             "fecha", fecha(idioma, partido),

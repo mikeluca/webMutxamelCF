@@ -27,9 +27,9 @@ van en castellano y siguen en el código de `ComunicacionesService`.
 - Si falta una clave en `ca` o `en`, se usa la de `es` y se deja un `WARN` en el log (`TextosAvisos`).
 - Las claves `*.push` son el texto del push cuando es distinto del de la bandeja. Sin clave `.push`, el push lleva el
   mismo texto que la bandeja.
-- Si el partido no tiene hora, `recordatorioConvocatoria` y `entrenamientoCancelado` usan su variante `.textoSinHora`.
-  Las demás claves con la hora del partido (`convocatoria.nueva.*`, `invitacion.convocado.*`, `cambio.partido`) todavía
-  no tienen variante sin hora.
+- Si el partido (o la sesión) no tiene hora, se usa la variante sin hora: `recordatorioConvocatoria.textoSinHora`,
+  `entrenamientoCancelado.textoSinHora`, `convocatoria.nueva.{jugador,familia}SinHora`,
+  `invitacion.convocado.{jugador,familia}SinHora` y `cambio.partidoSinHora`.
 
 ### Formatos de los marcadores
 

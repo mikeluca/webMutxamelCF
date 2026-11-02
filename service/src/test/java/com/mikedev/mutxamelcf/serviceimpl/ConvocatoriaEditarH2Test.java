@@ -1548,4 +1548,68 @@ class ConvocatoriaEditarH2Test {
                         "Removed: justified absence");
         assertThat(avisos.getAllValues()).allSatisfy(c -> assertThat(c.getContenido()).contains("Jugador 101"));
     }
+
+    // ---- partido sin hora ----------------------------------------------------------------------
+
+    private void partidoSinHora(long id, LocalDate dia, String rival) {
+        Partido sinHora = partido(id, dia, rival);
+        sinHora.setHora(null);
+        when(partidoDao.obtenerPorId(id)).thenReturn(sinHora);
+    }
+
+    @Test
+    void laConvocatoriaNuevaDeUnPartidoSinHoraUsaLaVersionSinHoraEnLosTresIdiomas() {
+        usuariosPorJugador();
+        idiomasPorUsuario.put(51L, "ca");
+        idiomasPorUsuario.put(52L, "en");
+        when(equipoGestionDao.obtenerNombreEquipo(EQUIPO)).thenReturn("Cadete A");
+        partidoSinHora(30L, LocalDate.of(2026, 10, 24), "Pego");
+
+        service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L, 101L, 102L)));
+
+        assertThat(avisoA(50).getContenido()).isEqualTo("Te han convocado con Cadete A para el partido contra Pego del"
+                + " sábado 24/10.\n\nCitación: 09:30 en Vestuarios." + DUCHA);
+        assertThat(avisoA(51).getContenido()).startsWith("T'han convocat amb Cadete A per al partit contra Pego del"
+                + " dissabte 24/10.\n\nCitació: 09:30 a Vestuarios.");
+        assertThat(avisoA(52).getContenido()).startsWith("You've been called up with Cadete A for the match against"
+                + " Pego on Saturday 24/10.\n\nMeet at 09:30 at Vestuarios.");
+    }
+
+    @Test
+    void laVersionFamiliaDeUnPartidoSinHoraTambienUsaSuClaveSinHora() {
+        when(equipoGestionDao.obtenerUsuariosPorJugador(100L)).thenReturn(List.of());
+        when(equipoGestionDao.obtenerUsuariosFamiliaresPorJugador(100L)).thenReturn(List.of(60L, 61L, 62L));
+        when(equipoGestionDao.obtenerNombreJugador(100L)).thenReturn("Ana");
+        when(equipoGestionDao.obtenerNombreEquipo(EQUIPO)).thenReturn("Cadete A");
+        idiomasPorUsuario.put(61L, "ca");
+        idiomasPorUsuario.put(62L, "en");
+        partidoSinHora(30L, LocalDate.of(2026, 10, 24), "Pego");
+
+        service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L)));
+
+        assertThat(avisoA(60).getContenido()).startsWith("Han convocado a Ana con Cadete A para el partido contra Pego"
+                + " del sábado 24/10.\n\nCitación");
+        assertThat(avisoA(61).getContenido()).startsWith("Han convocat Ana amb Cadete A per al partit contra Pego del"
+                + " dissabte 24/10.\n\nCitació");
+        assertThat(avisoA(62).getContenido()).startsWith("Ana has been called up with Cadete A for the match against"
+                + " Pego on Saturday 24/10.\n\nMeet at");
+    }
+
+    @Test
+    void alCambiarAUnPartidoSinHoraElCambioDelPartidoNoLlevaHora() {
+        usuariosPorJugador();
+        idiomasPorUsuario.put(51L, "ca");
+        idiomasPorUsuario.put(52L, "en");
+        ConvocatoriaResponse creada = convocatoriaCon(100L, 101L, 102L);
+        partidoSinHora(31L, LocalDate.of(2026, 10, 25), "Elx");
+
+        service.actualizar(ENTRENADOR, creada.getId(), request(31L, "09:30", List.of(100L, 101L, 102L)));
+
+        assertThat(avisoA(50).getContenido()).isEqualTo("Cambio en tu convocatoria del partido contra Elx: el partido"
+                + " pasa al domingo 25/10." + DUCHA);
+        assertThat(avisoA(51).getContenido()).startsWith("Canvi en la teua convocatòria del partit contra Elx: el partit"
+                + " passa al diumenge 25/10.");
+        assertThat(avisoA(52).getContenido()).startsWith("Change to your call-up for the match against Elx: the match"
+                + " moves to Sunday 25/10.");
+    }
 }

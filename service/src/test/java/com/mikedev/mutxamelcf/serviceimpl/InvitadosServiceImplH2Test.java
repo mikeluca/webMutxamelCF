@@ -1272,4 +1272,24 @@ class InvitadosServiceImplH2Test {
         assertThat(solapamiento.stream().filter(a -> a.destinos().contains(21L)).findFirst().orElseThrow().contenido())
                 .startsWith("La convocatòria de Ana amb Cadete A del dissabte 14/11 queda en espera");
     }
+
+    @Test
+    void elAvisoDeConvocadoConOtroEquipoDeUnPartidoSinHoraUsaLaVersionSinHoraEnCadaIdioma() {
+        idiomasPorUsuario.put(20L, "ca");
+        idiomasPorUsuario.put(21L, "en");
+        partidos.get(10L).setHora(null);
+        invitar(ENTRENADOR_DESTINO, ANA);
+
+        service.aprobar(COORDINADOR, fila(100, ANA).getId());
+
+        Aviso alJugador = avisosDe("CONVOCATORIA").stream().filter(a -> a.destinos().contains(20L)).findFirst()
+                .orElseThrow();
+        Aviso aLaFamilia = avisosDe("CONVOCATORIA").stream().filter(a -> a.destinos().contains(21L)).findFirst()
+                .orElseThrow();
+
+        assertThat(alJugador.contenido()).startsWith("T'han convocat amb Cadete A per al partit contra Pego del"
+                + " dissabte 14/11.\n\nCitació: 10:00 a Vestuarios.");
+        assertThat(aLaFamilia.contenido()).startsWith("Ana has been called up with Cadete A for the match against Pego"
+                + " on Saturday 14/11.\n\nMeet at 10:00 at Vestuarios.");
+    }
 }
