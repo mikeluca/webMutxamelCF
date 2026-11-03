@@ -133,6 +133,79 @@ class PersonalDaoH2Test {
         assertThat(jugadorDao.obtenerTodosPorNombreEquipo("Cadete A")).hasSize(1);
     }
 
+    /** ORDEN desordenado respecto al nombre: Zeta (A) va antes que Alfa (C). */
+    private void equiposDesordenados() {
+        jdbc.update("DELETE FROM EQUIPO");
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE, CATEGORIA, ORDEN) VALUES (1, 'Zeta', 'Escuelita', 'A')");
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE, CATEGORIA, ORDEN) VALUES (2, 'Medio', 'Benjamin', 'C')");
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE, CATEGORIA, ORDEN) VALUES (3, 'Alfa', 'Senior', 'H')");
+    }
+
+    private void jugadorEn(String nombre, String apellidos, Long equipoId) {
+        Jugador j = jugador();
+        j.setNombre(nombre);
+        j.setApellidos(apellidos);
+        j.setEquipoId(equipoId);
+        assertThat(jugadorDao.guardarJugador(j)).isTrue();
+    }
+
+    @Test
+    void losJugadoresSalenPorOrdenDeEquipoYLosSinEquipoAlFinal() {
+        equiposDesordenados();
+        jugadorEn("Pepe", "Sin", null);
+        jugadorEn("Ana", "Alfa", 3L);
+        jugadorEn("Bea", "Zeta", 1L);
+        jugadorEn("Cai", "Medio", 2L);
+        jugadorEn("Dan", "Abad", 1L);
+
+        assertThat(jugadorDao.obtenerActivos()).extracting(Jugador::getApellidos)
+                .containsExactly("Abad", "Zeta", "Medio", "Alfa", "Sin");
+        assertThat(jugadorDao.obtenerTodos()).extracting(Jugador::getApellidos)
+                .containsExactly("Abad", "Zeta", "Medio", "Alfa", "Sin");
+    }
+
+    @Test
+    void todosPorCategoriaSigueElMismoOrden() {
+        jdbc.update("DELETE FROM EQUIPO");
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE, CATEGORIA, ORDEN) VALUES (1, 'Zeta', 'Cadete', 'A')");
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE, CATEGORIA, ORDEN) VALUES (2, 'Alfa', 'Cadete', 'B')");
+        jugadorEn("Ana", "DeAlfa", 2L);
+        jugadorEn("Bea", "DeZeta", 1L);
+
+        assertThat(jugadorDao.obtenerTodosPorCategoria("Cadete")).extracting(Jugador::getApellidos)
+                .containsExactly("DeZeta", "DeAlfa");
+    }
+
+    @Test
+    void elCuerpoTecnicoSaleSegunSuEquipoDeMenorOrdenYLosSinEquipoAlFinal() {
+        equiposDesordenados();
+        long sinEquipo = ficha("Sin", "Equipo");
+        long enAlfa = ficha("En", "Alfa");
+        long enDos = ficha("En", "Dos");
+        long enMedio = ficha("En", "Medio");
+        // Dos equipos: el de menor ORDEN es Zeta (A), aunque Alfa sea el primero por nombre
+        cuerpoTecnicoDao.reemplazarEquipos(enDos, java.util.List.of(
+                new com.mikedev.mutxamelcf.model.CuerpoTecnicoEquipo(3L, null),
+                new com.mikedev.mutxamelcf.model.CuerpoTecnicoEquipo(1L, null)));
+        cuerpoTecnicoDao.reemplazarEquipos(enAlfa,
+                java.util.List.of(new com.mikedev.mutxamelcf.model.CuerpoTecnicoEquipo(3L, null)));
+        cuerpoTecnicoDao.reemplazarEquipos(enMedio,
+                java.util.List.of(new com.mikedev.mutxamelcf.model.CuerpoTecnicoEquipo(2L, null)));
+
+        var lista = cuerpoTecnicoDao.obtenerTodos();
+        assertThat(lista).extracting(CuerpoTecnico::getId).containsExactly(enDos, enMedio, enAlfa, sinEquipo);
+        // Los equipos de cada fila, por ORDEN
+        assertThat(lista.get(0).getEquipos()).extracting(e -> e.getEquipoNombre()).containsExactly("Zeta", "Alfa");
+    }
+
+    private long ficha(String nombre, String apellidos) {
+        CuerpoTecnico c = cuerpoTecnico();
+        c.setNombre(nombre);
+        c.setApellidos(apellidos);
+        assertThat(cuerpoTecnicoDao.guardar(c)).isTrue();
+        return c.getId();
+    }
+
     @Test
     void unInsertQueUseLasColumnasRetiradasFalla() {
         assertThatThrownBy(() -> jdbc.update(

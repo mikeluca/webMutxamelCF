@@ -2,7 +2,6 @@ package com.mikedev.mutxamelcf.serviceimpl;
 
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -354,9 +353,8 @@ public class CuerpoTecnicoServiceImpl implements CuerpoTecnicoService {
 		cuerpoTecnicoDTO.setEquipo(cuerpoTecnico.getEquipo());
 		cuerpoTecnicoDTO.setPuesto(cuerpoTecnico.getPuesto());
 		cuerpoTecnicoDTO.setFoto(cuerpoTecnico.getFoto());
+		// Los equipos ya vienen del DAO por EQUIPO.ORDEN y nombre
 		cuerpoTecnicoDTO.setEquipos(cuerpoTecnico.getEquipos().stream()
-				.sorted(Comparator.comparing(CuerpoTecnicoEquipo::getEquipoNombre,
-						Comparator.nullsLast(String::compareToIgnoreCase)))
 				.map(e -> new CuerpoTecnicoEquipoDTO(e.getEquipoId(), e.getEquipoNombre(), e.getCategoria(),
 						e.getPuesto(), e.getPuestoMostrado()))
 				.toList());

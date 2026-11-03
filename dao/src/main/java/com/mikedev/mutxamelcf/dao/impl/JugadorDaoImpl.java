@@ -34,6 +34,9 @@ public class JugadorDaoImpl implements JugadorDao {
 			LEFT JOIN EQUIPO E ON E.ID = J.EQUIPO_ID
 			""";
 
+	/** De la categoría menor a la mayor (EQUIPO.ORDEN); sin equipo, al final (NULLS LAST: H2 y Oracle no ordenan igual). */
+	private static final String ORDEN_POR_EQUIPO = "E.ORDEN NULLS LAST, E.NOMBRE NULLS LAST, J.APELLIDOS, J.NOMBRE, J.ID";
+
 	private static final RowMapper<Jugador> JUGADOR_ROW_MAPPER = JugadorDaoImpl::mapRow;
 
 	/**
@@ -125,7 +128,7 @@ public class JugadorDaoImpl implements JugadorDao {
 	public List<Jugador> obtenerTodosPorCategoria(String categoria) {
 		logger.debug("Inicio obtenerTodosPorCategoria: categoria={}", categoria);
 		String sql = SELECT_JUGADOR + " WHERE E.CATEGORIA = ? AND J.FECHA_BAJA IS NULL"
-				+ " ORDER BY J.DEPORTE, E.NOMBRE, J.APELLIDOS";
+				+ " ORDER BY " + ORDEN_POR_EQUIPO;
 
 		List<Jugador> jugadores = jdbcTemplate.query(sql, JUGADOR_ROW_MAPPER, categoria);
 		logger.debug("Fin obtenerTodosPorCategoria: categoria={}, total={}", categoria, jugadores.size());
@@ -169,7 +172,7 @@ public class JugadorDaoImpl implements JugadorDao {
 		logger.debug("Inicio obtenerTodos");
 		// Sin las pruebas todavía ocultas (ficha con FECHA_BAJA y una fila PRUEBA pendiente de aplicar)
 		String sql = SELECT_JUGADOR + " WHERE (J.FECHA_BAJA IS NULL OR NOT EXISTS (" + PRUEBA_PENDIENTE + "))"
-				+ " ORDER BY J.DEPORTE, E.NOMBRE, J.APELLIDOS";
+				+ " ORDER BY " + ORDEN_POR_EQUIPO;
 
 		List<Jugador> jugadores = jdbcTemplate.query(sql, JUGADOR_ROW_MAPPER);
 		logger.debug("Fin obtenerTodos: total={}", jugadores.size());
@@ -179,7 +182,7 @@ public class JugadorDaoImpl implements JugadorDao {
 	@Override
 	public List<Jugador> obtenerActivos() {
 		logger.debug("Inicio obtenerActivos");
-		String sql = SELECT_JUGADOR + " WHERE J.FECHA_BAJA IS NULL ORDER BY J.DEPORTE, E.NOMBRE, J.APELLIDOS";
+		String sql = SELECT_JUGADOR + " WHERE J.FECHA_BAJA IS NULL ORDER BY " + ORDEN_POR_EQUIPO;
 
 		List<Jugador> jugadores = jdbcTemplate.query(sql, JUGADOR_ROW_MAPPER);
 		logger.debug("Fin obtenerActivos: total={}", jugadores.size());

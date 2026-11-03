@@ -150,7 +150,20 @@ public class CuerpoTecnicoDaoImpl implements CuerpoTecnicoDao {
 	@Override
 	public List<CuerpoTecnico> obtenerTodos() {
 		logger.debug("Inicio obtenerTodos");
-		List<CuerpoTecnico> lista = jdbcTemplate.query("SELECT * FROM cuerpo_tecnico ORDER BY apellidos, nombre, id",
+		// Cada persona según su equipo de menor EQUIPO.ORDEN (y, a igual ORDEN, el de menor nombre); sin equipo, al final.
+		// NULLS LAST explícito: H2 y Oracle no ordenan los nulos igual.
+		List<CuerpoTecnico> lista = jdbcTemplate.query("""
+				SELECT CT.*
+				FROM CUERPO_TECNICO CT
+				LEFT JOIN (SELECT CTE.CUERPO_TECNICO_ID AS FICHA, MIN(E.ORDEN) AS ORDEN_MIN
+				           FROM CUERPO_TECNICO_EQUIPO CTE
+				           INNER JOIN EQUIPO E ON E.ID = CTE.EQUIPO_ID
+				           GROUP BY CTE.CUERPO_TECNICO_ID) M ON M.FICHA = CT.ID
+				LEFT JOIN (SELECT CTE.CUERPO_TECNICO_ID AS FICHA, E.ORDEN AS ORDEN, MIN(E.NOMBRE) AS NOMBRE_MIN
+				           FROM CUERPO_TECNICO_EQUIPO CTE
+				           INNER JOIN EQUIPO E ON E.ID = CTE.EQUIPO_ID
+				           GROUP BY CTE.CUERPO_TECNICO_ID, E.ORDEN) N ON N.FICHA = CT.ID AND N.ORDEN = M.ORDEN_MIN
+				ORDER BY M.ORDEN_MIN NULLS LAST, N.NOMBRE_MIN NULLS LAST, CT.APELLIDOS, CT.NOMBRE, CT.ID""",
 				CUERPO_TECNICO_ROW_MAPPER);
 
 		// Los equipos de todas las fichas de una vez
