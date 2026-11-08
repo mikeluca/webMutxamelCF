@@ -1,3 +1,4 @@
+-- NO EJECUTAR: ya aplicado en DEV y PRO
 -- ============================================================================
 -- Nombre de retransmisión del jugador
 --
