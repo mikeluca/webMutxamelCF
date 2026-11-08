@@ -17,6 +17,7 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import com.mikedev.mutxamelcf.dao.PartidoLiveEventoDao;
+import com.mikedev.mutxamelcf.model.EventoDirectoResumen;
 import com.mikedev.mutxamelcf.model.JugadorBasico;
 import com.mikedev.mutxamelcf.model.PartidoLiveEvento;
 
@@ -120,18 +121,41 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 		String marcadores = jugadorIds.stream().map(id -> "?").collect(Collectors.joining(", "));
 
 		return jdbcTemplate.query(
-				"SELECT ID, DORSAL, NOMBRE, APELLIDOS FROM JUGADORES WHERE ID IN (" + marcadores + ")",
-				(rs, n) -> {
-					long id = rs.getLong("ID");
-					int dorsal = rs.getInt("DORSAL");
-					boolean sinDorsal = rs.wasNull();
-					return new JugadorBasico(
-							id,
-							sinDorsal ? null : dorsal,
-							rs.getString("NOMBRE"),
-							rs.getString("APELLIDOS"));
-				},
+				"SELECT ID, DORSAL, NOMBRE, APELLIDOS, NOMBRE_RETRANSMISION FROM JUGADORES WHERE ID IN ("
+						+ marcadores + ")",
+				(rs, n) -> mapJugadorBasico(rs, "ID", "DORSAL", "NOMBRE", "APELLIDOS", "NOMBRE_RETRANSMISION"),
 				jugadorIds.toArray());
+	}
+
+	@Override
+	public List<EventoDirectoResumen> obtenerResumenNoAnulados(Long partidoId) {
+
+		// Una sola consulta (con el autor ya unido): la portada de la app la pide a menudo durante el partido.
+		return jdbcTemplate.query("""
+				SELECT E.TIPO, E.AUTOR_TEXTO, E.JUGADOR_ID, J.DORSAL AS J_DORSAL, J.NOMBRE AS J_NOMBRE,
+				       J.APELLIDOS AS J_APELLIDOS, J.NOMBRE_RETRANSMISION AS J_NOMBRE_RETRANSMISION
+				FROM PARTIDO_LIVE_EVENTOS E
+				LEFT JOIN JUGADORES J ON J.ID = E.JUGADOR_ID
+				WHERE E.PARTIDO_ID = ? AND E.ANULADO = 0
+				ORDER BY E.FECHA, E.ID
+				""", (rs, n) -> {
+					rs.getLong("JUGADOR_ID");
+					JugadorBasico jugador = rs.wasNull() ? null
+							: mapJugadorBasico(rs, "JUGADOR_ID", "J_DORSAL", "J_NOMBRE", "J_APELLIDOS",
+									"J_NOMBRE_RETRANSMISION");
+					return new EventoDirectoResumen(rs.getString("TIPO"), rs.getString("AUTOR_TEXTO"), jugador);
+				}, partidoId);
+	}
+
+	private static JugadorBasico mapJugadorBasico(ResultSet rs, String id, String dorsal, String nombre,
+			String apellidos, String nombreRetransmision) throws SQLException {
+
+		long jugadorId = rs.getLong(id);
+		int numero = rs.getInt(dorsal);
+		boolean sinDorsal = rs.wasNull();
+
+		return new JugadorBasico(jugadorId, sinDorsal ? null : numero, rs.getString(nombre), rs.getString(apellidos),
+				rs.getString(nombreRetransmision));
 	}
 
 	@Override

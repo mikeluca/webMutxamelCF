@@ -14,7 +14,17 @@ public class JugadorDTO {
 	private Long equipoId;
 	/** Dato de un menor: solo para el panel y el asistente; no se serializa en JSON ni va a la app. */
 	private Integer anioNacimiento;
+	/** Solo para el panel: cómo se le nombra en el directo; vacío = nombre y apellidos. */
+	private String nombreRetransmision;
 	private java.time.LocalDate fechaBaja;
+
+	public String getNombreRetransmision() {
+		return nombreRetransmision;
+	}
+
+	public void setNombreRetransmision(String nombreRetransmision) {
+		this.nombreRetransmision = nombreRetransmision;
+	}
 
 	public JugadorDTO(Long id, String nombre, String apellidos, String categoria, String deporte, String equipo, int dorsal, String posicion,
 			byte[] foto) {

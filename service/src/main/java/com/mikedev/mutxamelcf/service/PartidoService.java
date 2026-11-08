@@ -69,6 +69,16 @@ public interface PartidoService {
 	// Compatibilidad con el contrato público ya existente
 	List<ResultadoDTO> obtenerResultados(String deporte);
 
-	ResultadoDTO obtenerResultadoPrimerEquipo();
+	/** La portada del Primer Equipo en castellano. */
+	default ResultadoDTO obtenerResultadoPrimerEquipo() {
+		return obtenerResultadoPrimerEquipo(null);
+	}
+
+	/**
+	 * La portada del Primer Equipo: el partido más relevante con su estado en directo y, ya finalizado, sus
+	 * goleadores. {@code idioma} ("es", "ca" o "en"; null o desconocido = "es") solo afecta al texto del gol en
+	 * propia puerta del rival.
+	 */
+	ResultadoDTO obtenerResultadoPrimerEquipo(String idioma);
 
 }

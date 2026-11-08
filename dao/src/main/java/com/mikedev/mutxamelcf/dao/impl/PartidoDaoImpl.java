@@ -331,7 +331,26 @@ public class PartidoDaoImpl implements PartidoDao {
 				FETCH FIRST 1 ROW ONLY
 				""";
 
-		Partido resultado = obtenerMasRelevante(sqlProximo, sqlUltimo, equipoNombre, categoria);
+		/*
+		 * Solo la portada del Primer Equipo (la usa obtenerResultadoPrimerEquipo y nada más): además del criterio
+		 * compartido, el partido que acaba de terminar se queda hoy y mañana con su resultado y goleadores, aunque
+		 * ya haya otro próximo. Un partido de hoy aún sin resultado (por empezar o en juego) manda sobre el de ayer.
+		 */
+		String sqlRecienJugado = "SELECT " + CAMPOS_SELECT + """
+				FROM PARTIDOS P
+				INNER JOIN EQUIPO E ON E.ID = P.EQUIPO_ID
+				WHERE UPPER(TRIM(E.NOMBRE)) = UPPER(TRIM(?))
+				  AND UPPER(TRIM(E.CATEGORIA)) = UPPER(TRIM(?))
+				  AND P.CANCELADO = 0
+				  AND NOT %s
+				  AND P.DIA <= TRUNC(SYSDATE)
+				  AND P.DIA >= TRUNC(SYSDATE - 1)
+				ORDER BY P.DIA DESC, P.ID DESC
+				FETCH FIRST 1 ROW ONLY
+				""".formatted(CONDICION_SIN_RESULTADO);
+
+		Partido resultado = obtenerMasRelevanteConRecienJugado(sqlProximo, sqlRecienJugado, sqlUltimo, equipoNombre,
+				categoria);
 
 		logger.debug("Fin obtenerMasRelevantePorEquipoNombre: encontrado={}", resultado != null);
 
@@ -385,6 +404,46 @@ public class PartidoDaoImpl implements PartidoDao {
 		List<Partido> ultimos = jdbcTemplate.query(sqlUltimo, PARTIDO_ROW_MAPPER, params);
 
 		return ultimos.isEmpty() ? null : ultimos.get(0);
+	}
+
+	/*
+	 * Como obtenerMasRelevante, pero si el próximo sin resultado NO es de hoy y el último partido jugado es de hoy o
+	 * de ayer y ya tiene resultado, se devuelve ese. Un próximo de hoy (sin resultado) siempre gana.
+	 */
+	private Partido obtenerMasRelevanteConRecienJugado(String sqlProximo, String sqlRecienJugado, String sqlUltimo,
+			Object... params) {
+
+		List<Partido> proximos = jdbcTemplate.query(sqlProximo, PARTIDO_ROW_MAPPER, params);
+
+		if (proximos.isEmpty()) {
+			return obtenerMasRelevante(sqlProximo, sqlUltimo, params);
+		}
+
+		Partido proximo = proximos.get(0);
+
+		if (esDeHoy(proximo)) {
+			return proximo;
+		}
+
+		List<Partido> recientes = jdbcTemplate.query(sqlRecienJugado, PARTIDO_ROW_MAPPER, params);
+
+		return recientes.isEmpty() ? proximo : recientes.get(0);
+	}
+
+	/** DIA es la fecha sin hora; "hoy" es el de la base de datos, igual que TRUNC(SYSDATE) en las consultas. */
+	private boolean esDeHoy(Partido partido) {
+
+		if (partido.getDia() == null) {
+			return false;
+		}
+
+		LocalDate dia = partido.getDia() instanceof java.sql.Date sqlDate ? sqlDate.toLocalDate()
+				: new java.sql.Date(partido.getDia().getTime()).toLocalDate();
+
+		LocalDate hoy = jdbcTemplate.queryForObject("SELECT TRUNC(SYSDATE) FROM DUAL", java.sql.Date.class)
+				.toLocalDate();
+
+		return dia.equals(hoy);
 	}
 
 	@Override

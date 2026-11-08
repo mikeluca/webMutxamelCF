@@ -120,6 +120,10 @@ public class JugadorAdminController {
 			jugador.setNombre(jugadorForm.getNombre());
 			jugador.setApellidos(jugadorForm.getApellidos());
 			jugador.setAnioNacimiento(jugadorForm.getAnioNacimiento());
+			// Opcional: en blanco se guarda vacío (NULL) y en el directo sale el nombre y los apellidos.
+			String nombreRetransmision = jugadorForm.getNombreRetransmision() == null ? ""
+					: jugadorForm.getNombreRetransmision().trim();
+			jugador.setNombreRetransmision(nombreRetransmision.isEmpty() ? null : nombreRetransmision);
 
 			EquipoDTO e = jugadorForm.getEquipo() == null ? null
 					: equiposService.obtenerEquipoPorId(jugadorForm.getEquipo());

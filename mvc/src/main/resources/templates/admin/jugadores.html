@@ -100,7 +100,7 @@
 								                     data-apellidos=${jugador.apellidos},
 								                     data-dorsal=${jugador.dorsal},
 								                     data-posicion=${jugador.posicion},
-								                     data-anio=${jugador.anioNacimiento},
+								                     data-anio=${jugador.anioNacimiento}, data-nombre-retransmision=${jugador.nombreRetransmision},
 								                     data-baja=${jugador.deBaja},
 								                     data-equipo-id=${jugador.equipoId}" title="Editar jugador" onclick="abrirModalEditar(this)">
 									<i class="bi bi-pencil"></i>
@@ -183,7 +183,13 @@
 										placeholder="Opcional, 4 dígitos">
 									<small class="form-text text-muted">Se usa solo para asignar la categoría; no aparece en la app. En adultos no hace falta.</small>
 								</div>
-								<div id="avisoBaja" class="alert alert-secondary py-2" style="display:none;">
+								<div class="mb-3">
+										<label for="nombreRetransmision">Nombre en retransmisión:</label>
+										<input type="text" class="form-control" id="nombreRetransmision" name="nombreRetransmision"
+											maxlength="40" placeholder="Opcional, p. ej. Pepe o Rubén G.">
+										<small class="form-text text-muted">Se usa en los avisos del partido en directo. Vacío = nombre y apellidos.</small>
+									</div>
+									<div id="avisoBaja" class="alert alert-secondary py-2" style="display:none;">
 									Jugador de baja: no tiene equipo. Usa "Reactivar" en el listado para devolverlo a un equipo.
 								</div>
 							</div>
@@ -360,6 +366,7 @@
 			document.getElementById('ayudaFoto').style.display = 'block';
 
 			document.getElementById('anioNacimiento').value = (data.anio && data.anio !== 'null') ? data.anio : '';
+			document.getElementById('nombreRetransmision').value = data.nombreRetransmision || '';
 			document.getElementById('avisoBaja').style.display = data.baja === 'true' ? 'block' : 'none';
 
 			// El equipo se elige por ID (un jugador de baja no tiene: se queda la primera opción, que el servidor ignora)

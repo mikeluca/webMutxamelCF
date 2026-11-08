@@ -38,17 +38,25 @@ import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
+import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
+import com.mikedev.mutxamelcf.dao.DescansoEquipoDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
+import com.mikedev.mutxamelcf.dao.TemporadaDao;
 import com.mikedev.mutxamelcf.dao.PartidoEstadisticaJugadorDao;
 import com.mikedev.mutxamelcf.dao.impl.PartidoLiveEventoDaoImpl;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.Equipo;
+import com.mikedev.mutxamelcf.model.EstadoInvitacion;
+import com.mikedev.mutxamelcf.model.JustificacionFaltaPartido;
+import com.mikedev.mutxamelcf.model.ResultadoDTO;
 import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.TextoDifusion;
 import com.mikedev.mutxamelcf.model.PartidoEstadisticaJugador;
 import com.mikedev.mutxamelcf.service.FcmPushService;
+import com.mikedev.mutxamelcf.service.InvitadosService;
+import com.mikedev.mutxamelcf.service.PartidoService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
@@ -104,6 +112,7 @@ class PartidoEnVivoServiceImplTest {
     private EquipoGestionDao equipoGestionDao;
     private ConvocatoriaDao convocatoriaDao;
     private ConvocatoriaJugadorDao convocatoriaJugadorDao;
+    private JustificacionFaltaPartidoDao justificacionDao;
     private PartidoEstadisticaJugadorDao estadisticaDao;
     private NotificacionAppService notificacionAppService;
     private UsuarioAppService usuarioAppService;
@@ -122,11 +131,12 @@ class PartidoEnVivoServiceImplTest {
         EsquemaH2.crear(jdbc);
         jdbc.execute("""
                 CREATE TABLE JUGADORES (
-                    ID NUMBER PRIMARY KEY, DORSAL NUMBER, NOMBRE VARCHAR2(50), APELLIDOS VARCHAR2(50))""");
-        jdbc.update("INSERT INTO JUGADORES VALUES (10, 9, 'Pablo', 'Garcia')");
-        jdbc.update("INSERT INTO JUGADORES VALUES (11, 1, 'Luis', 'Lopez')");
-        jdbc.update("INSERT INTO JUGADORES VALUES (12, NULL, 'Sin Dorsal', 'Perez')");
-        jdbc.update("INSERT INTO JUGADORES VALUES (13, 5, 'Fuera', 'Convocatoria')");
+                    ID NUMBER PRIMARY KEY, DORSAL NUMBER, NOMBRE VARCHAR2(50), APELLIDOS VARCHAR2(50),
+                    NOMBRE_RETRANSMISION VARCHAR2(40 CHAR))""");
+        jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS) VALUES (10, 9, 'Pablo', 'Garcia')");
+        jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS) VALUES (11, 1, 'Luis', 'Lopez')");
+        jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS) VALUES (12, NULL, 'Sin Dorsal', 'Perez')");
+        jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS) VALUES (13, 5, 'Fuera', 'Convocatoria')");
 
         reloj = new RelojManual(HOY.atTime(11, 0));
 
@@ -136,6 +146,7 @@ class PartidoEnVivoServiceImplTest {
         when(equipoGestionDao.equipoAdmiteEstadisticas(PRIMER_EQUIPO)).thenReturn(true);
         convocatoriaDao = mock(ConvocatoriaDao.class);
         convocatoriaJugadorDao = mock(ConvocatoriaJugadorDao.class);
+        justificacionDao = mock(JustificacionFaltaPartidoDao.class);
         estadisticaDao = mock(PartidoEstadisticaJugadorDao.class);
         notificacionAppService = mock(NotificacionAppService.class);
         usuarioAppService = mock(UsuarioAppService.class);
@@ -164,7 +175,7 @@ class PartidoEnVivoServiceImplTest {
 
         service = new PartidoEnVivoServiceImpl(
                 eventoDao, partidoDao, equipoDao, equipoGestionDao, convocatoriaDao,
-                convocatoriaJugadorDao, estadisticaDao, notificacionAppService, usuarioAppService, fcmPushService,
+                convocatoriaJugadorDao, justificacionDao, estadisticaDao, notificacionAppService, usuarioAppService, fcmPushService,
                 reloj, AvisosTest.TEXTOS);
     }
 
@@ -871,7 +882,7 @@ class PartidoEnVivoServiceImplTest {
                 HOY.plusDays(1).atTime(0, 30).atZone(MADRID).toInstant(), MADRID);
         PartidoEnVivoServiceImpl otro = new PartidoEnVivoServiceImpl(
                 eventoDao, partidoDao, equipoDao, equipoGestionDao, convocatoriaDao,
-                convocatoriaJugadorDao, estadisticaDao, notificacionAppService, usuarioAppService, fcmPushService,
+                convocatoriaJugadorDao, justificacionDao, estadisticaDao, notificacionAppService, usuarioAppService, fcmPushService,
                 tardeEnMadrid, AvisosTest.TEXTOS);
 
         assertThatThrownBy(() -> otro.enviarInicioPartido(USUARIO, PARTIDO))
@@ -1230,5 +1241,282 @@ class PartidoEnVivoServiceImplTest {
         assertThatThrownBy(() -> service.corregirMinuto(USUARIO, PARTIDO, id, 5))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("hoy");
+    }
+
+    // ---- nombre de retransmisión ----------------------------------------------------------
+
+    private void nombreDeRetransmision(long jugadorId, String nombre) {
+        jdbc.update("UPDATE JUGADORES SET NOMBRE_RETRANSMISION = ? WHERE ID = ?", nombre, jugadorId);
+    }
+
+    @Test
+    void elPushDelGolUsaElNombreDeRetransmisionSiLoTieneYSiNoNombreYApellidos() {
+        nombreDeRetransmision(10L, "Pablito");
+        empezarPartido();
+
+        EstadoPartidoEnVivoResponse estado = service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
+        reloj.avanzar(Duration.ofMinutes(1));
+        service.enviarGolFavor(USUARIO, PARTIDO, 11L, null);
+
+        assertThat(difusion("es", 1).mensaje()).isEqualTo("Pablito (1')\n\nMutxamel CF 1 - 0 Pego C.F.");
+        assertThat(difusion("es", 2).mensaje()).startsWith("Luis Lopez (2')");
+        verify(fcmPushService).enviarATopic("resultados_ca", "⚽ GOOOL del Mutxamel CF!",
+                "Pablito (1')\n\nMutxamel CF 1 - 0 Pego C.F.");
+        // Quien retransmite sigue viendo nombre y apellidos para reconocer al jugador.
+        assertThat(estado.goleadores()).containsExactly("Pablo Garcia");
+        assertThat(estado.eventos().get(1).autor()).isEqualTo("Pablo Garcia");
+    }
+
+    @Test
+    void unNombreDeRetransmisionEnBlancoCuentaComoSinNombre() {
+        nombreDeRetransmision(10L, "   ");
+        empezarPartido();
+
+        service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
+
+        assertThat(difusion("es", 1).mensaje()).startsWith("Pablo Garcia (1')");
+    }
+
+    @Test
+    void losGoleadoresDelFinalUsanElNombreDeRetransmisionYElAutorLibreNoCambia() {
+        nombreDeRetransmision(10L, "Pablito");
+        empezarPartido();
+        service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
+        reloj.avanzar(Duration.ofMinutes(1));
+        service.enviarGolFavor(USUARIO, PARTIDO, 11L, null);
+        reloj.avanzar(Duration.ofMinutes(1));
+        service.enviarGolFavor(USUARIO, PARTIDO, null, "p.p.");
+        reloj.avanzar(Duration.ofMinutes(1));
+        service.enviarGolFavor(USUARIO, PARTIDO, null, "Otro");
+
+        service.enviarFinalPartido(USUARIO, PARTIDO);
+
+        assertThat(difusion("es", -1).mensaje()).isEqualTo("Mutxamel CF 4 - 0 Pego C.F.\n\nGoleadores: Pablito, "
+                + "Luis Lopez, Gol en propia puerta del rival, Otro");
+    }
+
+    @Test
+    void losConvocadosDevuelvenElNombreCompletoYElDeRetransmision() {
+        nombreDeRetransmision(10L, "Pablito");
+
+        assertThat(service.obtenerConvocados(USUARIO, PARTIDO))
+                .extracting(c -> c.jugadorId() + ":" + c.nombreCompleto() + ":" + c.nombreRetransmision()
+                        + ":" + c.nombre())
+                .containsExactly(
+                        "11:Luis Lopez:Luis Lopez:Luis Lopez",
+                        "10:Pablo Garcia:Pablito:Pablo Garcia",
+                        "12:Sin Dorsal Perez:Sin Dorsal Perez:Sin Dorsal Perez");
+    }
+
+    // ---- alineación eligiendo jugadores ------------------------------------------------------
+
+    @Test
+    void laAlineacionSaleConLosNombresDeRetransmisionEnElOrdenElegido() {
+        nombreDeRetransmision(10L, "Pablito");
+
+        service.enviarAlineacion(USUARIO, PARTIDO, List.of(12L, 10L), List.of(11L));
+
+        assertThat(difusion("es", 0)).isEqualTo(new TextoDifusion("📋 Alineación del Mutxamel CF",
+                "Once inicial: Sin Dorsal Perez, Pablito\n\nSuplentes: Luis Lopez"));
+        assertThat(difusion("ca", 0).mensaje()).isEqualTo(
+                "Onze inicial: Sin Dorsal Perez, Pablito\n\nSuplents: Luis Lopez");
+        assertThat(difusion("en", 0).mensaje()).isEqualTo(
+                "Starting eleven: Sin Dorsal Perez, Pablito\n\nSubstitutes: Luis Lopez");
+        verify(fcmPushService).enviarATopic("resultados", "📋 Alineación del Mutxamel CF",
+                "Once inicial: Sin Dorsal Perez, Pablito\n\nSuplentes: Luis Lopez");
+    }
+
+    @Test
+    void laAlineacionSinNombreDeRetransmisionUsaNombreYApellidos() {
+        service.enviarAlineacion(USUARIO, PARTIDO, List.of(11L, 10L), List.of(12L));
+
+        assertThat(difusion("es", 0).mensaje())
+                .isEqualTo("Once inicial: Luis Lopez, Pablo Garcia\n\nSuplentes: Sin Dorsal Perez");
+    }
+
+    @Test
+    void laAlineacionSinSuplentesUsaElTextoSinSuplentes() {
+        service.enviarAlineacion(USUARIO, PARTIDO, List.of(10L, 11L), List.of());
+        service.enviarAlineacion(USUARIO, PARTIDO, List.of(10L, 11L), null);
+
+        assertThat(difusion("es", 0).mensaje()).isEqualTo("Once inicial: Pablo Garcia, Luis Lopez");
+        assertThat(difusion("ca", 0).mensaje()).isEqualTo("Onze inicial: Pablo Garcia, Luis Lopez");
+        assertThat(difusion("en", 0).mensaje()).isEqualTo("Starting eleven: Pablo Garcia, Luis Lopez");
+        assertThat(difusion("es", 1).mensaje()).isEqualTo("Once inicial: Pablo Garcia, Luis Lopez");
+    }
+
+    private void rechazada(String mensaje, List<Long> titulares, List<Long> suplentes) {
+        assertThatThrownBy(() -> service.enviarAlineacion(USUARIO, PARTIDO, titulares, suplentes))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(mensaje);
+    }
+
+    @Test
+    void laAlineacionRechazaTitularesVaciosRepetidosYJugadoresQueNoSonDelPartido() {
+        rechazada("al menos un titular", List.of(), List.of(10L));
+        rechazada("al menos un titular", null, null);
+        rechazada("dos veces", List.of(10L, 11L, 10L), List.of());
+        rechazada("dos veces", List.of(10L, 11L), List.of(11L));
+        rechazada("dos veces", List.of(10L), List.of(12L, 12L));
+        rechazada("no válido", java.util.Arrays.asList(10L, null), List.of());
+        // 13 existe pero no está convocado; 999 no existe.
+        rechazada("no está entre los jugadores", List.of(10L, 13L), List.of());
+        rechazada("no está entre los jugadores", List.of(10L), List.of(999L));
+
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any());
+        verify(fcmPushService, never()).enviarATopic(any(), any(), any());
+    }
+
+    @Test
+    void laAlineacionExigeElRolYUnPartidoDelPrimerEquipoDeHoy() {
+        assertThatThrownBy(() -> service.enviarAlineacion(USUARIO, 999L, List.of(10L), List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no existe");
+
+        when(usuarioAppService.tieneRol(USUARIO.intValue(), "RETRANSMISION")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.enviarAlineacion(USUARIO, PARTIDO, List.of(10L), List.of()))
+                .isInstanceOf(SecurityException.class);
+    }
+
+    private void plantillaDeDoce() {
+        when(convocatoriaDao.obtenerPorPartidoId(PARTIDO)).thenReturn(null);
+        List<Long> ids = new java.util.ArrayList<>();
+        for (long id = 100; id < 112; id++) {
+            jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS) VALUES (?, ?, 'Jugador', ?)",
+                    id, id - 99, "N" + id);
+            ids.add(id);
+        }
+        when(equipoGestionDao.obtenerJugadoresPorEquipo(PRIMER_EQUIPO)).thenReturn(ids);
+    }
+
+    private static List<Long> desde(long primero, int cuantos) {
+        List<Long> ids = new java.util.ArrayList<>();
+        for (long id = primero; id < primero + cuantos; id++) {
+            ids.add(id);
+        }
+        return ids;
+    }
+
+    @Test
+    void laAlineacionNoAdmiteMasDeOnceTitularesEnF11() {
+        plantillaDeDoce();
+
+        service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 11), List.of(111L));
+        rechazada("máximo 11", desde(100, 12), List.of());
+    }
+
+    @Test
+    void laAlineacionAplicaElMaximoDeTitularesDeLaModalidad() {
+        plantillaDeDoce();
+
+        equipoConModalidad("F8");
+        service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 8), List.of());
+        rechazada("máximo 8", desde(100, 9), List.of());
+
+        equipoConModalidad("F5");
+        service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 5), List.of());
+        rechazada("máximo 5", desde(100, 6), List.of());
+    }
+
+    // ---- lista elegible --------------------------------------------------------------------
+
+    private ConvocatoriaJugador invitado(long id, long jugadorId, EstadoInvitacion estado) {
+        ConvocatoriaJugador invitado = new ConvocatoriaJugador(id, 200L, jugadorId);
+        invitado.setEquipoOrigenId(5L);
+        invitado.setEstadoInvitacion(estado);
+        return invitado;
+    }
+
+    private JustificacionFaltaPartido justificacion(long jugadorId) {
+        JustificacionFaltaPartido justificacion = new JustificacionFaltaPartido();
+        justificacion.setPartidoId(PARTIDO);
+        justificacion.setJugadorId(jugadorId);
+        return justificacion;
+    }
+
+    @Test
+    void laListaElegibleSoloTieneLosConvocadosEfectivos() {
+        for (long id = 20; id <= 24; id++) {
+            jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS) VALUES (?, ?, ?, 'Invitado')",
+                    id, id, "J" + id);
+        }
+        when(convocatoriaJugadorDao.obtenerPorConvocatoria(200L)).thenReturn(List.of(
+                new ConvocatoriaJugador(1L, 200L, 10L),
+                new ConvocatoriaJugador(2L, 200L, 11L),
+                invitado(3L, 20L, EstadoInvitacion.AUTORIZADO),
+                invitado(4L, 21L, EstadoInvitacion.PENDIENTE_COORDINACION),
+                invitado(5L, 22L, EstadoInvitacion.PENDIENTE_ENTRENADOR),
+                invitado(6L, 23L, EstadoInvitacion.RECHAZADO),
+                invitado(7L, 24L, EstadoInvitacion.AUTORIZADO)));
+        // El 11 (del equipo) tiene ausencia justificada y el 24 (invitado autorizado) lo ha desestimado la familia.
+        when(justificacionDao.obtenerPorPartido(PARTIDO)).thenReturn(List.of(justificacion(11L), justificacion(24L)));
+
+        assertThat(service.obtenerConvocados(USUARIO, PARTIDO))
+                .extracting(c -> c.jugadorId() + ":" + c.origen())
+                .containsExactly("10:CONVOCATORIA", "20:CONVOCATORIA");
+
+        // Los que no juegan tampoco pueden marcar ni estar en la alineación.
+        empezarPartido();
+        service.enviarGolFavor(USUARIO, PARTIDO, 20L, null);
+        for (long fuera : new long[] { 11L, 21L, 22L, 23L, 24L }) {
+            assertThatThrownBy(() -> service.enviarGolFavor(USUARIO, PARTIDO, fuera, null))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("convocados");
+            rechazada("no está entre los jugadores", List.of(10L, fuera), List.of());
+        }
+        service.enviarAlineacion(USUARIO, PARTIDO, List.of(20L, 10L), List.of());
+    }
+
+    @Test
+    void sinConvocatoriaLaListaEsLaPlantillaActivaYElOrigenLoDice() {
+        when(convocatoriaDao.obtenerPorPartidoId(PARTIDO)).thenReturn(null);
+        when(equipoGestionDao.obtenerJugadoresPorEquipo(PRIMER_EQUIPO)).thenReturn(List.of(10L, 13L));
+
+        assertThat(service.obtenerConvocados(USUARIO, PARTIDO))
+                .extracting(c -> c.jugadorId() + ":" + c.origen())
+                .containsExactly("13:PLANTILLA", "10:PLANTILLA");
+        verify(justificacionDao, never()).obtenerPorPartido(any());
+    }
+
+    // ---- portada con eventos reales y deshacer ------------------------------------------------
+
+    @Test
+    void laPortadaCalculadaConEventosRealesSeAjustaAlDeshacerElFinal() {
+        nombreDeRetransmision(10L, "Pablito");
+        PartidoService portada = new PartidoServiceImpl(
+                partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
+                mock(DescansoEquipoDao.class), mock(JustificacionFaltaPartidoDao.class), mock(TemporadaDao.class),
+                mock(InvitadosService.class), eventoDao, AvisosTest.TEXTOS, reloj);
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partido);
+
+        empezarPartido();
+        service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
+        reloj.avanzar(Duration.ofMinutes(1));
+        service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
+        reloj.avanzar(Duration.ofMinutes(1));
+        service.enviarGolContra(USUARIO, PARTIDO);
+
+        ResultadoDTO enJuego = portada.obtenerResultadoPrimerEquipo("es");
+        assertThat(enJuego.isEnJuego()).isTrue();
+        assertThat(enJuego.getFase()).isEqualTo("PRIMERA_PARTE");
+        assertThat(enJuego.getGolesFavor()).isEqualTo(2);
+        assertThat(enJuego.getGolesContra()).isEqualTo(1);
+        assertThat(enJuego.getGoleadores()).isEmpty();
+
+        EstadoPartidoEnVivoResponse fin = service.enviarFinalPartido(USUARIO, PARTIDO);
+
+        ResultadoDTO finalizado = portada.obtenerResultadoPrimerEquipo("es");
+        assertThat(finalizado.isEnJuego()).isFalse();
+        assertThat(finalizado.getFase()).isEqualTo("FINALIZADO");
+        assertThat(finalizado.getGoleadores()).containsExactly("Pablito (2)");
+
+        service.deshacer(USUARIO, PARTIDO, fin.eventos().get(fin.eventos().size() - 1).id());
+
+        ResultadoDTO deshecho = portada.obtenerResultadoPrimerEquipo("es");
+        assertThat(deshecho.isEnJuego()).isTrue();
+        assertThat(deshecho.getFase()).isEqualTo("PRIMERA_PARTE");
+        assertThat(deshecho.getGolesFavor()).isEqualTo(2);
+        assertThat(deshecho.getGoleadores()).isEmpty();
     }
 }

@@ -20,14 +20,36 @@ import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse.PartidoDisponibl
  */
 public interface PartidoEnVivoService {
 
+    /**
+     * Alineación con el texto libre del once y los suplentes.
+     *
+     * @deprecated lo usan las versiones de la app que aún no eligen jugadores; usar
+     *             {@link #enviarAlineacion(Long, Long, List, List)}.
+     */
+    // TODO: quitar cuando la versión mínima de la app obligue a actualizar.
+    @Deprecated
     void enviarAlineacion(Long usuarioId, String onceInicial, String suplentes);
+
+    /**
+     * Alineación elegida entre los jugadores del partido ({@link #obtenerConvocados}), cada lista en el orden en que
+     * debe salir en el aviso, con el nombre de retransmisión de cada jugador. Los suplentes son opcionales.
+     *
+     * @throws IllegalArgumentException si no hay titulares, hay un jugador repetido (también entre titulares y
+     *                                  suplentes), alguno no está entre los jugadores del partido o hay más titulares
+     *                                  de los de la modalidad (F11 11, F8 8, F5 5)
+     */
+    void enviarAlineacion(Long usuarioId, Long partidoId, List<Long> titulares, List<Long> suplentes);
 
     /** Partidos del Primer Equipo de hoy, no cancelados. Vacía si no hay ninguno. */
     List<PartidoDisponible> obtenerPartidosDisponibles(Long usuarioId);
 
     EstadoPartidoEnVivoResponse obtenerEstado(Long usuarioId, Long partidoId);
 
-    /** Jugadores de la convocatoria del partido o, sin convocatoria, la plantilla del Primer Equipo. */
+    /**
+     * Jugadores entre los que elegir autor del gol o alineación. Con convocatoria, los convocados efectivos (los del
+     * propio equipo y los invitados autorizados, sin ausencia justificada a ese partido); sin ella, toda la plantilla
+     * activa del equipo.
+     */
     List<Convocado> obtenerConvocados(Long usuarioId, Long partidoId);
 
     EstadoPartidoEnVivoResponse enviarInicioPartido(Long usuarioId, Long partidoId);

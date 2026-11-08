@@ -62,8 +62,8 @@ class PartidoDaoImplColumnasTest {
             }
         }
 
-        // 1+1+1+1+2+2+1+1+1 consultas distintas
-        assertThat(consultas).hasSize(11);
+        // 1+1+1+1+3+2+1+1+1 consultas distintas (la portada del Primer Equipo añade la del partido recién jugado)
+        assertThat(consultas).hasSize(12);
 
         Set<String> columnasLeidas = new LinkedHashSet<>();
         ResultSet rs = mock(ResultSet.class, invocation -> {

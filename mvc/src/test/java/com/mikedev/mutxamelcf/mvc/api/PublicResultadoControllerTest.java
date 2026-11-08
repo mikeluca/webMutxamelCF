@@ -31,11 +31,29 @@ class PublicResultadoControllerTest {
         PublicResultadoController controller = new PublicResultadoController(service);
 
         ResultadoDTO resultado = new ResultadoDTO();
-        when(service.obtenerResultadoPrimerEquipo()).thenReturn(resultado);
+        when(service.obtenerResultadoPrimerEquipo((String) null)).thenReturn(resultado);
 
-        ResponseEntity<ResultadoDTO> response = controller.obtenerResultadoPrimerEquipo();
+        ResponseEntity<ResultadoDTO> response = controller.obtenerResultadoPrimerEquipo(null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isSameAs(resultado);
+    }
+
+    @Test
+    void elIdiomaSaleDeAcceptLanguageYSinElSeContestaEnCastellano() {
+        PartidoService service = mock(PartidoService.class);
+        PublicResultadoController controller = new PublicResultadoController(service);
+        ResultadoDTO resultado = new ResultadoDTO();
+        when(service.obtenerResultadoPrimerEquipo("ca")).thenReturn(resultado);
+
+        assertThat(controller.obtenerResultadoPrimerEquipo("ca-ES,ca;q=0.9,es;q=0.8").getBody()).isSameAs(resultado);
+
+        assertThat(PublicResultadoController.idioma("en-GB")).isEqualTo("en");
+        assertThat(PublicResultadoController.idioma("fr-FR,es;q=0.5")).isEqualTo("es");
+        assertThat(PublicResultadoController.idioma("fr-FR")).isNull();
+        assertThat(PublicResultadoController.idioma("*")).isNull();
+        assertThat(PublicResultadoController.idioma("??? mal")).isNull();
+        assertThat(PublicResultadoController.idioma(null)).isNull();
+        assertThat(PublicResultadoController.idioma("  ")).isNull();
     }
 }

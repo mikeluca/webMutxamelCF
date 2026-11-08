@@ -31,6 +31,7 @@ import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
+import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoEstadisticaJugadorDao;
 import com.mikedev.mutxamelcf.dao.PartidoLiveEventoDao;
@@ -43,6 +44,7 @@ import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse.EventoEnVivo;
 import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse.PartidoDisponible;
 import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse.UltimoEventoDeshacible;
 import com.mikedev.mutxamelcf.model.JugadorBasico;
+import com.mikedev.mutxamelcf.model.JustificacionFaltaPartido;
 import com.mikedev.mutxamelcf.model.IdiomaApp;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.TextoDifusion;
@@ -101,6 +103,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     private final EquipoGestionDao equipoGestionDao;
     private final ConvocatoriaDao convocatoriaDao;
     private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
+    private final JustificacionFaltaPartidoDao justificacionDao;
     private final PartidoEstadisticaJugadorDao estadisticaJugadorDao;
     private final NotificacionAppService notificacionAppService;
     private final UsuarioAppService usuarioAppService;
@@ -125,6 +128,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             EquipoGestionDao equipoGestionDao,
             ConvocatoriaDao convocatoriaDao,
             ConvocatoriaJugadorDao convocatoriaJugadorDao,
+            JustificacionFaltaPartidoDao justificacionDao,
             PartidoEstadisticaJugadorDao estadisticaJugadorDao,
             NotificacionAppService notificacionAppService,
             UsuarioAppService usuarioAppService,
@@ -140,6 +144,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         this.equipoGestionDao = equipoGestionDao;
         this.convocatoriaDao = convocatoriaDao;
         this.convocatoriaJugadorDao = convocatoriaJugadorDao;
+        this.justificacionDao = justificacionDao;
         this.estadisticaJugadorDao = estadisticaJugadorDao;
         this.notificacionAppService = notificacionAppService;
         this.usuarioAppService = usuarioAppService;
@@ -151,6 +156,10 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     // Consultas
     // ------------------------------------------------------------------
 
+    /*
+     * TODO: quitar cuando la versión mínima de la app obligue a actualizar: las versiones antiguas aún mandan la
+     * alineación como texto libre; las nuevas usan enviarAlineacion(usuarioId, partidoId, titulares, suplentes).
+     */
     @Override
     public void enviarAlineacion(Long usuarioId, String onceInicial, String suplentes) {
 
@@ -159,6 +168,77 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         difundir(idioma -> new TextoDifusion(
                 textos.texto(idioma, "directo.alineacion.titulo"),
                 textos.texto(idioma, "directo.alineacion.texto", "once", onceInicial, "suplentes", suplentes)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void enviarAlineacion(Long usuarioId, Long partidoId, List<Long> titulares, List<Long> suplentes) {
+
+        validarRolRetransmision(usuarioId);
+
+        Partido partido = validarPartido(partidoId, true);
+
+        List<Long> idsTitulares = titulares == null ? List.of() : titulares;
+        List<Long> idsSuplentes = suplentes == null ? List.of() : suplentes;
+
+        if (idsTitulares.isEmpty()) {
+            throw new IllegalArgumentException("La alineación necesita al menos un titular");
+        }
+
+        Set<Long> vistos = new java.util.HashSet<>();
+
+        for (Long id : java.util.stream.Stream.concat(idsTitulares.stream(), idsSuplentes.stream()).toList()) {
+
+            if (id == null) {
+                throw new IllegalArgumentException("Hay un jugador no válido en la alineación");
+            }
+
+            if (!vistos.add(id)) {
+                throw new IllegalArgumentException("Un jugador no puede aparecer dos veces en la alineación");
+            }
+        }
+
+        Map<Long, JugadorBasico> elegibles = elegibles(partido).jugadores().stream()
+                .collect(Collectors.toMap(JugadorBasico::id, Function.identity()));
+
+        if (!elegibles.keySet().containsAll(vistos)) {
+            throw new IllegalArgumentException("Algún jugador no está entre los jugadores del partido");
+        }
+
+        int maximo = maximoTitulares(partido);
+
+        if (idsTitulares.size() > maximo) {
+            throw new IllegalArgumentException("Hay más titulares de los permitidos (máximo " + maximo + ")");
+        }
+
+        String once = nombresEnDirecto(idsTitulares, elegibles);
+        String banquillo = nombresEnDirecto(idsSuplentes, elegibles);
+
+        difundir(idioma -> new TextoDifusion(
+                textos.texto(idioma, "directo.alineacion.titulo"),
+                banquillo.isEmpty()
+                        ? textos.texto(idioma, "directo.alineacion.textoSinSuplentes", "once", once)
+                        : textos.texto(idioma, "directo.alineacion.texto", "once", once, "suplentes", banquillo)));
+
+        logger.info("Alineación difundida: partidoId={}, titulares={}, suplentes={}", partidoId, idsTitulares.size(),
+                idsSuplentes.size());
+    }
+
+    private static String nombresEnDirecto(List<Long> ids, Map<Long, JugadorBasico> jugadores) {
+        return ids.stream().map(id -> jugadores.get(id).nombreEnDirecto()).collect(Collectors.joining(", "));
+    }
+
+    /** Titulares como mucho: los de la modalidad del equipo (F11 11, F8 8, F5 5). */
+    private int maximoTitulares(Partido partido) {
+
+        Equipo equipo = equipoDao.obtenerEquipoPorId(partido.getEquipoId());
+        String modalidad = equipo == null ? null : equipo.getModalidad();
+
+        if ("F8".equals(modalidad)) {
+            return 8;
+        }
+
+        return "F5".equals(modalidad) ? 5 : 11;
     }
 
     @Override
@@ -207,8 +287,11 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
         Partido partido = validarPartido(partidoId, false);
 
-        return convocados(partido).stream()
-                .map(jugador -> new Convocado(jugador.id(), jugador.dorsal(), jugador.nombreCompleto()))
+        Elegibles elegibles = elegibles(partido);
+
+        return elegibles.jugadores().stream()
+                .map(jugador -> new Convocado(jugador.id(), jugador.dorsal(), jugador.nombreCompleto(),
+                        jugador.nombreCompleto(), jugador.nombreEnDirecto(), elegibles.origen()))
                 .toList();
     }
 
@@ -301,9 +384,11 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         eventoDao.crear(evento);
         eventos.add(evento);
 
-        EstadoPartidoEnVivoResponse estado = construirEstado(partido, eventos);
+        Map<Long, JugadorBasico> jugadores = jugadoresDe(eventos);
 
-        difundirEvento(partido, evento, estado);
+        EstadoPartidoEnVivoResponse estado = construirEstado(partido, eventos, jugadores);
+
+        difundirEvento(partido, evento, estado, eventos, jugadores);
 
         // Privacidad: sin autor ni nombres en el log.
         logger.info("Evento de directo: partidoId={}, tipo={}, marcador={}-{}",
@@ -470,7 +555,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
         if (jugadorId != null) {
 
-            boolean convocado = convocados(partido).stream().anyMatch(j -> j.id().equals(jugadorId));
+            boolean convocado = elegibles(partido).jugadores().stream().anyMatch(j -> j.id().equals(jugadorId));
 
             if (!convocado) {
                 throw new IllegalArgumentException("El jugador no está entre los convocados del partido");
@@ -676,17 +761,35 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     // Estado
     // ------------------------------------------------------------------
 
-    private EstadoPartidoEnVivoResponse construirEstado(Partido partido, List<PartidoLiveEvento> eventos) {
+    /** Los jugadores autores de los goles de los eventos, por id (una sola consulta). */
+    private Map<Long, JugadorBasico> jugadoresDe(List<PartidoLiveEvento> eventos) {
 
         Set<Long> jugadorIds = eventos.stream()
                 .map(PartidoLiveEvento::getJugadorId)
                 .filter(id -> id != null)
                 .collect(Collectors.toSet());
 
-        Map<Long, String> nombres = new HashMap<>();
+        Map<Long, JugadorBasico> jugadores = new HashMap<>();
         for (JugadorBasico jugador : eventoDao.obtenerJugadoresBasicos(jugadorIds)) {
-            nombres.put(jugador.id(), jugador.nombreCompleto());
+            jugadores.put(jugador.id(), jugador);
         }
+
+        return jugadores;
+    }
+
+    private EstadoPartidoEnVivoResponse construirEstado(Partido partido, List<PartidoLiveEvento> eventos) {
+        return construirEstado(partido, eventos, jugadoresDe(eventos));
+    }
+
+    /*
+     * Para quien retransmite: los autores salen con nombre y apellidos (así reconoce al jugador). Lo que sale hacia
+     * fuera (push, portada) usa el nombre de retransmisión: ver autorEnDirecto.
+     */
+    private EstadoPartidoEnVivoResponse construirEstado(
+            Partido partido, List<PartidoLiveEvento> eventos, Map<Long, JugadorBasico> jugadores) {
+
+        Map<Long, String> nombres = new HashMap<>();
+        jugadores.forEach((id, jugador) -> nombres.put(id, jugador.nombreCompleto()));
 
         List<EventoEnVivo> respuesta = new ArrayList<>();
         List<String> goleadores = new ArrayList<>();
@@ -732,6 +835,17 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
                 calcularMinuto(partido, eventos, ahora()));
     }
 
+    /** El autor del gol como sale hacia fuera: nombre de retransmisión del jugador o el texto libre ("Otro", "p.p."). */
+    private static String autorEnDirecto(PartidoLiveEvento evento, Map<Long, JugadorBasico> jugadores) {
+
+        if (evento.getJugadorId() != null) {
+            JugadorBasico jugador = jugadores.get(evento.getJugadorId());
+            return jugador == null ? null : jugador.nombreEnDirecto();
+        }
+
+        return evento.getAutorTexto();
+    }
+
     private static String autor(PartidoLiveEvento evento, Map<Long, String> nombres) {
 
         if (evento.getJugadorId() != null) {
@@ -769,7 +883,8 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     // Difusión
     // ------------------------------------------------------------------
 
-    private void difundirEvento(Partido partido, PartidoLiveEvento evento, EstadoPartidoEnVivoResponse estado) {
+    private void difundirEvento(Partido partido, PartidoLiveEvento evento, EstadoPartidoEnVivoResponse estado,
+            List<PartidoLiveEvento> eventos, Map<Long, JugadorBasico> jugadores) {
 
         String rival = nombreRival(partido);
         String marcador = textoMarcador(partido, estado);
@@ -780,11 +895,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
                         textos.texto(idioma, "directo.inicio.titulo"),
                         textos.texto(idioma, "directo.inicio.texto", "rival", rival)));
             case PartidoLiveEvento.GOL_FAVOR -> {
-                String autor = estado.eventos().stream()
-                        .filter(e -> e.id() != null && e.id().equals(evento.getId()))
-                        .map(EventoEnVivo::autor)
-                        .findFirst()
-                        .orElse(null);
+                String autor = autorEnDirecto(evento, jugadores);
 
                 Integer minuto = evento.getMinuto();
 
@@ -816,7 +927,11 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
                         textos.texto(idioma, "directo.segundaParte.titulo"),
                         textos.texto(idioma, "directo.segundaParte.texto", "rival", rival)));
             case PartidoLiveEvento.FINAL -> {
-                List<String> autores = estado.goleadores();
+                List<String> autores = eventos.stream()
+                        .filter(e -> PartidoLiveEvento.GOL_FAVOR.equals(e.getTipo()))
+                        .map(e -> autorEnDirecto(e, jugadores))
+                        .filter(a -> a != null)
+                        .toList();
 
                 difundirTrasCommit(idioma -> new TextoDifusion(
                         textos.texto(idioma, "directo.final.titulo"),
@@ -940,21 +1055,48 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         return partido;
     }
 
-    private List<JugadorBasico> convocados(Partido partido) {
+    /** Los jugadores entre los que se elige autor o alineación y de dónde salen (ORIGEN_*). */
+    private record Elegibles(String origen, List<JugadorBasico> jugadores) {
+    }
+
+    /*
+     * Con convocatoria, los convocados efectivos: los del propio equipo y los invitados AUTORIZADOS, y de ellos, solo
+     * quien no tiene una justificación de falta a ESTE partido (la ausencia justificada de la familia o la
+     * desestimación de un invitado se guardan igual). Sin convocatoria, toda la plantilla activa del equipo.
+     */
+    private Elegibles elegibles(Partido partido) {
 
         Convocatoria convocatoria = convocatoriaDao.obtenerPorPartidoId(partido.getId());
 
-        List<Long> ids = convocatoria != null
-                ? convocatoriaJugadorDao.obtenerPorConvocatoria(convocatoria.getId()).stream()
-                        .map(ConvocatoriaJugador::getJugadorId)
-                        .toList()
-                : equipoGestionDao.obtenerJugadoresPorEquipo(partido.getEquipoId());
+        String origen;
+        List<Long> ids;
 
-        return eventoDao.obtenerJugadoresBasicos(ids).stream()
+        if (convocatoria != null) {
+
+            Set<Long> justificados = justificacionDao.obtenerPorPartido(partido.getId()).stream()
+                    .map(JustificacionFaltaPartido::getJugadorId)
+                    .collect(Collectors.toSet());
+
+            origen = EstadoPartidoEnVivoResponse.ORIGEN_CONVOCATORIA;
+            ids = convocatoriaJugadorDao.obtenerPorConvocatoria(convocatoria.getId()).stream()
+                    .filter(ConvocatoriaJugador::isConvocadoEfectivo)
+                    .map(ConvocatoriaJugador::getJugadorId)
+                    .filter(id -> !justificados.contains(id))
+                    .toList();
+
+        } else {
+
+            origen = EstadoPartidoEnVivoResponse.ORIGEN_PLANTILLA;
+            ids = equipoGestionDao.obtenerJugadoresPorEquipo(partido.getEquipoId());
+        }
+
+        List<JugadorBasico> jugadores = eventoDao.obtenerJugadoresBasicos(ids).stream()
                 .sorted(Comparator
                         .comparing(JugadorBasico::dorsal, Comparator.nullsLast(Comparator.naturalOrder()))
                         .thenComparing(JugadorBasico::nombreCompleto, String.CASE_INSENSITIVE_ORDER))
                 .toList();
+
+        return new Elegibles(origen, jugadores);
     }
 
     private static String nombreRival(Partido partido) {

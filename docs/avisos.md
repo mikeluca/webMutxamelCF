@@ -147,7 +147,8 @@ jugador y de familia recibe la del jugador.
 
 ### 6. Partido en directo (todas las cuentas con la preferencia de resultados + topics)
 
-`directo.alineacion.*`, `directo.inicio.*`, `directo.gol.*` (con o sin minuto), `directo.golContra.*`,
+`directo.alineacion.*` (`titulo`, `texto` con suplentes y `textoSinSuplentes` cuando la alineación no los lleva; los nombres son los de
+retransmisión del jugador), `directo.inicio.*`, `directo.gol.*` (con o sin minuto), `directo.golContra.*`,
 `directo.golAnulado.*`, `directo.descanso.*`, `directo.segundaParte.*`, `directo.final.*`. El marcador
 (`Mutxamel CF 2 - 1 Rival`) no cambia con el idioma.
 

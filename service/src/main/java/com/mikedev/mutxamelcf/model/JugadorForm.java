@@ -26,6 +26,18 @@ public class JugadorForm {
 	/** Opcional; el rango (año actual − 25 … año actual − 3) lo valida {@link AnioNacimiento}. */
 	private Integer anioNacimiento;
 
+	/** Opcional: cómo se le nombra en los avisos del partido en directo. Vacío = nombre y apellidos. */
+	@Size(max = 40, message = "El nombre en retransmisión es demasiado largo (máximo 40 caracteres)")
+	private String nombreRetransmision;
+
+	public String getNombreRetransmision() {
+		return nombreRetransmision;
+	}
+
+	public void setNombreRetransmision(String nombreRetransmision) {
+		this.nombreRetransmision = nombreRetransmision;
+	}
+
 	public Integer getAnioNacimiento() {
 		return anioNacimiento;
 	}

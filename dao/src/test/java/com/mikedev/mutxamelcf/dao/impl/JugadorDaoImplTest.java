@@ -47,8 +47,8 @@ class JugadorDaoImplTest {
         jugador.setId(9L);
 
         when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), eq(9L))).thenReturn(new Jugador());
-        // actualizarJugador pasa 11 valores como varargs: hay que igualar el numero exacto de matchers
-        when(jdbcTemplate.update(anyString(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+        // actualizarJugador pasa 12 valores como varargs: hay que igualar el numero exacto de matchers
+        when(jdbcTemplate.update(anyString(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
                 any())).thenReturn(1);
 
         boolean resultado = dao.guardarJugador(jugador);

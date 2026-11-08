@@ -137,6 +137,68 @@ class PartidoMasRelevanteDaoH2Test {
         esperar("HoyConGoles");
     }
 
+    // ---- portada del Primer Equipo: el partido que acaba de terminar se queda hoy y mañana ----
+
+    @Test
+    void elPartidoDeAyerConResultadoSeQuedaAunqueHayaProximo() {
+        partido("Ayer", -1, "2-1", 0, null);
+        partido("Proximo", 6, null, 0, null);
+
+        // El día siguiente al partido: sus goleadores siguen en la portada.
+        assertThat(rivalPorNombre()).isEqualTo("Ayer");
+        // El resto de usos de "más relevante" (listado por equipo) no cambia.
+        assertThat(rivalPorId()).isEqualTo("Proximo");
+    }
+
+    @Test
+    void elPartidoDeHoyConResultadoSeQuedaAunqueHayaProximo() {
+        partido("Hoy", 0, "2-1", 0, null);
+        partido("Proximo", 7, null, 0, null);
+
+        assertThat(rivalPorNombre()).isEqualTo("Hoy");
+        assertThat(rivalPorId()).isEqualTo("Proximo");
+    }
+
+    @Test
+    void dosDiasDespuesDelPartidoYaSeMuestraElProximo() {
+        partido("HaceDosDias", -2, "2-1", 0, null);
+        partido("Proximo", 5, null, 0, null);
+
+        esperar("Proximo");
+    }
+
+    @Test
+    void unPartidoDeHoyAunSinResultadoGanaAlDeAyer() {
+        partido("Ayer", -1, "2-1", 0, null);
+        partido("HoyEnJuego", 0, null, 0, null);
+        partido("Proximo", 7, null, 0, null);
+
+        esperar("HoyEnJuego");
+    }
+
+    @Test
+    void ayerSinResultadoNoRetieneLaPortadaYSaleElProximo() {
+        partido("AyerSinResultado", -1, null, 0, null);
+        partido("Proximo", 6, null, 0, null);
+
+        esperar("Proximo");
+    }
+
+    @Test
+    void unPartidoDeAyerCanceladoNoSeQuedaEnLaPortada() {
+        partido("AyerCancelado", -1, "2-1", 1, null);
+        partido("Proximo", 6, null, 0, null);
+
+        esperar("Proximo");
+    }
+
+    @Test
+    void sinProximoSeSigueDevolviendoElUltimoJugado() {
+        partido("Ayer", -1, "2-1", 0, null);
+
+        esperar("Ayer");
+    }
+
     @Test
     void sinPartidosDevuelveNull() {
         assertThat(rivalPorId()).isNull();

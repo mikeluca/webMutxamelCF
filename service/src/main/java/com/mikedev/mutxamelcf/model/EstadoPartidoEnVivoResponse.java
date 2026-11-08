@@ -46,7 +46,21 @@ public record EstadoPartidoEnVivoResponse(
     public record PartidoDisponible(Long id, String rival, String hora, String campo, boolean local, LocalDate dia) {
     }
 
-    /** Un jugador entre los que se puede elegir al autor de un gol. */
-    public record Convocado(Long jugadorId, Integer dorsal, String nombre) {
+    public static final String ORIGEN_CONVOCATORIA = "CONVOCATORIA";
+    public static final String ORIGEN_PLANTILLA = "PLANTILLA";
+
+    /**
+     * Un jugador entre los que se puede elegir al autor de un gol o la alineación.
+     *
+     * @param nombre              nombre y apellidos (igual que nombreCompleto; se mantiene para las versiones de la app
+     *                            que solo conocen este campo)
+     * @param nombreCompleto      nombre y apellidos
+     * @param nombreRetransmision cómo saldrá en los avisos y la portada; si el jugador no tiene uno propio, es igual
+     *                            que nombreCompleto
+     * @param origen              CONVOCATORIA (los convocados efectivos del partido) o PLANTILLA (el partido no tiene
+     *                            convocatoria: toda la plantilla activa)
+     */
+    public record Convocado(Long jugadorId, Integer dorsal, String nombre, String nombreCompleto,
+            String nombreRetransmision, String origen) {
     }
 }

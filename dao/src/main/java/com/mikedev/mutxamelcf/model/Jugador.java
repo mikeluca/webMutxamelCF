@@ -14,6 +14,8 @@ public class Jugador {
 	private byte[] foto;
 	/** Dato de un menor: solo lo usan el panel y el asistente de temporada, nunca la app. */
 	private Integer anioNacimiento;
+	/** Cómo se le nombra en el partido en directo ("Pepe"); vacío = nombre y apellidos. */
+	private String nombreRetransmision;
 	/** Nula mientras el jugador forma parte de la plantilla actual. */
 	private java.time.LocalDate fechaBaja;
 
@@ -121,6 +123,14 @@ public class Jugador {
 
 	public void setAnioNacimiento(Integer anioNacimiento) {
 		this.anioNacimiento = anioNacimiento;
+	}
+
+	public String getNombreRetransmision() {
+		return nombreRetransmision;
+	}
+
+	public void setNombreRetransmision(String nombreRetransmision) {
+		this.nombreRetransmision = nombreRetransmision;
 	}
 
 	public java.time.LocalDate getFechaBaja() {

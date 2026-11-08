@@ -381,6 +381,7 @@ public class JugadorServiceImpl implements JugadorService {
 		jugador.setEquipo(jugadorDTO.getEquipo());
 		jugador.setEquipoId(jugadorDTO.getEquipoId());
 		jugador.setAnioNacimiento(jugadorDTO.getAnioNacimiento());
+		jugador.setNombreRetransmision(jugadorDTO.getNombreRetransmision());
 		jugador.setDorsal(jugadorDTO.getDorsal() == null ? null : jugadorDTO.getDorsal());
 		jugador.setPosicion(jugadorDTO.getPosicion());
 		jugador.setFoto(jugadorDTO.getFoto());
@@ -403,6 +404,7 @@ public class JugadorServiceImpl implements JugadorService {
 		jugadorDTO.setEquipo(jugador.getEquipo());
 		jugadorDTO.setEquipoId(jugador.getEquipoId());
 		jugadorDTO.setAnioNacimiento(jugador.getAnioNacimiento());
+		jugadorDTO.setNombreRetransmision(jugador.getNombreRetransmision());
 		jugadorDTO.setFechaBaja(jugador.getFechaBaja());
 		jugadorDTO.setDorsal(jugador.getDorsal());
 		jugadorDTO.setPosicion(jugador.getPosicion());

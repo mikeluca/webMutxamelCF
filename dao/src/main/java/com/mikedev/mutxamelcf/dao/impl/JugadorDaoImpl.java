@@ -29,7 +29,7 @@ public class JugadorDaoImpl implements JugadorDao {
 	 */
 	private static final String SELECT_JUGADOR = """
 			SELECT J.ID, J.NOMBRE, J.APELLIDOS, J.CATEGORIA, J.DEPORTE, J.DORSAL, J.POSICION, J.FOTO,
-			       J.EQUIPO_ID, J.ANIO_NACIMIENTO, J.FECHA_BAJA, E.NOMBRE AS EQUIPO_ACTUAL
+			       J.EQUIPO_ID, J.ANIO_NACIMIENTO, J.NOMBRE_RETRANSMISION, J.FECHA_BAJA, E.NOMBRE AS EQUIPO_ACTUAL
 			FROM JUGADORES J
 			LEFT JOIN EQUIPO E ON E.ID = J.EQUIPO_ID
 			""";
@@ -68,7 +68,7 @@ public class JugadorDaoImpl implements JugadorDao {
 	public boolean insertarJugador(Jugador jugador) {
 		logger.debug("Inicio insertarJugador");
 		String sql = "INSERT INTO jugadores (nombre, apellidos, categoria, deporte, dorsal, posicion, equipo, equipo_id,"
-				+ " anio_nacimiento, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+				+ " anio_nacimiento, nombre_retransmision, foto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 		KeyHolder claves = new GeneratedKeyHolder();
 		int filas = jdbcTemplate.update(conexion -> {
@@ -82,7 +82,8 @@ public class JugadorDaoImpl implements JugadorDao {
 			ps.setString(7, jugador.getEquipo());
 			ps.setObject(8, jugador.getEquipoId());
 			ps.setObject(9, jugador.getAnioNacimiento());
-			ps.setBytes(10, jugador.getFoto());
+			ps.setString(10, jugador.getNombreRetransmision());
+			ps.setBytes(11, jugador.getFoto());
 			return ps;
 		}, claves);
 
@@ -100,11 +101,13 @@ public class JugadorDaoImpl implements JugadorDao {
 		// no se borran si llegan nulas (un jugador de baja conserva las del último equipo).
 		String sql = " UPDATE JUGADORES SET NOMBRE = ?, APELLIDOS = ?, DORSAL = ?, POSICION = ?, "
 				+ "EQUIPO = COALESCE(?, EQUIPO), EQUIPO_ID = ?, CATEGORIA = COALESCE(?, CATEGORIA), "
-				+ "DEPORTE = COALESCE(?, DEPORTE), ANIO_NACIMIENTO = ?, FOTO = ? WHERE ID = ? ";
+				+ "DEPORTE = COALESCE(?, DEPORTE), ANIO_NACIMIENTO = ?, "
+				+ "NOMBRE_RETRANSMISION = ?, FOTO = ? WHERE ID = ? ";
 
 		boolean actualizado = jdbcTemplate.update(sql, jugador.getNombre(), jugador.getApellidos(), jugador.getDorsal(),
 				jugador.getPosicion(), jugador.getEquipo(), jugador.getEquipoId(), jugador.getCategoria(),
-				jugador.getDeporte(), jugador.getAnioNacimiento(), jugador.getFoto(), jugador.getId()) == 1;
+				jugador.getDeporte(), jugador.getAnioNacimiento(), jugador.getNombreRetransmision(), jugador.getFoto(),
+				jugador.getId()) == 1;
 		logger.debug("Fin actualizarJugador: id={}, actualizado={}", jugador.getId(), actualizado);
 		return actualizado;
 	}
@@ -257,6 +260,7 @@ public class JugadorDaoImpl implements JugadorDao {
 		jugador.setFoto(rs.getBytes("foto"));
 		int anio = rs.getInt("anio_nacimiento");
 		jugador.setAnioNacimiento(rs.wasNull() ? null : anio);
+		jugador.setNombreRetransmision(rs.getString("nombre_retransmision"));
 		Date baja = rs.getDate("fecha_baja");
 		jugador.setFechaBaja(baja == null ? null : baja.toLocalDate());
 		return jugador;

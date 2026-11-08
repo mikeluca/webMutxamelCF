@@ -29,12 +29,15 @@ import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
+import com.mikedev.mutxamelcf.dao.PartidoLiveEventoDao;
 import com.mikedev.mutxamelcf.dao.TemporadaDao;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.JustificacionFaltaPartido;
 import com.mikedev.mutxamelcf.model.DescansoEquipo;
 import com.mikedev.mutxamelcf.model.Equipo;
+import com.mikedev.mutxamelcf.model.EventoDirectoResumen;
 import com.mikedev.mutxamelcf.model.Partido;
+import com.mikedev.mutxamelcf.model.PartidoLiveEvento;
 import com.mikedev.mutxamelcf.model.PartidoDTO;
 import com.mikedev.mutxamelcf.model.PartidoGuardarRequest;
 import com.mikedev.mutxamelcf.model.ResultadoDTO;
@@ -70,6 +73,8 @@ public class PartidoServiceImpl implements PartidoService {
 	private final JustificacionFaltaPartidoDao justificacionFaltaPartidoDao;
 	private final TemporadaDao temporadaDao;
 	private final InvitadosService invitadosService;
+	private final PartidoLiveEventoDao eventoDao;
+	private final TextosAvisos textos;
 	private final Clock clock;
 
 	public PartidoServiceImpl(
@@ -82,6 +87,8 @@ public class PartidoServiceImpl implements PartidoService {
 			JustificacionFaltaPartidoDao justificacionFaltaPartidoDao,
 			TemporadaDao temporadaDao,
 			InvitadosService invitadosService,
+			PartidoLiveEventoDao eventoDao,
+			TextosAvisos textos,
 			Clock clock) {
 
 		this.partidoDao = partidoDao;
@@ -93,6 +100,8 @@ public class PartidoServiceImpl implements PartidoService {
 		this.justificacionFaltaPartidoDao = justificacionFaltaPartidoDao;
 		this.temporadaDao = temporadaDao;
 		this.invitadosService = invitadosService;
+		this.eventoDao = eventoDao;
+		this.textos = textos;
 		this.clock = clock;
 	}
 
@@ -595,7 +604,7 @@ public class PartidoServiceImpl implements PartidoService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ResultadoDTO obtenerResultadoPrimerEquipo() {
+	public ResultadoDTO obtenerResultadoPrimerEquipo(String idioma) {
 		logger.debug("Inicio obtenerResultadoPrimerEquipo");
 
 		Partido partido = partidoDao.obtenerMasRelevantePorEquipoNombre(
@@ -627,9 +636,110 @@ public class PartidoServiceImpl implements PartidoService {
 		resultado.setLocal(partido.isLocal());
 		resultado.setPendienteResultado(pendienteResultado(partido));
 
+		aplicarDirecto(resultado, partido, idioma);
+
 		logger.debug("Fin obtenerResultadoPrimerEquipo: encontrado=true");
 
 		return resultado;
+	}
+
+	/*
+	 * El estado de la retransmisión, calculado con los eventos no anulados del partido elegido (una sola consulta,
+	 * ya con el autor de cada gol: la portada se pide a menudo durante el partido). Así, deshacer el inicio, un gol o
+	 * el final se refleja solo. Un partido futuro no puede tener eventos y no se consulta.
+	 */
+	private void aplicarDirecto(ResultadoDTO resultado, Partido partido, String idioma) {
+
+		if (partido.getId() == null || partido.getDia() == null
+				|| aLocalDate(partido.getDia()).isAfter(LocalDate.now(clock))) {
+			return;
+		}
+
+		List<EventoDirectoResumen> eventos = eventoDao.obtenerResumenNoAnulados(partido.getId());
+
+		if (eventos.isEmpty()) {
+			return;
+		}
+
+		String fase = null;
+		int golesFavor = 0;
+		int golesContra = 0;
+
+		for (EventoDirectoResumen evento : eventos) {
+			switch (evento.tipo()) {
+				case PartidoLiveEvento.INICIO -> fase = "PRIMERA_PARTE";
+				case PartidoLiveEvento.DESCANSO -> fase = "DESCANSO";
+				case PartidoLiveEvento.SEGUNDA_PARTE -> fase = "SEGUNDA_PARTE";
+				case PartidoLiveEvento.FINAL -> fase = "FINALIZADO";
+				case PartidoLiveEvento.GOL_FAVOR -> golesFavor++;
+				case PartidoLiveEvento.GOL_CONTRA -> golesContra++;
+				default -> {
+					// sin efecto en la portada
+				}
+			}
+		}
+
+		if (fase == null) {
+			return;
+		}
+
+		boolean finalizado = "FINALIZADO".equals(fase);
+
+		resultado.setFase(fase);
+		resultado.setEnJuego(!finalizado);
+		resultado.setGolesFavor(golesFavor);
+		resultado.setGolesContra(golesContra);
+
+		if (!finalizado) {
+			// Se está jugando: no es un resultado pendiente de introducir.
+			resultado.setPendienteResultado(false);
+			return;
+		}
+
+		resultado.setGoleadores(goleadores(eventos, idioma));
+	}
+
+	/**
+	 * Los goles del Mutxamel en orden de aparición, con el nombre de retransmisión del jugador, el texto libre de
+	 * "Otro" tal cual y "p.p." como "Gol en propia puerta del rival"; los repetidos se agrupan ("Pepe (2)"). Un gol sin
+	 * autor no se añade.
+	 */
+	private List<String> goleadores(List<EventoDirectoResumen> eventos, String idioma) {
+
+		Map<String, Integer> goles = new java.util.LinkedHashMap<>();
+		Map<String, String> nombres = new HashMap<>();
+
+		for (EventoDirectoResumen evento : eventos) {
+
+			if (!PartidoLiveEvento.GOL_FAVOR.equals(evento.tipo())) {
+				continue;
+			}
+
+			String clave;
+			String nombre;
+
+			if (evento.jugador() != null) {
+				clave = "J" + evento.jugador().id();
+				nombre = evento.jugador().nombreEnDirecto();
+			} else if (evento.autorTexto() != null && !evento.autorTexto().isBlank()) {
+				nombre = "p.p.".equals(evento.autorTexto()) ? textos.texto(idioma, "directo.golPropiaPuerta")
+						: evento.autorTexto().trim();
+				clave = "T" + nombre;
+			} else {
+				continue;
+			}
+
+			if (nombre.isBlank()) {
+				continue;
+			}
+
+			nombres.putIfAbsent(clave, nombre);
+			goles.merge(clave, 1, Integer::sum);
+		}
+
+		return goles.entrySet().stream()
+				.map(e -> e.getValue() == 1 ? nombres.get(e.getKey()) : nombres.get(e.getKey()) + " (" + e.getValue() + ")")
+				.toList();
 	}
 
 	private Long idEquipoPorNombre(String nombre) {

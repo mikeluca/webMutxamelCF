@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import com.mikedev.mutxamelcf.dao.EsquemaH2;
+import com.mikedev.mutxamelcf.model.EventoDirectoResumen;
 import com.mikedev.mutxamelcf.model.JugadorBasico;
 import com.mikedev.mutxamelcf.model.PartidoLiveEvento;
 
@@ -30,7 +31,8 @@ class PartidoLiveEventoDaoH2Test {
         EsquemaH2.crear(jdbc);
         jdbc.execute("""
                 CREATE TABLE JUGADORES (
-                    ID NUMBER PRIMARY KEY, DORSAL NUMBER, NOMBRE VARCHAR2(50), APELLIDOS VARCHAR2(50))""");
+                    ID NUMBER PRIMARY KEY, DORSAL NUMBER, NOMBRE VARCHAR2(50), APELLIDOS VARCHAR2(50),
+                    NOMBRE_RETRANSMISION VARCHAR2(40 CHAR))""");
 
         dao = new PartidoLiveEventoDaoImpl(jdbc);
     }
@@ -146,15 +148,68 @@ class PartidoLiveEventoDaoH2Test {
 
     @Test
     void losJugadoresBasicosTraenDorsalNuloComoNulo() {
-        jdbc.update("INSERT INTO JUGADORES VALUES (10, 9, 'Pablo', 'Garcia')");
-        jdbc.update("INSERT INTO JUGADORES VALUES (12, NULL, 'Sin', 'Dorsal')");
-        jdbc.update("INSERT INTO JUGADORES VALUES (13, 4, 'Otro', 'Jugador')");
+        jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS) VALUES (10, 9, 'Pablo', 'Garcia')");
+        jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS) VALUES (12, NULL, 'Sin', 'Dorsal')");
+        jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS) VALUES (13, 4, 'Otro', 'Jugador')");
 
         List<JugadorBasico> jugadores = dao.obtenerJugadoresBasicos(List.of(10L, 12L));
 
         assertThat(jugadores).extracting(j -> j.id() + ":" + j.dorsal() + ":" + j.nombreCompleto())
                 .containsExactlyInAnyOrder("10:9:Pablo Garcia", "12:null:Sin Dorsal");
         assertThat(dao.obtenerJugadoresBasicos(List.of())).isEmpty();
+    }
+
+    @Test
+    void losJugadoresBasicosTraenElNombreDeRetransmisionYSuNombreEnDirectoCaeAlCompleto() {
+        jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS, NOMBRE_RETRANSMISION)"
+                + " VALUES (10, 9, 'Pablo', 'Garcia', 'Pablito')");
+        jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS, NOMBRE_RETRANSMISION)"
+                + " VALUES (11, 1, 'Luis', 'Lopez', '  ')");
+        jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS) VALUES (12, 2, 'Ana', 'Ruiz')");
+
+        List<JugadorBasico> jugadores = dao.obtenerJugadoresBasicos(List.of(10L, 11L, 12L));
+
+        assertThat(jugadores).extracting(JugadorBasico::id, JugadorBasico::nombreEnDirecto)
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple(10L, "Pablito"),
+                        org.assertj.core.groups.Tuple.tuple(11L, "Luis Lopez"),
+                        org.assertj.core.groups.Tuple.tuple(12L, "Ana Ruiz"));
+    }
+
+    @Test
+    void elResumenDelDirectoTraeLosEventosNoAnuladosConElAutorYaUnido() {
+        jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS, NOMBRE_RETRANSMISION)"
+                + " VALUES (10, 9, 'Pablo', 'Garcia', 'Pablito')");
+
+        evento(30, "INICIO", T0);
+        PartidoLiveEvento gol = new PartidoLiveEvento();
+        gol.setPartidoId(30L);
+        gol.setTipo("GOL_FAVOR");
+        gol.setJugadorId(10L);
+        gol.setUsuarioAppId(7L);
+        gol.setFecha(T0.plusMinutes(5));
+        dao.crear(gol);
+        PartidoLiveEvento propia = new PartidoLiveEvento();
+        propia.setPartidoId(30L);
+        propia.setTipo("GOL_FAVOR");
+        propia.setAutorTexto("p.p.");
+        propia.setUsuarioAppId(7L);
+        propia.setFecha(T0.plusMinutes(6));
+        dao.crear(propia);
+        PartidoLiveEvento anulado = evento(30, "GOL_CONTRA", T0.plusMinutes(7));
+        dao.anular(anulado.getId(), T0.plusMinutes(8));
+        evento(31, "INICIO", T0);
+
+        List<EventoDirectoResumen> resumen = dao.obtenerResumenNoAnulados(30L);
+
+        assertThat(resumen).extracting(EventoDirectoResumen::tipo)
+                .containsExactly("INICIO", "GOL_FAVOR", "GOL_FAVOR");
+        assertThat(resumen.get(0).jugador()).isNull();
+        assertThat(resumen.get(1).jugador().nombreEnDirecto()).isEqualTo("Pablito");
+        assertThat(resumen.get(1).jugador().nombreCompleto()).isEqualTo("Pablo Garcia");
+        assertThat(resumen.get(2).jugador()).isNull();
+        assertThat(resumen.get(2).autorTexto()).isEqualTo("p.p.");
+        assertThat(dao.obtenerResumenNoAnulados(99L)).isEmpty();
     }
 
 }

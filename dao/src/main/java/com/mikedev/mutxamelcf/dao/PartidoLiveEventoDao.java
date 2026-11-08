@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
+import com.mikedev.mutxamelcf.model.EventoDirectoResumen;
 import com.mikedev.mutxamelcf.model.JugadorBasico;
 import com.mikedev.mutxamelcf.model.PartidoLiveEvento;
 
@@ -22,6 +23,12 @@ public interface PartidoLiveEventoDao {
 
     /** Corrige el minuto de un evento no anulado; devuelve las filas modificadas. */
     int actualizarMinuto(Long id, Integer minuto);
+
+    /**
+     * Eventos no anulados del partido, en orden, con el autor de cada gol ya unido (una sola consulta, sin una por
+     * jugador): lo justo para la portada de la app.
+     */
+    List<EventoDirectoResumen> obtenerResumenNoAnulados(Long partidoId);
 
     /** Jugadores (sin foto) con esos ids. */
     List<JugadorBasico> obtenerJugadoresBasicos(Collection<Long> jugadorIds);

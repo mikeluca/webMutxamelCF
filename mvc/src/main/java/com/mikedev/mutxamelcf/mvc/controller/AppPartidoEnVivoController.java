@@ -1,5 +1,6 @@
 package com.mikedev.mutxamelcf.mvc.controller;
 
+import com.mikedev.mutxamelcf.model.AlineacionJugadoresRequest;
 import com.mikedev.mutxamelcf.model.AlineacionRequest;
 import com.mikedev.mutxamelcf.model.GolFavorRequest;
 import com.mikedev.mutxamelcf.model.MinutoRequest;
@@ -29,13 +30,28 @@ public class AppPartidoEnVivoController {
         this.partidoEnVivoService = partidoEnVivoService;
     }
 
+    /** Alineación como texto libre. TODO: quitar cuando la versión mínima de la app obligue a actualizar. */
     @PostMapping("/alineacion")
+    @SuppressWarnings("deprecation")
     public ResponseEntity<?> alineacion(
             @Valid @RequestBody AlineacionRequest request,
             Authentication authentication) {
 
         return ejecutar(authentication, usuarioId -> {
             partidoEnVivoService.enviarAlineacion(usuarioId, request.getOnceInicial(), request.getSuplentes());
+            return null;
+        });
+    }
+
+    /** Alineación eligiendo jugadores: {"titulares":[ids en orden], "suplentes":[ids en orden]}. */
+    @PostMapping("/{partidoId}/alineacion")
+    public ResponseEntity<?> alineacionPorJugadores(
+            @PathVariable Long partidoId,
+            @RequestBody AlineacionJugadoresRequest request,
+            Authentication authentication) {
+
+        return ejecutar(authentication, usuarioId -> {
+            partidoEnVivoService.enviarAlineacion(usuarioId, partidoId, request.getTitulares(), request.getSuplentes());
             return null;
         });
     }

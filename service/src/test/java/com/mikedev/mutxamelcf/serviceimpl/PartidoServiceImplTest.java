@@ -61,6 +61,9 @@ class PartidoServiceImplTest {
     @Mock
     private com.mikedev.mutxamelcf.service.InvitadosService invitadosService;
 
+    @Mock
+    private com.mikedev.mutxamelcf.dao.PartidoLiveEventoDao eventoDao;
+
     private PartidoServiceImpl service;
 
     @BeforeEach
@@ -68,7 +71,7 @@ class PartidoServiceImplTest {
         service = new PartidoServiceImpl(
                 partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
                 descansoEquipoDao, justificacionFaltaPartidoDao, temporadaDao,
-                invitadosService,
+                invitadosService, eventoDao, AvisosTest.TEXTOS,
                 java.time.Clock.systemDefaultZone());
     }
 
@@ -940,7 +943,7 @@ class PartidoServiceImplTest {
         return new PartidoServiceImpl(
                 partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
                 descansoEquipoDao, justificacionFaltaPartidoDao, temporadaDao,
-                invitadosService, reloj);
+                invitadosService, eventoDao, AvisosTest.TEXTOS, reloj);
     }
 
     // ---- ausencia justificada en el calendario del jugador (reloj fijo: miércoles 21/10/2026 10:00) ----
@@ -1429,5 +1432,161 @@ class PartidoServiceImplTest {
         assertThatThrownBy(() -> service.actualizar(1L, 5L, requestValido())).isInstanceOf(SecurityException.class);
 
         verify(invitadosService, never()).alCambiarFechaPartido(any(), any(), any());
+    }
+
+    // ---- portada del Primer Equipo en directo (reloj fijo: miércoles 21/10/2026 10:00) ----
+
+    private static final LocalDate DIA_DEL_MIERCOLES = LocalDate.of(2026, 10, 21);
+
+    private Partido partidoDePortada(Long id, LocalDate dia) {
+        Partido partido = new Partido();
+        partido.setId(id);
+        partido.setEquipoId(21L);
+        partido.setRival("Pego C.F.");
+        partido.setDia(java.sql.Date.valueOf(dia));
+        partido.setHora("09:00");
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partido);
+        return partido;
+    }
+
+    private static com.mikedev.mutxamelcf.model.EventoDirectoResumen evento(String tipo) {
+        return new com.mikedev.mutxamelcf.model.EventoDirectoResumen(tipo, null, null);
+    }
+
+    private static com.mikedev.mutxamelcf.model.EventoDirectoResumen gol(String nombre, String apellidos,
+            String nombreRetransmision, long id) {
+        return new com.mikedev.mutxamelcf.model.EventoDirectoResumen("GOL_FAVOR", null,
+                new com.mikedev.mutxamelcf.model.JugadorBasico(id, null, nombre, apellidos, nombreRetransmision));
+    }
+
+    private static com.mikedev.mutxamelcf.model.EventoDirectoResumen golDeTexto(String texto) {
+        return new com.mikedev.mutxamelcf.model.EventoDirectoResumen("GOL_FAVOR", texto, null);
+    }
+
+    private ResultadoDTO portadaConEventos(Partido partido,
+            com.mikedev.mutxamelcf.model.EventoDirectoResumen... eventos) {
+        when(eventoDao.obtenerResumenNoAnulados(partido.getId())).thenReturn(List.of(eventos));
+        return serviceConReloj(MIERCOLES).obtenerResultadoPrimerEquipo("es");
+    }
+
+    @Test
+    void laPortadaAntesDeEmpezarNoEstaEnJuegoNiTraeFaseNiMarcador() {
+        Partido partido = partidoDePortada(30L, DIA_DEL_MIERCOLES);
+
+        ResultadoDTO dto = portadaConEventos(partido);
+
+        assertThat(dto.isEnJuego()).isFalse();
+        assertThat(dto.getFase()).isNull();
+        assertThat(dto.getGolesFavor()).isNull();
+        assertThat(dto.getGolesContra()).isNull();
+        assertThat(dto.getGoleadores()).isEmpty();
+        assertThat(dto.getResultado()).isNull();
+    }
+
+    @Test
+    void laPortadaEnLaPrimeraParteEstaEnJuegoConElMarcadorYElResultadoVacio() {
+        Partido partido = partidoDePortada(30L, DIA_DEL_MIERCOLES);
+
+        ResultadoDTO dto = portadaConEventos(partido, evento("INICIO"), gol("Pablo", "Garcia", "Pablito", 10),
+                evento("GOL_CONTRA"), gol("Pablo", "Garcia", "Pablito", 10));
+
+        assertThat(dto.isEnJuego()).isTrue();
+        assertThat(dto.getFase()).isEqualTo("PRIMERA_PARTE");
+        assertThat(dto.getGolesFavor()).isEqualTo(2);
+        assertThat(dto.getGolesContra()).isEqualTo(1);
+        // Hasta el final no hay resultado, y en juego no es un "pendiente de resultado".
+        assertThat(dto.getResultado()).isNull();
+        assertThat(dto.isPendienteResultado()).isFalse();
+        // Los goleadores solo salen con el partido finalizado.
+        assertThat(dto.getGoleadores()).isEmpty();
+    }
+
+    @Test
+    void laPortadaEnElDescansoYLaSegundaParteSiguenEnJuego() {
+        Partido partido = partidoDePortada(30L, DIA_DEL_MIERCOLES);
+
+        ResultadoDTO descanso = portadaConEventos(partido, evento("INICIO"), evento("GOL_CONTRA"),
+                evento("DESCANSO"));
+        assertThat(descanso.isEnJuego()).isTrue();
+        assertThat(descanso.getFase()).isEqualTo("DESCANSO");
+        assertThat(descanso.getGolesContra()).isEqualTo(1);
+
+        ResultadoDTO segunda = portadaConEventos(partido, evento("INICIO"), evento("DESCANSO"),
+                evento("SEGUNDA_PARTE"), golDeTexto("Otro"));
+        assertThat(segunda.isEnJuego()).isTrue();
+        assertThat(segunda.getFase()).isEqualTo("SEGUNDA_PARTE");
+        assertThat(segunda.getGolesFavor()).isEqualTo(1);
+    }
+
+    @Test
+    void laPortadaFinalizadaTraeLosGoleadoresAgrupadosConSuNombreDeRetransmision() {
+        Partido partido = partidoDePortada(30L, DIA_DEL_MIERCOLES);
+        partido.setResultado("4-1");
+
+        ResultadoDTO dto = portadaConEventos(partido, evento("INICIO"),
+                gol("Pablo", "Garcia", "Pepe", 10),
+                gol("Luis", "Lopez", null, 11),
+                evento("GOL_CONTRA"),
+                gol("Pablo", "Garcia", "Pepe", 10),
+                golDeTexto("p.p."),
+                golDeTexto("Rubén G."),
+                new com.mikedev.mutxamelcf.model.EventoDirectoResumen("GOL_FAVOR", null, null),
+                evento("FINAL"));
+
+        assertThat(dto.isEnJuego()).isFalse();
+        assertThat(dto.getFase()).isEqualTo("FINALIZADO");
+        assertThat(dto.getGolesFavor()).isEqualTo(6);
+        assertThat(dto.getGolesContra()).isEqualTo(1);
+        assertThat(dto.getResultado()).isEqualTo("4-1");
+        // En orden de aparición, "Pepe (2)" agrupado, sin el gol sin autor.
+        assertThat(dto.getGoleadores()).containsExactly(
+                "Pepe (2)", "Luis Lopez", "Gol en propia puerta del rival", "Rubén G.");
+    }
+
+    @Test
+    void laPortadaFinalizadaUsaElIdiomaDeLaAppSoloParaLaPropiaPuerta() {
+        Partido partido = partidoDePortada(30L, DIA_DEL_MIERCOLES);
+        when(eventoDao.obtenerResumenNoAnulados(30L)).thenReturn(List.of(evento("INICIO"),
+                golDeTexto("p.p."), golDeTexto("p.p."), evento("FINAL")));
+
+        assertThat(serviceConReloj(MIERCOLES).obtenerResultadoPrimerEquipo("ca").getGoleadores())
+                .containsExactly("Gol en pròpia porta del rival (2)");
+        assertThat(serviceConReloj(MIERCOLES).obtenerResultadoPrimerEquipo("en").getGoleadores())
+                .containsExactly("Own goal by the opponent (2)");
+        assertThat(serviceConReloj(MIERCOLES).obtenerResultadoPrimerEquipo().getGoleadores())
+                .containsExactly("Gol en propia puerta del rival (2)");
+        assertThat(partido).isNotNull();
+    }
+
+    @Test
+    void deshacerElFinalOUnGolSeReflejaEnLaPortadaPorqueSoloCuentanLosEventosNoAnulados() {
+        Partido partido = partidoDePortada(30L, DIA_DEL_MIERCOLES);
+
+        // Con el final deshecho (anulado) el DAO ya no lo devuelve: vuelve a estar en juego.
+        ResultadoDTO dto = portadaConEventos(partido, evento("INICIO"), gol("Pablo", "Garcia", "Pepe", 10));
+
+        assertThat(dto.isEnJuego()).isTrue();
+        assertThat(dto.getFase()).isEqualTo("PRIMERA_PARTE");
+        assertThat(dto.getGoleadores()).isEmpty();
+    }
+
+    @Test
+    void laPortadaHaceUnaSolaConsultaDeEventosYNoConsultaUnPartidoFuturo() {
+        Partido partido = partidoDePortada(30L, DIA_DEL_MIERCOLES);
+        when(eventoDao.obtenerResumenNoAnulados(30L)).thenReturn(List.of(
+                evento("INICIO"), gol("Pablo", "Garcia", "Pepe", 10), gol("Luis", "Lopez", null, 11)));
+
+        serviceConReloj(MIERCOLES).obtenerResultadoPrimerEquipo("es");
+
+        verify(eventoDao, times(1)).obtenerResumenNoAnulados(30L);
+        org.mockito.Mockito.verifyNoMoreInteractions(eventoDao);
+
+        org.mockito.Mockito.clearInvocations(eventoDao);
+        partido.setDia(java.sql.Date.valueOf(DIA_DEL_MIERCOLES.plusDays(3)));
+
+        ResultadoDTO futuro = serviceConReloj(MIERCOLES).obtenerResultadoPrimerEquipo("es");
+
+        assertThat(futuro.getFase()).isNull();
+        org.mockito.Mockito.verifyNoInteractions(eventoDao);
     }
 }
