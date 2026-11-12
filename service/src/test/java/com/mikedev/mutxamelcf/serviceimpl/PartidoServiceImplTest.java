@@ -737,6 +737,9 @@ class PartidoServiceImplTest {
 
         assertThat(resultados.get(0).getEquipo()).isEqualTo("Senior A");
         assertThat(resultados.get(0).getCategoria()).isEqualTo("SENIOR");
+        // El id del partido permite abrir su ficha pública; el equipo sin partido no lo lleva.
+        assertThat(resultados.get(0).getId()).isEqualTo(1L);
+        assertThat(resultados.get(1).getId()).isNull();
         assertThat(resultados.get(0).getRival()).isEqualTo("Rival CF");
         assertThat(resultados.get(0).getTipo()).isEqualTo("COPA");
     }

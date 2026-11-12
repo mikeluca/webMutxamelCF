@@ -626,6 +626,7 @@ public class PartidoServiceImpl implements PartidoService {
 			return resultado;
 		}
 
+		resultado.setId(partido.getId());
 		resultado.setEquipoId(partido.getEquipoId());
 		resultado.setRival(partido.getRival());
 		resultado.setResultado(partido.getResultado());
@@ -979,6 +980,7 @@ public class PartidoServiceImpl implements PartidoService {
 			return dto;
 		}
 
+		dto.setId(partido.getId());
 		dto.setRival(partido.getRival());
 		dto.setResultado(partido.getResultado());
 		dto.setTipo(partido.getTipo());

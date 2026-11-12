@@ -327,3 +327,10 @@ día anterior o igual al del partido (incluido él si ya tiene resultado), del m
 
 **Sin retransmisión** (ni eventos ni alineación): `eventos` y las listas de la alineación vacías y la cabecera con el
 resultado guardado.
+
+### `id` del partido en la portada y en los resultados
+
+`ResultadoDTO` (`GET /api/public/resultados/primer-equipo` y `GET /api/public/resultados`) lleva ahora `id`: el id del
+partido, para abrir su ficha pública (`/api/public/partidos/{id}/ficha`). Es `null` en la entrada de un equipo sin
+ningún partido y en el "sin partido" de la portada. Es un campo nuevo y aditivo: las versiones anteriores de la app lo
+ignoran.

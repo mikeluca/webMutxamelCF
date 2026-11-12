@@ -7,6 +7,8 @@ import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 
 public class ResultadoDTO {
+	/** Id del partido (para abrir su ficha pública); null en la entrada "placeholder" de un equipo sin partido. */
+	private Long id;
 	private String categoria;
 	private Long equipoId;
 	private String equipo;
@@ -118,6 +120,14 @@ public class ResultadoDTO {
 
 	public void setEquipo(String equipo) {
 		this.equipo = equipo;
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
 	}
 
 	public Long getEquipoId() {
