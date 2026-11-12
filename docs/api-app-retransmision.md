@@ -4,7 +4,7 @@ Tres cambios sobre la retransmisión en directo. Todo lo nuevo es aditivo salvo 
 Textos de los avisos: [avisos.md](avisos.md) (sección 6).
 
 Scripts de base de datos (se ejecutan **antes** de desplegar): `sql/2026-11-08_nombre_retransmision.sql` y, para el
-apartado 5 (formaciÃ³n, cambios, tarjetas y ficha pÃºblica), `sql/2026-11-12_ficha_partido.sql`.
+apartado 5 (formación, cambios, tarjetas y ficha pública), `sql/2026-11-12_ficha_partido.sql`.
 
 ## 1. Nombre de retransmisión del jugador
 
@@ -64,11 +64,11 @@ Rol `RETRANSMISION`. El partido tiene que ser del Primer Equipo, de hoy y no est
 
 Cada lista va **en el orden en que se eligieron** (y en el que sale en el aviso). `suplentes` es opcional (ausente,
 `null` o `[]`). `formacion` es opcional y `avisar` solo manda el push si es `true` (**ausente = no avisar**; la app lo
-marca por defecto la primera vez). Se guarda la alineaciÃ³n (titulares y suplentes con su orden, y la formaciÃ³n) y, si
+marca por defecto la primera vez). Se guarda la alineación (titulares y suplentes con su orden, y la formación) y, si
 se vuelve a enviar, **reemplaza** a la anterior. Respuesta: `200` con el estado del partido (el mismo de
 `GET /{partidoId}`, con `alineacion`; ver apartado 5).
 
-**FormaciÃ³n.** Lista cerrada segÃºn la modalidad del equipo (sin modalidad se trata como F11):
+**Formación.** Lista cerrada según la modalidad del equipo (sin modalidad se trata como F11):
 
 | Modalidad | Formaciones |
 |---|---|
@@ -76,12 +76,12 @@ se vuelve a enviar, **reemplaza** a la anterior. Respuesta: `200` con el estado 
 | F8 | `3-3-1`, `3-2-2`, `2-3-2`, `2-4-1`, `3-1-3`, `4-2-1` |
 | F5 | `2-2`, `1-2-1`, `2-1-1`, `1-1-2`, `3-1` |
 
-Con formaciÃ³n, los titulares deben ser **1 + la suma de la formaciÃ³n** (el portero y los de campo). **PosiciÃ³n en el
-campo = orden de elecciÃ³n**: el 1.Âº es el portero; despuÃ©s, las lÃ­neas de la formaciÃ³n de atrÃ¡s adelante y, dentro de
-cada lÃ­nea, de izquierda a derecha. Con `4-2-3-1`: 2.Âº-5.Âº defensas (fila 2, columnas 1-4), 6.Âº-7.Âº (fila 3), 8.Âº-10.Âº
-(fila 4) y 11.Âº (fila 5). Sin formaciÃ³n no hay posiciones.
+Con formación, los titulares deben ser **1 + la suma de la formación** (el portero y los de campo). **Posición en el
+campo = orden de elección**: el 1.º es el portero; después, las líneas de la formación de atrás adelante y, dentro de
+cada línea, de izquierda a derecha. Con `4-2-3-1`: 2.º-5.º defensas (fila 2, columnas 1-4), 6.º-7.º (fila 3), 8.º-10.º
+(fila 4) y 11.º (fila 5). Sin formación no hay posiciones.
 
-No se puede reenviar la alineaciÃ³n cuando ya hay algÃºn cambio registrado (`400`).
+No se puede reenviar la alineación cuando ya hay algún cambio registrado (`400`).
 
 El push lleva los nombres de retransmisión, en el orden recibido, separados por `", "`:
 

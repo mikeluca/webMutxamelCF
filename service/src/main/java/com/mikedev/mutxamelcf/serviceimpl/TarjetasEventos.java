@@ -35,8 +35,8 @@ final class TarjetasEventos {
     }
 
 /**
- * Amarillas de cada jugador que cuentan para las estadÃ­sticas y la acumulaciÃ³n: todas las suyas salvo las de una
- * expulsiÃ³n por doble amarilla (si el jugador tiene una, ninguna de sus dos amarillas cuenta; esa expulsiÃ³n va como
+ * Amarillas de cada jugador que cuentan para las estadísticas y la acumulación: todas las suyas salvo las de una
+ * expulsión por doble amarilla (si el jugador tiene una, ninguna de sus dos amarillas cuenta; esa expulsión va como
  * roja). Solo salen los jugadores con alguna amarilla que cuente.
  */
 static Map<Long, Integer> amarillasQueCuentan(List<PartidoLiveEvento> eventosEnOrden) {
