@@ -328,6 +328,19 @@ día anterior o igual al del partido (incluido él si ya tiene resultado), del m
 **Sin retransmisión** (ni eventos ni alineación): `eventos` y las listas de la alineación vacías y la cabecera con el
 resultado guardado.
 
+### Data de los avisos del directo (abrir la ficha)
+
+Los avisos de la retransmisión (alineación, inicio, gol a favor y en contra, gol anulado, descanso, segunda parte y final)
+llevan el partido para que la app abra su ficha al pulsarlos:
+
+| Destino | `referenciaId` | Data del push |
+| --- | --- | --- |
+| Cuentas (push y bandeja) | id del partido | `tipo: RESULTADO`, `pantalla: FICHA_PARTIDO`, `partidoId` |
+| Topics `resultados_es/ca/en` y `resultados` | n/a | `tipo: RESULTADO`, `pantalla: FICHA_PARTIDO`, `partidoId` |
+
+Los valores del data son cadenas (`partidoId` = `"30"`). El endpoint antiguo de alineación por texto, que no recibe
+`partidoId`, sigue sin `referenciaId` ni data extra. Textos, destinatarios y preferencias no cambian.
+
 ### `id` del partido en la portada y en los resultados
 
 `ResultadoDTO` (`GET /api/public/resultados/primer-equipo` y `GET /api/public/resultados`) lleva ahora `id`: el id del

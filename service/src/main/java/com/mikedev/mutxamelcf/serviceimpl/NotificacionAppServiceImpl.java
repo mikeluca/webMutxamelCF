@@ -201,6 +201,16 @@ public class NotificacionAppServiceImpl
                         Function<String, TextoDifusion> texto,
                         Long referenciaId) {
 
+                difundirATodos(tipo, texto, referenciaId, Map.of());
+        }
+
+        @Override
+        public void difundirATodos(
+                        String tipo,
+                        Function<String, TextoDifusion> texto,
+                        Long referenciaId,
+                        Map<String, String> datosExtra) {
+
                 List<UsuarioApp> usuarios = usuarioAppDao.listarTodos();
 
                 Map<Long, String> idiomas = usuarioAppDao.obtenerIdiomas(
@@ -226,12 +236,13 @@ public class NotificacionAppServiceImpl
 
                         crear(usuarioId, tipo, t.titulo(), t.mensaje(), referenciaId);
 
-                        fcmPushService.enviarNotificacionAUsuario(
-                                        usuarioId,
-                                        tipo,
-                                        t.titulo(),
-                                        t.mensaje(),
-                                        referenciaId);
+                        if (datosExtra == null || datosExtra.isEmpty()) {
+                                fcmPushService.enviarNotificacionAUsuario(
+                                                usuarioId, tipo, t.titulo(), t.mensaje(), referenciaId);
+                        } else {
+                                fcmPushService.enviarNotificacionAUsuario(
+                                                usuarioId, tipo, t.titulo(), t.mensaje(), referenciaId, datosExtra);
+                        }
                 }
         }
 }

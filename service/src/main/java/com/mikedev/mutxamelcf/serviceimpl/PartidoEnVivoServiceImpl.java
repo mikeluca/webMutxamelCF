@@ -177,7 +177,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
         validarRolRetransmision(usuarioId);
 
-        difundir(idioma -> new TextoDifusion(
+        difundir(null, idioma -> new TextoDifusion(
                 textos.texto(idioma, "directo.alineacion.titulo"),
                 textos.texto(idioma, "directo.alineacion.texto", "once", onceInicial, "suplentes", suplentes)));
     }
@@ -260,7 +260,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             String once = nombresEnDirecto(idsTitulares, elegibles);
             String banquillo = nombresEnDirecto(idsSuplentes, elegibles);
 
-            difundirTrasCommit(idioma -> new TextoDifusion(
+            difundirTrasCommit(partidoId, idioma -> new TextoDifusion(
                     textos.texto(idioma, "directo.alineacion.titulo"),
                     banquillo.isEmpty()
                             ? textos.texto(idioma, "directo.alineacion.textoSinSuplentes", "once", once)
@@ -1029,7 +1029,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
             String marcador = textoMarcador(partido, estado);
 
-            difundirTrasCommit(idioma -> new TextoDifusion(
+            difundirTrasCommit(partidoId, idioma -> new TextoDifusion(
                     textos.texto(idioma, "directo.golAnulado.titulo"),
                     textos.texto(idioma, "directo.golAnulado.texto", "marcador", marcador)));
         }
@@ -1227,7 +1227,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
         switch (evento.getTipo()) {
             case PartidoLiveEvento.INICIO ->
-                difundirTrasCommit(idioma -> new TextoDifusion(
+                difundirTrasCommit(partido.getId(), idioma -> new TextoDifusion(
                         textos.texto(idioma, "directo.inicio.titulo"),
                         textos.texto(idioma, "directo.inicio.texto", "rival", rival)));
             case PartidoLiveEvento.GOL_FAVOR -> {
@@ -1235,7 +1235,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
                 Integer minuto = evento.getMinuto();
 
-                difundirTrasCommit(idioma -> new TextoDifusion(
+                difundirTrasCommit(partido.getId(), idioma -> new TextoDifusion(
                         textos.texto(idioma, "directo.gol.titulo"),
                         minuto == null
                                 ? textos.texto(idioma, "directo.gol.textoSinMinuto",
@@ -1247,7 +1247,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             case PartidoLiveEvento.GOL_CONTRA -> {
                 Integer minuto = evento.getMinuto();
 
-                difundirTrasCommit(idioma -> new TextoDifusion(
+                difundirTrasCommit(partido.getId(), idioma -> new TextoDifusion(
                         textos.texto(idioma, "directo.golContra.titulo"),
                         minuto == null
                                 ? textos.texto(idioma, "directo.golContra.textoSinMinuto", "marcador", marcador)
@@ -1255,11 +1255,11 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
                                         "minuto", String.valueOf(minuto), "marcador", marcador)));
             }
             case PartidoLiveEvento.DESCANSO ->
-                difundirTrasCommit(idioma -> new TextoDifusion(
+                difundirTrasCommit(partido.getId(), idioma -> new TextoDifusion(
                         textos.texto(idioma, "directo.descanso.titulo"),
                         textos.texto(idioma, "directo.descanso.texto", "marcador", marcador)));
             case PartidoLiveEvento.SEGUNDA_PARTE ->
-                difundirTrasCommit(idioma -> new TextoDifusion(
+                difundirTrasCommit(partido.getId(), idioma -> new TextoDifusion(
                         textos.texto(idioma, "directo.segundaParte.titulo"),
                         textos.texto(idioma, "directo.segundaParte.texto", "rival", rival)));
             case PartidoLiveEvento.FINAL -> {
@@ -1269,7 +1269,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
                         .filter(a -> a != null)
                         .toList();
 
-                difundirTrasCommit(idioma -> new TextoDifusion(
+                difundirTrasCommit(partido.getId(), idioma -> new TextoDifusion(
                         textos.texto(idioma, "directo.final.titulo"),
                         textos.texto(idioma, "directo.final.texto",
                                 "marcador", marcador,
@@ -1302,20 +1302,20 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
      * Difunde cuando la transacción ya ha confirmado el evento (para no avisar
      * de algo que luego se revierte); sin transacción, al momento.
      */
-    private void difundirTrasCommit(Function<String, TextoDifusion> texto) {
+    private void difundirTrasCommit(Long partidoId, Function<String, TextoDifusion> texto) {
 
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
 
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    difundir(texto);
+                    difundir(partidoId, texto);
                 }
             });
 
         } else {
 
-            difundir(texto);
+            difundir(partidoId, texto);
         }
     }
 
@@ -1324,19 +1324,32 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
      * uno en su idioma) y a los topics de FCM de resultados (suscripción anónima sin cuenta), uno por idioma. La app
      * se encarga de que un usuario con cuenta no reciba el aviso dos veces.
      */
-    private void difundir(Function<String, TextoDifusion> texto) {
+    private void difundir(Long partidoId, Function<String, TextoDifusion> texto) {
 
-        notificacionAppService.difundirATodos(TIPO_PUSH, texto, null);
+        // Con partido, el aviso abre su ficha en la app; el aviso antiguo de alineación por texto no lo lleva.
+        Map<String, String> datos = datosAviso(partidoId);
+
+        notificacionAppService.difundirATodos(TIPO_PUSH, texto, partidoId, datos);
 
         for (String idioma : IdiomaApp.TODOS) {
             TextoDifusion t = texto.apply(idioma);
-            fcmPushService.enviarATopic(TOPIC_RESULTADOS + "_" + idioma, t.titulo(), t.mensaje());
+            fcmPushService.enviarATopic(TOPIC_RESULTADOS + "_" + idioma, t.titulo(), t.mensaje(), datos);
         }
 
         // TODO: quitar el topic antiguo "resultados" cuando la versión mínima de la app obligue a actualizar (las
         // versiones que aún no se suscriben por idioma solo escuchan este, y lo reciben en castellano).
         TextoDifusion castellano = texto.apply(IdiomaApp.ES);
-        fcmPushService.enviarATopic(TOPIC_RESULTADOS, castellano.titulo(), castellano.mensaje());
+        fcmPushService.enviarATopic(TOPIC_RESULTADOS, castellano.titulo(), castellano.mensaje(), datos);
+    }
+
+    /** Data del push de un aviso del directo: tipo RESULTADO y, si hay partido, la pantalla y el partido a abrir. */
+    private static Map<String, String> datosAviso(Long partidoId) {
+
+        if (partidoId == null) {
+            return Map.of();
+        }
+
+        return Map.of("tipo", TIPO_PUSH, "pantalla", "FICHA_PARTIDO", "partidoId", partidoId.toString());
     }
 
     // ------------------------------------------------------------------

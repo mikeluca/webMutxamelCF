@@ -1,6 +1,7 @@
 package com.mikedev.mutxamelcf.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 import com.mikedev.mutxamelcf.model.NotificacionApp;
@@ -55,4 +56,14 @@ public interface NotificacionAppService {
                         String tipo,
                         Function<String, TextoDifusion> texto,
                         Long referenciaId);
+
+        /**
+         * Igual que {@link #difundirATodos(String, Function, Long)} añadiendo {@code datosExtra} al data del push
+         * (la bandeja no lo guarda: solo lleva {@code referenciaId}).
+         */
+        void difundirATodos(
+                        String tipo,
+                        Function<String, TextoDifusion> texto,
+                        Long referenciaId,
+                        Map<String, String> datosExtra);
 }

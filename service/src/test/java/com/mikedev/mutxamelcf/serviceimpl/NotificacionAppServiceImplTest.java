@@ -102,6 +102,25 @@ class NotificacionAppServiceImplTest {
     }
 
     @Test
+    void difundirATodosConDataLlevaElPartidoEnLaBandejaYElDataEnElPush() {
+
+        when(usuarioAppDao.listarTodos()).thenReturn(List.of(usuario(1, true)));
+        when(usuarioAppDao.obtenerIdiomas(any())).thenReturn(java.util.Map.of(1L, "es"));
+        when(preferenciasService.puedeRecibir(1L, "RESULTADO")).thenReturn(true);
+
+        java.util.Map<String, String> datos = java.util.Map.of(
+                "tipo", "RESULTADO", "pantalla", "FICHA_PARTIDO", "partidoId", "30");
+
+        service.difundirATodos("RESULTADO", idioma -> new TextoDifusion("T-" + idioma, "M-" + idioma), 30L, datos);
+
+        org.mockito.ArgumentCaptor<com.mikedev.mutxamelcf.model.NotificacionApp> bandeja = org.mockito.ArgumentCaptor
+                .forClass(com.mikedev.mutxamelcf.model.NotificacionApp.class);
+        verify(notificacionAppDao).guardar(bandeja.capture());
+        org.assertj.core.api.Assertions.assertThat(bandeja.getValue().getReferenciaId()).isEqualTo(30L);
+        verify(fcmPushService).enviarNotificacionAUsuario(1L, "RESULTADO", "T-es", "M-es", 30L, datos);
+    }
+
+    @Test
     void unaCuentaSinIdiomaConocidoRecibeElCastellano() {
 
         when(usuarioAppDao.listarTodos()).thenReturn(List.of(usuario(1, true)));

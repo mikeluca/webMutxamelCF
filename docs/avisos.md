@@ -152,6 +152,14 @@ retransmisión del jugador), `directo.inicio.*`, `directo.gol.*` (con o sin minu
 `directo.golAnulado.*`, `directo.descanso.*`, `directo.segundaParte.*`, `directo.final.*`. El marcador
 (`Mutxamel CF 2 - 1 Rival`) no cambia con el idioma.
 
+**Data para abrir la ficha del partido.** Todos estos avisos llevan el partido (textos, destinatarios y preferencias no
+cambian):
+
+- A las cuentas: `referenciaId` = id del partido (también en la notificación de la bandeja) y, en el data del push,
+  `"tipo": "RESULTADO"`, `"pantalla": "FICHA_PARTIDO"` y `"partidoId"`.
+- A los topics `resultados_es/ca/en` y al antiguo `resultados`: el mismo data (`tipo`, `pantalla`, `partidoId`).
+- Excepción: el endpoint antiguo de alineación por texto (sin `partidoId`) sigue sin `referenciaId` ni data extra.
+
 **Cambios y tarjetas de la retransmisión no avisan.** El cambio (`POST /{partidoId}/cambio`) y la tarjeta
 (`POST /{partidoId}/tarjeta`) no generan ningún push, ni a las cuentas ni a los topics; solo se ven en la ficha pública y
 en el estado de la retransmisión. Tampoco avisan corregir su minuto ni deshacerlos. La alineación solo avisa si se envía

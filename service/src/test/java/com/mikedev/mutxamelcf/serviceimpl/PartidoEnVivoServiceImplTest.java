@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
@@ -72,6 +73,8 @@ class PartidoEnVivoServiceImplTest {
 
     private static final Long USUARIO = 7L;
     private static final Long PARTIDO = 30L;
+    private static final java.util.Map<String, String> DATOS = java.util.Map.of("tipo", "RESULTADO", "pantalla",
+            "FICHA_PARTIDO", "partidoId", "30");
     private static final Long PRIMER_EQUIPO = 21L;
 
     private static final LocalDate HOY = LocalDate.of(2026, 10, 24);
@@ -202,8 +205,8 @@ class PartidoEnVivoServiceImplTest {
     private List<TextoDifusion> todasLasDifusiones(String idioma) {
         ArgumentCaptor<java.util.function.Function<String, TextoDifusion>> captor = ArgumentCaptor
                 .forClass(java.util.function.Function.class);
-        verify(notificacionAppService, org.mockito.Mockito.atLeast(0)).difundirATodos(eq("RESULTADO"), captor.capture(),
-                isNull());
+        verify(notificacionAppService, org.mockito.Mockito.atLeast(0)).difundirATodos(eq("RESULTADO"), captor.capture(), any(),
+                any());
         return captor.getAllValues().stream().map(f -> f.apply(idioma)).toList();
     }
 
@@ -237,7 +240,7 @@ class PartidoEnVivoServiceImplTest {
         assertThatThrownBy(() -> service.obtenerPartidosDisponibles(USUARIO))
                 .isInstanceOf(SecurityException.class);
 
-        verify(notificacionAppService, never()).difundirATodos(any(), any(), any());
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
     }
 
     @Test
@@ -286,8 +289,8 @@ class PartidoEnVivoServiceImplTest {
         assertThatThrownBy(() -> service.enviarGolContra(USUARIO, PARTIDO))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        verify(notificacionAppService, never()).difundirATodos(any(), any(), any());
-        verify(fcmPushService, never()).enviarATopic(any(), any(), any());
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+        verify(fcmPushService, never()).enviarATopic(any(), any(), any(), any());
     }
 
     // ---- orden de los eventos ------------------------------------------------------
@@ -576,12 +579,12 @@ class PartidoEnVivoServiceImplTest {
                 .filter(t -> t.titulo().equals("↩️ Gol anulado")).findFirst().orElseThrow();
 
         assertThat(anulado.mensaje()).isEqualTo("Se anula el último gol. Mutxamel CF 0 - 1 Pego C.F.");
-        verify(fcmPushService).enviarATopic("resultados_es", "↩️ Gol anulado", anulado.mensaje());
+        verify(fcmPushService).enviarATopic("resultados_es", "↩️ Gol anulado", anulado.mensaje(), DATOS);
         verify(fcmPushService).enviarATopic("resultados_ca", "↩️ Gol anul·lat",
-                "S'anul·la l'últim gol. Mutxamel CF 0 - 1 Pego C.F.");
+                "S'anul·la l'últim gol. Mutxamel CF 0 - 1 Pego C.F.", DATOS);
         verify(fcmPushService).enviarATopic("resultados_en", "↩️ Goal disallowed",
-                "The last goal has been disallowed. Mutxamel CF 0 - 1 Pego C.F.");
-        verify(fcmPushService).enviarATopic("resultados", "↩️ Gol anulado", anulado.mensaje());
+                "The last goal has been disallowed. Mutxamel CF 0 - 1 Pego C.F.", DATOS);
+        verify(fcmPushService).enviarATopic("resultados", "↩️ Gol anulado", anulado.mensaje(), DATOS);
     }
 
     @Test
@@ -610,10 +613,10 @@ class PartidoEnVivoServiceImplTest {
 
         // El mismo gol, en un topic por idioma (el marcador no cambia) y, en castellano, en el antiguo.
         String marcador = "Pablo Garcia (1')\n\nMutxamel CF 1 - 0 Pego C.F.";
-        verify(fcmPushService).enviarATopic("resultados_es", "⚽ ¡GOOOL del Mutxamel CF!", marcador);
-        verify(fcmPushService).enviarATopic("resultados_ca", "⚽ GOOOL del Mutxamel CF!", marcador);
-        verify(fcmPushService).enviarATopic("resultados_en", "⚽ GOAL for Mutxamel CF!", marcador);
-        verify(fcmPushService).enviarATopic("resultados", "⚽ ¡GOOOL del Mutxamel CF!", marcador);
+        verify(fcmPushService).enviarATopic("resultados_es", "⚽ ¡GOOOL del Mutxamel CF!", marcador, DATOS);
+        verify(fcmPushService).enviarATopic("resultados_ca", "⚽ GOOOL del Mutxamel CF!", marcador, DATOS);
+        verify(fcmPushService).enviarATopic("resultados_en", "⚽ GOAL for Mutxamel CF!", marcador, DATOS);
+        verify(fcmPushService).enviarATopic("resultados", "⚽ ¡GOOOL del Mutxamel CF!", marcador, DATOS);
     }
 
     @Test
@@ -915,6 +918,85 @@ class PartidoEnVivoServiceImplTest {
                 "Once inicial: 1, 2, 3\n\nSuplentes: 4, 5"));
     }
 
+    // ---- data de los avisos: abren la ficha del partido ---------------------------------------
+
+    /** El aviso llega a las cuentas (con referenciaId = partido y data) y a los cuatro topics con el mismo data. */
+    private void verificarAvisoConPartido(String tituloEs) {
+        verify(notificacionAppService, atLeastOnce()).difundirATodos(eq("RESULTADO"),
+                org.mockito.ArgumentMatchers.<java.util.function.Function<String, TextoDifusion>>argThat(
+                        f -> f.apply("es").titulo().equals(tituloEs)),
+                eq(PARTIDO), eq(DATOS));
+        verify(fcmPushService, atLeastOnce()).enviarATopic(eq("resultados_es"), eq(tituloEs), any(), eq(DATOS));
+        verify(fcmPushService, atLeastOnce()).enviarATopic(eq("resultados_ca"), any(), any(), eq(DATOS));
+        verify(fcmPushService, atLeastOnce()).enviarATopic(eq("resultados_en"), any(), any(), eq(DATOS));
+        verify(fcmPushService, atLeastOnce()).enviarATopic(eq("resultados"), eq(tituloEs), any(), eq(DATOS));
+    }
+
+    @Test
+    void elAvisoDeAlineacionLlevaElPartido() {
+        service.enviarAlineacion(USUARIO, PARTIDO, List.of(10L, 11L), List.of());
+
+        verificarAvisoConPartido("📋 Alineación del Mutxamel CF");
+    }
+
+    @Test
+    void elAvisoDeInicioLlevaElPartido() {
+        empezarPartido();
+
+        verificarAvisoConPartido("⚽ ¡Empieza el partido!");
+    }
+
+    @Test
+    void elAvisoDeGolAFavorLlevaElPartido() {
+        empezarPartido();
+        service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
+
+        verificarAvisoConPartido("⚽ ¡GOOOL del Mutxamel CF!");
+    }
+
+    @Test
+    void elAvisoDeGolEnContraLlevaElPartido() {
+        empezarPartido();
+        service.enviarGolContra(USUARIO, PARTIDO);
+
+        verify(notificacionAppService, atLeastOnce()).difundirATodos(eq("RESULTADO"), any(), eq(PARTIDO), eq(DATOS));
+        verify(fcmPushService, atLeastOnce()).enviarATopic(eq("resultados_es"), any(), any(), eq(DATOS));
+        verify(fcmPushService, atLeastOnce()).enviarATopic(eq("resultados_ca"), any(), any(), eq(DATOS));
+        verify(fcmPushService, atLeastOnce()).enviarATopic(eq("resultados_en"), any(), any(), eq(DATOS));
+        verify(fcmPushService, atLeastOnce()).enviarATopic(eq("resultados"), any(), any(), eq(DATOS));
+    }
+
+    @Test
+    void elAvisoDeGolAnuladoLlevaElPartido() {
+        empezarPartido();
+        EstadoPartidoEnVivoResponse conGol = service.enviarGolContra(USUARIO, PARTIDO);
+
+        service.deshacer(USUARIO, PARTIDO, conGol.ultimoEventoDeshacible().id());
+
+        verificarAvisoConPartido("↩️ Gol anulado");
+    }
+
+    @Test
+    void losAvisosDeDescansoSegundaParteYFinalLlevanElPartido() {
+        empezarPartido();
+        service.enviarDescanso(USUARIO, PARTIDO);
+        verificarAvisoConPartido(difusion("es", -1).titulo());
+
+        service.enviarSegundaParte(USUARIO, PARTIDO);
+        verificarAvisoConPartido(difusion("es", -1).titulo());
+
+        service.enviarFinalPartido(USUARIO, PARTIDO);
+        verificarAvisoConPartido(difusion("es", -1).titulo());
+    }
+
+    @Test
+    void elAvisoAntiguoDeAlineacionPorTextoNoLlevaPartidoNiData() {
+        service.enviarAlineacion(USUARIO, "1, 2, 3", "4, 5");
+
+        verify(notificacionAppService).difundirATodos(eq("RESULTADO"), any(), isNull(), eq(java.util.Map.of()));
+        verify(fcmPushService).enviarATopic(eq("resultados"), any(), any(), eq(java.util.Map.of()));
+    }
+
     // ---- bloqueo del partido y segundos restantes ------------------------------------------
 
     @Test
@@ -1203,8 +1285,8 @@ class PartidoEnVivoServiceImplTest {
 
         assertThat(estado.eventos()).filteredOn(e -> e.id().equals(idPrimero)).singleElement()
                 .satisfies(e -> assertThat(e.minuto()).isEqualTo(12));
-        verify(notificacionAppService, never()).difundirATodos(any(), any(), any());
-        verify(fcmPushService, never()).enviarATopic(any(), any(), any());
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+        verify(fcmPushService, never()).enviarATopic(any(), any(), any(), any());
     }
 
     @Test
@@ -1278,7 +1360,7 @@ class PartidoEnVivoServiceImplTest {
         assertThat(difusion("es", 1).mensaje()).isEqualTo("Pablito (1')\n\nMutxamel CF 1 - 0 Pego C.F.");
         assertThat(difusion("es", 2).mensaje()).startsWith("Luis Lopez (2')");
         verify(fcmPushService).enviarATopic("resultados_ca", "⚽ GOOOL del Mutxamel CF!",
-                "Pablito (1')\n\nMutxamel CF 1 - 0 Pego C.F.");
+                "Pablito (1')\n\nMutxamel CF 1 - 0 Pego C.F.", DATOS);
         // Quien retransmite sigue viendo nombre y apellidos para reconocer al jugador.
         assertThat(estado.goleadores()).containsExactly("Pablo Garcia");
         assertThat(estado.eventos().get(1).autor()).isEqualTo("Pablo Garcia");
@@ -1340,7 +1422,7 @@ class PartidoEnVivoServiceImplTest {
         assertThat(difusion("en", 0).mensaje()).isEqualTo(
                 "Starting eleven: Sin Dorsal Perez, Pablito\n\nSubstitutes: Luis Lopez");
         verify(fcmPushService).enviarATopic("resultados", "📋 Alineación del Mutxamel CF",
-                "Once inicial: Sin Dorsal Perez, Pablito\n\nSuplentes: Luis Lopez");
+                "Once inicial: Sin Dorsal Perez, Pablito\n\nSuplentes: Luis Lopez", DATOS);
     }
 
     @Test
@@ -1380,8 +1462,8 @@ class PartidoEnVivoServiceImplTest {
         rechazada("no está entre los jugadores", List.of(10L, 13L), List.of());
         rechazada("no está entre los jugadores", List.of(10L), List.of(999L));
 
-        verify(notificacionAppService, never()).difundirATodos(any(), any(), any());
-        verify(fcmPushService, never()).enviarATopic(any(), any(), any());
+        verify(notificacionAppService, never()).difundirATodos(any(), any(), any(), any());
+        verify(fcmPushService, never()).enviarATopic(any(), any(), any(), any());
     }
 
     @Test
