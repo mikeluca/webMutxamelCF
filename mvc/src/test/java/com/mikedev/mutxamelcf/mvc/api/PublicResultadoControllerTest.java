@@ -56,4 +56,29 @@ class PublicResultadoControllerTest {
         assertThat(PublicResultadoController.idioma(null)).isNull();
         assertThat(PublicResultadoController.idioma("  ")).isNull();
     }
+
+    @Test
+    void elIdDelPartidoSaleEnElJsonDeLaPortadaYDeLosResultados() throws Exception {
+        PartidoService service = mock(PartidoService.class);
+        PublicResultadoController controller = new PublicResultadoController(service);
+
+        ResultadoDTO resultado = new ResultadoDTO();
+        resultado.setId(30L);
+        ResultadoDTO sinPartido = new ResultadoDTO();
+
+        when(service.obtenerResultadoPrimerEquipo((String) null)).thenReturn(resultado);
+        when(service.obtenerResultados("F")).thenReturn(List.of(resultado, sinPartido));
+
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
+        assertThat(mapper.readTree(mapper.writeValueAsString(controller.obtenerResultadoPrimerEquipo(null).getBody()))
+                .get("id").asLong()).isEqualTo(30L);
+
+        com.fasterxml.jackson.databind.JsonNode lista = mapper
+                .readTree(mapper.writeValueAsString(controller.obtenerResultados()));
+
+        assertThat(lista.get(0).get("id").asLong()).isEqualTo(30L);
+        // Sin partido (o en un descanso) el campo va a null.
+        assertThat(lista.get(1).get("id").isNull()).isTrue();
+    }
 }

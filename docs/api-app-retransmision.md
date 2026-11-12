@@ -331,6 +331,8 @@ resultado guardado.
 ### `id` del partido en la portada y en los resultados
 
 `ResultadoDTO` (`GET /api/public/resultados/primer-equipo` y `GET /api/public/resultados`) lleva ahora `id`: el id del
-partido, para abrir su ficha pública (`/api/public/partidos/{id}/ficha`). Es `null` en la entrada de un equipo sin
-ningún partido y en el "sin partido" de la portada. Es un campo nuevo y aditivo: las versiones anteriores de la app lo
+partido, para abrir su ficha pública (`/api/public/partidos/{id}/ficha`). Se rellena en la portada, en `obtenerResultados` y en todo
+ResultadoDTO que sale de un partido real. Es `null` en la entrada de un equipo sin
+ningún partido, en el "sin partido" de la portada y cuando el equipo **descansa** (`descansa: true`, aunque conserve los datos del
+último partido jugado). Es un campo nuevo y aditivo: las versiones anteriores de la app lo
 ignoran.

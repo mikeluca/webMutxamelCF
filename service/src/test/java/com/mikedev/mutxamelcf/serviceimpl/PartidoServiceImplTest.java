@@ -936,6 +936,59 @@ class PartidoServiceImplTest {
                 .satisfies(r -> assertThat(r.isDescansa()).isFalse());
     }
 
+    @Test
+    void obtenerResultadosLlevaElIdDelPartidoPeroNoEnUnDescansoNiSinPartido() {
+        LocalDate sabado = LocalDate.now().plusDays(3);
+
+        Partido jugado = new Partido();
+        jugado.setId(77L);
+        jugado.setEquipoId(1L);
+        jugado.setRival("Rival CF");
+        jugado.setResultado("1-0");
+        jugado.setDia(java.sql.Date.valueOf(LocalDate.now().minusDays(4)));
+
+        when(equipoDao.obtenerActivosPublicosPorDeporte("F"))
+                .thenReturn(List.of(equipo(1L), equipo(2L), equipo(3L)));
+        // Equipo 1: partido jugado y descanso el fin de semana que viene -> descansa, sin id.
+        when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(jugado);
+        when(descansoEquipoDao.obtenerDesde(org.mockito.ArgumentMatchers.eq(1L), any()))
+                .thenReturn(List.of(new com.mikedev.mutxamelcf.model.DescansoEquipo(1L, 1L, sabado, null)));
+        // Equipo 2: partido real, sin descanso -> con id. Equipo 3: sin partido -> sin id.
+        Partido proximo = partidoPendiente(2L, LocalDate.now().plusDays(2));
+        proximo.setId(88L);
+        when(partidoDao.obtenerMasRelevantePorEquipo(2L)).thenReturn(proximo);
+        when(partidoDao.obtenerMasRelevantePorEquipo(3L)).thenReturn(null);
+        when(descansoEquipoDao.obtenerDesde(org.mockito.ArgumentMatchers.eq(2L), any())).thenReturn(List.of());
+        when(descansoEquipoDao.obtenerDesde(org.mockito.ArgumentMatchers.eq(3L), any())).thenReturn(List.of());
+
+        List<ResultadoDTO> resultados = service.obtenerResultados("F");
+
+        assertThat(resultados).hasSize(3);
+        assertThat(resultados).filteredOn(r -> r.getEquipoId() == 1L).singleElement()
+                .satisfies(r -> {
+                    assertThat(r.isDescansa()).isTrue();
+                    assertThat(r.getId()).isNull();
+                });
+        assertThat(resultados).filteredOn(r -> r.getEquipoId() == 2L).singleElement()
+                .satisfies(r -> assertThat(r.getId()).isEqualTo(88L));
+        assertThat(resultados).filteredOn(r -> r.getEquipoId() == 3L).singleElement()
+                .satisfies(r -> assertThat(r.getId()).isNull());
+    }
+
+    @Test
+    void obtenerResultadoPrimerEquipoLlevaElIdDelPartidoYNuloSiNoHayPartido() {
+        Partido partido = new Partido();
+        partido.setId(30L);
+        partido.setRival("Rival CF");
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partido);
+
+        assertThat(service.obtenerResultadoPrimerEquipo().getId()).isEqualTo(30L);
+
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(null);
+
+        assertThat(service.obtenerResultadoPrimerEquipo().getId()).isNull();
+    }
+
     // ---- resultado pendiente (reloj fijo: miércoles 21/10/2026 10:00, Madrid) ----
 
     private static final java.time.Clock MIERCOLES = java.time.Clock.fixed(

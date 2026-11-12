@@ -593,6 +593,10 @@ public class PartidoServiceImpl implements PartidoService {
 		for (EquipoConPartidoMasReciente ep : equiposConPartido) {
 			ResultadoDTO dto = toResultadoDTO(ep.partido, ep.equipo);
 			dto.setDescansa(descansa(ep.equipo != null ? ep.equipo.getId() : null, ep.partido));
+			// En un descanso no hay ficha que abrir: sin id.
+			if (dto.isDescansa()) {
+				dto.setId(null);
+			}
 			dto.setPendienteResultado(pendienteResultado(ep.partido));
 			resultados.add(dto);
 		}
@@ -626,7 +630,8 @@ public class PartidoServiceImpl implements PartidoService {
 			return resultado;
 		}
 
-		resultado.setId(partido.getId());
+		// En un descanso no hay ficha que abrir: sin id.
+		resultado.setId(resultado.isDescansa() ? null : partido.getId());
 		resultado.setEquipoId(partido.getEquipoId());
 		resultado.setRival(partido.getRival());
 		resultado.setResultado(partido.getResultado());
