@@ -29,7 +29,9 @@ import com.mikedev.mutxamelcf.service.ComunicacionService;
 
 /**
  * El aviso de tarjetas al cuerpo técnico: se dispara tanto al guardar las estadísticas del partido como al guardar
- * las del final de una retransmisión, con exactamente las mismas reglas.
+ * las del final de una retransmisión, con exactamente las mismas reglas. Las amarillas salen de lo guardado en las
+ * estadísticas, así que una expulsión por doble amarilla llega aquí como 1 roja y 0 amarillas (sin sumar al ciclo de
+ * acumulación): ver {@link TarjetasEventos#amarillasQueCuentan}.
  */
 @Component
 class AvisoTarjetas {

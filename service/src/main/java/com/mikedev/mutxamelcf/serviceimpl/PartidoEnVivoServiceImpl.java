@@ -895,12 +895,14 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
          * admiten estadísticas de jugador (F11) las registran.
          */
         /*
-         * Y las tarjetas, igual: cada amarilla suma una amarilla y una roja (o una doble amarilla, que además de
-         * sus dos amarillas es una expulsión) marca la roja, como las mete el formulario de estadísticas.
+         * Y las tarjetas, igual: cada amarilla suma una amarilla y una roja la marca, como las mete el formulario de
+         * estadísticas. Una expulsión por doble amarilla es 1 roja y 0 amarillas: sus dos amarillas no computan (ni
+         * para las estadísticas ni para el ciclo de acumulación que usan los avisos de sanción).
          */
         Map<Long, PartidoEstadisticaJugador> porJugador = new LinkedHashMap<>();
 
         Set<Long> dobles = TarjetasEventos.dobles(eventos);
+        Map<Long, Integer> amarillasQueCuentan = TarjetasEventos.amarillasQueCuentan(eventos);
         boolean hayTarjetas = false;
 
         for (PartidoLiveEvento hecho : eventos) {
@@ -932,8 +934,10 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
                 estadistica.setGoles(estadistica.getGoles() + 1);
             }
 
+            // Las amarillas de una doble amarilla no cuentan: ese jugador solo suma la roja.
+            estadistica.setTarjetasAmarillas(amarillasQueCuentan.getOrDefault(hecho.getJugadorId(), 0));
+
             if (amarilla) {
-                estadistica.setTarjetasAmarillas(estadistica.getTarjetasAmarillas() + 1);
                 hayTarjetas = true;
             }
 

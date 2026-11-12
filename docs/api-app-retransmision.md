@@ -240,14 +240,18 @@ comprobación solo sale cuando el evento posterior existe, y entonces el mensaje
 
 Igual que con los goles, el `FINAL` guarda las tarjetas en las estadísticas de jugador **si el partido no tenía
 ninguna** (y el equipo admite estadísticas), con la misma marca `estadisticasGuardadas` y el mismo cuidado al deshacer
-el final (se borran solo las que creó el final). Como las mete el formulario de estadísticas (contador de amarillas y
+el final (se borran solo las que creó el final). Con la regla de la doble amarilla de la tabla (el resto, como las mete el formulario: contador de amarillas y
 casilla de roja, independientes):
 
 | Qué pasó | Se guarda |
 |---|---|
 | Una amarilla | `tarjetasAmarillas` +1 |
-| Roja directa | `tarjetaRoja = true` |
-| Doble amarilla | `tarjetasAmarillas` +2 y `tarjetaRoja = true` |
+| Roja directa | `tarjetaRoja = true` (las amarillas que ya tuviera siguen contando) |
+| Doble amarilla | `tarjetaRoja = true` y `tarjetasAmarillas` +0: las dos amarillas que la causan no computan para el ciclo de acumulación |
+
+Una doble amarilla es 1 roja y 0 amarillas **solo en las estadísticas** (y por tanto en el ciclo de acumulación y los avisos
+de sanción): en la ficha pública y en el estado de la retransmisión se sigue viendo la amarilla y la expulsión por la
+segunda. El formulario de estadísticas del entrenador (app) lo explica en una ayuda bajo el título de estadísticas por jugador.
 
 Y se disparan los avisos de tarjetas / posible sanción al cuerpo técnico exactamente como al guardar las estadísticas
 (ver [avisos.md](avisos.md): `tarjetas.*`; se envían después de confirmar el final). Deshacer el final borra las

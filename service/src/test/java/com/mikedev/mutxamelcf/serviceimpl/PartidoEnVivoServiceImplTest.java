@@ -1879,7 +1879,7 @@ class PartidoEnVivoServiceImplTest {
 
         empezarPartido();
         service.enviarGolFavor(USUARIO, PARTIDO, 100L, null, 10);
-        // 101: doble amarilla (2 amarillas + expulsión); 102: roja directa; 103: una amarilla; 104: solo gol.
+        // 101: doble amarilla (1 roja y 0 amarillas); 102: roja directa; 103: una amarilla; 104: solo gol.
         service.enviarTarjeta(USUARIO, PARTIDO, 101L, "AMARILLA", 20);
         reloj.avanzar(Duration.ofMinutes(5));
         service.enviarTarjeta(USUARIO, PARTIDO, 101L, "AMARILLA", 30);
@@ -1899,7 +1899,7 @@ class PartidoEnVivoServiceImplTest {
                         PartidoEstadisticaJugador::getTarjetasAmarillas, PartidoEstadisticaJugador::isTarjetaRoja)
                 .containsExactlyInAnyOrder(
                         org.assertj.core.groups.Tuple.tuple(100L, 1, 0, false),
-                        org.assertj.core.groups.Tuple.tuple(101L, 0, 2, true),
+                        org.assertj.core.groups.Tuple.tuple(101L, 0, 0, true),
                         org.assertj.core.groups.Tuple.tuple(102L, 0, 0, true),
                         org.assertj.core.groups.Tuple.tuple(103L, 0, 1, false),
                         org.assertj.core.groups.Tuple.tuple(104L, 1, 0, false));

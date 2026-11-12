@@ -34,7 +34,36 @@ final class TarjetasEventos {
         return dobles;
     }
 
-    /** Jugadores expulsados: los de una roja directa y los de una doble amarilla. */
+/**
+ * Amarillas de cada jugador que cuentan para las estadÃ­sticas y la acumulaciÃ³n: todas las suyas salvo las de una
+ * expulsiÃ³n por doble amarilla (si el jugador tiene una, ninguna de sus dos amarillas cuenta; esa expulsiÃ³n va como
+ * roja). Solo salen los jugadores con alguna amarilla que cuente.
+ */
+static Map<Long, Integer> amarillasQueCuentan(List<PartidoLiveEvento> eventosEnOrden) {
+
+    Set<Long> dobles = dobles(eventosEnOrden);
+    Set<Long> expulsadosPorDoble = new HashSet<>();
+
+    for (PartidoLiveEvento evento : eventosEnOrden) {
+        if (dobles.contains(evento.getId())) {
+            expulsadosPorDoble.add(evento.getJugadorId());
+        }
+    }
+
+    Map<Long, Integer> amarillas = new HashMap<>();
+
+    for (PartidoLiveEvento evento : eventosEnOrden) {
+
+        if (PartidoLiveEvento.TARJETA_AMARILLA.equals(evento.getTipo())
+                && !expulsadosPorDoble.contains(evento.getJugadorId())) {
+            amarillas.merge(evento.getJugadorId(), 1, Integer::sum);
+        }
+    }
+
+    return amarillas;
+}
+
+/** Jugadores expulsados: los de una roja directa y los de una doble amarilla. */
     static Set<Long> expulsados(List<PartidoLiveEvento> eventosEnOrden) {
 
         Set<Long> dobles = dobles(eventosEnOrden);
