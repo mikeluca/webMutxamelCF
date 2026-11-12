@@ -56,6 +56,15 @@ public class EquipoFfcvDaoImpl implements EquipoFfcvDao {
 	}
 
 	@Override
+	public EquipoFfcv obtenerPorEquipoYTemporada(Long equipoId, Long temporadaId) {
+		List<EquipoFfcv> resultado = jdbcTemplate.query(
+				"SELECT " + CAMPOS_SELECT + " FROM EQUIPOS_FFCV WHERE EQUIPO_ID = ? AND TEMPORADA_ID = ?"
+						+ " ORDER BY ID FETCH FIRST 1 ROWS ONLY",
+				ROW_MAPPER, equipoId, temporadaId);
+		return resultado.isEmpty() ? null : resultado.get(0);
+	}
+
+	@Override
 	public EquipoFfcv obtenerPorCompeticionYLetra(String competicion, String letra) {
 		logger.debug("Inicio obtenerPorCompeticionYLetra: competicion={}, letra={}", competicion, letra);
 

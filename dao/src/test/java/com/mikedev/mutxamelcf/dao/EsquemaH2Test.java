@@ -343,4 +343,56 @@ class EsquemaH2Test {
     void sinTablaConvocatoriasElEsquemaDeEquipajesSeCreaIgual() {
         assertThat(columnas(nuevaBase(), "EQUIPACIONES")).isNotEmpty();
     }
+
+    @Test
+    void laFichaDelPartidoTieneElEsquemaDelScript() throws Exception {
+        JdbcTemplate jdbc = new JdbcTemplate(new DriverManagerDataSource(
+                "jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=Oracle;DB_CLOSE_DELAY=-1", "sa", ""));
+        jdbc.execute("CREATE TABLE PARTIDOS (ID NUMBER PRIMARY KEY)");
+        EsquemaH2.crear(jdbc);
+
+        assertThat(columnas(jdbc, "PARTIDOS")).contains("FORMACION");
+        assertThat(columnas(jdbc, "PARTIDO_ALINEACION")).containsExactly(
+                "ID", "PARTIDO_ID", "JUGADOR_ID", "TITULAR", "ORDEN");
+        assertThat(columnas(jdbc, "PARTIDO_LIVE_EVENTOS")).contains("JUGADOR_ENTRA_ID");
+
+        // Tipos nuevos de evento: valen CAMBIO y las tarjetas, no uno cualquiera.
+        String evento = "INSERT INTO PARTIDO_LIVE_EVENTOS (PARTIDO_ID, TIPO, USUARIO_APP_ID, FECHA) VALUES (1, ?, 1, CURRENT_TIMESTAMP)";
+        for (String tipo : List.of("INICIO", "CAMBIO", "TARJETA_AMARILLA", "TARJETA_ROJA")) {
+            jdbc.update(evento, tipo);
+        }
+        assertThatThrownBy(() -> jdbc.update(evento, "OTRO")).isInstanceOf(Exception.class);
+
+        // JUGADOR_ENTRA_ID solo en un CAMBIO.
+        jdbc.update("INSERT INTO PARTIDO_LIVE_EVENTOS (PARTIDO_ID, TIPO, JUGADOR_ID, JUGADOR_ENTRA_ID, USUARIO_APP_ID, FECHA)"
+                + " VALUES (1, 'CAMBIO', 10, 11, 1, CURRENT_TIMESTAMP)");
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO PARTIDO_LIVE_EVENTOS (PARTIDO_ID, TIPO, JUGADOR_ID,"
+                + " JUGADOR_ENTRA_ID, USUARIO_APP_ID, FECHA) VALUES (1, 'GOL_FAVOR', 10, 11, 1, CURRENT_TIMESTAMP)"))
+                .isInstanceOf(Exception.class);
+
+        // PARTIDO_ALINEACION: UNIQUE (PARTIDO_ID, JUGADOR_ID) y TITULAR 0/1.
+        String fila = "INSERT INTO PARTIDO_ALINEACION (PARTIDO_ID, JUGADOR_ID, TITULAR, ORDEN) VALUES (1, 10, ?, 1)";
+        jdbc.update(fila, 1);
+        assertThatThrownBy(() -> jdbc.update(fila, 0)).isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO PARTIDO_ALINEACION (PARTIDO_ID, JUGADOR_ID, TITULAR, ORDEN) VALUES (1, 11, 2, 1)"))
+                .isInstanceOf(Exception.class);
+
+        // Y el script de Oracle tiene lo mismo, ya aplicado en DEV y PRO.
+        String script = Files.readString(Path.of("..", "sql", "2026-11-12_ficha_partido.sql"));
+        assertThat(script).startsWith("-- NO EJECUTAR: ya aplicado en DEV y PRO")
+                .contains("ALTER TABLE PARTIDOS ADD (", "FORMACION  VARCHAR2(10 CHAR) NULL",
+                        "JUGADOR_ENTRA_ID  NUMBER NULL", "FK_LIVE_EVENTOS_JUGADOR_ENTRA",
+                        "CHECK (JUGADOR_ENTRA_ID IS NULL OR TIPO = 'CAMBIO')",
+                        "'CAMBIO', 'TARJETA_AMARILLA', 'TARJETA_ROJA'",
+                        "CREATE TABLE PARTIDO_ALINEACION", "TITULAR     NUMBER(1) NOT NULL",
+                        "ORDEN       NUMBER(3) NOT NULL", "UQ_ALINEACION_JUGADOR UNIQUE (PARTIDO_ID, JUGADOR_ID)",
+                        "GRANT SELECT, INSERT, UPDATE, DELETE ON PARTIDO_ALINEACION TO USER_WEB",
+                        "CREATE SYNONYM USER_WEB.PARTIDO_ALINEACION FOR SYSTEM.PARTIDO_ALINEACION");
+    }
+
+    @Test
+    void sinTablaPartidosLaFichaDelPartidoSeCreaIgual() {
+        assertThat(columnas(nuevaBase(), "PARTIDO_ALINEACION")).isNotEmpty();
+    }
 }

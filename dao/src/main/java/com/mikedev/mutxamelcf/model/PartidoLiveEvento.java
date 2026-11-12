@@ -14,6 +14,9 @@ public class PartidoLiveEvento {
     public static final String DESCANSO = "DESCANSO";
     public static final String SEGUNDA_PARTE = "SEGUNDA_PARTE";
     public static final String FINAL = "FINAL";
+    public static final String CAMBIO = "CAMBIO";
+    public static final String TARJETA_AMARILLA = "TARJETA_AMARILLA";
+    public static final String TARJETA_ROJA = "TARJETA_ROJA";
 
     private Long id;
     private Long partidoId;
@@ -21,7 +24,10 @@ public class PartidoLiveEvento {
     private Long jugadorId;
     private String autorTexto;
 
-    /** Minuto del partido en que se marcó el gol (solo goles); null si no consta. */
+    /** Solo en un CAMBIO: el jugador que entra (jugadorId es el que sale). */
+    private Long jugadorEntraId;
+
+    /** Minuto del partido en que ocurrió (goles, cambios y tarjetas); null si no consta. */
     private Integer minuto;
     private Long usuarioAppId;
     private LocalDateTime fecha;
@@ -69,6 +75,14 @@ public class PartidoLiveEvento {
 
     public void setJugadorId(Long jugadorId) {
         this.jugadorId = jugadorId;
+    }
+
+    public Long getJugadorEntraId() {
+        return jugadorEntraId;
+    }
+
+    public void setJugadorEntraId(Long jugadorEntraId) {
+        this.jugadorEntraId = jugadorEntraId;
     }
 
     public String getAutorTexto() {

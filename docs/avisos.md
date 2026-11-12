@@ -143,7 +143,7 @@ jugador y de familia recibe la del jugador.
 | `resultadoPendiente.*` | Job automático: el partido terminó y falta el resultado | Entrenadores del equipo | No |
 | `recordatorioConvocatoria.*` | Coordinación pulsa "recordar convocatoria" | Entrenadores del equipo | No |
 | `recordatorioResultado.*` | Coordinación pulsa "recordar resultado" | Entrenadores del equipo | No |
-| `tarjetas.*` | Al guardar las estadísticas se cruza un umbral de amarillas o hay roja | Entrenadores (o coordinación) | No |
+| `tarjetas.*` | Al guardar las estadísticas (o al terminar la retransmisión con tarjetas, si el partido no tenía estadísticas) se cruza un umbral de amarillas o hay roja | Entrenadores (o coordinación) | No |
 
 ### 6. Partido en directo (todas las cuentas con la preferencia de resultados + topics)
 
@@ -151,6 +151,14 @@ jugador y de familia recibe la del jugador.
 retransmisión del jugador), `directo.inicio.*`, `directo.gol.*` (con o sin minuto), `directo.golContra.*`,
 `directo.golAnulado.*`, `directo.descanso.*`, `directo.segundaParte.*`, `directo.final.*`. El marcador
 (`Mutxamel CF 2 - 1 Rival`) no cambia con el idioma.
+
+**Cambios y tarjetas de la retransmisión no avisan.** El cambio (`POST /{partidoId}/cambio`) y la tarjeta
+(`POST /{partidoId}/tarjeta`) no generan ningún push, ni a las cuentas ni a los topics; solo se ven en la ficha pública y
+en el estado de la retransmisión. Tampoco avisan corregir su minuto ni deshacerlos. La alineación solo avisa si se envía
+con `avisar: true` (reenviarla sin `avisar` no vuelve a avisar). Lo único que avisa por tarjetas es el aviso interno
+`tarjetas.*` al cuerpo técnico (sección 5), que se dispara al terminar el partido con las tarjetas de la retransmisión
+igual que al guardar las estadísticas. Los textos fijos de la ficha pública (`ficha.amistoso`, `ficha.copa`,
+`ficha.liga`, `ficha.jornada`, `ficha.separador.descanso`, `ficha.separador.final`) viven en el mismo catálogo.
 
 ### 7. Temporada, continuidad y cuentas
 

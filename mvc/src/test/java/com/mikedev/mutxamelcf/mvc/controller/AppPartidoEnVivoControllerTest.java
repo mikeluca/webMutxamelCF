@@ -37,7 +37,7 @@ class AppPartidoEnVivoControllerTest {
 
     private static EstadoPartidoEnVivoResponse estado() {
         return new EstadoPartidoEnVivoResponse(30L, "Pego C.F.", true, "PRIMERA_PARTE", 1, 0, List.of("Pablo"),
-                List.of(), new UltimoEventoDeshacible(5L, LocalDateTime.of(2026, 10, 24, 11, 2), 87), 12);
+                List.of(), new UltimoEventoDeshacible(5L, LocalDateTime.of(2026, 10, 24, 11, 2), 87), 12, null);
     }
 
     @Test
@@ -196,5 +196,63 @@ class AppPartidoEnVivoControllerTest {
         when(servicio.corregirMinuto(7L, 30L, 7L, 12)).thenThrow(new SecurityException("sin rol"));
         assertThat(controller.corregirMinuto(30L, 7L, peticion, autenticado("7")).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void laAlineacionPorJugadoresPasaFormacionYSoloAvisaConAvisarTrue() {
+        when(servicio.enviarAlineacion(any(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenReturn(estado());
+
+        com.mikedev.mutxamelcf.model.AlineacionJugadoresRequest request =
+                new com.mikedev.mutxamelcf.model.AlineacionJugadoresRequest();
+        request.setTitulares(List.of(1L, 2L));
+        request.setSuplentes(List.of(3L));
+        request.setFormacion("4-4-2");
+
+        // Sin "avisar" no hay push.
+        assertThat(controller.alineacionPorJugadores(30L, request, autenticado("7")).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        verify(servicio).enviarAlineacion(7L, 30L, List.of(1L, 2L), List.of(3L), "4-4-2", false);
+
+        request.setAvisar(true);
+        controller.alineacionPorJugadores(30L, request, autenticado("7"));
+        verify(servicio).enviarAlineacion(7L, 30L, List.of(1L, 2L), List.of(3L), "4-4-2", true);
+    }
+
+    @Test
+    void elCambioYLaTarjetaLlevanElPartidoIdYDevuelvenElEstado() {
+        when(servicio.enviarCambio(7L, 30L, 1L, 2L, 60)).thenReturn(estado());
+        when(servicio.enviarTarjeta(7L, 30L, 1L, "ROJA", 70)).thenReturn(estado());
+
+        com.mikedev.mutxamelcf.model.CambioRequest cambio = new com.mikedev.mutxamelcf.model.CambioRequest();
+        cambio.setJugadorSaleId(1L);
+        cambio.setJugadorEntraId(2L);
+        cambio.setMinuto(60);
+
+        com.mikedev.mutxamelcf.model.TarjetaRequest tarjeta = new com.mikedev.mutxamelcf.model.TarjetaRequest();
+        tarjeta.setJugadorId(1L);
+        tarjeta.setColor("ROJA");
+        tarjeta.setMinuto(70);
+
+        assertThat(controller.cambio(30L, cambio, autenticado("7")).getBody()).isEqualTo(estado());
+        assertThat(controller.tarjeta(30L, tarjeta, autenticado("7")).getBody()).isEqualTo(estado());
+        assertThat(controller.cambio(30L, cambio, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(controller.tarjeta(30L, tarjeta, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void unCambioOTarjetaInvalidosDan400YSinRolDan403() {
+        when(servicio.enviarCambio(any(), any(), any(), any(), any()))
+                .thenThrow(new IllegalArgumentException("El jugador que sale no está en el campo"));
+        when(servicio.enviarTarjeta(any(), any(), any(), any(), any()))
+                .thenThrow(new SecurityException("sin permiso"));
+
+        ResponseEntity<?> cambio = controller.cambio(30L, new com.mikedev.mutxamelcf.model.CambioRequest(),
+                autenticado("7"));
+        assertThat(cambio.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(cambio.getBody()).isEqualTo("El jugador que sale no está en el campo");
+
+        assertThat(controller.tarjeta(30L, new com.mikedev.mutxamelcf.model.TarjetaRequest(), autenticado("7"))
+                .getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 }

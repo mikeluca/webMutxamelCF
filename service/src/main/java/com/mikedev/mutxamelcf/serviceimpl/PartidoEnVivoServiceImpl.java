@@ -11,6 +11,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -32,13 +35,16 @@ import com.mikedev.mutxamelcf.dao.ConvocatoriaJugadorDao;
 import com.mikedev.mutxamelcf.dao.EquipoDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.JustificacionFaltaPartidoDao;
+import com.mikedev.mutxamelcf.dao.PartidoAlineacionDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.dao.PartidoEstadisticaJugadorDao;
 import com.mikedev.mutxamelcf.dao.PartidoLiveEventoDao;
+import com.mikedev.mutxamelcf.model.AlineacionJugador;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse;
+import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse.AlineacionEnVivo;
 import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse.Convocado;
 import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse.EventoEnVivo;
 import com.mikedev.mutxamelcf.model.EstadoPartidoEnVivoResponse.PartidoDisponible;
@@ -105,6 +111,8 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     private final ConvocatoriaJugadorDao convocatoriaJugadorDao;
     private final JustificacionFaltaPartidoDao justificacionDao;
     private final PartidoEstadisticaJugadorDao estadisticaJugadorDao;
+    private final PartidoAlineacionDao alineacionDao;
+    private final AvisoTarjetas avisoTarjetas;
     private final NotificacionAppService notificacionAppService;
     private final UsuarioAppService usuarioAppService;
     private final FcmPushService fcmPushService;
@@ -130,6 +138,8 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             ConvocatoriaJugadorDao convocatoriaJugadorDao,
             JustificacionFaltaPartidoDao justificacionDao,
             PartidoEstadisticaJugadorDao estadisticaJugadorDao,
+            PartidoAlineacionDao alineacionDao,
+            AvisoTarjetas avisoTarjetas,
             NotificacionAppService notificacionAppService,
             UsuarioAppService usuarioAppService,
             FcmPushService fcmPushService,
@@ -146,6 +156,8 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         this.convocatoriaJugadorDao = convocatoriaJugadorDao;
         this.justificacionDao = justificacionDao;
         this.estadisticaJugadorDao = estadisticaJugadorDao;
+        this.alineacionDao = alineacionDao;
+        this.avisoTarjetas = avisoTarjetas;
         this.notificacionAppService = notificacionAppService;
         this.usuarioAppService = usuarioAppService;
         this.fcmPushService = fcmPushService;
@@ -171,10 +183,13 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public void enviarAlineacion(Long usuarioId, Long partidoId, List<Long> titulares, List<Long> suplentes) {
+    @Transactional
+    public EstadoPartidoEnVivoResponse enviarAlineacion(Long usuarioId, Long partidoId, List<Long> titulares,
+            List<Long> suplentes, String formacion, boolean avisar) {
 
         validarRolRetransmision(usuarioId);
+
+        bloquearPartido(partidoId);
 
         Partido partido = validarPartido(partidoId, true);
 
@@ -211,28 +226,69 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             throw new IllegalArgumentException("Hay más titulares de los permitidos (máximo " + maximo + ")");
         }
 
-        String once = nombresEnDirecto(idsTitulares, elegibles);
-        String banquillo = nombresEnDirecto(idsSuplentes, elegibles);
+        String formacionElegida = formacion == null || formacion.isBlank() ? null : formacion.trim();
 
-        difundir(idioma -> new TextoDifusion(
-                textos.texto(idioma, "directo.alineacion.titulo"),
-                banquillo.isEmpty()
-                        ? textos.texto(idioma, "directo.alineacion.textoSinSuplentes", "once", once)
-                        : textos.texto(idioma, "directo.alineacion.texto", "once", once, "suplentes", banquillo)));
+        if (formacionElegida != null) {
 
-        logger.info("Alineación difundida: partidoId={}, titulares={}, suplentes={}", partidoId, idsTitulares.size(),
-                idsSuplentes.size());
+            List<String> permitidas = Formaciones.permitidas(modalidad(partido));
+
+            if (!permitidas.contains(formacionElegida)) {
+                throw new IllegalArgumentException("La formación " + formacionElegida
+                        + " no está permitida (admitidas: " + String.join(", ", permitidas) + ")");
+            }
+
+            int necesarios = Formaciones.titulares(formacionElegida);
+
+            if (idsTitulares.size() != necesarios) {
+                throw new IllegalArgumentException("La formación " + formacionElegida + " necesita " + necesarios
+                        + " titulares (portero incluido) y hay " + idsTitulares.size());
+            }
+        }
+
+        List<PartidoLiveEvento> eventos = eventoDao.obtenerNoAnuladosPorPartido(partidoId);
+
+        // Los cambios dependen de la alineación guardada: cambiarla después los dejaría sin sentido.
+        if (eventos.stream().anyMatch(e -> PartidoLiveEvento.CAMBIO.equals(e.getTipo()))) {
+            throw new IllegalArgumentException("No se puede cambiar la alineación: ya hay cambios registrados");
+        }
+
+        // Reemplaza la anterior si se vuelve a enviar.
+        alineacionDao.reemplazar(partidoId, formacionElegida, idsTitulares, idsSuplentes);
+
+        if (avisar) {
+
+            String once = nombresEnDirecto(idsTitulares, elegibles);
+            String banquillo = nombresEnDirecto(idsSuplentes, elegibles);
+
+            difundirTrasCommit(idioma -> new TextoDifusion(
+                    textos.texto(idioma, "directo.alineacion.titulo"),
+                    banquillo.isEmpty()
+                            ? textos.texto(idioma, "directo.alineacion.textoSinSuplentes", "once", once)
+                            : textos.texto(idioma, "directo.alineacion.texto", "once", once, "suplentes", banquillo)));
+        }
+
+        logger.info("Alineación guardada: partidoId={}, titulares={}, suplentes={}, formacion={}, aviso={}", partidoId,
+                idsTitulares.size(), idsSuplentes.size(), formacionElegida, avisar);
+
+        return construirEstado(partido, eventos);
     }
 
     private static String nombresEnDirecto(List<Long> ids, Map<Long, JugadorBasico> jugadores) {
         return ids.stream().map(id -> jugadores.get(id).nombreEnDirecto()).collect(Collectors.joining(", "));
     }
 
+    /** F11, F8, F5 o null (sin modalidad: se trata como F11). */
+    private String modalidad(Partido partido) {
+
+        Equipo equipo = equipoDao.obtenerEquipoPorId(partido.getEquipoId());
+
+        return equipo == null ? null : equipo.getModalidad();
+    }
+
     /** Titulares como mucho: los de la modalidad del equipo (F11 11, F8 8, F5 5). */
     private int maximoTitulares(Partido partido) {
 
-        Equipo equipo = equipoDao.obtenerEquipoPorId(partido.getEquipoId());
-        String modalidad = equipo == null ? null : equipo.getModalidad();
+        String modalidad = modalidad(partido);
 
         if ("F8".equals(modalidad)) {
             return 8;
@@ -336,6 +392,38 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         return registrar(usuarioId, partidoId, PartidoLiveEvento.FINAL, null, null, null);
     }
 
+    @Override
+    @Transactional
+    public EstadoPartidoEnVivoResponse enviarCambio(
+            Long usuarioId, Long partidoId, Long jugadorSaleId, Long jugadorEntraId, Integer minuto) {
+        return registrar(usuarioId, partidoId, PartidoLiveEvento.CAMBIO, jugadorSaleId, null, minuto, jugadorEntraId);
+    }
+
+    @Override
+    @Transactional
+    public EstadoPartidoEnVivoResponse enviarTarjeta(
+            Long usuarioId, Long partidoId, Long jugadorId, String color, Integer minuto) {
+
+        String tipo = color == null ? "" : switch (color.trim().toUpperCase(Locale.ROOT)) {
+            case "AMARILLA" -> PartidoLiveEvento.TARJETA_AMARILLA;
+            case "ROJA" -> PartidoLiveEvento.TARJETA_ROJA;
+            default -> "";
+        };
+
+        if (tipo.isEmpty()) {
+            // Primero el rol: sin permiso no se dice nada del contenido.
+            validarRolRetransmision(usuarioId);
+            throw new IllegalArgumentException("El color de la tarjeta debe ser AMARILLA o ROJA");
+        }
+
+        return registrar(usuarioId, partidoId, tipo, jugadorId, null, minuto, null);
+    }
+
+    private EstadoPartidoEnVivoResponse registrar(
+            Long usuarioId, Long partidoId, String tipo, Long jugadorId, String autorTexto, Integer minuto) {
+        return registrar(usuarioId, partidoId, tipo, jugadorId, autorTexto, minuto, null);
+    }
+
     /*
      * Valida y registra un evento y lo difunde. Se bloquea la fila del partido
      * (FOR UPDATE) antes de leer los eventos, para que comprobar el orden y el
@@ -343,7 +431,8 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
      * instancias distintas.
      */
     private EstadoPartidoEnVivoResponse registrar(
-            Long usuarioId, Long partidoId, String tipo, Long jugadorId, String autorTexto, Integer minuto) {
+            Long usuarioId, Long partidoId, String tipo, Long jugadorId, String autorTexto, Integer minuto,
+            Long jugadorEntraId) {
 
         validarRolRetransmision(usuarioId);
 
@@ -377,6 +466,25 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             }
         }
 
+        if (PartidoLiveEvento.CAMBIO.equals(tipo) || TarjetasEventos.esTarjeta(tipo)) {
+
+            evento.setMinuto(minuto != null ? validarMinuto(minuto) : minutoPorDefecto(partido, eventos, ahora));
+            evento.setJugadorId(jugadorId);
+            evento.setJugadorEntraId(jugadorEntraId);
+
+            if (esReintentoDuplicado(eventos, evento, ahora)) {
+                // Mismo cambio o tarjeta reintentado (el push tardó): no se registra dos veces (una segunda
+                // amarilla repetida expulsaría al jugador sin querer).
+                return construirEstado(partido, eventos);
+            }
+
+            if (PartidoLiveEvento.CAMBIO.equals(tipo)) {
+                validarCambio(partido, eventos, jugadorId, jugadorEntraId);
+            } else {
+                validarTarjeta(partido, eventos, jugadorId);
+            }
+        }
+
         if (PartidoLiveEvento.FINAL.equals(tipo)) {
             guardarResultado(partido, eventos, evento, usuarioId);
         }
@@ -395,6 +503,154 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
                 partidoId, tipo, estado.golesFavor(), estado.golesContra());
 
         return estado;
+    }
+
+    // ------------------------------------------------------------------
+    // Cambios y tarjetas
+    // ------------------------------------------------------------------
+
+    /** Quién está en el campo según la alineación guardada y los eventos. */
+    private record Campo(List<Long> titulares, List<Long> suplentes, List<Long> enElCampo,
+            List<Long> suplentesDisponibles, List<Long> expulsados) {
+    }
+
+    private static Campo campo(List<AlineacionJugador> alineacion, List<PartidoLiveEvento> eventos) {
+
+        List<Long> titulares = alineacion.stream().filter(AlineacionJugador::titular)
+                .map(AlineacionJugador::jugadorId).toList();
+        List<Long> suplentes = alineacion.stream().filter(a -> !a.titular())
+                .map(AlineacionJugador::jugadorId).toList();
+
+        Set<Long> enElCampo = new LinkedHashSet<>(titulares);
+        Set<Long> entraron = new HashSet<>();
+
+        for (PartidoLiveEvento evento : eventos) {
+
+            if (PartidoLiveEvento.CAMBIO.equals(evento.getTipo())) {
+                enElCampo.remove(evento.getJugadorId());
+                enElCampo.add(evento.getJugadorEntraId());
+                entraron.add(evento.getJugadorEntraId());
+            }
+        }
+
+        Set<Long> expulsados = TarjetasEventos.expulsados(eventos);
+        enElCampo.removeAll(expulsados);
+
+        return new Campo(titulares, suplentes, List.copyOf(enElCampo),
+                suplentes.stream().filter(id -> !entraron.contains(id)).toList(),
+                alineacion.stream().map(AlineacionJugador::jugadorId).filter(expulsados::contains).toList());
+    }
+
+    /** El minuto de un cambio o tarjeta sin minuto: el calculado; en el descanso, el del descanso (fin de la 1.ª parte). */
+    private Integer minutoPorDefecto(Partido partido, List<PartidoLiveEvento> eventos, LocalDateTime ahora) {
+
+        Integer calculado = calcularMinuto(partido, eventos, ahora);
+
+        if (calculado == null && EstadoPartidoEnVivoResponse.DESCANSO.equals(fase(eventos))) {
+            return minutosDeParte(partido);
+        }
+
+        return calculado;
+    }
+
+    private void validarCambio(Partido partido, List<PartidoLiveEvento> eventos, Long sale, Long entra) {
+
+        if (sale == null || entra == null) {
+            throw new IllegalArgumentException("Indica quién sale y quién entra");
+        }
+
+        if (sale.equals(entra)) {
+            throw new IllegalArgumentException("El jugador que sale y el que entra deben ser distintos");
+        }
+
+        List<AlineacionJugador> alineacion = alineacionDao.obtener(partido.getId());
+
+        if (alineacion.isEmpty()) {
+
+            Set<Long> elegibles = elegibles(partido).jugadores().stream().map(JugadorBasico::id)
+                    .collect(Collectors.toSet());
+
+            if (!elegibles.contains(sale) || !elegibles.contains(entra)) {
+                throw new IllegalArgumentException("Algún jugador no está entre los jugadores del partido");
+            }
+
+            return;
+        }
+
+        Campo campo = campo(alineacion, eventos);
+
+        if (campo.expulsados().contains(sale)) {
+            throw new IllegalArgumentException("El jugador que sale ya ha sido expulsado: no está en el campo");
+        }
+
+        if (!campo.enElCampo().contains(sale)) {
+            throw new IllegalArgumentException("El jugador que sale no está en el campo");
+        }
+
+        if (!campo.suplentesDisponibles().contains(entra)) {
+            throw new IllegalArgumentException("El jugador que entra debe ser un suplente que no haya entrado ya");
+        }
+    }
+
+    private void validarTarjeta(Partido partido, List<PartidoLiveEvento> eventos, Long jugadorId) {
+
+        if (jugadorId == null) {
+            throw new IllegalArgumentException("Indica el jugador de la tarjeta");
+        }
+
+        boolean elegible = elegibles(partido).jugadores().stream().anyMatch(j -> j.id().equals(jugadorId));
+
+        if (!elegible) {
+            throw new IllegalArgumentException("El jugador no está entre los jugadores del partido");
+        }
+
+        if (TarjetasEventos.expulsados(eventos).contains(jugadorId)) {
+            throw new IllegalArgumentException("El jugador ya ha sido expulsado");
+        }
+    }
+
+    /** Mismo tipo y mismos jugadores que el último evento igual, dentro de la ventana de deduplicación. */
+    private boolean esReintentoDuplicado(List<PartidoLiveEvento> eventos, PartidoLiveEvento nuevo, LocalDateTime ahora) {
+
+        return eventos.stream()
+                .filter(e -> e.getTipo().equals(nuevo.getTipo())
+                        && Objects.equals(e.getJugadorId(), nuevo.getJugadorId())
+                        && Objects.equals(e.getJugadorEntraId(), nuevo.getJugadorEntraId()))
+                .reduce((primero, segundo) -> segundo)
+                .filter(ultimo -> ahora.isBefore(ultimo.getFecha().plus(VENTANA_DEDUPLICACION_GOL)))
+                .isPresent();
+    }
+
+    /*
+     * Un cambio solo se deshace si el que entró sigue como estaba: si ya ha salido o tiene algún evento posterior
+     * (gol, tarjeta...), deshacerlo dejaría el partido incoherente.
+     */
+    private static void validarDeshacerCambio(PartidoLiveEvento cambio, List<PartidoLiveEvento> eventos) {
+
+        Long entra = cambio.getJugadorEntraId();
+        boolean posterior = false;
+
+        for (PartidoLiveEvento evento : eventos) {
+
+            if (evento.getId().equals(cambio.getId())) {
+                posterior = true;
+                continue;
+            }
+
+            if (!posterior) {
+                continue;
+            }
+
+            if (PartidoLiveEvento.CAMBIO.equals(evento.getTipo()) && entra.equals(evento.getJugadorId())) {
+                throw new IllegalArgumentException(
+                        "No se puede deshacer el cambio: el jugador que entró ya ha salido del campo");
+            }
+
+            if (entra.equals(evento.getJugadorId()) || entra.equals(evento.getJugadorEntraId())) {
+                throw new IllegalArgumentException(
+                        "No se puede deshacer el cambio: el jugador que entró ya tiene un evento posterior");
+            }
+        }
     }
 
     // ------------------------------------------------------------------
@@ -481,12 +737,14 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         }
 
         if (evento.isAnulado()) {
-            throw new IllegalArgumentException("El gol está anulado: no se puede corregir su minuto");
+            throw new IllegalArgumentException("El evento está anulado: no se puede corregir su minuto");
         }
 
         if (!PartidoLiveEvento.GOL_FAVOR.equals(evento.getTipo())
-                && !PartidoLiveEvento.GOL_CONTRA.equals(evento.getTipo())) {
-            throw new IllegalArgumentException("Solo se puede corregir el minuto de un gol");
+                && !PartidoLiveEvento.GOL_CONTRA.equals(evento.getTipo())
+                && !PartidoLiveEvento.CAMBIO.equals(evento.getTipo())
+                && !TarjetasEventos.esTarjeta(evento.getTipo())) {
+            throw new IllegalArgumentException("Solo se puede corregir el minuto de un gol, un cambio o una tarjeta");
         }
 
         eventoDao.actualizarMinuto(eventoId, minuto);
@@ -503,6 +761,10 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             case PartidoLiveEvento.INICIO -> EstadoPartidoEnVivoResponse.SIN_EMPEZAR.equals(fase);
             case PartidoLiveEvento.GOL_FAVOR, PartidoLiveEvento.GOL_CONTRA ->
                 EstadoPartidoEnVivoResponse.PRIMERA_PARTE.equals(fase)
+                        || EstadoPartidoEnVivoResponse.SEGUNDA_PARTE.equals(fase);
+            case PartidoLiveEvento.CAMBIO, PartidoLiveEvento.TARJETA_AMARILLA, PartidoLiveEvento.TARJETA_ROJA ->
+                EstadoPartidoEnVivoResponse.PRIMERA_PARTE.equals(fase)
+                        || EstadoPartidoEnVivoResponse.DESCANSO.equals(fase)
                         || EstadoPartidoEnVivoResponse.SEGUNDA_PARTE.equals(fase);
             case PartidoLiveEvento.DESCANSO -> EstadoPartidoEnVivoResponse.PRIMERA_PARTE.equals(fase);
             case PartidoLiveEvento.SEGUNDA_PARTE -> EstadoPartidoEnVivoResponse.DESCANSO.equals(fase);
@@ -530,6 +792,9 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             case PartidoLiveEvento.INICIO -> "El partido ya ha empezado";
             case PartidoLiveEvento.GOL_FAVOR, PartidoLiveEvento.GOL_CONTRA ->
                 "No se puede anotar un gol en este momento del partido";
+            case PartidoLiveEvento.CAMBIO -> "No se puede hacer un cambio en este momento del partido";
+            case PartidoLiveEvento.TARJETA_AMARILLA, PartidoLiveEvento.TARJETA_ROJA ->
+                "No se puede mostrar una tarjeta en este momento del partido";
             case PartidoLiveEvento.DESCANSO -> "El descanso solo puede llegar durante la primera parte";
             case PartidoLiveEvento.SEGUNDA_PARTE -> "La segunda parte solo puede empezar tras el descanso";
             default -> "Evento no válido en este momento del partido";
@@ -629,31 +894,74 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
          * "Otro" y "p.p." cuentan en el marcador pero no aquí. Solo los equipos que
          * admiten estadísticas de jugador (F11) las registran.
          */
-        Map<Long, Integer> golesPorJugador = new LinkedHashMap<>();
+        /*
+         * Y las tarjetas, igual: cada amarilla suma una amarilla y una roja (o una doble amarilla, que además de
+         * sus dos amarillas es una expulsión) marca la roja, como las mete el formulario de estadísticas.
+         */
+        Map<Long, PartidoEstadisticaJugador> porJugador = new LinkedHashMap<>();
 
-        for (PartidoLiveEvento gol : eventos) {
-            if (PartidoLiveEvento.GOL_FAVOR.equals(gol.getTipo()) && gol.getJugadorId() != null) {
-                golesPorJugador.merge(gol.getJugadorId(), 1, Integer::sum);
+        Set<Long> dobles = TarjetasEventos.dobles(eventos);
+        boolean hayTarjetas = false;
+
+        for (PartidoLiveEvento hecho : eventos) {
+
+            if (hecho.getJugadorId() == null) {
+                continue;
+            }
+
+            boolean gol = PartidoLiveEvento.GOL_FAVOR.equals(hecho.getTipo());
+            boolean amarilla = PartidoLiveEvento.TARJETA_AMARILLA.equals(hecho.getTipo());
+            boolean roja = PartidoLiveEvento.TARJETA_ROJA.equals(hecho.getTipo()) || dobles.contains(hecho.getId());
+
+            if (!gol && !amarilla && !roja) {
+                continue;
+            }
+
+            PartidoEstadisticaJugador estadistica = porJugador.computeIfAbsent(hecho.getJugadorId(), id -> {
+                PartidoEstadisticaJugador nueva = new PartidoEstadisticaJugador();
+                nueva.setPartidoId(partido.getId());
+                nueva.setJugadorId(id);
+                nueva.setGoles(0);
+                nueva.setAsistencias(0);
+                nueva.setTarjetasAmarillas(0);
+                nueva.setTarjetaRoja(false);
+                return nueva;
+            });
+
+            if (gol) {
+                estadistica.setGoles(estadistica.getGoles() + 1);
+            }
+
+            if (amarilla) {
+                estadistica.setTarjetasAmarillas(estadistica.getTarjetasAmarillas() + 1);
+                hayTarjetas = true;
+            }
+
+            if (roja) {
+                estadistica.setTarjetaRoja(true);
+                hayTarjetas = true;
             }
         }
 
-        if (!golesPorJugador.isEmpty() && equipoGestionDao.equipoAdmiteEstadisticas(partido.getEquipoId())
+        if (!porJugador.isEmpty() && equipoGestionDao.equipoAdmiteEstadisticas(partido.getEquipoId())
                 && estadisticaJugadorDao.obtenerPorPartido(partido.getId()).isEmpty()) {
 
-            for (Map.Entry<Long, Integer> entrada : golesPorJugador.entrySet()) {
+            // Lo acumulado ANTES de guardar, para avisar solo de lo que cambia (como al guardar estadísticas).
+            Map<Long, Integer> amarillasAntes = hayTarjetas ? avisoTarjetas.amarillasAcumuladas(partido) : Map.of();
 
-                PartidoEstadisticaJugador estadistica = new PartidoEstadisticaJugador();
-                estadistica.setPartidoId(partido.getId());
-                estadistica.setJugadorId(entrada.getKey());
-                estadistica.setGoles(entrada.getValue());
-                estadistica.setAsistencias(0);
-                estadistica.setTarjetasAmarillas(0);
-                estadistica.setTarjetaRoja(false);
-
+            for (PartidoEstadisticaJugador estadistica : porJugador.values()) {
                 estadisticaJugadorDao.guardar(estadistica);
             }
 
             evento.setEstadisticasGuardadas(true);
+
+            if (hayTarjetas) {
+                avisoTarjetas.avisar(partido,
+                        porJugador.values().stream()
+                                .map(e -> new AvisoTarjetas.TarjetasJugador(e.getJugadorId(), e.isTarjetaRoja()))
+                                .toList(),
+                        amarillasAntes, avisoTarjetas.amarillasAcumuladas(partido), Map.of(), usuarioId);
+            }
         }
     }
 
@@ -686,6 +994,10 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         }
 
         List<PartidoLiveEvento> eventos = new ArrayList<>(eventoDao.obtenerNoAnuladosPorPartido(partidoId));
+
+        if (PartidoLiveEvento.CAMBIO.equals(evento.getTipo())) {
+            validarDeshacerCambio(evento, eventos);
+        }
 
         PartidoLiveEvento ultimo = eventos.isEmpty() ? null : eventos.get(eventos.size() - 1);
 
@@ -765,7 +1077,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     private Map<Long, JugadorBasico> jugadoresDe(List<PartidoLiveEvento> eventos) {
 
         Set<Long> jugadorIds = eventos.stream()
-                .map(PartidoLiveEvento::getJugadorId)
+                .flatMap(e -> java.util.stream.Stream.of(e.getJugadorId(), e.getJugadorEntraId()))
                 .filter(id -> id != null)
                 .collect(Collectors.toSet());
 
@@ -794,12 +1106,16 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         List<EventoEnVivo> respuesta = new ArrayList<>();
         List<String> goleadores = new ArrayList<>();
 
+        Set<Long> dobles = TarjetasEventos.dobles(eventos);
+
         for (PartidoLiveEvento evento : eventos) {
 
             String autor = autor(evento, nombres);
 
             respuesta.add(new EventoEnVivo(evento.getId(), evento.getTipo(), evento.getJugadorId(), autor,
-                    evento.getFecha(), evento.getMinuto()));
+                    evento.getFecha(), evento.getMinuto(), evento.getJugadorEntraId(),
+                    evento.getJugadorEntraId() == null ? null : nombres.get(evento.getJugadorEntraId()),
+                    dobles.contains(evento.getId())));
 
             if (PartidoLiveEvento.GOL_FAVOR.equals(evento.getTipo()) && autor != null) {
                 goleadores.add(autor);
@@ -832,7 +1148,23 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
                 goleadores,
                 respuesta,
                 deshacible,
-                calcularMinuto(partido, eventos, ahora()));
+                calcularMinuto(partido, eventos, ahora()),
+                alineacionEnVivo(partido, eventos));
+    }
+
+    /** La alineación guardada y quién está en el campo; null si no se ha enviado ninguna. */
+    private AlineacionEnVivo alineacionEnVivo(Partido partido, List<PartidoLiveEvento> eventos) {
+
+        List<AlineacionJugador> alineacion = alineacionDao.obtener(partido.getId());
+
+        if (alineacion.isEmpty()) {
+            return null;
+        }
+
+        Campo campo = campo(alineacion, eventos);
+
+        return new AlineacionEnVivo(alineacionDao.obtenerFormacion(partido.getId()), campo.titulares(),
+                campo.suplentes(), campo.enElCampo(), campo.suplentesDisponibles(), campo.expulsados());
     }
 
     /** El autor del gol como sale hacia fuera: nombre de retransmisión del jugador o el texto libre ("Otro", "p.p."). */

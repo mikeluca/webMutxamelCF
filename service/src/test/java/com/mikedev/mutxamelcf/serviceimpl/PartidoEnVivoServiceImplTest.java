@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import com.mikedev.mutxamelcf.dao.EsquemaH2;
 import com.mikedev.mutxamelcf.dao.ConvocatoriaDao;
@@ -43,6 +44,7 @@ import com.mikedev.mutxamelcf.dao.DescansoEquipoDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.dao.TemporadaDao;
 import com.mikedev.mutxamelcf.dao.PartidoEstadisticaJugadorDao;
+import com.mikedev.mutxamelcf.dao.impl.PartidoAlineacionDaoImpl;
 import com.mikedev.mutxamelcf.dao.impl.PartidoLiveEventoDaoImpl;
 import com.mikedev.mutxamelcf.model.Convocatoria;
 import com.mikedev.mutxamelcf.model.ConvocatoriaJugador;
@@ -105,6 +107,12 @@ class PartidoEnVivoServiceImplTest {
     private DriverManagerDataSource dataSource;
     private JdbcTemplate jdbc;
     private PartidoLiveEventoDaoImpl eventoDao;
+    private PartidoAlineacionDaoImpl alineacionDao;
+    private final TemporadaDao temporadaDao = mock(TemporadaDao.class);
+    private final com.mikedev.mutxamelcf.dao.ResumenTemporadaDao resumenTemporadaDao =
+            mock(com.mikedev.mutxamelcf.dao.ResumenTemporadaDao.class);
+    private final com.mikedev.mutxamelcf.service.ComunicacionService comunicacionService =
+            mock(com.mikedev.mutxamelcf.service.ComunicacionService.class);
     private RelojManual reloj;
 
     private PartidoDao partidoDao;
@@ -127,12 +135,15 @@ class PartidoEnVivoServiceImplTest {
                 "jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=Oracle;DB_CLOSE_DELAY=-1", "sa", "");
         jdbc = new JdbcTemplate(dataSource);
         eventoDao = spy(new PartidoLiveEventoDaoImpl(jdbc));
+        alineacionDao = new PartidoAlineacionDaoImpl(jdbc);
 
         EsquemaH2.crear(jdbc);
         jdbc.execute("""
                 CREATE TABLE JUGADORES (
                     ID NUMBER PRIMARY KEY, DORSAL NUMBER, NOMBRE VARCHAR2(50), APELLIDOS VARCHAR2(50),
                     NOMBRE_RETRANSMISION VARCHAR2(40 CHAR))""");
+        jdbc.execute("CREATE TABLE PARTIDOS (ID NUMBER PRIMARY KEY, FORMACION VARCHAR2(10 CHAR))");
+        jdbc.update("INSERT INTO PARTIDOS (ID) VALUES (30)");
         jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS) VALUES (10, 9, 'Pablo', 'Garcia')");
         jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS) VALUES (11, 1, 'Luis', 'Lopez')");
         jdbc.update("INSERT INTO JUGADORES (ID, DORSAL, NOMBRE, APELLIDOS) VALUES (12, NULL, 'Sin Dorsal', 'Perez')");
@@ -173,10 +184,17 @@ class PartidoEnVivoServiceImplTest {
 
         when(estadisticaDao.obtenerPorPartido(PARTIDO)).thenReturn(List.of());
 
-        service = new PartidoEnVivoServiceImpl(
+        service = nuevoServicio(reloj);
+    }
+
+    private PartidoEnVivoServiceImpl nuevoServicio(Clock clock) {
+        return new PartidoEnVivoServiceImpl(
                 eventoDao, partidoDao, equipoDao, equipoGestionDao, convocatoriaDao,
-                convocatoriaJugadorDao, justificacionDao, estadisticaDao, notificacionAppService, usuarioAppService, fcmPushService,
-                reloj, AvisosTest.TEXTOS);
+                convocatoriaJugadorDao, justificacionDao, estadisticaDao, alineacionDao,
+                new AvisoTarjetas(temporadaDao, resumenTemporadaDao, equipoGestionDao, comunicacionService,
+                        new ReglaSancionAmarillas(5, 1), mock(PlatformTransactionManager.class), clock,
+                        AvisosTest.TEXTOS, AvisosTest.idiomas()),
+                notificacionAppService, usuarioAppService, fcmPushService, clock, AvisosTest.TEXTOS);
     }
 
     /** Las difusiones a todos hechas hasta ahora (en orden), como las verían las cuentas del idioma. */
@@ -778,6 +796,7 @@ class PartidoEnVivoServiceImplTest {
      */
     @Test
     void unaImportacionDeLaFfcvNoRompeElFinalNiSuDeshacer() {
+        jdbc.execute("DROP TABLE PARTIDOS");
         jdbc.execute("""
                 CREATE TABLE PARTIDOS (
                     ID NUMBER PRIMARY KEY, EQUIPO_ID NUMBER, RIVAL VARCHAR2(50), DIA DATE, HORA VARCHAR2(20),
@@ -880,10 +899,7 @@ class PartidoEnVivoServiceImplTest {
         // 00:30 del día siguiente en Madrid es todavía el día anterior en UTC.
         Clock tardeEnMadrid = Clock.fixed(
                 HOY.plusDays(1).atTime(0, 30).atZone(MADRID).toInstant(), MADRID);
-        PartidoEnVivoServiceImpl otro = new PartidoEnVivoServiceImpl(
-                eventoDao, partidoDao, equipoDao, equipoGestionDao, convocatoriaDao,
-                convocatoriaJugadorDao, justificacionDao, estadisticaDao, notificacionAppService, usuarioAppService, fcmPushService,
-                tardeEnMadrid, AvisosTest.TEXTOS);
+        PartidoEnVivoServiceImpl otro = nuevoServicio(tardeEnMadrid);
 
         assertThatThrownBy(() -> otro.enviarInicioPartido(USUARIO, PARTIDO))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -950,6 +966,7 @@ class PartidoEnVivoServiceImplTest {
      */
     @Test
     void dosFinalesSimultaneosEnTransaccionesDistintasSoloDejanUno() throws Exception {
+        jdbc.execute("DROP TABLE PARTIDOS");
         jdbc.execute("CREATE TABLE PARTIDOS (ID NUMBER PRIMARY KEY)");
         jdbc.update("INSERT INTO PARTIDOS VALUES (?)", PARTIDO);
 
@@ -1518,5 +1535,396 @@ class PartidoEnVivoServiceImplTest {
         assertThat(deshecho.getFase()).isEqualTo("PRIMERA_PARTE");
         assertThat(deshecho.getGolesFavor()).isEqualTo(2);
         assertThat(deshecho.getGoleadores()).isEmpty();
+    }
+
+    // ---- ficha del partido: formación, cambios y tarjetas ----------------------------------------
+
+    private int pushsHechos() {
+        return todasLasDifusiones("es").size();
+    }
+
+    private EstadoPartidoEnVivoResponse conAlineacionDeOnce(String formacion) {
+        plantillaDeDoce();
+        return service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 11), List.of(111L), formacion, false);
+    }
+
+    /** Titulares 100-108 (nueve) y suplentes 109, 110 y 111, sin formación. */
+    private void alineacionConTresSuplentes() {
+        plantillaDeDoce();
+        service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 9), List.of(109L, 110L, 111L), null, false);
+    }
+
+    private static void rechazado(org.assertj.core.api.ThrowableAssert.ThrowingCallable accion, String mensaje) {
+        assertThatThrownBy(accion).isInstanceOf(IllegalArgumentException.class).hasMessageContaining(mensaje);
+    }
+
+    @Test
+    void laAlineacionConFormacionGuardaTitularesSuplentesOrdenYFormacion() {
+        EstadoPartidoEnVivoResponse estado = conAlineacionDeOnce("4-4-2");
+
+        assertThat(estado.alineacion().formacion()).isEqualTo("4-4-2");
+        assertThat(estado.alineacion().titulares()).isEqualTo(desde(100, 11));
+        assertThat(estado.alineacion().suplentes()).containsExactly(111L);
+        assertThat(estado.alineacion().enElCampo()).containsExactlyInAnyOrderElementsOf(desde(100, 11));
+        assertThat(estado.alineacion().suplentesDisponibles()).containsExactly(111L);
+
+        assertThat(alineacionDao.obtenerFormacion(PARTIDO)).isEqualTo("4-4-2");
+        assertThat(alineacionDao.obtener(PARTIDO)).extracting(a -> a.jugadorId() + ":" + a.titular() + ":" + a.orden())
+                .startsWith("100:true:1", "101:true:2").contains("110:true:11", "111:false:1");
+
+        // GET del estado (y de los eventos siguientes) devuelve la alineación guardada.
+        assertThat(service.obtenerEstado(USUARIO, PARTIDO).alineacion().formacion()).isEqualTo("4-4-2");
+    }
+
+    @Test
+    void elNumeroDeTitularesTieneQueCuadrarConLaFormacionYLaFormacionSerDeLaLista() {
+        plantillaDeDoce();
+
+        rechazado(() -> service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 10), List.of(), "4-4-2", false),
+                "necesita 11 titulares");
+        rechazado(() -> service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 11), List.of(), "9-1-1", false),
+                "no está permitida");
+
+        for (String formacion : List.of("4-3-3", "4-2-3-1", "4-5-1", "4-1-4-1", "3-5-2", "3-4-3", "5-3-2", "5-4-1")) {
+            service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 11), List.of(), formacion, false);
+        }
+
+        // Las de F11 no valen en F8, que tiene las suyas.
+        equipoConModalidad("F8");
+        rechazado(() -> service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 8), List.of(), "4-4-2", false),
+                "no está permitida");
+        service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 8), List.of(), "3-3-1", false);
+
+        // Sin formación vale cualquier número de titulares (hasta el máximo) y se guarda sin formación.
+        service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 7), List.of(), null, false);
+        assertThat(alineacionDao.obtenerFormacion(PARTIDO)).isNull();
+    }
+
+    @Test
+    void laPosicionEnElCampoSigueElOrdenDeEleccion() {
+        // Portero, y después las líneas de atrás adelante, cada una de izquierda a derecha.
+        assertThat(Formaciones.posicion("4-2-3-1", 1)).containsExactly(1, 1);
+        assertThat(Formaciones.posicion("4-2-3-1", 2)).containsExactly(2, 1);
+        assertThat(Formaciones.posicion("4-2-3-1", 5)).containsExactly(2, 4);
+        assertThat(Formaciones.posicion("4-2-3-1", 6)).containsExactly(3, 1);
+        assertThat(Formaciones.posicion("4-2-3-1", 7)).containsExactly(3, 2);
+        assertThat(Formaciones.posicion("4-2-3-1", 8)).containsExactly(4, 1);
+        assertThat(Formaciones.posicion("4-2-3-1", 10)).containsExactly(4, 3);
+        assertThat(Formaciones.posicion("4-2-3-1", 11)).containsExactly(5, 1);
+        assertThat(Formaciones.titulares("4-2-3-1")).isEqualTo(11);
+        assertThat(Formaciones.titulares("3-3-1")).isEqualTo(8);
+    }
+
+    @Test
+    void reenviarLaAlineacionLaReemplazaYSoloAvisaConAvisarTrue() {
+        plantillaDeDoce();
+
+        // Primera vez, avisando: un push.
+        service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 11), List.of(111L), "4-4-2", true);
+        assertThat(pushsHechos()).isEqualTo(1);
+
+        // Reenvío sin avisar (el valor que manda la app por defecto después): se reemplaza sin push.
+        List<Long> otros = new java.util.ArrayList<>(desde(101, 10));
+        otros.add(0, 111L);
+        service.enviarAlineacion(USUARIO, PARTIDO, otros, List.of(100L), "4-3-3", false);
+        assertThat(pushsHechos()).isEqualTo(1);
+
+        assertThat(alineacionDao.obtenerFormacion(PARTIDO)).isEqualTo("4-3-3");
+        assertThat(alineacionDao.obtener(PARTIDO)).hasSize(12);
+        assertThat(alineacionDao.obtener(PARTIDO).get(0).jugadorId()).isEqualTo(111L);
+        assertThat(alineacionDao.obtener(PARTIDO)).filteredOn(a -> !a.titular()).extracting(a -> a.jugadorId())
+                .containsExactly(100L);
+
+        // Reenvío avisando otra vez: segundo push.
+        service.enviarAlineacion(USUARIO, PARTIDO, otros, List.of(100L), "4-3-3", true);
+        assertThat(pushsHechos()).isEqualTo(2);
+    }
+
+    @Test
+    void laAlineacionAntiguaDeCuatroArgumentosSigueAvisando() {
+        plantillaDeDoce();
+
+        service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 11), List.of(111L));
+
+        assertThat(pushsHechos()).isEqualTo(1);
+        assertThat(alineacionDao.obtenerFormacion(PARTIDO)).isNull();
+    }
+
+    @Test
+    void conCambiosRegistradosNoSePuedeCambiarLaAlineacion() {
+        alineacionConTresSuplentes();
+        empezarPartido();
+        service.enviarCambio(USUARIO, PARTIDO, 100L, 109L, 30);
+
+        rechazado(() -> service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 9), List.of(109L), null, false),
+                "ya hay cambios");
+    }
+
+    @Test
+    void unCambioValidoMueveLosJugadoresDelCampoYNoAvisaPorPush() {
+        alineacionConTresSuplentes();
+        empezarPartido();
+        int pushs = pushsHechos();
+
+        EstadoPartidoEnVivoResponse estado = service.enviarCambio(USUARIO, PARTIDO, 100L, 109L, 60);
+
+        assertThat(pushsHechos()).isEqualTo(pushs);
+        assertThat(estado.alineacion().enElCampo()).contains(109L).doesNotContain(100L).hasSize(9);
+        assertThat(estado.alineacion().suplentesDisponibles()).containsExactly(110L, 111L);
+
+        EstadoPartidoEnVivoResponse.EventoEnVivo cambio = estado.eventos().get(estado.eventos().size() - 1);
+        assertThat(cambio.tipo()).isEqualTo("CAMBIO");
+        assertThat(cambio.jugadorId()).isEqualTo(100L);
+        assertThat(cambio.jugadorEntraId()).isEqualTo(109L);
+        assertThat(cambio.autor()).isEqualTo("Jugador N100");
+        assertThat(cambio.jugadorEntra()).isEqualTo("Jugador N109");
+        assertThat(cambio.minuto()).isEqualTo(60);
+
+        // El que entró puede salir después.
+        service.enviarCambio(USUARIO, PARTIDO, 109L, 110L, 70);
+    }
+
+    @Test
+    void losCambiosConAlineacionSoloAdmitenAQuienEstaEnElCampoYUnSuplenteQueNoHaEntrado() {
+        alineacionConTresSuplentes();
+        empezarPartido();
+
+        // Sale uno del banquillo / entra un titular / el mismo / nulos
+        rechazado(() -> service.enviarCambio(USUARIO, PARTIDO, 109L, 110L, 30), "no está en el campo");
+        rechazado(() -> service.enviarCambio(USUARIO, PARTIDO, 100L, 101L, 30), "suplente que no haya entrado");
+        rechazado(() -> service.enviarCambio(USUARIO, PARTIDO, 100L, 100L, 30), "distintos");
+        rechazado(() -> service.enviarCambio(USUARIO, PARTIDO, null, 109L, 30), "quién sale");
+        rechazado(() -> service.enviarCambio(USUARIO, PARTIDO, 100L, 109L, 151), "entre 0 y 150");
+
+        service.enviarCambio(USUARIO, PARTIDO, 100L, 109L, 30);
+
+        // El sustituido ya no está en el campo y el suplente que entró ya no es suplente disponible.
+        rechazado(() -> service.enviarCambio(USUARIO, PARTIDO, 100L, 110L, 31), "no está en el campo");
+        rechazado(() -> service.enviarCambio(USUARIO, PARTIDO, 101L, 109L, 31), "suplente que no haya entrado");
+        // Y uno expulsado tampoco puede salir.
+        service.enviarTarjeta(USUARIO, PARTIDO, 102L, "ROJA", 40);
+        rechazado(() -> service.enviarCambio(USUARIO, PARTIDO, 102L, 110L, 41), "expulsado");
+    }
+
+    @Test
+    void sinAlineacionElCambioAdmiteDosJugadoresDistintosDeLaListaElegible() {
+        empezarPartido();
+
+        service.enviarCambio(USUARIO, PARTIDO, 10L, 11L, 50);
+
+        rechazado(() -> service.enviarCambio(USUARIO, PARTIDO, 10L, 13L, 51), "no está entre los jugadores");
+        rechazado(() -> service.enviarCambio(USUARIO, PARTIDO, 13L, 10L, 51), "no está entre los jugadores");
+        rechazado(() -> service.enviarCambio(USUARIO, PARTIDO, 10L, 10L, 51), "distintos");
+    }
+
+    @Test
+    void elCambioValeEnPrimeraSegundaParteYDescansoPeroNoAntesNiDespues() {
+        rechazado(() -> service.enviarCambio(USUARIO, PARTIDO, 10L, 11L, 5), "todavía no ha empezado");
+
+        empezarPartido();
+        service.enviarCambio(USUARIO, PARTIDO, 10L, 11L, 20);
+
+        service.enviarDescanso(USUARIO, PARTIDO);
+        // Con el minuto del descanso; sin minuto, el de la duración de la parte.
+        EstadoPartidoEnVivoResponse enDescanso = service.enviarCambio(USUARIO, PARTIDO, 12L, 10L, 45);
+        assertThat(enDescanso.eventos().get(enDescanso.eventos().size() - 1).minuto()).isEqualTo(45);
+        EstadoPartidoEnVivoResponse sinMinuto = service.enviarCambio(USUARIO, PARTIDO, 11L, 12L, null);
+        assertThat(sinMinuto.eventos().get(sinMinuto.eventos().size() - 1).minuto()).isEqualTo(45);
+
+        service.enviarSegundaParte(USUARIO, PARTIDO);
+        service.enviarCambio(USUARIO, PARTIDO, 10L, 11L, 60);
+
+        service.enviarFinalPartido(USUARIO, PARTIDO);
+        rechazado(() -> service.enviarCambio(USUARIO, PARTIDO, 12L, 10L, 80), "terminado");
+    }
+
+    @Test
+    void unCambioReintentadoAlPocoNoSeRegistraDosVeces() {
+        empezarPartido();
+
+        service.enviarCambio(USUARIO, PARTIDO, 10L, 11L, 50);
+        EstadoPartidoEnVivoResponse estado = service.enviarCambio(USUARIO, PARTIDO, 10L, 11L, 50);
+
+        assertThat(estado.eventos()).filteredOn(e -> e.tipo().equals("CAMBIO")).hasSize(1);
+    }
+
+    @Test
+    void lasTarjetasSeRegistranConSuMinutoSinPushYLaSegundaAmarillaEsExpulsion() {
+        empezarPartido();
+        int pushs = pushsHechos();
+
+        EstadoPartidoEnVivoResponse primera = service.enviarTarjeta(USUARIO, PARTIDO, 10L, "amarilla", 20);
+        EstadoPartidoEnVivoResponse.EventoEnVivo amarilla = primera.eventos().get(primera.eventos().size() - 1);
+        assertThat(amarilla.tipo()).isEqualTo("TARJETA_AMARILLA");
+        assertThat(amarilla.autor()).isEqualTo("Pablo Garcia");
+        assertThat(amarilla.minuto()).isEqualTo(20);
+        assertThat(amarilla.dobleAmarilla()).isFalse();
+
+        reloj.avanzar(Duration.ofMinutes(5));
+        EstadoPartidoEnVivoResponse segunda = service.enviarTarjeta(USUARIO, PARTIDO, 10L, "AMARILLA", 70);
+        EstadoPartidoEnVivoResponse.EventoEnVivo doble = segunda.eventos().get(segunda.eventos().size() - 1);
+        assertThat(doble.tipo()).isEqualTo("TARJETA_AMARILLA");
+        assertThat(doble.dobleAmarilla()).isTrue();
+
+        // Expulsado: no admite más tarjetas.
+        rechazado(() -> service.enviarTarjeta(USUARIO, PARTIDO, 10L, "ROJA", 71), "ya ha sido expulsado");
+
+        // Roja directa a otro.
+        EstadoPartidoEnVivoResponse roja = service.enviarTarjeta(USUARIO, PARTIDO, 11L, "ROJA", 75);
+        assertThat(roja.eventos().get(roja.eventos().size() - 1).tipo()).isEqualTo("TARJETA_ROJA");
+        assertThat(roja.eventos().get(roja.eventos().size() - 1).dobleAmarilla()).isFalse();
+
+        assertThat(pushsHechos()).isEqualTo(pushs);
+    }
+
+    @Test
+    void lasTarjetasValidanElJugadorElColorYElMomento() {
+        rechazado(() -> service.enviarTarjeta(USUARIO, PARTIDO, 10L, "AMARILLA", 5), "todavía no ha empezado");
+
+        empezarPartido();
+
+        rechazado(() -> service.enviarTarjeta(USUARIO, PARTIDO, 13L, "AMARILLA", 5), "no está entre los jugadores");
+        rechazado(() -> service.enviarTarjeta(USUARIO, PARTIDO, null, "AMARILLA", 5), "Indica el jugador");
+        rechazado(() -> service.enviarTarjeta(USUARIO, PARTIDO, 10L, "AZUL", 5), "AMARILLA o ROJA");
+        rechazado(() -> service.enviarTarjeta(USUARIO, PARTIDO, 10L, null, 5), "AMARILLA o ROJA");
+        rechazado(() -> service.enviarTarjeta(USUARIO, PARTIDO, 10L, "AMARILLA", -1), "entre 0 y 150");
+
+        when(usuarioAppService.tieneRol(USUARIO.intValue(), "RETRANSMISION")).thenReturn(false);
+        assertThatThrownBy(() -> service.enviarTarjeta(USUARIO, PARTIDO, 10L, "AMARILLA", 5))
+                .isInstanceOf(SecurityException.class);
+        assertThatThrownBy(() -> service.enviarTarjeta(USUARIO, PARTIDO, 10L, "AZUL", 5))
+                .isInstanceOf(SecurityException.class);
+    }
+
+    @Test
+    void unaAmarillaReintentadaAlPocoNoEsUnaDobleAmarilla() {
+        empezarPartido();
+
+        service.enviarTarjeta(USUARIO, PARTIDO, 10L, "AMARILLA", 20);
+        EstadoPartidoEnVivoResponse estado = service.enviarTarjeta(USUARIO, PARTIDO, 10L, "AMARILLA", 20);
+
+        assertThat(estado.eventos()).filteredOn(e -> e.tipo().equals("TARJETA_AMARILLA")).hasSize(1);
+    }
+
+    @Test
+    void sePuedeCorregirElMinutoDeUnCambioYDeUnaTarjetaPeroNoDelInicio() {
+        empezarPartido();
+        service.enviarCambio(USUARIO, PARTIDO, 10L, 11L, 50);
+        service.enviarTarjeta(USUARIO, PARTIDO, 12L, "AMARILLA", 51);
+
+        EstadoPartidoEnVivoResponse estado = service.obtenerEstado(USUARIO, PARTIDO);
+        Long cambioId = estado.eventos().get(1).id();
+        Long tarjetaId = estado.eventos().get(2).id();
+        Long inicioId = estado.eventos().get(0).id();
+
+        EstadoPartidoEnVivoResponse corregido = service.corregirMinuto(USUARIO, PARTIDO, cambioId, 52);
+        assertThat(corregido.eventos().get(1).minuto()).isEqualTo(52);
+        corregido = service.corregirMinuto(USUARIO, PARTIDO, tarjetaId, 53);
+        assertThat(corregido.eventos().get(2).minuto()).isEqualTo(53);
+
+        rechazado(() -> service.corregirMinuto(USUARIO, PARTIDO, inicioId, 1), "gol, un cambio o una tarjeta");
+    }
+
+    @Test
+    void sePuedeDeshacerUnCambioYUnaTarjetaYLaSegundaAmarillaDejaDeSerExpulsion() {
+        alineacionConTresSuplentes();
+        empezarPartido();
+
+        EstadoPartidoEnVivoResponse conCambio = service.enviarCambio(USUARIO, PARTIDO, 100L, 109L, 30);
+        Long cambioId = conCambio.eventos().get(conCambio.eventos().size() - 1).id();
+
+        EstadoPartidoEnVivoResponse sinCambio = service.deshacer(USUARIO, PARTIDO, cambioId);
+        assertThat(sinCambio.alineacion().enElCampo()).contains(100L).doesNotContain(109L);
+        assertThat(sinCambio.alineacion().suplentesDisponibles()).containsExactly(109L, 110L, 111L);
+
+        service.enviarTarjeta(USUARIO, PARTIDO, 101L, "AMARILLA", 10);
+        reloj.avanzar(Duration.ofMinutes(10));
+        EstadoPartidoEnVivoResponse conDoble = service.enviarTarjeta(USUARIO, PARTIDO, 101L, "AMARILLA", 40);
+        assertThat(conDoble.alineacion().expulsados()).containsExactly(101L);
+        assertThat(conDoble.alineacion().enElCampo()).doesNotContain(101L);
+
+        Long dobleId = conDoble.eventos().get(conDoble.eventos().size() - 1).id();
+        EstadoPartidoEnVivoResponse sinDoble = service.deshacer(USUARIO, PARTIDO, dobleId);
+        assertThat(sinDoble.alineacion().expulsados()).isEmpty();
+        assertThat(sinDoble.alineacion().enElCampo()).contains(101L);
+        assertThat(sinDoble.eventos()).filteredOn(e -> e.tipo().equals("TARJETA_AMARILLA")).hasSize(1)
+                .allMatch(e -> !e.dobleAmarilla());
+    }
+
+    @Test
+    void noSeDeshaceUnCambioSiElQueEntroYaHaSalidoOTieneUnEventoPosterior() {
+        alineacionConTresSuplentes();
+        empezarPartido();
+
+        EstadoPartidoEnVivoResponse primero = service.enviarCambio(USUARIO, PARTIDO, 100L, 109L, 30);
+        Long primerCambio = primero.eventos().get(primero.eventos().size() - 1).id();
+
+        // El que entró (109) sale después.
+        service.enviarCambio(USUARIO, PARTIDO, 109L, 110L, 40);
+        rechazado(() -> service.deshacer(USUARIO, PARTIDO, primerCambio), "ya ha salido del campo");
+
+        // Y un cambio cuyo suplente tiene una tarjeta posterior tampoco.
+        EstadoPartidoEnVivoResponse segundo = service.enviarCambio(USUARIO, PARTIDO, 101L, 111L, 50);
+        Long segundoCambio = segundo.eventos().get(segundo.eventos().size() - 1).id();
+        service.enviarTarjeta(USUARIO, PARTIDO, 111L, "AMARILLA", 55);
+        rechazado(() -> service.deshacer(USUARIO, PARTIDO, segundoCambio), "evento posterior");
+    }
+
+    @Test
+    void alFinalSeGuardanLasTarjetasEnLasEstadisticasYSeAvisaComoAlGuardarEstadisticas() {
+        plantillaDeDoce();
+        when(equipoGestionDao.obtenerEntrenadoresPorEquipo(PRIMER_EQUIPO)).thenReturn(List.of(50L));
+        when(equipoGestionDao.obtenerNombreJugador(102L)).thenReturn("Jugador N102");
+        when(equipoGestionDao.obtenerNombreJugador(101L)).thenReturn("Jugador N101");
+
+        empezarPartido();
+        service.enviarGolFavor(USUARIO, PARTIDO, 100L, null, 10);
+        // 101: doble amarilla (2 amarillas + expulsión); 102: roja directa; 103: una amarilla; 104: solo gol.
+        service.enviarTarjeta(USUARIO, PARTIDO, 101L, "AMARILLA", 20);
+        reloj.avanzar(Duration.ofMinutes(5));
+        service.enviarTarjeta(USUARIO, PARTIDO, 101L, "AMARILLA", 30);
+        service.enviarTarjeta(USUARIO, PARTIDO, 102L, "ROJA", 40);
+        service.enviarTarjeta(USUARIO, PARTIDO, 103L, "AMARILLA", 50);
+        reloj.avanzar(Duration.ofMinutes(5));
+        service.enviarGolFavor(USUARIO, PARTIDO, 104L, null, 60);
+        service.enviarGolContra(USUARIO, PARTIDO, 70);
+
+        EstadoPartidoEnVivoResponse fin = service.enviarFinalPartido(USUARIO, PARTIDO);
+
+        ArgumentCaptor<PartidoEstadisticaJugador> guardadas = ArgumentCaptor.forClass(PartidoEstadisticaJugador.class);
+        verify(estadisticaDao, times(5)).guardar(guardadas.capture());
+
+        assertThat(guardadas.getAllValues())
+                .extracting(PartidoEstadisticaJugador::getJugadorId, PartidoEstadisticaJugador::getGoles,
+                        PartidoEstadisticaJugador::getTarjetasAmarillas, PartidoEstadisticaJugador::isTarjetaRoja)
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple(100L, 1, 0, false),
+                        org.assertj.core.groups.Tuple.tuple(101L, 0, 2, true),
+                        org.assertj.core.groups.Tuple.tuple(102L, 0, 0, true),
+                        org.assertj.core.groups.Tuple.tuple(103L, 0, 1, false),
+                        org.assertj.core.groups.Tuple.tuple(104L, 1, 0, false));
+
+        // Mismo aviso que al guardar las estadísticas: la roja (y la doble amarilla) llegan al entrenador.
+        ArgumentCaptor<com.mikedev.mutxamelcf.model.Comunicacion> aviso = ArgumentCaptor
+                .forClass(com.mikedev.mutxamelcf.model.Comunicacion.class);
+        verify(comunicacionService).crearPrivada(aviso.capture(), eq(List.of(50L)), eq(USUARIO));
+        assertThat(aviso.getValue().getContenido()).contains("Jugador N101", "Jugador N102", "roja");
+
+        // Deshacer el final borra esas estadísticas, como con los goles.
+        service.deshacer(USUARIO, PARTIDO, fin.eventos().get(fin.eventos().size() - 1).id());
+        verify(estadisticaDao).eliminarPorPartido(PARTIDO);
+    }
+
+    @Test
+    void siElPartidoYaTeniaEstadisticasElFinalNoGuardaLasTarjetasNiAvisa() {
+        plantillaDeDoce();
+        when(estadisticaDao.obtenerPorPartido(PARTIDO)).thenReturn(List.of(new PartidoEstadisticaJugador()));
+
+        empezarPartido();
+        service.enviarTarjeta(USUARIO, PARTIDO, 102L, "ROJA", 40);
+        service.enviarFinalPartido(USUARIO, PARTIDO);
+
+        verify(estadisticaDao, never()).guardar(any());
+        verify(comunicacionService, never()).crearPrivada(any(), any(), any());
     }
 }

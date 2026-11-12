@@ -2,8 +2,10 @@ package com.mikedev.mutxamelcf.mvc.controller;
 
 import com.mikedev.mutxamelcf.model.AlineacionJugadoresRequest;
 import com.mikedev.mutxamelcf.model.AlineacionRequest;
+import com.mikedev.mutxamelcf.model.CambioRequest;
 import com.mikedev.mutxamelcf.model.GolFavorRequest;
 import com.mikedev.mutxamelcf.model.MinutoRequest;
+import com.mikedev.mutxamelcf.model.TarjetaRequest;
 import com.mikedev.mutxamelcf.service.PartidoEnVivoService;
 
 import org.springframework.http.HttpStatus;
@@ -43,17 +45,41 @@ public class AppPartidoEnVivoController {
         });
     }
 
-    /** Alineación eligiendo jugadores: {"titulares":[ids en orden], "suplentes":[ids en orden]}. */
+    /**
+     * Alineación eligiendo jugadores: {"titulares":[ids en orden], "suplentes":[ids en orden], "formacion":"4-4-2",
+     * "avisar":true}. Formación y suplentes son opcionales; el push solo sale con "avisar": true. Devuelve el estado.
+     */
     @PostMapping("/{partidoId}/alineacion")
     public ResponseEntity<?> alineacionPorJugadores(
             @PathVariable Long partidoId,
             @RequestBody AlineacionJugadoresRequest request,
             Authentication authentication) {
 
-        return ejecutar(authentication, usuarioId -> {
-            partidoEnVivoService.enviarAlineacion(usuarioId, partidoId, request.getTitulares(), request.getSuplentes());
-            return null;
-        });
+        return ejecutar(authentication, usuarioId -> partidoEnVivoService.enviarAlineacion(
+                usuarioId, partidoId, request.getTitulares(), request.getSuplentes(), request.getFormacion(),
+                Boolean.TRUE.equals(request.getAvisar())));
+    }
+
+    /** Cambio: {"jugadorSaleId":1, "jugadorEntraId":2, "minuto":60}. Sin push. */
+    @PostMapping("/{partidoId}/cambio")
+    public ResponseEntity<?> cambio(
+            @PathVariable Long partidoId,
+            @RequestBody CambioRequest request,
+            Authentication authentication) {
+
+        return ejecutar(authentication, usuarioId -> partidoEnVivoService.enviarCambio(
+                usuarioId, partidoId, request.getJugadorSaleId(), request.getJugadorEntraId(), request.getMinuto()));
+    }
+
+    /** Tarjeta: {"jugadorId":1, "color":"AMARILLA"|"ROJA", "minuto":30}. Sin push. */
+    @PostMapping("/{partidoId}/tarjeta")
+    public ResponseEntity<?> tarjeta(
+            @PathVariable Long partidoId,
+            @RequestBody TarjetaRequest request,
+            Authentication authentication) {
+
+        return ejecutar(authentication, usuarioId -> partidoEnVivoService.enviarTarjeta(
+                usuarioId, partidoId, request.getJugadorId(), request.getColor(), request.getMinuto()));
     }
 
     /** Partidos del Primer Equipo de hoy, no cancelados. */
@@ -133,7 +159,7 @@ public class AppPartidoEnVivoController {
         return ejecutar(authentication, usuarioId -> partidoEnVivoService.deshacer(usuarioId, partidoId, eventoId));
     }
 
-    /** Corrige el minuto de un gol no anulado del partido de hoy (sin push). */
+    /** Corrige el minuto de un gol, cambio o tarjeta no anulado del partido de hoy (sin push). */
     @PatchMapping("/{partidoId}/eventos/{eventoId}/minuto")
     public ResponseEntity<?> corregirMinuto(
             @PathVariable Long partidoId,

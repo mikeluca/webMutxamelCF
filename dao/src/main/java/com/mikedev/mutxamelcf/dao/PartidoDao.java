@@ -19,6 +19,12 @@ public interface PartidoDao {
     List<Partido> obtenerUltimosPorEquipo(Long equipoId, int limite);
 
     /**
+     * Los últimos partidos del equipo con resultado (goles a favor y en contra informados; sin cancelados, de
+     * cualquier tipo) cuyo día es anterior o igual a {@code hasta}, del más reciente al más antiguo.
+     */
+    List<Partido> obtenerUltimosConResultado(Long equipoId, LocalDate hasta, int limite);
+
+    /**
      * Partidos de un equipo que todavía no tienen una convocatoria
      * asociada (para el selector de "crear convocatoria a partir de un
      * partido"), ordenados por fecha ascendente (los próximos primero).

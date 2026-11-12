@@ -10,6 +10,9 @@ public interface EquipoFfcvDao {
 
     EquipoFfcv obtenerPorId(Long id);
 
+    /** La competición FFCV del equipo en esa temporada (la de menor ID si hubiera varias), o null. */
+    EquipoFfcv obtenerPorEquipoYTemporada(Long equipoId, Long temporadaId);
+
     /**
      * Relación para esa competición (ya normalizada) y letra
      * ({@code null} = sin letra), o {@code null} si no existe.

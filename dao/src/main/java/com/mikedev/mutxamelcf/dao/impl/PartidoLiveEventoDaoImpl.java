@@ -28,7 +28,7 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 
 	private static final String CAMPOS = """
 			ID, PARTIDO_ID, TIPO, JUGADOR_ID, AUTOR_TEXTO, USUARIO_APP_ID, FECHA, ANULADO, FECHA_ANULACION,
-			RESULTADO_ANTERIOR, GOLES_FAVOR_ANTERIOR, GOLES_CONTRA_ANTERIOR, AVISO_ANTERIOR, ESTADISTICAS_GUARDADAS, MINUTO
+			RESULTADO_ANTERIOR, GOLES_FAVOR_ANTERIOR, GOLES_CONTRA_ANTERIOR, AVISO_ANTERIOR, ESTADISTICAS_GUARDADAS, MINUTO, JUGADOR_ENTRA_ID
 			""";
 
 	private final JdbcTemplate jdbcTemplate;
@@ -47,8 +47,8 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 					INSERT INTO PARTIDO_LIVE_EVENTOS (
 					    PARTIDO_ID, TIPO, JUGADOR_ID, AUTOR_TEXTO, USUARIO_APP_ID, FECHA,
 					    RESULTADO_ANTERIOR, GOLES_FAVOR_ANTERIOR, GOLES_CONTRA_ANTERIOR, AVISO_ANTERIOR,
-					    ESTADISTICAS_GUARDADAS, MINUTO)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					    ESTADISTICAS_GUARDADAS, MINUTO, JUGADOR_ENTRA_ID)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					""", new String[] { "ID" });
 
 			ps.setLong(1, evento.getPartidoId());
@@ -63,6 +63,7 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 			ponerInteger(ps, 10, evento.getAvisoAnterior() == null ? null : (evento.getAvisoAnterior() ? 1 : 0));
 			ps.setInt(11, evento.isEstadisticasGuardadas() ? 1 : 0);
 			ponerInteger(ps, 12, evento.getMinuto());
+			ponerLong(ps, 13, evento.getJugadorEntraId());
 
 			return ps;
 		}, keyHolder);
@@ -161,8 +162,12 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 	@Override
 	public boolean existePorJugador(Long jugadorId) {
 
-		Integer count = jdbcTemplate.queryForObject(
-				"SELECT COUNT(*) FROM PARTIDO_LIVE_EVENTOS WHERE JUGADOR_ID = ?", Integer.class, jugadorId);
+		// También como el que entra en un cambio o en una alineación guardada (claves ajenas a JUGADORES).
+		Integer count = jdbcTemplate.queryForObject("""
+				SELECT (SELECT COUNT(*) FROM PARTIDO_LIVE_EVENTOS WHERE JUGADOR_ID = ? OR JUGADOR_ENTRA_ID = ?)
+				     + (SELECT COUNT(*) FROM PARTIDO_ALINEACION WHERE JUGADOR_ID = ?)
+				FROM DUAL
+				""", Integer.class, jugadorId, jugadorId, jugadorId);
 
 		return count != null && count > 0;
 	}
@@ -201,6 +206,9 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 
 		int minuto = rs.getInt("MINUTO");
 		evento.setMinuto(rs.wasNull() ? null : minuto);
+
+		long entra = rs.getLong("JUGADOR_ENTRA_ID");
+		evento.setJugadorEntraId(rs.wasNull() ? null : entra);
 
 		return evento;
 	}

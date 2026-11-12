@@ -246,6 +246,22 @@ public class PartidoDaoImpl implements PartidoDao {
 	}
 
 	@Override
+	public List<Partido> obtenerUltimosConResultado(Long equipoId, LocalDate hasta, int limite) {
+
+		String sql = "SELECT " + CAMPOS_SELECT + """
+				FROM PARTIDOS P
+				WHERE P.EQUIPO_ID = ?
+				  AND P.CANCELADO = 0
+				  AND P.GOLES_FAVOR IS NOT NULL AND P.GOLES_CONTRA IS NOT NULL
+				  AND P.DIA <= ?
+				ORDER BY P.DIA DESC, P.HORA DESC, P.ID DESC
+				FETCH FIRST ? ROWS ONLY
+				""";
+
+		return jdbcTemplate.query(sql, PARTIDO_ROW_MAPPER, equipoId, java.sql.Date.valueOf(hasta), limite);
+	}
+
+	@Override
 	public List<Partido> obtenerPartidosSinConvocatoria(Long equipoId, Long incluirPartidoId) {
 		logger.debug("Inicio obtenerPartidosSinConvocatoria: equipoId={}, incluirPartidoId={}", equipoId,
 				incluirPartidoId);

@@ -25,7 +25,8 @@ public record EstadoPartidoEnVivoResponse(
         List<String> goleadores,
         List<EventoEnVivo> eventos,
         UltimoEventoDeshacible ultimoEventoDeshacible,
-        Integer minutoActual) {
+        Integer minutoActual,
+        AlineacionEnVivo alineacion) {
 
     public static final String SIN_EMPEZAR = "SIN_EMPEZAR";
     public static final String PRIMERA_PARTE = "PRIMERA_PARTE";
@@ -33,9 +34,23 @@ public record EstadoPartidoEnVivoResponse(
     public static final String SEGUNDA_PARTE = "SEGUNDA_PARTE";
     public static final String FINAL = "FINAL";
 
-    /** autor: nombre del jugador, el texto libre o "p.p."; null en eventos sin autor. */
+    /**
+     * autor: nombre del jugador, el texto libre o "p.p."; null en eventos sin autor. En un CAMBIO, jugadorId/autor son
+     * el que sale y jugadorEntraId/jugadorEntra el que entra. En una tarjeta, jugadorId/autor son el amonestado;
+     * dobleAmarilla es true en la segunda TARJETA_AMARILLA del jugador (expulsión).
+     */
     public record EventoEnVivo(
-            Long id, String tipo, Long jugadorId, String autor, LocalDateTime fecha, Integer minuto) {
+            Long id, String tipo, Long jugadorId, String autor, LocalDateTime fecha, Integer minuto,
+            Long jugadorEntraId, String jugadorEntra, boolean dobleAmarilla) {
+    }
+
+    /**
+     * La alineación guardada (ids de jugador): titulares y suplentes por orden de elección, quién está ahora en el
+     * campo, los suplentes que aún no han entrado y los expulsados. Con eso la app ofrece solo cambios válidos.
+     */
+    public record AlineacionEnVivo(
+            String formacion, List<Long> titulares, List<Long> suplentes, List<Long> enElCampo,
+            List<Long> suplentesDisponibles, List<Long> expulsados) {
     }
 
     /** segundosRestantesDeshacer: lo que queda según el reloj del servidor. */

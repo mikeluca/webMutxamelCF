@@ -74,11 +74,14 @@ class PartidoEstadisticaServiceImplTest {
     @BeforeEach
     void setUp() {
         org.mockito.Mockito.lenient().when(equipoGestionDao.equipoAdmiteEstadisticas(EQUIPO_ID)).thenReturn(true);
+        java.time.Clock reloj = java.time.Clock.systemDefaultZone();
         service = new PartidoEstadisticaServiceImpl(
                 partidoDao, estadisticaJugadorDao, equipoGestionDao, convocatoriaDao, convocatoriaJugadorDao,
-                temporadaDao, resumenTemporadaDao, comunicacionService, new ReglaSancionAmarillas(5, 1),
-                org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class),
-                java.time.Clock.systemDefaultZone(), AvisosTest.TEXTOS, AvisosTest.idiomas());
+                new AvisoTarjetas(temporadaDao, resumenTemporadaDao, equipoGestionDao, comunicacionService,
+                        new ReglaSancionAmarillas(5, 1),
+                        org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class),
+                        reloj, AvisosTest.TEXTOS, AvisosTest.idiomas()),
+                reloj);
     }
 
     private static Date fechaHaceDias(long dias) {
