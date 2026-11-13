@@ -21,9 +21,9 @@ public interface PartidoService {
 	PartidoDTO actualizarComoAdmin(Long partidoId, PartidoGuardarRequest request);
 
 	/**
-	 * Borra el partido con todos sus datos (convocatoria, retransmisión, alineación, estadísticas, justificaciones),
-	 * todo o nada. Un entrenador solo puede borrar partidos sin esos datos; con ellos, SecurityException
-	 * ({@link #MENSAJE_PARTIDO_CON_DATOS}). COORDINADOR y ADMIN_APP, siempre.
+	 * Borra desde la app un partido SIN datos (convocatoria, resultado, retransmisión, alineación, estadísticas):
+	 * para cualquier rol. Con datos no borra nada y lanza IllegalStateException (409 en la API)
+	 * ({@link #MENSAJE_PARTIDO_CON_DATOS}): el borrado en cascada es solo del panel ({@link #eliminarComoAdmin}).
 	 */
 	void eliminar(Long usuarioAppId, Long partidoId);
 
@@ -34,10 +34,8 @@ public interface PartidoService {
 	}
 
 	String MENSAJE_PARTIDO_CON_DATOS =
-			"Este partido tiene datos (convocatoria, resultado o retransmisión): pide a coordinación que lo borre";
+			"Este partido tiene datos (convocatoria, resultado o retransmisión). Solo se puede borrar desde el panel web.";
 
-	/** Lo que se borraría; mismos permisos de equipo que {@link #eliminar}. */
-	PartidoBorradoResumen resumenBorrado(Long usuarioAppId, Long partidoId);
 
 	/** Lo que se borraría, para el panel web (ya autenticado por /admin/**). */
 	PartidoBorradoResumen resumenBorradoComoAdmin(Long partidoId);

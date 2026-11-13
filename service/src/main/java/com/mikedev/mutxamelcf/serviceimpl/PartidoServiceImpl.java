@@ -290,27 +290,9 @@ public class PartidoServiceImpl implements PartidoService {
 			throw new SecurityException("El usuario no puede gestionar este equipo");
 		}
 
-		borrarConTodo(partido, "usuarioAppId=" + usuarioAppId, equipoGestionDao.esCoordinadorOAdmin(usuarioAppId));
+		borrarConTodo(partido, "usuarioAppId=" + usuarioAppId, false);
 
 		logger.debug("Fin eliminar: partidoId={}", partidoId);
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public PartidoBorradoResumen resumenBorrado(Long usuarioAppId, Long partidoId) {
-
-		if (usuarioAppId == null) {
-			throw new SecurityException("Usuario no autenticado");
-		}
-
-		Partido partido = partidoParaBorrar(partidoId);
-
-		if (!equipoGestionDao.puedeGestionarEquipo(usuarioAppId, partido.getEquipoId())) {
-			throw new SecurityException("El usuario no puede gestionar este equipo");
-		}
-
-		return construirResumenBorrado(partido, partidoDao.resumenBorrado(partidoId),
-				equipoGestionDao.esCoordinadorOAdmin(usuarioAppId));
 	}
 
 	@Override
@@ -319,7 +301,7 @@ public class PartidoServiceImpl implements PartidoService {
 
 		Partido partido = partidoParaBorrar(partidoId);
 
-		return construirResumenBorrado(partido, partidoDao.resumenBorrado(partidoId), true);
+		return construirResumenBorrado(partido, partidoDao.resumenBorrado(partidoId));
 	}
 
 	private Partido partidoParaBorrar(Long partidoId) {
@@ -338,14 +320,14 @@ public class PartidoServiceImpl implements PartidoService {
 	}
 
 	private static PartidoBorradoResumen construirResumenBorrado(
-			Partido partido, ResumenBorradoPartido filas, boolean puedeConDatos) {
+			Partido partido, ResumenBorradoPartido filas) {
 
 		boolean datos = tieneDatos(partido, filas);
 
 		return new PartidoBorradoResumen(
 				partido.getId(),
 				datos,
-				!datos || puedeConDatos,
+				true,
 				filas.tieneConvocatoria(),
 				filas.convocados(),
 				tieneResultado(partido),
@@ -367,9 +349,9 @@ public class PartidoServiceImpl implements PartidoService {
 
 	/*
 	 * Los avisos que ya existían y el borrado en cascada, todo en la transacción del llamante: si algo falla no se
-	 * borra nada. puedeConDatos: COORDINADOR/ADMIN_APP o el panel; un entrenador solo borra partidos sin datos.
+	 * borra nada. cascada: solo el panel web; la app solo borra partidos sin datos (IllegalStateException, 409).
 	 */
-	private void borrarConTodo(Partido partido, String quien, boolean puedeConDatos) {
+	private void borrarConTodo(Partido partido, String quien, boolean cascada) {
 
 		Long partidoId = partido.getId();
 
@@ -378,8 +360,8 @@ public class PartidoServiceImpl implements PartidoService {
 
 		ResumenBorradoPartido filas = partidoDao.resumenBorrado(partidoId);
 
-		if (tieneDatos(partido, filas) && !puedeConDatos) {
-			throw new SecurityException(MENSAJE_PARTIDO_CON_DATOS);
+		if (tieneDatos(partido, filas) && !cascada) {
+			throw new IllegalStateException(MENSAJE_PARTIDO_CON_DATOS);
 		}
 
 		invitadosService.alCancelarPartido(partido);

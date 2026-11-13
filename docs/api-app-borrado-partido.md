@@ -1,61 +1,40 @@
-# Borrar un partido con todos sus datos
+# Borrar un partido
 
-Borrar un partido borra también, en una sola transacción y sin tocar las claves ajenas de la base de datos:
-`PARTIDO_LIVE_EVENTOS`, `PARTIDO_ALINEACION`, `PARTIDO_ESTADISTICAS_JUGADOR`, `JUSTIFICACIONES_FALTA_PARTIDO`,
-`CONVOCATORIA_JUGADOR` de su convocatoria, `CONVOCATORIAS` y por último `PARTIDOS`. Si un paso falla no se borra
-nada. (Si se añade una tabla con `PARTIDO_ID`, hay que añadirla en `PartidoDaoImpl.eliminar`.)
+## Desde la app: solo partidos sin datos
 
-## Permisos
+`DELETE /api/app/partidos/{id}` (cualquier rol con permiso sobre el equipo: ENTRENADOR del equipo, COORDINADOR, ADMIN_APP).
 
-| Quién | Partido sin datos | Partido con datos |
-|---|---|---|
-| Panel web (`/admin/**`) | sí | sí |
-| COORDINADOR / ADMIN_APP (app) | sí | sí |
-| ENTRENADOR del equipo (app) | sí | **403** |
-| Otro usuario | 403 | 403 |
+- Partido **sin datos** → 204 y se borra. Antes se avisa a los invitados, como siempre (`InvitadosService.alCancelarPartido`).
+- Partido **con datos** (convocatoria, resultado, retransmisión, alineación o estadísticas) → **409** y no se borra nada. Texto:
+  `Este partido tiene datos (convocatoria, resultado o retransmisión). Solo se puede borrar desde el panel web.`
+- Sin permiso sobre el equipo → 403; partido inexistente → 400.
 
-"Con datos" = convocatoria, resultado, retransmisión (eventos), alineación o estadísticas.
-Texto del 403 al entrenador: `Este partido tiene datos (convocatoria, resultado o retransmisión): pide a coordinación que lo borre`.
+El rol no cambia nada: ni COORDINADOR ni ADMIN_APP pueden borrar desde la app un partido con datos. No hay endpoint de
+resumen para la app.
 
-## Avisos al borrar
+## Desde el panel web: borrado en cascada
 
-1. Siempre, como antes: `InvitadosService.alCancelarPartido` (invitados autorizados o pendientes de su entrenador).
-2. Si el partido aún no se ha jugado y tiene convocatoria: aviso "Convocatoria anulada" a los convocados del
-   propio equipo (mismo texto que al eliminar una convocatoria; no a quien tenga la ausencia justificada).
-   "Ya se jugó" = tiene resultado, o tiene eventos de retransmisión, o su fecha es anterior a hoy. Si ya se jugó, sin avisos.
+Solo `PartidoService.eliminarComoAdmin` (panel `/admin/calendario-resultados/{id}/eliminar`) borra un partido con datos,
+en una sola transacción y sin tocar las claves ajenas: `PARTIDO_LIVE_EVENTOS`, `PARTIDO_ALINEACION`,
+`PARTIDO_ESTADISTICAS_JUGADOR`, `JUSTIFICACIONES_FALTA_PARTIDO`, `CONVOCATORIA_JUGADOR` de su convocatoria,
+`CONVOCATORIAS` y `PARTIDOS`. Si un paso falla no se borra nada. (Si se añade una tabla con `PARTIDO_ID`, hay que
+añadirla en `PartidoDaoImpl.eliminar`.)
 
-## Resumen para la confirmación
+Antes de borrar: `InvitadosService.alCancelarPartido` y, si el partido aún no se ha jugado y tiene convocatoria, el
+aviso "Convocatoria anulada" a los convocados del propio equipo (no a quien tenga la ausencia justificada). "Ya se
+jugó" = tiene resultado, o eventos de retransmisión, o su fecha es anterior a hoy: entonces, sin avisos.
 
-`GET /api/app/partidos/{id}/resumen-borrado` (JWT; mismos permisos de equipo que borrar: 403 si no gestiona el
-equipo, 400 si el partido no existe). Panel: `GET /admin/calendario-resultados/{id}/resumen-borrado` (404 si no existe).
+El diálogo de confirmación del panel pide antes `GET /admin/calendario-resultados/{id}/resumen-borrado`:
 
 ```json
-{
-  "partidoId": 31,
-  "tieneDatos": true,
-  "puedeBorrar": true,
-  "tieneConvocatoria": true,
-  "convocados": 14,
-  "tieneResultado": true,
-  "eventosRetransmision": 23,
-  "tieneAlineacion": true,
-  "jugadoresAlineacion": 16,
-  "filasEstadisticas": 16
-}
+{ "partidoId": 31, "tieneDatos": true, "puedeBorrar": true, "tieneConvocatoria": true, "convocados": 14,
+  "tieneResultado": true, "eventosRetransmision": 23, "tieneAlineacion": true, "jugadoresAlineacion": 16,
+  "filasEstadisticas": 16 }
 ```
 
-- `convocados`: filas de la convocatoria, invitados incluidos (0 sin convocatoria).
-- `eventosRetransmision`: eventos de la retransmisión, anulados incluidos.
-- `puedeBorrar`: `false` solo para un entrenador con `tieneDatos`; la app puede mostrar el mensaje de coordinación
-  en vez del diálogo.
-
-Texto de confirmación sugerido (el del panel): "Se borrarán también: la convocatoria (14 convocados), el resultado,
-la retransmisión (23 eventos), la alineación y las estadísticas de 16 jugadores. No se puede deshacer." Sin datos:
-"¿Eliminar este partido?".
-
-`DELETE /api/app/partidos/{id}` → 204; 403 con el texto de arriba o sin permiso; 400 si no existe.
+(`puedeBorrar` es siempre `true` en el panel.) 404 si el partido no existe.
 
 ## Auditoría
 
-Una línea `AUDITORIA borrado de partido` en el log (INFO) con el usuario (`usuarioAppId=` o `usuarioPanel=`), el
-partido, el equipo, el rival, el día y los recuentos de lo borrado. Sin nombres de jugadores.
+Línea INFO `AUDITORIA borrado de partido` con el usuario (`usuarioAppId=` o `usuarioPanel=`), el partido, el equipo, el
+rival, el día y los recuentos de lo borrado. Sin nombres de jugadores.

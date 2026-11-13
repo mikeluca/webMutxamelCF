@@ -211,6 +211,7 @@ class AppPartidoControllerTest {
                 .isEqualTo(HttpStatus.FORBIDDEN);
     }
 
+@Test    void eliminarDevuelve409ConElTextoSiElPartidoTieneDatos() {        PartidoService service = mock(PartidoService.class);        AppPartidoController controller = new AppPartidoController(service, mock(PartidoEstadisticaService.class));        org.mockito.Mockito.doThrow(new IllegalStateException(PartidoService.MENSAJE_PARTIDO_CON_DATOS))                .when(service).eliminar(1L, 5L);        ResponseEntity<?> response = controller.eliminar(5L, autenticado("1"));        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);        assertThat(response.getBody()).isEqualTo(                "Este partido tiene datos (convocatoria, resultado o retransmisión). Solo se puede borrar desde el panel web.");    }    @Test    void laAppYaNoTieneEndpointDeResumenDeBorrado() {        assertThat(AppPartidoController.class.getDeclaredMethods())                .noneMatch(m -> m.getName().equals("resumenBorrado"));    }
     @Test
     void eliminarDevuelve400SiElServicioLanzaIllegalArgument() {
         PartidoService service = mock(PartidoService.class);

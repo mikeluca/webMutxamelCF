@@ -58,6 +58,7 @@ class PartidoBorradoH2Test {
 
     private static final Long ENTRENADOR = 1L;
     private static final Long COORDINADOR = 2L;
+    private static final Long ADMIN_APP = 3L;
     private static final Long EQUIPO = 10L;
     private static final Long OTRO_EQUIPO = 11L;
 
@@ -147,6 +148,8 @@ class PartidoBorradoH2Test {
         when(equipoGestionDao.puedeGestionarEquipo(ENTRENADOR, EQUIPO)).thenReturn(true);
         when(equipoGestionDao.puedeGestionarEquipo(COORDINADOR, EQUIPO)).thenReturn(true);
         when(equipoGestionDao.esCoordinadorOAdmin(COORDINADOR)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(ADMIN_APP, EQUIPO)).thenReturn(true);
+        when(equipoGestionDao.esCoordinadorOAdmin(ADMIN_APP)).thenReturn(true);
         when(equipoGestionDao.obtenerNombreJugador(anyLong())).thenAnswer(i -> "Jugador " + i.getArgument(0));
         when(equipoGestionDao.obtenerUsuariosPorJugador(100L)).thenReturn(List.of(50L));
         when(equipoGestionDao.obtenerUsuariosPorJugador(101L)).thenReturn(List.of(51L));
@@ -277,7 +280,7 @@ class PartidoBorradoH2Test {
 
     @Test
     void borrarUnPartidoRetransmitidoLoBorraTodoSinFilasHuerfanasNiAvisos() {
-        service.eliminar(COORDINADOR, JUGADO);
+        service.eliminarComoAdmin(JUGADO, "admin@club");
 
         sinFilasDelPartido(JUGADO);
         jugadoNoTocado();
@@ -374,7 +377,7 @@ class PartidoBorradoH2Test {
 
         TransactionTemplate transaccion = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
 
-        assertThatThrownBy(() -> transaccion.executeWithoutResult(estado -> service.eliminar(COORDINADOR, JUGADO)))
+        assertThatThrownBy(() -> transaccion.executeWithoutResult(estado -> service.eliminarComoAdmin(JUGADO, "admin@club")))
                 .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
 
         assertThat(total("PARTIDOS")).isEqualTo(4);
@@ -389,98 +392,82 @@ class PartidoBorradoH2Test {
     // ---- permisos -----------------------------------------------------------------------------
 
     @Test
-    void unEntrenadorBorraUnPartidoSinDatos() {
+    void entrenadorCoordinadorYAdminBorranDesdeLaAppUnPartidoSinDatos() {
         service.eliminar(ENTRENADOR, VACIO);
+        partido(34, HOY.plusDays(11), null, null);
+        service.eliminar(COORDINADOR, 34L);
+        partido(35, HOY.plusDays(12), null, null);
+        service.eliminar(ADMIN_APP, 35L);
 
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM PARTIDOS WHERE ID = ?", Integer.class, VACIO)).isZero();
-        verify(invitadosService).alCancelarPartido(any(Partido.class));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM PARTIDOS WHERE ID IN (32, 34, 35)", Integer.class)).isZero();
+        verify(invitadosService, org.mockito.Mockito.times(3)).alCancelarPartido(any(Partido.class));
     }
 
     @Test
-    void unEntrenadorNoBorraUnPartidoConConvocatoriaResultadoRetransmisionOEstadisticas() {
+    void laAppNoBorraUnPartidoConDatosParaNingunRol() {
         // Convocatoria (FUTURO), resultado y todo lo demás (JUGADO), y cada dato por separado.
         jdbc.update("UPDATE PARTIDOS SET RESULTADO = '3-0' WHERE ID = ?", VACIO);
-        comprobarQueUnEntrenadorNoPuedeBorrar(VACIO);
+        comprobarQueLaAppNoPuedeBorrar(VACIO);
         jdbc.update("UPDATE PARTIDOS SET RESULTADO = NULL WHERE ID = ?", VACIO);
 
         evento(VACIO, "INICIO");
-        comprobarQueUnEntrenadorNoPuedeBorrar(VACIO);
+        comprobarQueLaAppNoPuedeBorrar(VACIO);
         jdbc.update("DELETE FROM PARTIDO_LIVE_EVENTOS WHERE PARTIDO_ID = ?", VACIO);
 
         estadistica(VACIO, 100, 0, 0, 0, 0);
-        comprobarQueUnEntrenadorNoPuedeBorrar(VACIO);
+        comprobarQueLaAppNoPuedeBorrar(VACIO);
         jdbc.update("DELETE FROM PARTIDO_ESTADISTICAS_JUGADOR WHERE PARTIDO_ID = ?", VACIO);
 
         alineacion(VACIO, 100, 1, 1);
-        comprobarQueUnEntrenadorNoPuedeBorrar(VACIO);
+        comprobarQueLaAppNoPuedeBorrar(VACIO);
 
-        comprobarQueUnEntrenadorNoPuedeBorrar(FUTURO);
-        comprobarQueUnEntrenadorNoPuedeBorrar(JUGADO);
+        comprobarQueLaAppNoPuedeBorrar(FUTURO);
+        comprobarQueLaAppNoPuedeBorrar(JUGADO);
 
+        // No se ha borrado nada de lo colgado de los partidos con datos.
+        assertThat(filas("PARTIDO_LIVE_EVENTOS", JUGADO)).isEqualTo(3);
+        assertThat(filas("PARTIDO_ALINEACION", JUGADO)).isEqualTo(2);
+        assertThat(filas("PARTIDO_ESTADISTICAS_JUGADOR", JUGADO)).isEqualTo(2);
+        assertThat(filas("CONVOCATORIAS", JUGADO) + filas("CONVOCATORIAS", FUTURO)).isEqualTo(2);
+        assertThat(total("CONVOCATORIA_JUGADOR")).isEqualTo(6);
         // Nada de avisos ni de cancelación de invitados: el rechazo es antes de hacer nada.
         verify(comunicacionService, never()).crearPrivada(any(), any(), anyLong(), any());
         verify(invitadosService, never()).alCancelarPartido(any(Partido.class));
         assertThat(total("PARTIDOS")).isEqualTo(4);
     }
 
-    private void comprobarQueUnEntrenadorNoPuedeBorrar(long partidoId) {
-        assertThatThrownBy(() -> service.eliminar(ENTRENADOR, partidoId))
-                .isInstanceOf(SecurityException.class)
-                .hasMessage("Este partido tiene datos (convocatoria, resultado o retransmisión):"
-                        + " pide a coordinación que lo borre");
+    private void comprobarQueLaAppNoPuedeBorrar(long partidoId) {
+        for (Long usuario : List.of(ENTRENADOR, COORDINADOR, ADMIN_APP)) {
+            assertThatThrownBy(() -> service.eliminar(usuario, partidoId))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("Este partido tiene datos (convocatoria, resultado o retransmisión)."
+                            + " Solo se puede borrar desde el panel web.");
+        }
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM PARTIDOS WHERE ID = ?", Integer.class, partidoId))
                 .isEqualTo(1);
     }
 
-    @Test
-    void unCoordinadorBorraUnPartidoConDatos() {
-        service.eliminar(COORDINADOR, JUGADO);
-        service.eliminar(COORDINADOR, FUTURO);
-
-        sinFilasDelPartido(JUGADO);
-        sinFilasDelPartido(FUTURO);
-        assertThat(total("PARTIDOS")).isEqualTo(2);
-    }
 
     @Test
     void quienNoGestionaElEquipoNoBorraNiConsultaNada() {
         assertThatThrownBy(() -> service.eliminar(99L, VACIO)).isInstanceOf(SecurityException.class);
-        assertThatThrownBy(() -> service.resumenBorrado(99L, VACIO)).isInstanceOf(SecurityException.class);
 
         assertThat(total("PARTIDOS")).isEqualTo(4);
     }
 
-    // ---- resumen -------------------------------------------------------------------------------
+    // ---- resumen (solo el panel) ---------------------------------------------------------------
 
     @Test
-    void elResumenDiceLoQueSeBorrara() {
-        assertThat(service.resumenBorrado(COORDINADOR, JUGADO)).isEqualTo(new PartidoBorradoResumen(
+    void elResumenDelPanelDiceLoQueSeBorrara() {
+        assertThat(service.resumenBorradoComoAdmin(JUGADO)).isEqualTo(new PartidoBorradoResumen(
                 JUGADO, true, true, true, 3, true, 3, true, 2, 2));
-    }
-
-    @Test
-    void elResumenDeUnPartidoSinDatosNoTieneNada() {
-        assertThat(service.resumenBorrado(ENTRENADOR, VACIO)).isEqualTo(new PartidoBorradoResumen(
+        assertThat(service.resumenBorradoComoAdmin(VACIO)).isEqualTo(new PartidoBorradoResumen(
                 VACIO, false, true, false, 0, false, 0, false, 0, 0));
-    }
-
-    @Test
-    void elResumenAvisaAlEntrenadorDeQueNoPodraBorrarUnPartidoConDatos() {
-        PartidoBorradoResumen resumen = service.resumenBorrado(ENTRENADOR, FUTURO);
-
-        assertThat(resumen.tieneDatos()).isTrue();
-        assertThat(resumen.puedeBorrar()).isFalse();
-        assertThat(resumen.tieneConvocatoria()).isTrue();
-        assertThat(resumen.convocados()).isEqualTo(3);
-        assertThat(resumen.tieneResultado()).isFalse();
-        assertThat(service.resumenBorradoComoAdmin(FUTURO).puedeBorrar()).isTrue();
     }
 
     @Test
     void elResumenDeUnPartidoInexistenteEsUnError() {
         assertThatThrownBy(() -> service.resumenBorradoComoAdmin(999L))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.resumenBorrado(COORDINADOR, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -497,7 +484,7 @@ class PartidoBorradoH2Test {
         assertThat(amarillasDelEquipo(resumen, 100)).isEqualTo(2);
         assertThat(amarillasDelEquipo(resumen, 101)).isEqualTo(1);
 
-        service.eliminar(COORDINADOR, JUGADO);
+        service.eliminarComoAdmin(JUGADO, "admin@club");
 
         assertThat(resumen.estadisticasPartidos(100L, desde, hasta, HOY).goles()).isEqualTo(1);
         assertThat(resumen.estadisticasPartidos(100L, desde, hasta, HOY).asistencias()).isZero();
