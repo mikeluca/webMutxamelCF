@@ -69,7 +69,16 @@ public interface PartidoDao {
      */
     void marcarFechaImportacion(java.util.Collection<Long> ids);
 
+    /**
+     * Borra el partido con todo lo que cuelga de él, en una sola transacción y en este orden:
+     * PARTIDO_LIVE_EVENTOS, PARTIDO_ALINEACION, PARTIDO_ESTADISTICAS_JUGADOR, JUSTIFICACIONES_FALTA_PARTIDO,
+     * CONVOCATORIA_JUGADOR de su convocatoria, CONVOCATORIAS y PARTIDOS. Las claves ajenas no tienen ON DELETE
+     * CASCADE: se borra desde aquí. Si un paso falla no queda nada borrado.
+     */
     void eliminar(Long id);
+
+    /** Cuánto se borraría con {@link #eliminar(Long)}: nada se modifica. */
+    com.mikedev.mutxamelcf.model.ResumenBorradoPartido resumenBorrado(Long partidoId);
 
     /**
      * Marca un partido como cancelado (CANCELADO = 1), sin borrarlo, para

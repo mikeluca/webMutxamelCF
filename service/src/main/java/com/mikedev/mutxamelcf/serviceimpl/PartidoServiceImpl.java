@@ -37,10 +37,13 @@ import com.mikedev.mutxamelcf.model.DescansoEquipo;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.EventoDirectoResumen;
 import com.mikedev.mutxamelcf.model.Partido;
+import com.mikedev.mutxamelcf.model.PartidoBorradoResumen;
 import com.mikedev.mutxamelcf.model.PartidoLiveEvento;
+import com.mikedev.mutxamelcf.model.ResumenBorradoPartido;
 import com.mikedev.mutxamelcf.model.PartidoDTO;
 import com.mikedev.mutxamelcf.model.PartidoGuardarRequest;
 import com.mikedev.mutxamelcf.model.ResultadoDTO;
+import com.mikedev.mutxamelcf.service.ConvocatoriaService;
 import com.mikedev.mutxamelcf.service.InvitadosService;
 import com.mikedev.mutxamelcf.service.PartidoService;
 
@@ -74,6 +77,7 @@ public class PartidoServiceImpl implements PartidoService {
 	private final TemporadaDao temporadaDao;
 	private final InvitadosService invitadosService;
 	private final PartidoLiveEventoDao eventoDao;
+	private final ConvocatoriaService convocatoriaService;
 	private final TextosAvisos textos;
 	private final Clock clock;
 
@@ -88,6 +92,7 @@ public class PartidoServiceImpl implements PartidoService {
 			TemporadaDao temporadaDao,
 			InvitadosService invitadosService,
 			PartidoLiveEventoDao eventoDao,
+			ConvocatoriaService convocatoriaService,
 			TextosAvisos textos,
 			Clock clock) {
 
@@ -101,6 +106,7 @@ public class PartidoServiceImpl implements PartidoService {
 		this.temporadaDao = temporadaDao;
 		this.invitadosService = invitadosService;
 		this.eventoDao = eventoDao;
+		this.convocatoriaService = convocatoriaService;
 		this.textos = textos;
 		this.clock = clock;
 	}
@@ -284,11 +290,128 @@ public class PartidoServiceImpl implements PartidoService {
 			throw new SecurityException("El usuario no puede gestionar este equipo");
 		}
 
+		borrarConTodo(partido, "usuarioAppId=" + usuarioAppId, equipoGestionDao.esCoordinadorOAdmin(usuarioAppId));
+
+		logger.debug("Fin eliminar: partidoId={}", partidoId);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public PartidoBorradoResumen resumenBorrado(Long usuarioAppId, Long partidoId) {
+
+		if (usuarioAppId == null) {
+			throw new SecurityException("Usuario no autenticado");
+		}
+
+		Partido partido = partidoParaBorrar(partidoId);
+
+		if (!equipoGestionDao.puedeGestionarEquipo(usuarioAppId, partido.getEquipoId())) {
+			throw new SecurityException("El usuario no puede gestionar este equipo");
+		}
+
+		return construirResumenBorrado(partido, partidoDao.resumenBorrado(partidoId),
+				equipoGestionDao.esCoordinadorOAdmin(usuarioAppId));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public PartidoBorradoResumen resumenBorradoComoAdmin(Long partidoId) {
+
+		Partido partido = partidoParaBorrar(partidoId);
+
+		return construirResumenBorrado(partido, partidoDao.resumenBorrado(partidoId), true);
+	}
+
+	private Partido partidoParaBorrar(Long partidoId) {
+
+		if (partidoId == null) {
+			throw new IllegalArgumentException("El ID del partido es obligatorio");
+		}
+
+		Partido partido = partidoDao.obtenerPorId(partidoId);
+
+		if (partido == null) {
+			throw new IllegalArgumentException("El partido no existe");
+		}
+
+		return partido;
+	}
+
+	private static PartidoBorradoResumen construirResumenBorrado(
+			Partido partido, ResumenBorradoPartido filas, boolean puedeConDatos) {
+
+		boolean datos = tieneDatos(partido, filas);
+
+		return new PartidoBorradoResumen(
+				partido.getId(),
+				datos,
+				!datos || puedeConDatos,
+				filas.tieneConvocatoria(),
+				filas.convocados(),
+				tieneResultado(partido),
+				filas.eventos(),
+				filas.alineacion() > 0,
+				filas.alineacion(),
+				filas.estadisticas());
+	}
+
+	/* Convocatoria, resultado, retransmisión, alineación o estadísticas. */
+	private static boolean tieneDatos(Partido partido, ResumenBorradoPartido filas) {
+
+		return filas.tieneConvocatoria()
+				|| tieneResultado(partido)
+				|| filas.eventos() > 0
+				|| filas.alineacion() > 0
+				|| filas.estadisticas() > 0;
+	}
+
+	/*
+	 * Los avisos que ya existían y el borrado en cascada, todo en la transacción del llamante: si algo falla no se
+	 * borra nada. puedeConDatos: COORDINADOR/ADMIN_APP o el panel; un entrenador solo borra partidos sin datos.
+	 */
+	private void borrarConTodo(Partido partido, String quien, boolean puedeConDatos) {
+
+		Long partidoId = partido.getId();
+
+		// Serializa con quien justifica, edita la convocatoria o guarda estadísticas de este partido.
+		partidoDao.bloquearPorId(partidoId);
+
+		ResumenBorradoPartido filas = partidoDao.resumenBorrado(partidoId);
+
+		if (tieneDatos(partido, filas) && !puedeConDatos) {
+			throw new SecurityException(MENSAJE_PARTIDO_CON_DATOS);
+		}
+
 		invitadosService.alCancelarPartido(partido);
+
+		/*
+		 * A los convocados solo si aún no se ha jugado (sin resultado, sin retransmisión y con fecha de hoy o
+		 * posterior): el mismo aviso que al eliminar la convocatoria. Antes de borrar, que necesita sus filas.
+		 */
+		boolean avisaConvocados = filas.tieneConvocatoria() && !seHaJugado(partido, filas);
+
+		if (avisaConvocados) {
+			convocatoriaService.avisarAnulada(filas.convocatoriaId());
+		}
 
 		partidoDao.eliminar(partidoId);
 
-		logger.debug("Fin eliminar: partidoId={}", partidoId);
+		// Auditoría: quién, qué partido y cuánto; sin nombres de jugadores.
+		logger.info("AUDITORIA borrado de partido: {}, partidoId={}, equipoId={}, rival={}, dia={},"
+				+ " convocatoriaId={}, convocados={}, resultado={}, eventosRetransmision={}, alineacion={},"
+				+ " estadisticas={}, convocadosAvisados={}",
+				quien, partidoId, partido.getEquipoId(), partido.getRival(), PlazoJustificacionPartido.dia(partido),
+				filas.convocatoriaId(), filas.convocados(), tieneResultado(partido), filas.eventos(),
+				filas.alineacion(), filas.estadisticas(), avisaConvocados);
+	}
+
+	private boolean seHaJugado(Partido partido, ResumenBorradoPartido filas) {
+
+		LocalDate dia = PlazoJustificacionPartido.dia(partido);
+
+		return tieneResultado(partido)
+				|| filas.eventos() > 0
+				|| (dia != null && dia.isBefore(LocalDate.now(clock)));
 	}
 
 	@Override
@@ -323,22 +446,11 @@ public class PartidoServiceImpl implements PartidoService {
 
 	@Override
 	@Transactional
-	public void eliminarComoAdmin(Long partidoId) {
+	public void eliminarComoAdmin(Long partidoId, String usuarioPanel) {
 		logger.debug("Inicio eliminarComoAdmin: partidoId={}", partidoId);
 
-		if (partidoId == null) {
-			throw new IllegalArgumentException("El ID del partido es obligatorio");
-		}
-
-		Partido existente = partidoDao.obtenerPorId(partidoId);
-
-		if (existente == null) {
-			throw new IllegalArgumentException("El partido no existe");
-		}
-
-		invitadosService.alCancelarPartido(existente);
-
-		partidoDao.eliminar(partidoId);
+		borrarConTodo(partidoParaBorrar(partidoId), "usuarioPanel=" + (usuarioPanel == null ? "desconocido" : usuarioPanel),
+				true);
 
 		logger.debug("Fin eliminarComoAdmin: partidoId={}", partidoId);
 	}

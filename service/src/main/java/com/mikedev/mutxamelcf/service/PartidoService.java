@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.service;
 import java.time.LocalDate;
 import java.util.List;
 
+import com.mikedev.mutxamelcf.model.PartidoBorradoResumen;
 import com.mikedev.mutxamelcf.model.PartidoDTO;
 import com.mikedev.mutxamelcf.model.PartidoGuardarRequest;
 import com.mikedev.mutxamelcf.model.ResultadoDTO;
@@ -19,9 +20,27 @@ public interface PartidoService {
 
 	PartidoDTO actualizarComoAdmin(Long partidoId, PartidoGuardarRequest request);
 
+	/**
+	 * Borra el partido con todos sus datos (convocatoria, retransmisión, alineación, estadísticas, justificaciones),
+	 * todo o nada. Un entrenador solo puede borrar partidos sin esos datos; con ellos, SecurityException
+	 * ({@link #MENSAJE_PARTIDO_CON_DATOS}). COORDINADOR y ADMIN_APP, siempre.
+	 */
 	void eliminar(Long usuarioAppId, Long partidoId);
 
-	void eliminarComoAdmin(Long partidoId);
+	void eliminarComoAdmin(Long partidoId, String usuarioPanel);
+
+	default void eliminarComoAdmin(Long partidoId) {
+		eliminarComoAdmin(partidoId, null);
+	}
+
+	String MENSAJE_PARTIDO_CON_DATOS =
+			"Este partido tiene datos (convocatoria, resultado o retransmisión): pide a coordinación que lo borre";
+
+	/** Lo que se borraría; mismos permisos de equipo que {@link #eliminar}. */
+	PartidoBorradoResumen resumenBorrado(Long usuarioAppId, Long partidoId);
+
+	/** Lo que se borraría, para el panel web (ya autenticado por /admin/**). */
+	PartidoBorradoResumen resumenBorradoComoAdmin(Long partidoId);
 
 	/**
 	 * Cancela un partido (CANCELADO = 1) sin borrarlo, con el mismo

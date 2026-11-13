@@ -280,8 +280,64 @@ public class AppPartidoController {
         }
 
         /**
+         * Lo que se borraría junto con el partido (convocatoria, resultado,
+         * retransmisión, alineación, estadísticas), para el diálogo de
+         * confirmación. Mismos permisos de equipo que el borrado.
+         *
+         * GET /api/app/partidos/{id}/resumen-borrado
+         */
+        @GetMapping("/{id}/resumen-borrado")
+        public ResponseEntity<?> resumenBorrado(
+                        @PathVariable Long id,
+                        Authentication authentication) {
+
+                if (authentication == null
+                                || !authentication.isAuthenticated()) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+                }
+
+                try {
+
+                        Long usuarioId = Long.parseLong(
+                                        authentication.getName());
+
+                        return ResponseEntity.ok(
+                                        partidoService.resumenBorrado(usuarioId, id));
+
+                } catch (NumberFormatException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body("Usuario no autenticado");
+
+                } catch (SecurityException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.FORBIDDEN)
+                                        .body(e.getMessage());
+
+                } catch (IllegalArgumentException e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.BAD_REQUEST)
+                                        .body(e.getMessage());
+
+                } catch (Exception e) {
+
+                        return ResponseEntity
+                                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body("Error al consultar lo que se borraría del partido");
+                }
+        }
+
+        /**
          * Eliminar un partido de un equipo que el entrenador pueda
-         * gestionar.
+         * gestionar, con todos sus datos (convocatoria, retransmisión,
+         * alineación, estadísticas). Un entrenador solo puede borrar
+         * partidos sin esos datos (403); COORDINADOR y ADMIN_APP, siempre.
          *
          * DELETE /api/app/partidos/{id}
          */

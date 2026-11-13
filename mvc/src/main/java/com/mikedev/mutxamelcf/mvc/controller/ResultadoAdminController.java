@@ -1,5 +1,6 @@
 package com.mikedev.mutxamelcf.mvc.controller;
 
+import java.security.Principal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -8,6 +9,8 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.mikedev.mutxamelcf.model.EquipoDTO;
 import com.mikedev.mutxamelcf.model.PartidoDTO;
@@ -127,14 +131,30 @@ public class ResultadoAdminController {
 		return "redirect:/admin/calendario-resultados";
 	}
 
-	// Método para eliminar un partido existente.
+	// Lo que se borraría junto con el partido, para el diálogo de confirmación (JSON, lo pide el JS de la página).
+	@GetMapping("/calendario-resultados/{id}/resumen-borrado")
+	@ResponseBody
+	public ResponseEntity<?> resumenBorrado(@PathVariable Long id) {
+
+		try {
+			return ResponseEntity.ok(partidoService.resumenBorradoComoAdmin(id));
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+		} catch (Exception e) {
+			logger.error("Error al consultar lo que se borraría del partido {}: {}", id, e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body("Error al consultar lo que se borraría del partido");
+		}
+	}
+
+	// Método para eliminar un partido existente, con todos sus datos.
 	@PostMapping("/calendario-resultados/{id}/eliminar")
-	public String eliminar(@PathVariable Long id) {
+	public String eliminar(@PathVariable Long id, Principal principal) {
 
 		logger.debug("Inicio eliminar: id={}", id);
 
 		try {
-			partidoService.eliminarComoAdmin(id);
+			partidoService.eliminarComoAdmin(id, principal != null ? principal.getName() : null);
 		} catch (Exception e) {
 			logger.error("Error al eliminar el partido: {}", e.getMessage(), e);
 			return "redirect:/admin/calendario-resultados?error=Error al eliminar el partido";

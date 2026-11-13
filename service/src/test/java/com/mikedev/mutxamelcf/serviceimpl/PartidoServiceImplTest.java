@@ -64,14 +64,21 @@ class PartidoServiceImplTest {
     @Mock
     private com.mikedev.mutxamelcf.dao.PartidoLiveEventoDao eventoDao;
 
+    @Mock
+    private com.mikedev.mutxamelcf.service.ConvocatoriaService convocatoriaService;
+
     private PartidoServiceImpl service;
 
     @BeforeEach
     void setUp() {
+        // Sin datos asociados, salvo que un test diga otra cosa.
+        org.mockito.Mockito.lenient().when(partidoDao.resumenBorrado(any()))
+                .thenReturn(new com.mikedev.mutxamelcf.model.ResumenBorradoPartido(null, 0, 0, 0, 0));
+
         service = new PartidoServiceImpl(
                 partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
                 descansoEquipoDao, justificacionFaltaPartidoDao, temporadaDao,
-                invitadosService, eventoDao, AvisosTest.TEXTOS,
+                invitadosService, eventoDao, convocatoriaService, AvisosTest.TEXTOS,
                 java.time.Clock.systemDefaultZone());
     }
 
@@ -999,7 +1006,7 @@ class PartidoServiceImplTest {
         return new PartidoServiceImpl(
                 partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
                 descansoEquipoDao, justificacionFaltaPartidoDao, temporadaDao,
-                invitadosService, eventoDao, AvisosTest.TEXTOS, reloj);
+                invitadosService, eventoDao, convocatoriaService, AvisosTest.TEXTOS, reloj);
     }
 
     // ---- ausencia justificada en el calendario del jugador (reloj fijo: miércoles 21/10/2026 10:00) ----

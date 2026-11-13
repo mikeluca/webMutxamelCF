@@ -165,19 +165,39 @@ class ResultadoAdminControllerTest {
 
     @Test
     void eliminarRedirigeCorrectamenteCuandoTieneExito() {
-        String vista = controller.eliminar(5L);
+        String vista = controller.eliminar(5L, () -> "admin@club");
 
         assertEquals("redirect:/admin/calendario-resultados", vista);
-        verify(partidoService).eliminarComoAdmin(5L);
+        verify(partidoService).eliminarComoAdmin(5L, "admin@club");
     }
 
     @Test
     void eliminarRedirigeConErrorSiElServicioFalla() {
         org.mockito.Mockito.doThrow(new IllegalArgumentException("no existe")).when(partidoService)
-                .eliminarComoAdmin(5L);
+                .eliminarComoAdmin(5L, "admin@club");
 
-        String vista = controller.eliminar(5L);
+        String vista = controller.eliminar(5L, () -> "admin@club");
 
         assertEquals("redirect:/admin/calendario-resultados?error=Error al eliminar el partido", vista);
+    }
+
+    @Test
+    void elResumenDeBorradoSeDevuelveParaElDialogoDeConfirmacion() {
+        com.mikedev.mutxamelcf.model.PartidoBorradoResumen resumen = new com.mikedev.mutxamelcf.model.PartidoBorradoResumen(
+                5L, true, true, true, 14, false, 23, true, 16, 16);
+        org.mockito.Mockito.when(partidoService.resumenBorradoComoAdmin(5L)).thenReturn(resumen);
+
+        org.springframework.http.ResponseEntity<?> respuesta = controller.resumenBorrado(5L);
+
+        assertEquals(200, respuesta.getStatusCode().value());
+        assertEquals(resumen, respuesta.getBody());
+    }
+
+    @Test
+    void elResumenDeUnPartidoInexistenteEs404() {
+        org.mockito.Mockito.when(partidoService.resumenBorradoComoAdmin(5L))
+                .thenThrow(new IllegalArgumentException("El partido no existe"));
+
+        assertEquals(404, controller.resumenBorrado(5L).getStatusCode().value());
     }
 }

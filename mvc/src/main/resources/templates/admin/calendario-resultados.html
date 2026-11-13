@@ -137,8 +137,9 @@
 										<td>
 											<form
 												th:action="@{/admin/calendario-resultados/{id}/eliminar(id=${partido.id})}"
+												th:attr="data-resumen-url=@{/admin/calendario-resultados/{id}/resumen-borrado(id=${partido.id})}"
 												method="post"
-												onsubmit="return confirm('¿Eliminar este partido?');">
+												onsubmit="return confirmarEliminarPartido(this);">
 												<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 												<button type="submit" class="btn btn-danger">Eliminar</button>
 											</form>
@@ -293,6 +294,67 @@
 	<div th:replace="~{admin/footerAdmin.html}"></div>
 
 	<script>
+		/*
+		 * Borrar un partido borra también sus datos. Antes de confirmar se pide al servidor qué tiene (convocatoria,
+		 * resultado, retransmisión, alineación, estadísticas) y el diálogo lo enumera. El envío se hace desde aquí
+		 * cuando se acepta, porque la consulta es asíncrona.
+		 */
+		function textoBorradoPartido(r) {
+			const plural = (n, uno, varios) => n + ' ' + (n === 1 ? uno : varios);
+			const partes = [];
+
+			if (r.tieneConvocatoria) {
+				partes.push('la convocatoria (' + plural(r.convocados, 'convocado', 'convocados') + ')');
+			}
+			if (r.tieneResultado) {
+				partes.push('el resultado');
+			}
+			if (r.eventosRetransmision > 0) {
+				partes.push('la retransmisión (' + plural(r.eventosRetransmision, 'evento', 'eventos') + ')');
+			}
+			if (r.tieneAlineacion) {
+				partes.push('la alineación');
+			}
+			if (r.filasEstadisticas > 0) {
+				partes.push('las estadísticas de ' + plural(r.filasEstadisticas, 'jugador', 'jugadores'));
+			}
+
+			if (partes.length === 0) {
+				return '¿Eliminar este partido?';
+			}
+
+			const lista = partes.length === 1
+				? partes[0]
+				: partes.slice(0, -1).join(', ') + ' y ' + partes[partes.length - 1];
+
+			return 'Se borrarán también: ' + lista + '. No se puede deshacer.';
+		}
+
+		function confirmarEliminarPartido(formulario) {
+			if (formulario.dataset.confirmado === '1') {
+				return true;
+			}
+
+			fetch(formulario.dataset.resumenUrl, { headers: { 'Accept': 'application/json' } })
+				.then(respuesta => {
+					if (!respuesta.ok) {
+						throw new Error('HTTP ' + respuesta.status);
+					}
+					return respuesta.json();
+				})
+				.then(resumen => textoBorradoPartido(resumen))
+				.catch(() => 'No se ha podido comprobar qué datos tiene el partido; si los tiene, se borrarán también.'
+					+ ' No se puede deshacer. ¿Eliminarlo?')
+				.then(texto => {
+					if (confirm(texto)) {
+						formulario.dataset.confirmado = '1';
+						formulario.submit();
+					}
+				});
+
+			return false;
+		}
+
 		function filtrarAcordeon() {
 			const texto = document.getElementById('filtroTexto').value.toLowerCase();
 

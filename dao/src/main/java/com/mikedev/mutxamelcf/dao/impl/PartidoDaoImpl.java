@@ -19,9 +19,11 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.mikedev.mutxamelcf.dao.PartidoDao;
 import com.mikedev.mutxamelcf.model.Partido;
+import com.mikedev.mutxamelcf.model.ResumenBorradoPartido;
 
 @Repository
 public class PartidoDaoImpl implements PartidoDao {
@@ -570,20 +572,57 @@ public class PartidoDaoImpl implements PartidoDao {
 	}
 
 	@Override
+	@Transactional
 	public void eliminar(Long id) {
 		logger.debug("Inicio eliminar: id={}", id);
 
-		// FK_JUSTIF_PART_PARTIDO no tiene ON DELETE CASCADE.
-		jdbcTemplate.update(
-				"DELETE FROM JUSTIFICACIONES_FALTA_PARTIDO WHERE PARTIDO_ID = ?",
+		/*
+		 * Ninguna de estas claves ajenas tiene ON DELETE CASCADE (ORA-02292): se borra en orden, de los hijos al
+		 * padre. @Transactional asegura que, si un paso falla (también llamado sin la transacción del servicio),
+		 * no queda nada borrado.
+		 */
+		int eventos = jdbcTemplate.update("DELETE FROM PARTIDO_LIVE_EVENTOS WHERE PARTIDO_ID = ?", id);
+		int alineacion = jdbcTemplate.update("DELETE FROM PARTIDO_ALINEACION WHERE PARTIDO_ID = ?", id);
+		int estadisticas = jdbcTemplate.update("DELETE FROM PARTIDO_ESTADISTICAS_JUGADOR WHERE PARTIDO_ID = ?", id);
+		int justificaciones = jdbcTemplate.update("DELETE FROM JUSTIFICACIONES_FALTA_PARTIDO WHERE PARTIDO_ID = ?",
 				id);
+		int convocados = jdbcTemplate.update(
+				"DELETE FROM CONVOCATORIA_JUGADOR WHERE CONVOCATORIA_ID IN"
+						+ " (SELECT ID FROM CONVOCATORIAS WHERE PARTIDO_ID = ?)",
+				id);
+		int convocatorias = jdbcTemplate.update("DELETE FROM CONVOCATORIAS WHERE PARTIDO_ID = ?", id);
 
 		int filasAfectadas = jdbcTemplate.update(
 				"DELETE FROM PARTIDOS WHERE ID = ?",
 				id);
 
-		logger.info("Partido eliminado: id={}, filasAfectadas={}", id, filasAfectadas);
+		logger.info(
+				"Partido eliminado: id={}, filasAfectadas={}, eventos={}, alineacion={}, estadisticas={},"
+						+ " justificaciones={}, convocados={}, convocatorias={}",
+				id, filasAfectadas, eventos, alineacion, estadisticas, justificaciones, convocados, convocatorias);
 		logger.debug("Fin eliminar: id={}", id);
+	}
+
+	@Override
+	public ResumenBorradoPartido resumenBorrado(Long partidoId) {
+
+		List<Long> convocatorias = jdbcTemplate.queryForList(
+				"SELECT ID FROM CONVOCATORIAS WHERE PARTIDO_ID = ?", Long.class, partidoId);
+
+		Long convocatoriaId = convocatorias.isEmpty() ? null : convocatorias.get(0);
+
+		return new ResumenBorradoPartido(
+				convocatoriaId,
+				convocatoriaId == null ? 0
+						: contar("SELECT COUNT(*) FROM CONVOCATORIA_JUGADOR WHERE CONVOCATORIA_ID = ?", convocatoriaId),
+				contar("SELECT COUNT(*) FROM PARTIDO_LIVE_EVENTOS WHERE PARTIDO_ID = ?", partidoId),
+				contar("SELECT COUNT(*) FROM PARTIDO_ALINEACION WHERE PARTIDO_ID = ?", partidoId),
+				contar("SELECT COUNT(*) FROM PARTIDO_ESTADISTICAS_JUGADOR WHERE PARTIDO_ID = ?", partidoId));
+	}
+
+	private int contar(String sql, Long id) {
+		Integer total = jdbcTemplate.queryForObject(sql, Integer.class, id);
+		return total == null ? 0 : total;
 	}
 
 	@Override

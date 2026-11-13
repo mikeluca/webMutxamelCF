@@ -987,6 +987,30 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                 convocatoria.getFechaPartido(),
                                 convocados);
 
+                avisarConvocatoriaAnulada(convocatoria, convocados);
+        }
+
+        @Override
+        @Transactional
+        public void avisarAnulada(Long convocatoriaId) {
+
+                Convocatoria convocatoria = convocatoriaId == null ? null : convocatoriaDao.obtenerPorId(convocatoriaId);
+
+                if (convocatoria == null) {
+                        return;
+                }
+
+                // Solo los del propio equipo: a los invitados los avisa InvitadosService, con su propio texto.
+                avisarConvocatoriaAnulada(
+                                convocatoria,
+                                convocatoriaJugadorDao.obtenerPorConvocatoria(convocatoriaId).stream()
+                                                .filter(convocado -> !convocado.isInvitado())
+                                                .map(ConvocatoriaJugador::getJugadorId)
+                                                .toList());
+        }
+
+        private void avisarConvocatoriaAnulada(Convocatoria convocatoria, List<Long> convocados) {
+
                 avisar(
                                 convocatoria,
                                 convocados,

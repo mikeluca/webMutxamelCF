@@ -1586,7 +1586,8 @@ class PartidoEnVivoServiceImplTest {
         PartidoService portada = new PartidoServiceImpl(
                 partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
                 mock(DescansoEquipoDao.class), mock(JustificacionFaltaPartidoDao.class), mock(TemporadaDao.class),
-                mock(InvitadosService.class), eventoDao, AvisosTest.TEXTOS, reloj);
+                mock(InvitadosService.class), eventoDao, mock(com.mikedev.mutxamelcf.service.ConvocatoriaService.class),
+                AvisosTest.TEXTOS, reloj);
         when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partido);
 
         empezarPartido();
