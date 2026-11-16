@@ -40,6 +40,10 @@ import com.mikedev.mutxamelcf.service.HistorialTemporadaService;
 @Service
 public class HistorialTemporadaServiceImpl implements HistorialTemporadaService {
 
+	/** Código de club de la FFCV del Mutxamel: sus filiales son filas nuestras (esPropio). */
+	@org.springframework.beans.factory.annotation.Value("${ffcv.club.codigo:3010}")
+	private int codigoClubPropio = 3010;
+
 	private final TemporadaDao temporadaDao;
 	private final JugadorTemporadaDao jugadorTemporadaDao;
 	private final CuerpoTecnicoTemporadaDao cuerpoTecnicoTemporadaDao;
@@ -145,7 +149,8 @@ public class HistorialTemporadaServiceImpl implements HistorialTemporadaService 
 					referencia.getCompeticion(), referencia.getJornada(),
 					filas.stream().map(f -> new ClasificacionFilaPublicDTO(f.getPosicion(), f.getNombreEquipo(),
 							f.isEsNuestro(), f.getPuntos(), f.getPj(), f.getPg(), f.getPe(), f.getPp(), f.getGf(),
-							f.getGc(), EscudosRivales.urlDeFila(f))).toList()));
+							f.getGc(), EscudosRivales.urlDeFila(f),
+							EscudosRivales.esPropioFila(f, codigoClubPropio))).toList()));
 		});
 
 		return tablas.stream().sorted(Comparator.comparing(TablaClasificacion::equipo)).toList();

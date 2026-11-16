@@ -143,15 +143,29 @@ class HistorialTemporadaServiceImplTest {
 		nuestra.setPosicion(1);
 		nuestra.setPuntos(70);
 		when(jugadorTemporadaDao.listarPorTemporada(PASADA)).thenReturn(List.of());
-		when(clasificacionDao.listarPorTemporada(PASADA)).thenReturn(List.of(nuestra));
+		Clasificacion filial = new Clasificacion();
+		filial.setEquipoId(CADETE_A);
+		filial.setNombreEquipo("Otro nombre");
+		filial.setCodigoClub(3010);
+		filial.setPosicion(2);
+		Clasificacion rival = new Clasificacion();
+		rival.setEquipoId(CADETE_A);
+		rival.setNombreEquipo("Pego C.F.");
+		rival.setCodigoClub(1234);
+		rival.setPosicion(3);
+		when(clasificacionDao.listarPorTemporada(PASADA)).thenReturn(List.of(nuestra, filial, rival));
 
 		HistorialTemporadaDTO historial = servicio.obtener(PASADA, null);
+
+		// esPropio: la nuestra y el filial (por su código de club) sí; la rival, no.
+		assertThat(historial.clasificaciones().get(0).filas()).extracting(f -> f.esPropio())
+				.containsExactly(true, true, false);
 
 		assertThat(historial.clasificaciones()).singleElement().satisfies(t -> {
 			assertThat(t.equipo()).isEqualTo("Cadete A");
 			assertThat(t.competicion()).isEqualTo("Liga Cadete");
 			assertThat(t.jornada()).isEqualTo(30);
-			assertThat(t.filas()).singleElement().satisfies(f -> assertThat(f.puntos()).isEqualTo(70));
+			assertThat(t.filas().get(0).puntos()).isEqualTo(70);
 		});
 		verify(clasificacionDao, never()).listarPorTemporada(ACTIVA);
 	}

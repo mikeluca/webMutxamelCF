@@ -59,9 +59,14 @@ invitaciones y el panel de fin de semana de coordinación.
 ### `escudoUrl` (clasificaciones)
 
 `GET /api/public/equipos/{id}/clasificacion` y la clasificación de cada temporada del historial
-(`HistorialTemporadaDTO`): cada fila de la tabla lleva `escudoUrl` (ruta relativa o `null`).
+(`HistorialTemporadaDTO`): cada fila de la tabla lleva `escudoUrl` (ruta relativa o `null`) y `esPropio` (boolean).
 
 - Es `null` en la fila **nuestra** (`esNuestro: true`) y en las de nuestro club: la app pone nuestro escudo con `esNuestro`.
+- `esPropio` es `true` si la fila es de nuestro club: la marcada `esNuestro` (`ES_NUESTRO = 1`), cualquiera con nuestro
+  código de club de la FFCV (`ffcv.club.codigo`, 3010: los **filiales**) o cuyo nombre normalizado es el de nuestro club
+  ("Mutxamel C.F. B", "C.F. Mutxamel"; "Atlético Mutxamel" o "Club Mutxamel Benifutsal" no lo son). La app pone entonces
+  **nuestro escudo** también en las filas de los filiales, cuyo `escudoUrl` sigue siendo `null`. En una fila rival es
+  `false`.
 - El club de la fila se busca por el **código de club de la FFCV** (`CLASIFICACIONES.CODIGO_CLUB`, que se rellena al
   importar el Excel) y, en las filas antiguas sin código, por el nombre normalizado.
 - En la app no existe una pantalla "Mis clasificaciones" en este backend: lo que se sirve es la clasificación pública por

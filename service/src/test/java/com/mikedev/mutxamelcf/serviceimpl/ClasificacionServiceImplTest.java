@@ -91,6 +91,28 @@ class ClasificacionServiceImplTest {
     }
 
     @Test
+    void esPropioMarcaNuestraFilaYLosFilialesPorCodigoOPorNombreYNuncaUnaRival() {
+        when(clasificacionDao.obtenerPorEquipo(1L)).thenReturn(List.of(
+                fila(1, "Monnegre", false, 6574, 11L, 2L),
+                fila(2, "Mutxamel C.F.", true, 3010, null, null),
+                fila(3, "Nombre cualquiera", false, 3010, null, null),
+                fila(4, "C.F. Mutxamel 'B'", false, 9999, null, null),
+                fila(5, "Atlético Mutxamel", false, 7777, 12L, 3L),
+                fila(6, "Sin código", false, null, null, null)));
+        when(clubRivalDao.listar()).thenReturn(List.of());
+        when(clubRivalDao.mapaAlias()).thenReturn(Map.of());
+
+        List<ClasificacionFilaPublicDTO> tabla = service.obtenerPublicaPorEquipo(1L).clasificacion();
+
+        // Nuestra, filial por código, filial por nombre: propias y sin escudoUrl. Las rivales, no.
+        assertThat(tabla).extracting(ClasificacionFilaPublicDTO::esPropio)
+                .containsExactly(false, true, true, true, false, false);
+        assertThat(tabla.get(2).escudoUrl()).isNull();
+        assertThat(tabla.get(3).escudoUrl()).isNull();
+        assertThat(tabla.get(0).escudoUrl()).isEqualTo("/api/public/escudos-rivales/11?v=2");
+    }
+
+    @Test
     void sinClasificacionNoHayNada() {
         when(clasificacionDao.obtenerPorEquipo(1L)).thenReturn(List.of());
 

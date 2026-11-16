@@ -130,7 +130,7 @@ class RepartoHistorialSeguridadTest {
                 List.of(new HistorialTemporadaDTO.StaffEquipo("Cadete A",
                         List.of(new HistorialTemporadaDTO.PersonaStaff("Luis Mora", "Entrenador")))),
                 List.of(new HistorialTemporadaDTO.TablaClasificacion(5L, "Cadete A", "Liga", 30, List.of(
-                        new ClasificacionFilaPublicDTO(1, "Mutxamel CF", true, 70, 30, 22, 4, 4, 80, 20, null)))),
+                        new ClasificacionFilaPublicDTO(1, "Mutxamel CF", true, 70, 30, 22, 4, 4, 80, 20, null, true)))),
                 List.of(new HistorialTemporadaDTO.EquipoOpcion(5L, "Cadete A")),
                 new HistorialTemporadaDTO.EstadisticasEquipo(5L, "Cadete A", new PartidosEquipo(30, 22, 4, 4, 80, 20),
                         50, 48, List.of(new HistorialTemporadaDTO.JugadorEstadisticas(1L, "Pau Sanz", 4, 28, 12, 3, 2, 0,

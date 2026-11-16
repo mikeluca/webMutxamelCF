@@ -55,7 +55,8 @@ public class ClasificacionServiceImpl implements ClasificacionService {
 		List<ClasificacionFilaPublicDTO> tabla = filas.stream()
 				.map(f -> new ClasificacionFilaPublicDTO(f.getPosicion(), f.getNombreEquipo(), f.isEsNuestro(),
 						f.getPuntos(), f.getPj(), f.getPg(), f.getPe(), f.getPp(), f.getGf(), f.getGc(),
-						escudoUrl(f, porAlias)))
+						escudoUrl(f, porAlias),
+						EscudosRivales.esPropioFila(f, codigoClubPropio)))
 				.toList();
 
 		logger.debug("Fin obtenerPublicaPorEquipo: filas={}", tabla.size());

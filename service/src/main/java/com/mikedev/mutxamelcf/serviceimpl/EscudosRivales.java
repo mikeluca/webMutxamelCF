@@ -33,4 +33,14 @@ public final class EscudosRivales {
 
         return url(fila.getClubRivalId(), fila.getEscudoVersion());
     }
+
+    /**
+     * true si la fila de clasificación es de nuestro club: marcada como nuestra (ES_NUESTRO), con nuestro código de club
+     * de la FFCV (ffcv.club.codigo: sus filiales) o con el nombre de nuestro club ({@link NombreClub#esPropio}).
+     */
+    public static boolean esPropioFila(com.mikedev.mutxamelcf.model.Clasificacion fila, int codigoClubPropio) {
+        return fila.isEsNuestro()
+                || (fila.getCodigoClub() != null && fila.getCodigoClub() == codigoClubPropio)
+                || NombreClub.esPropio(fila.getNombreEquipo());
+    }
 }

@@ -210,8 +210,8 @@ class ImportacionClasificacionesAdminControllerTest {
         when(clasificacionService.obtenerPublicaPorEquipo(1L)).thenReturn(new ClasificacionPublicDTO(
                 "Primera FFCV, Grup 4", 3, LocalDateTime.of(2026, 10, 19, 10, 30),
                 List.of(
-                        new ClasificacionFilaPublicDTO(1, "Monnegre", false, 9, 3, 3, 0, 0, 8, 1, "/api/public/escudos-rivales/7?v=2"),
-                        new ClasificacionFilaPublicDTO(2, "Mutxamel C.F.", true, 6, 3, 2, 0, 1, 5, 3, null))));
+                        new ClasificacionFilaPublicDTO(1, "Monnegre", false, 9, 3, 3, 0, 0, 8, 1, "/api/public/escudos-rivales/7?v=2", false),
+                        new ClasificacionFilaPublicDTO(2, "Mutxamel C.F.", true, 6, 3, 2, 0, 1, 5, 3, null, true))));
 
         mockMvc.perform(get("/api/public/equipos/1/clasificacion"))
                 .andExpect(status().isOk())
