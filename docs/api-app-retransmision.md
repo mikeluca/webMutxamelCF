@@ -270,7 +270,9 @@ los últimos resultados; sin consultas por jugador.
   "cabecera": {
     "partidoId": 30, "equipoLocal": "Mutxamel CF", "equipoVisitante": "Pego C.F.",
     "dia": "2026-11-08", "hora": "18:00", "golesFavor": 2, "golesContra": 1,
-    "estado": "EN_JUEGO", "competicion": "Preferente Valenciana · Jornada 9"
+    "estado": "EN_JUEGO", "competicion": "Preferente Valenciana · Jornada 9",
+    "reloj": null, "minutosParte": 45,
+    "escudoRivalUrl": "/api/public/escudos-rivales/7?v=3", "rivalEsPropio": false
   },
   "eventos": [
     { "tipo": "TARJETA_ROJA", "minuto": 80, "jugador": "Ana Ruiz", "jugadorEntra": null,
@@ -289,7 +291,8 @@ los últimos resultados; sin consultas por jugador.
     ]
   },
   "forma": [
-    { "partidoId": 44, "dia": "2026-11-06", "local": false, "rival": "R5", "golesFavor": 1, "golesContra": 2, "resultado": "P" }
+    { "partidoId": 44, "dia": "2026-11-06", "local": false, "rival": "R5", "golesFavor": 1, "golesContra": 2, "resultado": "P",
+      "escudoRivalUrl": null, "rivalEsPropio": true }
   ]
 }
 ```
@@ -303,6 +306,13 @@ los últimos resultados; sin consultas por jugador.
   fechas contienen el día; si ninguna, la activa) y `" · Jornada N"` si la tiene (`Jornada N` sola si no hay
   competición; `Liga` si no hay ninguna de las dos). **Copa** = `Copa` y `" · competición"` si la hay. **Amistoso** =
   `Amistoso`. En catalán y en inglés: `Amistós`/`Lliga`/`Jornada N`, `Friendly`/`League`/`Cup`/`Matchday N`.
+
+- `minutosParte`: duración de una parte según la modalidad del equipo (`retransmision.minutos-parte.F11/F8/F5`: 45/25/20;
+  F11 si el equipo no tiene modalidad), la misma configuración que usa el reloj. Va **siempre**, también sin directo
+  (próximo, finalizado, cancelado). La app lo usa para dibujar la barra de momentos del partido (0-90 en F11).
+- `escudoRivalUrl` y `rivalEsPropio`: el escudo del club rival (ruta relativa a la URL base, `null` si no tiene) y si el
+  rival es un equipo de nuestro club (la app pone nuestro escudo). Los mismos dos campos van en cada elemento de `forma`.
+  Contrato completo en [api-app-escudos-rivales.md](api-app-escudos-rivales.md).
 
 **Eventos.** Los no anulados, **lo último primero**. `tipo`: `GOL_FAVOR`, `GOL_CONTRA`, `CAMBIO`, `TARJETA_AMARILLA`,
 `TARJETA_ROJA` (también la doble amarilla, con `dobleAmarilla: true`) y los separadores `DESCANSO` y `FINAL`

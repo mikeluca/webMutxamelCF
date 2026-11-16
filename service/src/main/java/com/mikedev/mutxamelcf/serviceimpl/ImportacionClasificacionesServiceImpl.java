@@ -31,6 +31,7 @@ import com.mikedev.mutxamelcf.model.FfcvClasificacionesParseResult;
 import com.mikedev.mutxamelcf.model.FfcvFilaClasificacion;
 import com.mikedev.mutxamelcf.model.PrevisualizacionClasificaciones;
 import com.mikedev.mutxamelcf.model.ResultadoImportacionClasificaciones;
+import com.mikedev.mutxamelcf.service.ClubRivalService;
 import com.mikedev.mutxamelcf.service.ImportacionClasificacionesService;
 
 @Service
@@ -50,6 +51,29 @@ public class ImportacionClasificacionesServiceImpl implements ImportacionClasifi
 	 *                   identifica siempre por él, nunca por el texto del nombre
 	 *                   (Monnegre y Benifutsal también contienen "Mutxamel").
 	 */
+	/** Opcional: sin él la importación no crea los clubes rivales (los tests antiguos construyen el servicio sin él). */
+	private ClubRivalService clubRivalService;
+
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setClubRivalService(ClubRivalService clubRivalService) {
+		this.clubRivalService = clubRivalService;
+	}
+
+	/*
+	 * Para cada fila que no es de nuestro club, su club rival (un solo registro por club aunque salga en varias ligas):
+	 * por código de club, o por alias si no lo hay. Nuestro club y sus filiales nunca son rival.
+	 */
+	private void asegurarClubesRivales(List<Clasificacion> filas) {
+
+		if (clubRivalService == null) {
+			return;
+		}
+
+		for (Clasificacion fila : filas) {
+			clubRivalService.asegurarDeClasificacion(fila.getCodigoClub(), fila.getNombreEquipo(), fila.isEsNuestro());
+		}
+	}
+
 	public ImportacionClasificacionesServiceImpl(
 			ClasificacionDao clasificacionDao,
 			EquipoFfcvDao equipoFfcvDao,
@@ -175,6 +199,8 @@ public class ImportacionClasificacionesServiceImpl implements ImportacionClasifi
 
 			clasificacionDao.eliminarPorEquipo(previa.equipoId());
 			clasificacionDao.insertarTodas(nuevas);
+
+			asegurarClubesRivales(nuevas);
 
 			importados.add(previa.equipoNombre());
 			filasInsertadas += nuevas.size();
@@ -344,6 +370,7 @@ public class ImportacionClasificacionesServiceImpl implements ImportacionClasifi
 		c.setJornada(fila.jornada());
 		c.setPosicion(fila.posicion());
 		c.setNombreEquipo(fila.equipo());
+		c.setCodigoClub(fila.club());
 		c.setLetra(fila.letra());
 		c.setEsNuestro(esNuestro);
 		c.setPuntos(fila.puntos());
@@ -365,6 +392,7 @@ public class ImportacionClasificacionesServiceImpl implements ImportacionClasifi
 		c.setJornada(origen.getJornada());
 		c.setPosicion(origen.getPosicion());
 		c.setNombreEquipo(origen.getNombreEquipo());
+		c.setCodigoClub(origen.getCodigoClub());
 		c.setLetra(origen.getLetra());
 		c.setEsNuestro(origen.isEsNuestro());
 		c.setPuntos(origen.getPuntos());

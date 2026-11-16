@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<title>Escudos de rivales | Mutxamel CF</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+	<link th:href="@{/css/estilos.css}" rel="stylesheet">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" integrity="sha384-tViUnnbYAV00FLIhhi3v/dWt3Jxw4gZQcNoSCxCIFNJVCx7/D55/wXsrNIRANwdD" crossorigin="anonymous">
+</head>
+
+<body>
+	<div th:replace="~{admin/cabeceraAdmin.html}"></div>
+
+	<main class="admin-screen-shell lead">
+		<p class="dashboard-eyebrow mb-1">Administración Deportiva</p>
+		<h1 class="admin-screen-title">Escudos de rivales</h1>
+
+		<p class="text-muted">
+			Un registro por <strong>club</strong> rival (el Alicante A, el B y el infantil son el mismo club y comparten
+			escudo). Los clubes se crean solos al importar las clasificaciones y al dar de alta partidos; el botón
+			<strong>Generar clubes</strong> crea ya los que falten con los datos que hay (se puede pulsar las veces que
+			haga falta). Sube un PNG o JPG de hasta 2 MB: se reduce a 256 px y se guarda como PNG.
+		</p>
+
+		<div th:if="${error}" class="alert alert-danger" role="alert" th:text="${error}"></div>
+		<div th:if="${mensaje}" class="alert alert-success" role="alert" th:text="${mensaje}"></div>
+		<div th:if="${resumen}" class="alert alert-success" role="alert">
+			<strong th:text="${resumen.clubesCreados()}"></strong> club(es) creado(s),
+			<strong th:text="${resumen.aliasAnadidos()}"></strong> alias añadido(s) y
+			<strong th:text="${resumen.partidosEnlazados()}"></strong> partido(s) enlazado(s).
+		</div>
+
+		<div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+			<span class="fs-5" id="contador">
+				<strong th:text="${conEscudo}"></strong> de <strong th:text="${total}"></strong> clubes con escudo
+			</span>
+
+			<form th:action="@{/admin/escudos-rivales/generar}" method="post" class="ms-auto">
+				<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+				<button type="submit" class="btn btn-primary">
+					<i class="bi bi-magic"></i> Generar clubes
+				</button>
+			</form>
+		</div>
+
+		<form th:action="@{/admin/escudos-rivales}" method="get" class="row g-2 align-items-end mb-3">
+			<div class="col-auto">
+				<div class="btn-group" role="group" aria-label="Filtro">
+					<input type="radio" class="btn-check" name="filtro" id="filtroSin" value="sin" th:checked="${filtro == 'sin'}" onchange="this.form.submit()">
+					<label class="btn btn-outline-secondary" for="filtroSin">Sin escudo</label>
+					<input type="radio" class="btn-check" name="filtro" id="filtroTodos" value="todos" th:checked="${filtro == 'todos'}" onchange="this.form.submit()">
+					<label class="btn btn-outline-secondary" for="filtroTodos">Todos</label>
+				</div>
+			</div>
+			<div class="col-md-4">
+				<input type="search" name="q" class="form-control" placeholder="Buscar por nombre" th:value="${q}">
+			</div>
+			<div class="col-auto">
+				<button type="submit" class="btn btn-outline-primary">Buscar</button>
+			</div>
+		</form>
+
+		<datalist id="listaClubes">
+			<option th:each="c : ${todos}" th:value="${c.nombre() + ' · #' + c.id()}"></option>
+		</datalist>
+
+		<div class="admin-list-panel">
+			<table class="table table-striped align-middle w-100">
+				<thead>
+					<tr>
+						<th style="width: 8%;">Escudo</th>
+						<th>Club</th>
+						<th>Código FFCV</th>
+						<th>Ligas y equipos</th>
+						<th class="text-end">Partidos</th>
+						<th style="width: 30%;"></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr th:each="c : ${clubes}" th:attr="data-club=${c.id()}">
+						<td>
+							<img th:if="${c.tieneEscudo()}" th:src="${c.escudoUrl()}" alt="Escudo" width="48" height="48"
+								style="object-fit: contain;">
+							<i th:unless="${c.tieneEscudo()}" class="bi bi-shield fs-2 text-muted" title="Sin escudo"></i>
+						</td>
+						<td>
+							<div class="fw-bold" th:text="${c.nombre()}"></div>
+							<div class="small text-muted" th:if="${!#lists.isEmpty(c.alias())}"
+								th:text="'Alias: ' + ${#strings.listJoin(c.alias(), ', ')}"></div>
+						</td>
+						<td th:text="${c.codigoFfcv() != null ? c.codigoFfcv() : '—'}"></td>
+						<td class="small">
+							<div th:if="${!#lists.isEmpty(c.ligas())}" th:text="${#strings.listJoin(c.ligas(), ' · ')}"></div>
+							<div class="text-muted" th:if="${!#lists.isEmpty(c.equipos())}"
+								th:text="${#strings.listJoin(c.equipos(), ', ')}"></div>
+						</td>
+						<td class="text-end" th:text="${c.partidos()}"></td>
+						<td>
+							<form th:action="@{/admin/escudos-rivales/{id}/escudo(id=${c.id()})}" method="post"
+								enctype="multipart/form-data" class="d-flex gap-1 mb-1">
+								<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+								<input type="file" name="archivo" class="form-control form-control-sm"
+									accept="image/png,image/jpeg" required>
+								<button type="submit" class="btn btn-success btn-sm" title="Subir o cambiar el escudo">
+									<i class="bi bi-upload"></i>
+								</button>
+							</form>
+
+							<div class="d-flex flex-wrap gap-1">
+								<form th:if="${c.tieneEscudo()}" th:action="@{/admin/escudos-rivales/{id}/quitar-escudo(id=${c.id()})}"
+									method="post" onsubmit="return confirm('¿Quitar el escudo de este club?');">
+									<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+									<button type="submit" class="btn btn-outline-secondary btn-sm">Quitar escudo</button>
+								</form>
+
+								<form th:action="@{/admin/escudos-rivales/{id}/renombrar(id=${c.id()})}" method="post" class="d-flex gap-1">
+									<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+									<input type="text" name="nombre" maxlength="150" class="form-control form-control-sm"
+										th:value="${c.nombre()}" required>
+									<button type="submit" class="btn btn-outline-primary btn-sm" title="Renombrar">
+										<i class="bi bi-pencil"></i>
+									</button>
+								</form>
+							</div>
+
+							<form th:action="@{/admin/escudos-rivales/{id}/unir(id=${c.id()})}" method="post"
+								class="d-flex gap-1 mt-1"
+								onsubmit="return confirm('Se unirá este club con el elegido: sus alias y partidos pasan al destino y este club se borra. Si los dos tienen escudo se conserva el del destino. ¿Seguro?');">
+								<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+								<input type="text" name="destino" list="listaClubes" class="form-control form-control-sm"
+									placeholder="Unir con otro club…" required>
+								<button type="submit" class="btn btn-outline-warning btn-sm" title="Unir con otro club">
+									<i class="bi bi-intersect"></i>
+								</button>
+							</form>
+
+							<form th:if="${c.partidos() == 0}" th:action="@{/admin/escudos-rivales/{id}/borrar(id=${c.id()})}"
+								method="post" class="mt-1" onsubmit="return confirm('¿Borrar este club?');">
+								<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+								<button type="submit" class="btn btn-outline-danger btn-sm">
+									<i class="bi bi-trash"></i> Borrar
+								</button>
+							</form>
+						</td>
+					</tr>
+					<tr th:if="${#lists.isEmpty(clubes)}">
+						<td colspan="6" class="text-center text-muted">
+							No hay clubes que mostrar. Si acabas de desplegar, pulsa «Generar clubes».
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</main>
+
+	<div th:replace="~{admin/footerAdmin.html}"></div>
+
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+</body>
+
+</html>

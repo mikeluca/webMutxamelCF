@@ -221,4 +221,29 @@ public class ResultadoDTO {
 		this.local = local;
 	}
 
+
+	/**
+	 * Ruta relativa a la URL base del escudo del club rival (/api/public/escudos-rivales/{id}?v=N); null si no tiene.
+	 */
+	private String escudoRivalUrl;
+
+	/** true si el rival es un equipo de nuestro club (la app pone nuestro escudo). */
+	private boolean rivalEsPropio;
+
+	public String getEscudoRivalUrl() {
+		return escudoRivalUrl;
+	}
+
+	public void setEscudoRivalUrl(String escudoRivalUrl) {
+		this.escudoRivalUrl = escudoRivalUrl;
+	}
+
+	public boolean isRivalEsPropio() {
+		return rivalEsPropio;
+	}
+
+	public void setRivalEsPropio(boolean rivalEsPropio) {
+		this.rivalEsPropio = rivalEsPropio;
+	}
+
 }

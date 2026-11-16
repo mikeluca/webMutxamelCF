@@ -30,6 +30,7 @@ import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.PartidoDTO;
 import com.mikedev.mutxamelcf.model.PartidoGuardarRequest;
 import com.mikedev.mutxamelcf.model.ResultadoDTO;
+import com.mikedev.mutxamelcf.service.ClubRivalService;
 
 @ExtendWith(MockitoExtension.class)
 class PartidoServiceImplTest {
@@ -1142,6 +1143,142 @@ class PartidoServiceImplTest {
         when(equipoDao.obtenerActivosPublicosPorDeporte("F")).thenReturn(List.of(equipo(1L)));
         when(partidoDao.obtenerMasRelevantePorEquipo(1L)).thenReturn(partido);
         return serviceConReloj(MIERCOLES).obtenerResultados("F").get(0);
+    }
+
+    // ---------- escudo del rival ----------
+
+    private static Partido contra(String rival, Long clubId, Long escudoVersion) {
+        Partido partido = new Partido();
+        partido.setId(5L);
+        partido.setEquipoId(1L);
+        partido.setRival(rival);
+        partido.setClubRivalId(clubId);
+        partido.setEscudoRivalVersion(escudoVersion);
+        return partido;
+    }
+
+    @Test
+    void elResultadoDelPrimerEquipoLlevaElEscudoDelRivalSoloSiLoTiene() {
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo"))
+                .thenReturn(contra("Pego C.F.", 7L, 3L));
+
+        ResultadoDTO con = service.obtenerResultadoPrimerEquipo();
+
+        assertThat(con.getEscudoRivalUrl()).isEqualTo("/api/public/escudos-rivales/7?v=3");
+        assertThat(con.isRivalEsPropio()).isFalse();
+
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo"))
+                .thenReturn(contra("Pego C.F.", 7L, null));
+
+        assertThat(service.obtenerResultadoPrimerEquipo().getEscudoRivalUrl()).isNull();
+
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo"))
+                .thenReturn(contra("Pego C.F.", null, null));
+
+        assertThat(service.obtenerResultadoPrimerEquipo().getEscudoRivalUrl()).isNull();
+    }
+
+    @Test
+    void contraUnEquipoNuestroNoHayEscudoYElRivalEsPropio() {
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo"))
+                .thenReturn(contra("Mutxamel C.F. 'B'", null, null));
+
+        ResultadoDTO resultado = service.obtenerResultadoPrimerEquipo();
+
+        assertThat(resultado.isRivalEsPropio()).isTrue();
+        assertThat(resultado.getEscudoRivalUrl()).isNull();
+    }
+
+    @Test
+    void laTarjetaDeResultadosDeCualquierEquipoLlevaElEscudoYSiElRivalEsPropio() {
+        ResultadoDTO normal = resultadoDe(contra("Orba C.F.", 9L, 1L));
+        ResultadoDTO propio = resultadoDe(contra("CF Mutxamel B", null, null));
+
+        assertThat(normal.getEscudoRivalUrl()).isEqualTo("/api/public/escudos-rivales/9?v=1");
+        assertThat(normal.isRivalEsPropio()).isFalse();
+        assertThat(propio.getEscudoRivalUrl()).isNull();
+        assertThat(propio.isRivalEsPropio()).isTrue();
+    }
+
+    @Test
+    void losListadosDePartidosDeCualquierEquipoLlevanElEscudoYSiElRivalEsPropio() {
+        when(partidoDao.obtenerUltimosPorEquipo(1L, 5))
+                .thenReturn(List.of(contra("Orba C.F.", 9L, 4L), contra("Mutxamel C.F. B", null, null)));
+
+        List<PartidoDTO> partidos = service.obtenerUltimosPorEquipo(1L, 5);
+
+        assertThat(partidos.get(0).getEscudoRivalUrl()).isEqualTo("/api/public/escudos-rivales/9?v=4");
+        assertThat(partidos.get(0).isRivalEsPropio()).isFalse();
+        assertThat(partidos.get(1).getEscudoRivalUrl()).isNull();
+        assertThat(partidos.get(1).isRivalEsPropio()).isTrue();
+    }
+
+    private ClubRivalService conClubRivalService() {
+        ClubRivalService clubes = org.mockito.Mockito.mock(ClubRivalService.class);
+        service.setClubRivalService(clubes);
+        return clubes;
+    }
+
+    @Test
+    void crearEnlazaElPartidoConSuClubRivalYLaRespuestaLlevaSuEscudo() {
+        ClubRivalService clubes = conClubRivalService();
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(equipoDao.obtenerEquipoPorId(1L)).thenReturn(equipo(1L));
+        when(partidoDao.crear(any(Partido.class))).thenAnswer(invocation -> {
+            Partido partido = invocation.getArgument(0);
+            partido.setId(5L);
+            return partido;
+        });
+        when(partidoDao.obtenerPorId(5L)).thenReturn(contra("Rival CF", 7L, 2L));
+
+        PartidoDTO dto = service.crear(1L, requestValido());
+
+        verify(clubes).enlazarPartido(5L, "Rival CF");
+        assertThat(dto.getEscudoRivalUrl()).isEqualTo("/api/public/escudos-rivales/7?v=2");
+    }
+
+    @Test
+    void crearComoAdminEnlazaElPartidoConSuClubRival() {
+        ClubRivalService clubes = conClubRivalService();
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(partidoDao.crear(any(Partido.class))).thenAnswer(invocation -> {
+            Partido partido = invocation.getArgument(0);
+            partido.setId(5L);
+            return partido;
+        });
+
+        service.crearComoAdmin(requestValido());
+
+        verify(clubes).enlazarPartido(5L, "Rival CF");
+    }
+
+    @Test
+    void alCambiarElRivalDesdeLaAppOElPanelElPartidoSeVuelveAEnlazar() {
+        ClubRivalService clubes = conClubRivalService();
+        Partido existente = new Partido();
+        existente.setId(5L);
+        existente.setEquipoId(1L);
+        existente.setRival("Otro CF");
+        when(partidoDao.obtenerPorId(5L)).thenReturn(existente);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(equipoDao.obtenerEquipoPorId(1L)).thenReturn(equipo(1L));
+
+        service.actualizar(1L, 5L, requestValido());
+        service.actualizarComoAdmin(5L, requestValido());
+
+        // El rival ya es el nuevo cuando se enlaza.
+        verify(clubes, times(2)).enlazarPartido(5L, "Rival CF");
+    }
+
+    @Test
+    void sinElServicioDeClubesElPartidoSeGuardaIgual() {
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(partidoDao.crear(any(Partido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PartidoDTO dto = service.crearComoAdmin(requestValido());
+
+        assertThat(dto.getEscudoRivalUrl()).isNull();
     }
 
     @Test

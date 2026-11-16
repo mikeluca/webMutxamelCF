@@ -44,6 +44,7 @@ import com.mikedev.mutxamelcf.model.ResumenBorradoPartido;
 import com.mikedev.mutxamelcf.model.PartidoDTO;
 import com.mikedev.mutxamelcf.model.PartidoGuardarRequest;
 import com.mikedev.mutxamelcf.model.ResultadoDTO;
+import com.mikedev.mutxamelcf.service.ClubRivalService;
 import com.mikedev.mutxamelcf.service.ConvocatoriaService;
 import com.mikedev.mutxamelcf.service.InvitadosService;
 import com.mikedev.mutxamelcf.service.PartidoService;
@@ -91,6 +92,14 @@ public class PartidoServiceImpl implements PartidoService {
 
 	@Value("${retransmision.minutos-parte.F5:20}")
 	private int minutosParteF5 = 20;
+
+	/** Opcional: sin él los partidos no se enlazan con su club rival (los tests antiguos construyen el servicio sin él). */
+	private ClubRivalService clubRivalService;
+
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setClubRivalService(ClubRivalService clubRivalService) {
+		this.clubRivalService = clubRivalService;
+	}
 
 	public PartidoServiceImpl(
 			PartidoDao partidoDao,
@@ -150,6 +159,7 @@ public class PartidoServiceImpl implements PartidoService {
 		aplicarCambios(partido, request);
 
 		partido = partidoDao.crear(partido);
+		enlazarClubRival(partido);
 
 		logger.debug("Fin crear: id={}", partido.getId());
 
@@ -200,6 +210,7 @@ public class PartidoServiceImpl implements PartidoService {
 		partido.setFechaActualizacion(Timestamp.valueOf(LocalDateTime.now()));
 
 		partidoDao.actualizar(partido);
+		enlazarClubRival(partido);
 
 		// Si cambia el día, las invitaciones de otros equipos se anulan o se vuelven a evaluar (misma transacción).
 		invitadosService.alCambiarFechaPartido(partido, diaAntes, PlazoJustificacionPartido.dia(partido));
@@ -229,6 +240,7 @@ public class PartidoServiceImpl implements PartidoService {
 		aplicarCambios(partido, request);
 
 		partido = partidoDao.crear(partido);
+		enlazarClubRival(partido);
 
 		logger.debug("Fin crearComoAdmin: id={}", partido.getId());
 
@@ -269,6 +281,7 @@ public class PartidoServiceImpl implements PartidoService {
 		partido.setFechaActualizacion(Timestamp.valueOf(LocalDateTime.now()));
 
 		partidoDao.actualizar(partido);
+		enlazarClubRival(partido);
 
 		// Si cambia el día, las invitaciones de otros equipos se anulan o se vuelven a evaluar (misma transacción).
 		invitadosService.alCambiarFechaPartido(partido, diaAntes, PlazoJustificacionPartido.dia(partido));
@@ -739,6 +752,7 @@ public class PartidoServiceImpl implements PartidoService {
 		resultado.setId(resultado.isDescansa() ? null : partido.getId());
 		resultado.setEquipoId(partido.getEquipoId());
 		resultado.setRival(partido.getRival());
+		aplicarEscudoRival(partido, resultado::setEscudoRivalUrl, resultado::setRivalEsPropio);
 		resultado.setResultado(partido.getResultado());
 		resultado.setTipo(partido.getTipo());
 		aplicarFecha(partido.getDia(), resultado::setDia, resultado::setDiaFormateado);
@@ -1070,6 +1084,7 @@ public class PartidoServiceImpl implements PartidoService {
 			dto.setDeporte(equipo.getDeporte());
 		}
 
+		aplicarEscudoRival(partido, dto::setEscudoRivalUrl, dto::setRivalEsPropio);
 		dto.setRival(partido.getRival());
 		dto.setResultado(partido.getResultado());
 		dto.setTipo(partido.getTipo());
@@ -1108,6 +1123,7 @@ public class PartidoServiceImpl implements PartidoService {
 
 		dto.setId(partido.getId());
 		dto.setRival(partido.getRival());
+		aplicarEscudoRival(partido, dto::setEscudoRivalUrl, dto::setRivalEsPropio);
 		dto.setResultado(partido.getResultado());
 		dto.setTipo(partido.getTipo());
 		aplicarFecha(partido.getDia(), dto::setDia, dto::setDiaFormateado);
@@ -1116,6 +1132,33 @@ public class PartidoServiceImpl implements PartidoService {
 		dto.setLocal(partido.isLocal());
 
 		return dto;
+	}
+
+	/*
+	 * Al crear un partido o cambiar su rival: CLUB_RIVAL_ID = el club de su alias (se crea, sin código, si no existe;
+	 * nunca para nuestro propio club). Se vuelve a leer para que la respuesta lleve el escudo.
+	 */
+	private void enlazarClubRival(Partido partido) {
+
+		if (clubRivalService == null || partido == null || partido.getId() == null) {
+			return;
+		}
+
+		clubRivalService.enlazarPartido(partido.getId(), partido.getRival());
+
+		Partido enlazado = partidoDao.obtenerPorId(partido.getId());
+
+		if (enlazado != null) {
+			partido.setClubRivalId(enlazado.getClubRivalId());
+			partido.setEscudoRivalVersion(enlazado.getEscudoRivalVersion());
+		}
+	}
+
+	/** La URL del escudo del club rival y si el rival es de nuestro club (la app pone entonces nuestro escudo). */
+	private static void aplicarEscudoRival(Partido partido, java.util.function.Consumer<String> setUrl,
+			java.util.function.Consumer<Boolean> setPropio) {
+		setPropio.accept(NombreClub.esPropio(partido.getRival()));
+		setUrl.accept(EscudosRivales.url(partido.getClubRivalId(), partido.getEscudoRivalVersion()));
 	}
 
 	private static void aplicarFecha(

@@ -35,7 +35,9 @@ public class PartidoDaoImpl implements PartidoDao {
 	private static final String CAMPOS_SELECT = """
 			P.ID, P.EQUIPO_ID, P.RIVAL, P.DIA, P.HORA, P.CAMPO, P.RESULTADO, P.TIPO,
 			P.USUARIO_ACTUALIZO_ID, P.FECHA_ACTUALIZACION, P.CANCELADO,
-			P.GOLES_FAVOR, P.GOLES_CONTRA, P.AVISO_RESULTADO_ENVIADO, P.ORIGEN, P.JORNADA, P.ES_LOCAL
+			P.GOLES_FAVOR, P.GOLES_CONTRA, P.AVISO_RESULTADO_ENVIADO, P.ORIGEN, P.JORNADA, P.ES_LOCAL,
+			P.CLUB_RIVAL_ID, (SELECT CASE WHEN CR.ESCUDO IS NOT NULL THEN CR.ESCUDO_VERSION END
+			                  FROM CLUBES_RIVALES CR WHERE CR.ID = P.CLUB_RIVAL_ID) AS ESCUDO_VERSION_RIVAL
 			""";
 
 	/*
@@ -192,7 +194,9 @@ public class PartidoDaoImpl implements PartidoDao {
 		String sql = """
 				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
 				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO,
-				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO, ORIGEN, JORNADA, ES_LOCAL
+				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO, ORIGEN, JORNADA, ES_LOCAL,
+				       CLUB_RIVAL_ID, (SELECT CASE WHEN CR.ESCUDO IS NOT NULL THEN CR.ESCUDO_VERSION END
+				                       FROM CLUBES_RIVALES CR WHERE CR.ID = PARTIDOS.CLUB_RIVAL_ID) AS ESCUDO_VERSION_RIVAL
 				FROM PARTIDOS
 				WHERE ID = ?
 				""";
@@ -213,7 +217,9 @@ public class PartidoDaoImpl implements PartidoDao {
 		String sql = """
 				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
 				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO,
-				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO, ORIGEN, JORNADA, ES_LOCAL
+				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO, ORIGEN, JORNADA, ES_LOCAL,
+				       CLUB_RIVAL_ID, (SELECT CASE WHEN CR.ESCUDO IS NOT NULL THEN CR.ESCUDO_VERSION END
+				                       FROM CLUBES_RIVALES CR WHERE CR.ID = PARTIDOS.CLUB_RIVAL_ID) AS ESCUDO_VERSION_RIVAL
 				FROM PARTIDOS
 				WHERE EQUIPO_ID = ?
 				ORDER BY DIA DESC, ID DESC
@@ -233,7 +239,9 @@ public class PartidoDaoImpl implements PartidoDao {
 		String sql = """
 				SELECT ID, EQUIPO_ID, RIVAL, DIA, HORA, CAMPO, RESULTADO, TIPO,
 				       USUARIO_ACTUALIZO_ID, FECHA_ACTUALIZACION, CANCELADO,
-				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO, ORIGEN, JORNADA, ES_LOCAL
+				       GOLES_FAVOR, GOLES_CONTRA, AVISO_RESULTADO_ENVIADO, ORIGEN, JORNADA, ES_LOCAL,
+				       CLUB_RIVAL_ID, (SELECT CASE WHEN CR.ESCUDO IS NOT NULL THEN CR.ESCUDO_VERSION END
+				                       FROM CLUBES_RIVALES CR WHERE CR.ID = PARTIDOS.CLUB_RIVAL_ID) AS ESCUDO_VERSION_RIVAL
 				FROM PARTIDOS
 				WHERE EQUIPO_ID = ?
 				ORDER BY DIA DESC, ID DESC
@@ -294,7 +302,9 @@ public class PartidoDaoImpl implements PartidoDao {
 		String sql = """
 				SELECT P.ID, P.EQUIPO_ID, P.RIVAL, P.DIA, P.HORA, P.CAMPO, P.RESULTADO, P.TIPO,
 				       P.USUARIO_ACTUALIZO_ID, P.FECHA_ACTUALIZACION, P.CANCELADO,
-				       P.GOLES_FAVOR, P.GOLES_CONTRA, P.AVISO_RESULTADO_ENVIADO, P.ORIGEN, P.JORNADA, P.ES_LOCAL
+				       P.GOLES_FAVOR, P.GOLES_CONTRA, P.AVISO_RESULTADO_ENVIADO, P.ORIGEN, P.JORNADA, P.ES_LOCAL,
+				       P.CLUB_RIVAL_ID, (SELECT CASE WHEN CR.ESCUDO IS NOT NULL THEN CR.ESCUDO_VERSION END
+				                         FROM CLUBES_RIVALES CR WHERE CR.ID = P.CLUB_RIVAL_ID) AS ESCUDO_VERSION_RIVAL
 				FROM PARTIDOS P
 				LEFT JOIN CONVOCATORIAS C ON C.PARTIDO_ID = P.ID
 				WHERE P.EQUIPO_ID = ?
@@ -509,6 +519,21 @@ public class PartidoDaoImpl implements PartidoDao {
 	}
 
 	@Override
+	public void actualizarClubRival(Long partidoId, Long clubRivalId) {
+		jdbcTemplate.update("UPDATE PARTIDOS SET CLUB_RIVAL_ID = ? WHERE ID = ?", clubRivalId, partidoId);
+	}
+
+	@Override
+	public List<Partido> obtenerSinClubRival(LocalDate hasta) {
+		String sql = "SELECT " + CAMPOS_SELECT
+				+ " FROM PARTIDOS P WHERE P.CLUB_RIVAL_ID IS NULL AND P.RIVAL IS NOT NULL"
+				+ (hasta == null ? "" : " AND (P.DIA IS NULL OR P.DIA <= ?)") + " ORDER BY P.ID";
+
+		return hasta == null ? jdbcTemplate.query(sql, PARTIDO_ROW_MAPPER)
+				: jdbcTemplate.query(sql, PARTIDO_ROW_MAPPER, java.sql.Date.valueOf(hasta));
+	}
+
+	@Override
 	public void actualizarDatosFfcv(Partido partido) {
 		logger.debug("Inicio actualizarDatosFfcv: id={}", partido.getId());
 
@@ -637,6 +662,22 @@ public class PartidoDaoImpl implements PartidoDao {
 		logger.debug("Fin cancelar: id={}", id);
 	}
 
+	private static boolean tieneColumna(ResultSet rs, String columna) throws SQLException {
+		java.sql.ResultSetMetaData meta = rs.getMetaData();
+
+		if (meta == null) {
+			return false;
+		}
+
+		for (int i = 1; i <= meta.getColumnCount(); i++) {
+			if (columna.equalsIgnoreCase(meta.getColumnLabel(i))) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	private static Partido mapRow(ResultSet rs, int rowNum) throws SQLException {
 
 		Partido partido = new Partido();
@@ -673,6 +714,17 @@ public class PartidoDaoImpl implements PartidoDao {
 		// Sin la columna informada se asume local (comportamiento anterior).
 		int esLocal = rs.getInt("ES_LOCAL");
 		partido.setLocal(rs.wasNull() || esLocal == 1);
+
+		// Solo las consultas que unen el club rival traen estas columnas.
+		if (tieneColumna(rs, "CLUB_RIVAL_ID")) {
+			long clubRivalId = rs.getLong("CLUB_RIVAL_ID");
+			partido.setClubRivalId(rs.wasNull() ? null : clubRivalId);
+		}
+
+		if (tieneColumna(rs, "ESCUDO_VERSION_RIVAL")) {
+			long escudoVersion = rs.getLong("ESCUDO_VERSION_RIVAL");
+			partido.setEscudoRivalVersion(rs.wasNull() ? null : escudoVersion);
+		}
 
 		return partido;
 	}

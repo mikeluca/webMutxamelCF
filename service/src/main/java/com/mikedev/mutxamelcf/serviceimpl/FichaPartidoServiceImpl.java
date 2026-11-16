@@ -167,7 +167,9 @@ public class FichaPartidoServiceImpl implements FichaPartidoService {
                 partido.isLocal() ? rival : NOMBRE_CLUB,
                 dia, partido.getHora(), golesFavor, golesContra, estado, competicion(partido, dia, idioma),
                 reloj(eventos, fase, modalidad),
-                RelojDirecto.minutosParte(modalidad, minutosParteF11, minutosParteF8, minutosParteF5));
+                RelojDirecto.minutosParte(modalidad, minutosParteF11, minutosParteF8, minutosParteF5),
+                EscudosRivales.url(partido.getClubRivalId(), partido.getEscudoRivalVersion()),
+                NombreClub.esPropio(partido.getRival()));
     }
 
     /*
@@ -515,7 +517,9 @@ public class FichaPartidoServiceImpl implements FichaPartidoService {
             int contra = anterior.getGolesContra();
 
             forma.add(new FormaFicha(anterior.getId(), aLocalDate(anterior.getDia()), anterior.isLocal(),
-                    anterior.getRival(), favor, contra, favor > contra ? "G" : favor == contra ? "E" : "P"));
+                    anterior.getRival(), favor, contra, favor > contra ? "G" : favor == contra ? "E" : "P",
+                    EscudosRivales.url(anterior.getClubRivalId(), anterior.getEscudoRivalVersion()),
+                    NombreClub.esPropio(anterior.getRival())));
         }
 
         return forma;

@@ -62,6 +62,15 @@ public interface PartidoDao {
      */
     void actualizarDatosFfcv(Partido partido);
 
+    /** Enlaza el partido con su club rival (CLUB_RIVAL_ID); null lo desenlaza. */
+    void actualizarClubRival(Long partidoId, Long clubRivalId);
+
+    /**
+     * Partidos con rival y sin club rival enlazado, de cualquier equipo, cuyo día es anterior o igual a {@code hasta}
+     * (sin día también entran; {@code hasta} null no filtra por día). Para "Generar clubes".
+     */
+    List<Partido> obtenerSinClubRival(LocalDate hasta);
+
     /**
      * Marca FECHA_IMPORTACION = ahora en esos partidos de origen FFCV (los que procesa
      * la confirmación del importador, hayan cambiado o no). FECHA_ACTUALIZACION no se

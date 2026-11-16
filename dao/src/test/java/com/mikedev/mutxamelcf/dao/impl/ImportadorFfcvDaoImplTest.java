@@ -58,6 +58,8 @@ class ImportadorFfcvDaoImplTest {
                     FECHA_IMPORTACION TIMESTAMP, USUARIO_ACTUALIZO_ID NUMBER, CANCELADO NUMBER(1) DEFAULT 0,
                     GOLES_FAVOR NUMBER, GOLES_CONTRA NUMBER, AVISO_RESULTADO_ENVIADO NUMBER(1) DEFAULT 0)""");
 
+        com.mikedev.mutxamelcf.dao.EsquemaH2.crearEscudosRivales(jdbc);
+
         PartidoDaoImpl dao = new PartidoDaoImpl(jdbc, RELOJ);
 
         Partido ffcv = new Partido();

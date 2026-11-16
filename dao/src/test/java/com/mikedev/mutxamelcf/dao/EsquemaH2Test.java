@@ -429,6 +429,41 @@ class EsquemaH2Test {
     }
 
     @Test
+    void losEscudosDeRivalesTienenElEsquemaDelScript() throws Exception {
+        // PARTIDOS y CLASIFICACIONES las crea cada test: las columnas nuevas se añaden si ya existen.
+        JdbcTemplate jdbc = new JdbcTemplate(new DriverManagerDataSource(
+                "jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=Oracle;DB_CLOSE_DELAY=-1", "sa", ""));
+        jdbc.execute("CREATE TABLE PARTIDOS (ID NUMBER PRIMARY KEY)");
+        jdbc.execute("CREATE TABLE CLASIFICACIONES (ID NUMBER PRIMARY KEY)");
+        EsquemaH2.crear(jdbc);
+
+        assertThat(columnas(jdbc, "CLUBES_RIVALES")).contains("ID", "NOMBRE", "CODIGO_FFCV", "ESCUDO", "ESCUDO_VERSION",
+                "FECHA_ACTUALIZACION", "FECHA_CREACION");
+        assertThat(columnas(jdbc, "CLUBES_RIVALES_ALIAS")).contains("ID", "CLUB_RIVAL_ID", "NOMBRE_NORMALIZADO");
+        assertThat(columnas(jdbc, "PARTIDOS")).contains("CLUB_RIVAL_ID");
+        assertThat(columnas(jdbc, "CLASIFICACIONES")).contains("CODIGO_CLUB");
+
+        // Nombre, código y alias son únicos; la versión del escudo empieza en 0.
+        jdbc.update("INSERT INTO CLUBES_RIVALES (NOMBRE, CODIGO_FFCV) VALUES ('Elx C.F.', 1111)");
+        assertThat(jdbc.queryForObject("SELECT ESCUDO_VERSION FROM CLUBES_RIVALES", Integer.class)).isZero();
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO CLUBES_RIVALES (NOMBRE) VALUES ('Elx C.F.')"))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO CLUBES_RIVALES (NOMBRE, CODIGO_FFCV) VALUES ('Otro', 1111)"))
+                .isInstanceOf(Exception.class);
+        jdbc.update("INSERT INTO CLUBES_RIVALES_ALIAS (CLUB_RIVAL_ID, NOMBRE_NORMALIZADO)"
+                + " SELECT ID, 'ELX CF' FROM CLUBES_RIVALES");
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO CLUBES_RIVALES_ALIAS (CLUB_RIVAL_ID, NOMBRE_NORMALIZADO)"
+                + " SELECT ID, 'ELX CF' FROM CLUBES_RIVALES")).isInstanceOf(Exception.class);
+
+        // Y el script de Oracle tiene lo mismo.
+        String script = Files.readString(Path.of("..", "sql", "2026-11-17_escudos_rivales.sql"));
+        assertThat(script).contains("CONSTRAINT UQ_CLUBES_RIVALES_NOMBRE UNIQUE (NOMBRE)",
+                "CONSTRAINT UQ_ALIAS_NOMBRE UNIQUE (NOMBRE_NORMALIZADO)",
+                "ADD CONSTRAINT UQ_CLUBES_RIVALES_CODIGO UNIQUE (CODIGO_FFCV)", "CLUB_RIVAL_ID  NUMBER NULL",
+                "CODIGO_CLUB  NUMBER NULL", "ESCUDO               BLOB NULL");
+    }
+
+    @Test
     void sinTablaPartidosLaFichaDelPartidoSeCreaIgual() {
         assertThat(columnas(nuevaBase(), "PARTIDO_ALINEACION")).isNotEmpty();
     }

@@ -145,7 +145,7 @@ public class HistorialTemporadaServiceImpl implements HistorialTemporadaService 
 					referencia.getCompeticion(), referencia.getJornada(),
 					filas.stream().map(f -> new ClasificacionFilaPublicDTO(f.getPosicion(), f.getNombreEquipo(),
 							f.isEsNuestro(), f.getPuntos(), f.getPj(), f.getPg(), f.getPe(), f.getPp(), f.getGf(),
-							f.getGc())).toList()));
+							f.getGc(), EscudosRivales.urlDeFila(f))).toList()));
 		});
 
 		return tablas.stream().sorted(Comparator.comparing(TablaClasificacion::equipo)).toList();

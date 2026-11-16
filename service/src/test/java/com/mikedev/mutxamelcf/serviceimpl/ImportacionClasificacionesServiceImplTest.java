@@ -92,6 +92,33 @@ class ImportacionClasificacionesServiceImplTest {
     }
 
     @Test
+    void laVistaPreviaGuardaElCodigoDeClubDeCadaFila() {
+        PrevisualizacionClasificaciones previa = service.previsualizar(archivo());
+
+        assertThat(equipoPrevia(previa, PRIMER_EQUIPO).tabla()).extracting(Clasificacion::getNombreEquipo,
+                Clasificacion::getCodigoClub).containsExactlyInAnyOrder(
+                        org.assertj.core.api.Assertions.tuple("C.F. Monnegre de Mutxamel", 6574),
+                        org.assertj.core.api.Assertions.tuple("Mutxamel C.F.", 3010),
+                        org.assertj.core.api.Assertions.tuple("Club Mutxamel Benifutsal", 6606),
+                        org.assertj.core.api.Assertions.tuple("Elx C.F.", 1111));
+    }
+
+    @Test
+    void alConfirmarSeAseguraElClubRivalDeCadaFilaMenosLaNuestra() {
+        com.mikedev.mutxamelcf.service.ClubRivalService clubes = mock(com.mikedev.mutxamelcf.service.ClubRivalService.class);
+        service.setClubRivalService(clubes);
+
+        PrevisualizacionClasificaciones previa = service.previsualizar(archivo());
+        service.confirmar("admin", previa, List.of(PRIMER_EQUIPO));
+
+        // Una llamada por fila con su código y su marca de "nuestra" (el servicio descarta la nuestra).
+        verify(clubes).asegurarDeClasificacion(6574, "C.F. Monnegre de Mutxamel", false);
+        verify(clubes).asegurarDeClasificacion(6606, "Club Mutxamel Benifutsal", false);
+        verify(clubes).asegurarDeClasificacion(1111, "Elx C.F.", false);
+        verify(clubes).asegurarDeClasificacion(3010, "Mutxamel C.F.", true);
+    }
+
+    @Test
     void vistaPreviaConUnEquipoEncontradoUnoNoEncontradoYUnoConJornadaAntigua() {
 
         // Juvenil A tenía guardada la jornada 12 y el archivo trae la 10.

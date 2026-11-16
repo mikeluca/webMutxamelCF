@@ -310,6 +310,23 @@ class PartidoBorradoH2Test {
     }
 
     @Test
+    void borrarUnPartidoNoBorraSuClubRivalNiSuEscudo() {
+        jdbc.update("INSERT INTO CLUBES_RIVALES (ID, NOMBRE, ESCUDO_VERSION) VALUES (7, 'Pego C.F.', 3)");
+        jdbc.update("INSERT INTO CLUBES_RIVALES_ALIAS (CLUB_RIVAL_ID, NOMBRE_NORMALIZADO) VALUES (7, 'PEGO CF')");
+        jdbc.update("UPDATE PARTIDOS SET CLUB_RIVAL_ID = 7 WHERE ID IN (?, ?)", JUGADO, VACIO);
+
+        service.eliminarComoAdmin(JUGADO, "admin@club");
+        service.eliminarComoAdmin(VACIO, "admin@club");
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM PARTIDOS WHERE CLUB_RIVAL_ID = 7", Integer.class))
+                .isZero();
+        assertThat(jdbc.queryForObject("SELECT ESCUDO_VERSION FROM CLUBES_RIVALES WHERE ID = 7", Integer.class))
+                .isEqualTo(3);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM CLUBES_RIVALES_ALIAS WHERE CLUB_RIVAL_ID = 7",
+                Integer.class)).isEqualTo(1);
+    }
+
+    @Test
     void borrarUnPartidoFuturoAvisaDeLaConvocatoriaAnuladaSoloALosConvocadosQueNoHanJustificado() {
         service.eliminarComoAdmin(FUTURO, "admin@club");
 

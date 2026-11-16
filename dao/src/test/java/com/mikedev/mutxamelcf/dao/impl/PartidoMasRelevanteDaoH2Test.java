@@ -9,6 +9,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
+
+import com.mikedev.mutxamelcf.dao.EsquemaH2;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import com.mikedev.mutxamelcf.model.Partido;
@@ -53,6 +55,8 @@ class PartidoMasRelevanteDaoH2Test {
                     ES_LOCAL NUMBER(1) DEFAULT 1 NOT NULL
                 )""");
         jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE, CATEGORIA) VALUES (?, 'Primer Equipo', 'Primer Equipo')", EQUIPO);
+
+        EsquemaH2.crearEscudosRivales(jdbc);
 
         dao = new PartidoDaoImpl(jdbc);
     }

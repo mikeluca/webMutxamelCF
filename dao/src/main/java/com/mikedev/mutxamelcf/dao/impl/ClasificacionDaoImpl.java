@@ -23,13 +23,23 @@ public class ClasificacionDaoImpl implements ClasificacionDao {
 
 	private static final RowMapper<Clasificacion> ROW_MAPPER = ClasificacionDaoImpl::mapRow;
 
+	/*
+	 * El club rival de la fila por su código de club (CODIGO_FFCV es único: una fila como máximo) y la versión de su
+	 * escudo si lo tiene. Nunca se lee el BLOB: solo "ESCUDO IS NOT NULL".
+	 */
+	private static final String CLUB_RIVAL_ID_POR_CODIGO = "(SELECT CR.ID FROM CLUBES_RIVALES CR WHERE CR.CODIGO_FFCV = CLASIFICACIONES.CODIGO_CLUB)";
+
+	private static final String ESCUDO_VERSION_POR_CODIGO = "(SELECT CASE WHEN CR.ESCUDO IS NOT NULL THEN CR.ESCUDO_VERSION END "
+			+ "FROM CLUBES_RIVALES CR WHERE CR.CODIGO_FFCV = CLASIFICACIONES.CODIGO_CLUB)";
+
 	private static final String CAMPOS_SELECT = "ID, EQUIPO_ID, COMPETICION, JORNADA, POSICION, NOMBRE_EQUIPO, LETRA, "
-			+ "ES_NUESTRO, PUNTOS, PJ, PG, PE, PP, GF, GC, FECHA_ULT_PARTIDO, FECHA_IMPORTACION";
+			+ "ES_NUESTRO, PUNTOS, PJ, PG, PE, PP, GF, GC, FECHA_ULT_PARTIDO, FECHA_IMPORTACION, CODIGO_CLUB, "
+			+ CLUB_RIVAL_ID_POR_CODIGO + " AS CLUB_RIVAL_ID, " + ESCUDO_VERSION_POR_CODIGO + " AS ESCUDO_VERSION";
 
 	private static final String INSERT = "INSERT INTO CLASIFICACIONES (EQUIPO_ID, COMPETICION, JORNADA, POSICION, "
 			+ "NOMBRE_EQUIPO, LETRA, ES_NUESTRO, PUNTOS, PJ, PG, PE, PP, GF, GC, FECHA_ULT_PARTIDO, FECHA_IMPORTACION, "
-			+ "TEMPORADA_ID) "
-			+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+			+ "TEMPORADA_ID, CODIGO_CLUB) "
+			+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 	private final JdbcTemplate jdbcTemplate;
 
@@ -125,6 +135,11 @@ public class ClasificacionDaoImpl implements ClasificacionDao {
 			}
 			ps.setTimestamp(16, Timestamp.valueOf(fila.getFechaImportacion()));
 			ps.setLong(17, temporadaId);
+			if (fila.getCodigoClub() != null) {
+				ps.setInt(18, fila.getCodigoClub());
+			} else {
+				ps.setNull(18, Types.NUMERIC);
+			}
 		});
 
 		logger.debug("Fin insertarTodas");
@@ -152,6 +167,12 @@ public class ClasificacionDaoImpl implements ClasificacionDao {
 		fila.setFechaUltPartido(ultPartido == null ? null : ultPartido.toLocalDate());
 		Timestamp importacion = rs.getTimestamp("FECHA_IMPORTACION");
 		fila.setFechaImportacion(importacion == null ? null : importacion.toLocalDateTime());
+		int codigoClub = rs.getInt("CODIGO_CLUB");
+		fila.setCodigoClub(rs.wasNull() ? null : codigoClub);
+		long clubRivalId = rs.getLong("CLUB_RIVAL_ID");
+		fila.setClubRivalId(rs.wasNull() ? null : clubRivalId);
+		long escudoVersion = rs.getLong("ESCUDO_VERSION");
+		fila.setEscudoVersion(rs.wasNull() ? null : escudoVersion);
 		return fila;
 	}
 

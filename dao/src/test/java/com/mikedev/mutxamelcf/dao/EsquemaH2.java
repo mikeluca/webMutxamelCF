@@ -27,8 +27,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * equipaje) y
  * sql/2026-11-12_ficha_partido.sql (PARTIDOS.FORMACION si la tabla existe, PARTIDO_ALINEACION, y en
  * PARTIDO_LIVE_EVENTOS JUGADOR_ENTRA_ID y los tipos CAMBIO y TARJETA_*) y
- * sql/2026-11-16_eventos_rival.sql (RIVAL y DORSAL_RIVAL de PARTIDO_LIVE_EVENTOS). Los tests no deben definir su
- * propia versión de estas tablas.
+ * sql/2026-11-16_eventos_rival.sql (RIVAL y DORSAL_RIVAL de PARTIDO_LIVE_EVENTOS) y
+ * sql/2026-11-17_escudos_rivales.sql (CLUBES_RIVALES y CLUBES_RIVALES_ALIAS, y CLUB_RIVAL_ID de PARTIDOS y CODIGO_CLUB de
+ * CLASIFICACIONES si el test ya las ha creado). Los tests no deben definir su propia versión de estas tablas.
  *
  * <p>Los scripts viven en src/test/resources/h2; el de ajustes es una copia
  * exacta del de sql/ ({@code EsquemaH2Test} comprueba que no se separan).
@@ -54,6 +55,7 @@ public final class EsquemaH2 {
         ejecutar(jdbc, "/h2/idioma_usuario_app.sql");
         ejecutar(jdbc, "/h2/ficha_partido.sql");
         ejecutar(jdbc, "/h2/eventos_rival.sql");
+        ejecutar(jdbc, "/h2/escudos_rivales.sql");
     }
 
     /**
@@ -80,6 +82,14 @@ public final class EsquemaH2 {
      */
     public static void crearTransicion(JdbcTemplate jdbc) {
         ejecutar(jdbc, "/h2/transicion_temporada.sql");
+    }
+
+    /**
+     * CLUBES_RIVALES y CLUBES_RIVALES_ALIAS, y CLUB_RIVAL_ID de PARTIDOS y CODIGO_CLUB de CLASIFICACIONES si el test ya las
+     * ha creado (sql/2026-11-17_escudos_rivales.sql). {@link #crear} ya lo hace: esto es para los tests que no la usan.
+     */
+    public static void crearEscudosRivales(JdbcTemplate jdbc) {
+        ejecutar(jdbc, "/h2/escudos_rivales.sql");
     }
 
     /** El script de ajustes tal cual, para compararlo con el de sql/. */

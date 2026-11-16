@@ -31,8 +31,39 @@ public class Clasificacion implements Serializable {
     private LocalDate fechaUltPartido;
     private LocalDateTime fechaImportacion;
 
+    /** Código de club de la FFCV de la fila (CODIGO_CLUB); null en las filas importadas antes del código. */
+    private Integer codigoClub;
+
+    /** ID del club rival de la fila y versión de su escudo (null si no tiene); solo lectura de las consultas. */
+    private Long clubRivalId;
+    private Long escudoVersion;
+
     public Clasificacion() {
         super();
+    }
+
+    public Integer getCodigoClub() {
+        return codigoClub;
+    }
+
+    public void setCodigoClub(Integer codigoClub) {
+        this.codigoClub = codigoClub;
+    }
+
+    public Long getClubRivalId() {
+        return clubRivalId;
+    }
+
+    public void setClubRivalId(Long clubRivalId) {
+        this.clubRivalId = clubRivalId;
+    }
+
+    public Long getEscudoVersion() {
+        return escudoVersion;
+    }
+
+    public void setEscudoVersion(Long escudoVersion) {
+        this.escudoVersion = escudoVersion;
     }
 
     public Long getId() {

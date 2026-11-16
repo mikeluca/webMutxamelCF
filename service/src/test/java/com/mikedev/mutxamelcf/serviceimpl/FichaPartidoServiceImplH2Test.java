@@ -419,6 +419,40 @@ class FichaPartidoServiceImplH2Test {
         assertThat(ficha().cabecera().minutosParte()).isEqualTo(25);
     }
 
+    // ---- escudo del rival ------------------------------------------------------------------------
+
+    @Test
+    void laCabeceraYLaFormaLlevanElEscudoDelRivalSoloSiTieneYSiElRivalEsPropio() {
+        jdbc.update("INSERT INTO CLUBES_RIVALES (ID, NOMBRE, ESCUDO_VERSION, ESCUDO) VALUES (7, 'Pego C.F.', 3, ?)",
+                (Object) new byte[] { 1, 2, 3 });
+        jdbc.update("INSERT INTO CLUBES_RIVALES (ID, NOMBRE, ESCUDO_VERSION) VALUES (8, 'Orba C.F.', 5)");
+
+        // Sin club enlazado: sin escudo, y el rival no es nuestro.
+        assertThat(ficha().cabecera().escudoRivalUrl()).isNull();
+        assertThat(ficha().cabecera().rivalEsPropio()).isFalse();
+
+        jdbc.update("UPDATE PARTIDOS SET CLUB_RIVAL_ID = 7 WHERE ID = ?", PARTIDO);
+        assertThat(ficha().cabecera().escudoRivalUrl()).isEqualTo("/api/public/escudos-rivales/7?v=3");
+
+        // Un club sin escudo (versión 5, BLOB nulo): ni URL ni versión.
+        jdbc.update("UPDATE PARTIDOS SET CLUB_RIVAL_ID = 8 WHERE ID = ?", PARTIDO);
+        assertThat(ficha().cabecera().escudoRivalUrl()).isNull();
+
+        // La forma: tres partidos anteriores con resultado, uno contra un club con escudo y otro contra nuestro filial.
+        partido(41L, PRIMER_EQUIPO, "Pego C.F.", DIA.minusDays(7), "LIGA", 8, true, 2, 0, false);
+        partido(42L, PRIMER_EQUIPO, "Mutxamel C.F. 'B'", DIA.minusDays(14), "AMISTOSO", null, false, 1, 1, false);
+        partido(43L, PRIMER_EQUIPO, "Orba C.F.", DIA.minusDays(21), "LIGA", 6, true, 0, 3, false);
+        jdbc.update("UPDATE PARTIDOS SET CLUB_RIVAL_ID = 7 WHERE ID = 41");
+        jdbc.update("UPDATE PARTIDOS SET CLUB_RIVAL_ID = 8 WHERE ID = 43");
+
+        var forma = ficha().forma();
+
+        assertThat(forma).extracting(FichaPartidoDTO.FormaFicha::partidoId).containsExactly(41L, 42L, 43L);
+        assertThat(forma).extracting(FichaPartidoDTO.FormaFicha::escudoRivalUrl)
+                .containsExactly("/api/public/escudos-rivales/7?v=3", null, null);
+        assertThat(forma).extracting(FichaPartidoDTO.FormaFicha::rivalEsPropio).containsExactly(false, true, false);
+    }
+
     // ---- alineación ----------------------------------------------------------------------------
 
     @Test

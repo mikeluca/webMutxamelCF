@@ -25,11 +25,13 @@ public record FichaPartidoDTO(
      * @param golesFavor goles del Mutxamel (en directo, o los del resultado guardado); null si no hay ninguno todavía
      * @param competicion texto ya redactado en el idioma pedido ("Liga ... · Jornada 5", "Copa", "Amistoso")
      * @param reloj reloj en directo; null salvo en la primera parte, el descanso y la segunda parte
+     * @param escudoRivalUrl ruta relativa a la URL base del escudo del club rival (/api/public/escudos-rivales/{id}?v=N); null si no tiene
+     * @param rivalEsPropio true si el rival es un equipo de nuestro club (la app pone nuestro escudo)
      */
     public record Cabecera(
             Long partidoId, String equipoLocal, String equipoVisitante, LocalDate dia, String hora,
             Integer golesFavor, Integer golesContra, String estado, String competicion, RelojPartido reloj,
-            int minutosParte) {
+            int minutosParte, String escudoRivalUrl, boolean rivalEsPropio) {
     }
 
     /**
@@ -75,9 +77,11 @@ public record FichaPartidoDTO(
     public record Tarjeta(String color, Integer minuto, boolean dobleAmarilla) {
     }
 
-    /** resultado G, E o P desde el punto de vista del Mutxamel. */
+    /**
+     * resultado G, E o P desde el punto de vista del Mutxamel; escudoRivalUrl y rivalEsPropio como en la cabecera.
+     */
     public record FormaFicha(
             Long partidoId, LocalDate dia, boolean local, String rival, int golesFavor, int golesContra,
-            String resultado) {
+            String resultado, String escudoRivalUrl, boolean rivalEsPropio) {
     }
 }

@@ -39,6 +39,7 @@ import com.mikedev.mutxamelcf.model.FfcvParseResult;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.PrevisualizacionFfcv;
 import com.mikedev.mutxamelcf.model.ResultadoImportacionFfcv;
+import com.mikedev.mutxamelcf.service.ClubRivalService;
 import com.mikedev.mutxamelcf.service.ImportacionFfcvService;
 import com.mikedev.mutxamelcf.service.InvitadosService;
 
@@ -60,6 +61,22 @@ public class ImportacionFfcvServiceImpl implements ImportacionFfcvService {
 	private final EquipoDao equipoDao;
 	private final ConvocatoriaDao convocatoriaDao;
 	private final InvitadosService invitadosService;
+
+	/** Opcional: sin él los partidos importados no se enlazan con su club rival. */
+	private ClubRivalService clubRivalService;
+
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setClubRivalService(ClubRivalService clubRivalService) {
+		this.clubRivalService = clubRivalService;
+	}
+
+	/** CLUB_RIVAL_ID del partido importado (o con el rival cambiado): el club de su alias, que se crea si falta. */
+	private void enlazarClubRival(Partido partido) {
+
+		if (clubRivalService != null && partido != null && partido.getId() != null) {
+			clubRivalService.enlazarPartido(partido.getId(), partido.getRival());
+		}
+	}
 
 	public ImportacionFfcvServiceImpl(
 			PartidoDao partidoDao,
@@ -140,13 +157,17 @@ public class ImportacionFfcvServiceImpl implements ImportacionFfcvService {
 			}
 
 			if (fila.estado() == EstadoFilaFfcv.NUEVO) {
-				procesados.add(partidoDao.crear(construirPartido(fila)).getId());
+				Partido nuevo = partidoDao.crear(construirPartido(fila));
+				enlazarClubRival(nuevo);
+				procesados.add(nuevo.getId());
 			} else if (fila.estado() == EstadoFilaFfcv.ACTUALIZADO) {
 				Partido anterior = partidoDao.obtenerPorId(fila.partidoId());
 				LocalDate diaAntiguo = anterior == null || anterior.getDia() == null ? null
 						: aLocalDate(anterior.getDia());
 
-				partidoDao.actualizarDatosFfcv(construirPartido(fila));
+				Partido actualizado = construirPartido(fila);
+				partidoDao.actualizarDatosFfcv(actualizado);
+				enlazarClubRival(actualizado);
 
 				// Un aplazamiento: las invitaciones de otros equipos se anulan o se vuelven a evaluar, en esta misma
 				// transacción (los push salen al confirmarla).

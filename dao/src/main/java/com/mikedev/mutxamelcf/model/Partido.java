@@ -39,6 +39,9 @@ public class Partido {
     /** true si el Mutxamel juega como local (columna ES_LOCAL). */
     private boolean local = true;
 
+    private Long clubRivalId;
+    private Long escudoRivalVersion;
+
     public Partido() {
         super();
     }
@@ -186,6 +189,27 @@ public class Partido {
 
     public void setOrigen(String origen) {
         this.origen = origen;
+    }
+
+    /**
+     * Club rival del partido (CLUB_RIVAL_ID); null si todavía no está enlazado. Solo lectura de las consultas:
+     * se escribe con PartidoDao.actualizarClubRival.
+     */
+    public Long getClubRivalId() {
+        return clubRivalId;
+    }
+
+    public void setClubRivalId(Long clubRivalId) {
+        this.clubRivalId = clubRivalId;
+    }
+
+    /** ESCUDO_VERSION del club rival si tiene escudo; null si no hay club o no tiene escudo. */
+    public Long getEscudoRivalVersion() {
+        return escudoRivalVersion;
+    }
+
+    public void setEscudoRivalVersion(Long escudoRivalVersion) {
+        this.escudoRivalVersion = escudoRivalVersion;
     }
 
     public boolean isLocal() {

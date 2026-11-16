@@ -461,6 +461,23 @@ class ImportacionFfcvServiceImplTest {
     }
 
     @Test
+    void confirmarEnlazaConSuClubRivalLosPartidosNuevosYLosActualizados() {
+        com.mikedev.mutxamelcf.service.ClubRivalService clubes = mock(com.mikedev.mutxamelcf.service.ClubRivalService.class);
+        service.setClubRivalService(clubes);
+
+        partidos.add(partido(50L, FILIAL, SABADO, "FFCV", "C.F. Calpe", "18:00", "Camp Nou", 4));
+        PrevisualizacionFfcv previa = service.previsualizar(archivoBasico());
+
+        service.confirmar("coordinador", previa, List.of());
+
+        // El actualizado (id 50, el rival que trae el archivo) y el nuevo (id que le da la base de datos).
+        verify(clubes).enlazarPartido(50L, "C.F. Calpe");
+        ArgumentCaptor<Partido> creado = ArgumentCaptor.forClass(Partido.class);
+        verify(partidoDao).crear(creado.capture());
+        verify(clubes).enlazarPartido(creado.getValue().getId(), creado.getValue().getRival());
+    }
+
+    @Test
     void confirmarActualizaSoloHoraCampoRivalYJornadaSinTocarResultadoNiBorrarNada() {
         partidos.add(partido(50L, FILIAL, SABADO, "FFCV", "C.F. Calpe", "18:00", "Camp Nou", 4));
         PrevisualizacionFfcv previa = service.previsualizar(archivoBasico());
