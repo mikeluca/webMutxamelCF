@@ -620,6 +620,36 @@ class PartidoEnVivoServiceImplTest {
     }
 
     @Test
+    void elGolSePublicaTambienEnElTopicDelPartidoEnLosTresIdiomasConLosMismosDatos() {
+        empezarPartido();
+        service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);
+
+        String marcador = "Pablo Garcia (1')\n\nMutxamel CF 1 - 0 Pego C.F.";
+
+        for (String[] caso : new String[][] {
+                { "es", "⚽ ¡GOOOL del Mutxamel CF!" },
+                { "ca", "⚽ GOOOL del Mutxamel CF!" },
+                { "en", "⚽ GOAL for Mutxamel CF!" } }) {
+
+            // Mismo título, texto y data en resultados_{idioma} y en partido_{id}_{idioma}.
+            verify(fcmPushService).enviarATopic("resultados_" + caso[0], caso[1], marcador, DATOS);
+            verify(fcmPushService).enviarATopic("partido_" + PARTIDO + "_" + caso[0], caso[1], marcador, DATOS);
+        }
+
+        assertThat(PartidoEnVivoServiceImpl.topicPartido(PARTIDO, "ca")).isEqualTo("partido_30_ca");
+        assertThat(DATOS).containsEntry("partidoId", PARTIDO.toString()).containsEntry("pantalla", "FICHA_PARTIDO");
+    }
+
+    @Test
+    void unAvisoSinPartidoNoVaAlTopicDeUnPartido() {
+        service.enviarAlineacion(USUARIO, "1, 2, 3", "4, 5");
+
+        verify(fcmPushService).enviarATopic(eq("resultados_es"), any(), any(), eq(java.util.Map.<String, String>of()));
+        verify(fcmPushService, never()).enviarATopic(
+                org.mockito.ArgumentMatchers.startsWith("partido_"), any(), any(), any());
+    }
+
+    @Test
     void elFinalIncluyeElMarcadorYLosGoleadores() {
         empezarPartido();
         service.enviarGolFavor(USUARIO, PARTIDO, 10L, null);

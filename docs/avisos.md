@@ -171,6 +171,7 @@ cambian):
 - A las cuentas: `referenciaId` = id del partido (también en la notificación de la bandeja) y, en el data del push,
   `"tipo": "RESULTADO"`, `"pantalla": "FICHA_PARTIDO"` y `"partidoId"`.
 - A los topics `resultados_es/ca/en` y al antiguo `resultados`: el mismo data (`tipo`, `pantalla`, `partidoId`).
+- Al topic del partido `partido_{partidoId}_es/ca/en` (ver "Topics de FCM"): el mismo aviso y data que a `resultados_{idioma}`.
 - Excepción: el endpoint antiguo de alineación por texto (sin `partidoId`) sigue sin `referenciaId` ni data extra.
 
 **Cambios y tarjetas de la retransmisión no avisan.** El cambio (`POST /{partidoId}/cambio`) y la tarjeta
@@ -209,6 +210,7 @@ terminar el partido: ese aviso interno solo mira las tarjetas de nuestros jugado
 | Topic | Contenido |
 | --- | --- |
 | `resultados_es`, `resultados_ca`, `resultados_en` | Avisos del directo, cada uno en su idioma |
+| `partido_{partidoId}_es`, `partido_{partidoId}_ca`, `partido_{partidoId}_en` | "Seguir este partido": los mismos avisos del directo (mismo título, texto y data) que `resultados_{idioma}`, solo de un partido. Solo los avisos con `partidoId` (no la alineación antigua por texto). La app se suscribe y se da de baja ella sola |
 | `noticias_es`, `noticias_ca`, `noticias_en` | `noticia.titulo` + título de la noticia |
 | `resultados`, `noticias` (antiguos) | Lo mismo, en castellano, para las versiones de la app que aún no se suscriben por idioma. Marcados con `TODO` en el código (`PartidoEnVivoServiceImpl`, `NoticiaAdminController`) para quitarlos cuando la versión mínima obligue a actualizar |
 

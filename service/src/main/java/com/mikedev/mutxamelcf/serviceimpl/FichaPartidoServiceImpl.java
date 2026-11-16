@@ -166,7 +166,8 @@ public class FichaPartidoServiceImpl implements FichaPartidoService {
                 partido.isLocal() ? NOMBRE_CLUB : rival,
                 partido.isLocal() ? rival : NOMBRE_CLUB,
                 dia, partido.getHora(), golesFavor, golesContra, estado, competicion(partido, dia, idioma),
-                reloj(eventos, fase, modalidad));
+                reloj(eventos, fase, modalidad),
+                RelojDirecto.minutosParte(modalidad, minutosParteF11, minutosParteF8, minutosParteF5));
     }
 
     /*

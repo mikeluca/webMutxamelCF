@@ -28,7 +28,8 @@ public record FichaPartidoDTO(
      */
     public record Cabecera(
             Long partidoId, String equipoLocal, String equipoVisitante, LocalDate dia, String hora,
-            Integer golesFavor, Integer golesContra, String estado, String competicion, RelojPartido reloj) {
+            Integer golesFavor, Integer golesContra, String estado, String competicion, RelojPartido reloj,
+            int minutosParte) {
     }
 
     /**

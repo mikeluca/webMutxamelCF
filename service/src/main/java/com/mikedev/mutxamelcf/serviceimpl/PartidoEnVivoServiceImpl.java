@@ -1418,12 +1418,22 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         for (String idioma : IdiomaApp.TODOS) {
             TextoDifusion t = texto.apply(idioma);
             fcmPushService.enviarATopic(TOPIC_RESULTADOS + "_" + idioma, t.titulo(), t.mensaje(), datos);
+
+            // "Seguir este partido": quien no tiene activados los resultados se suscribe a este partido solo.
+            if (partidoId != null) {
+                fcmPushService.enviarATopic(topicPartido(partidoId, idioma), t.titulo(), t.mensaje(), datos);
+            }
         }
 
         // TODO: quitar el topic antiguo "resultados" cuando la versión mínima de la app obligue a actualizar (las
         // versiones que aún no se suscriben por idioma solo escuchan este, y lo reciben en castellano).
         TextoDifusion castellano = texto.apply(IdiomaApp.ES);
         fcmPushService.enviarATopic(TOPIC_RESULTADOS, castellano.titulo(), castellano.mensaje(), datos);
+    }
+
+    /** Topic de FCM de un partido en un idioma: {@code partido_{partidoId}_{idioma}}. */
+    static String topicPartido(Long partidoId, String idioma) {
+        return "partido_" + partidoId + "_" + idioma;
     }
 
     /** Data del push de un aviso del directo: tipo RESULTADO y, si hay partido, la pantalla y el partido a abrir. */

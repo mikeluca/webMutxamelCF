@@ -43,6 +43,7 @@ class FichaPartidoServiceImplH2Test {
     private JdbcTemplate jdbc;
     private FichaPartidoServiceImpl service;
     private LocalDateTime reloj = DIA.atTime(12, 0);
+    private final Equipo primerEquipo = new Equipo();
 
     @BeforeEach
     void setUp() {
@@ -65,7 +66,6 @@ class FichaPartidoServiceImplH2Test {
         EsquemaH2.crearPersonal(jdbc);
 
         EquipoDao equipoDao = mock(EquipoDao.class);
-        Equipo primerEquipo = new Equipo();
         primerEquipo.setId(PRIMER_EQUIPO);
         primerEquipo.setNombre("Primer Equipo");
         when(equipoDao.obtenerEquipoPorNombre("Primer Equipo")).thenReturn(primerEquipo);
@@ -398,6 +398,25 @@ class FichaPartidoServiceImplH2Test {
 
     private static long epochMs(LocalDateTime madrid) {
         return madrid.atZone(ZoneId.of("Europe/Madrid")).toInstant().toEpochMilli();
+    }
+
+    @Test
+    void minutosParteSaleSiempreSegunLaModalidadDelEquipo() {
+        // Sin retransmisión y sin modalidad: la de F11.
+        assertThat(ficha().cabecera().reloj()).isNull();
+        assertThat(ficha().cabecera().minutosParte()).isEqualTo(45);
+
+        primerEquipo.setModalidad("F11");
+        assertThat(ficha().cabecera().minutosParte()).isEqualTo(45);
+
+        primerEquipo.setModalidad("F8");
+        assertThat(ficha().cabecera().minutosParte()).isEqualTo(25);
+
+        // También en directo y con el partido terminado.
+        evento("INICIO", null, null, null, null, false);
+        assertThat(ficha().cabecera().minutosParte()).isEqualTo(25);
+        evento("FINAL", null, null, null, null, false);
+        assertThat(ficha().cabecera().minutosParte()).isEqualTo(25);
     }
 
     // ---- alineación ----------------------------------------------------------------------------

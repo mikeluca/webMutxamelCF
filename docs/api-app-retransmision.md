@@ -342,6 +342,26 @@ llevan el partido para que la app abra su ficha al pulsarlos:
 Los valores del data son cadenas (`partidoId` = `"30"`). El endpoint antiguo de alineación por texto, que no recibe
 `partidoId`, sigue sin `referenciaId` ni data extra. Textos, destinatarios y preferencias no cambian.
 
+### Topic por partido: "Seguir este partido"
+
+Además de los topics `resultados_*`, cada aviso del directo que lleva `partidoId` se publica en un topic de FCM por
+partido e idioma:
+
+```
+partido_{partidoId}_{idioma}      → partido_30_es, partido_30_ca, partido_30_en
+```
+
+- **Cuándo se envía:** con todos los avisos del directo que llevan partido (alineación, inicio, gol a favor y en contra,
+  gol anulado, descanso, segunda parte y final), junto al envío a `resultados_{idioma}`. Mismo título, mismo texto
+  (en el idioma del topic) y mismo data (`tipo: RESULTADO`, `pantalla: FICHA_PARTIDO`, `partidoId`).
+- **Sin partido no hay topic:** el endpoint antiguo de alineación por texto no se publica en ningún topic de partido.
+- **La app gestiona la suscripción:** se suscribe ella a `partido_{id}_{idioma}` al seguir un partido y se da de baja
+  sola (al dejar de seguirlo, al cambiar de idioma o al terminar el partido). El servidor no guarda nada ni limpia
+  nada: un topic sin suscriptores no cuesta nada.
+- **Sin duplicados:** la app solo deja seguir un partido a quien no tiene activados los resultados. No cambian
+  `resultados_*` ni el envío a las cuentas.
+- Con `app.push.habilitado=false` (perfil local) no se envía nada, como en el resto de push.
+
 ### `id` del partido en la portada y en los resultados
 
 `ResultadoDTO` (`GET /api/public/resultados/primer-equipo` y `GET /api/public/resultados`) lleva ahora `id`: el id del
