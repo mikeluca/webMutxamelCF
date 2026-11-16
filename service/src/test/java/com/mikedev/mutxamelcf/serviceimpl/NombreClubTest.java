@@ -76,6 +76,13 @@ class NombreClubTest {
         assertThat(NombreClub.esPropio(nombre)).isTrue();
     }
 
+    @Test
+    void elNombreVisibleNuevoMutxamelCfConPuntosSigueNormalizandoseYReconociendoseComoPropio() {
+        assertThat(NombreClub.normalizar("Mutxamel C.F.")).isEqualTo("MUTXAMEL CF");
+        assertThat(NombreClub.esPropio("Mutxamel C.F.")).isTrue();
+        assertThat(NombreClub.esPropio("MUTXAMEL C.F.")).isTrue();
+    }
+
     @ParameterizedTest
     @ValueSource(strings = { "Atlético Mutxamel", "C.F. Monnegre de Mutxamel", "Club Mutxamel Benifutsal",
             "Mutxamelense CF", "Elx C.F.", "" })

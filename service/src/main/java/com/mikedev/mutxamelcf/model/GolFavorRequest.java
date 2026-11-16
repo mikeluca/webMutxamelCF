@@ -3,7 +3,7 @@ package com.mikedev.mutxamelcf.model;
 import jakarta.validation.constraints.Size;
 
 /**
- * Autor de un gol a favor del Mutxamel CF: un jugador de la lista de
+ * Autor de un gol a favor del Mutxamel C.F.: un jugador de la lista de
  * convocados ({@code jugadorId}) o, solo para "Otro" y "p.p." (gol en propia
  * puerta del rival), un texto de hasta 60 caracteres ({@code autorTexto}).
  * Se indica exactamente una de las dos cosas.

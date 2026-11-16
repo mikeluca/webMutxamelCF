@@ -150,7 +150,7 @@ jugador y de familia recibe la del jugador.
 `directo.alineacion.*` (`titulo`, `texto` con suplentes y `textoSinSuplentes` cuando la alineación no los lleva; los nombres son los de
 retransmisión del jugador), `directo.inicio.*`, `directo.gol.*` (con o sin minuto), `directo.golContra.*`,
 `directo.golAnulado.*`, `directo.descanso.*`, `directo.segundaParte.*`, `directo.final.*`. El marcador
-(`Mutxamel CF 2 - 1 Rival`) no cambia con el idioma.
+(`Mutxamel C.F. 2 - 1 Rival`) no cambia con el idioma.
 
 **Gol del rival con dorsal.** `POST /{partidoId}/gol-contra` admite `dorsal` (0-99). Con dorsal el aviso usa las claves
 `directo.golContra.textoDorsal` (con minuto) y `directo.golContra.textoDorsalSinMinuto`; sin dorsal, las de siempre

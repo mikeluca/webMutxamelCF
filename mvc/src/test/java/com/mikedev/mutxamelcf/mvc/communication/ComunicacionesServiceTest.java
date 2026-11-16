@@ -133,7 +133,7 @@ class ComunicacionesServiceTest {
         assertTrue(ca.startsWith("Hola Ana:"));
         assertTrue(ca.contains("El teu compte de l'app oficial") && !ca.contains("Tu cuenta") && !ca.contains("Your "));
         assertTrue(en.startsWith("Hello Ana:"));
-        assertTrue(en.contains("Your official Mutxamel CF app account") && !en.contains("Tu cuenta")
+        assertTrue(en.contains("Your official Mutxamel C.F. app account") && !en.contains("Tu cuenta")
                 && !en.contains("El teu"));
         assertFalse(es.contains("------------------------------"));
         assertFalse(ca.contains("------------------------------"));

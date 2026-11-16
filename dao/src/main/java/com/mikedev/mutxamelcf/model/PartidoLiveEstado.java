@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * Marcador mínimo del partido en directo del primer equipo: goles a
- * favor/en contra y la lista de goleadores del Mutxamel CF, acumulados
+ * favor/en contra y la lista de goleadores del Mutxamel C.F., acumulados
  * entre el "Inicio de partido" que los reinicia y el "Final de partido".
  */
 public class PartidoLiveEstado {

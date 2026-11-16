@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 
 import com.mikedev.mutxamelcf.model.EventoDirectoResumen;
+import com.mikedev.mutxamelcf.model.GolesJugador;
 import com.mikedev.mutxamelcf.model.JugadorBasico;
 import com.mikedev.mutxamelcf.model.PartidoLiveEvento;
 
@@ -32,6 +33,12 @@ public interface PartidoLiveEventoDao {
 
     /** Jugadores (sin foto) con esos ids. */
     List<JugadorBasico> obtenerJugadoresBasicos(Collection<Long> jugadorIds);
+
+    /**
+     * Los jugadores con goles (GOLES &gt; 0) en las estadísticas guardadas del partido, de más goles a menos (empates
+     * por ID), sin foto y en una sola consulta.
+     */
+    List<GolesJugador> obtenerGolesEstadisticas(Long partidoId);
 
     /** Si el jugador figura como goleador en algún evento (anulado o no). */
     boolean existePorJugador(Long jugadorId);

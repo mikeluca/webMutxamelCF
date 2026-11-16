@@ -84,7 +84,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
     /*
      * En EQUIPO, la fila del primer equipo tiene NOMBRE = "Primer Equipo"
-     * (no "Mutxamel CF", que es el nombre del club, no de esa fila).
+     * (no "Mutxamel C.F.", que es el nombre del club, no de esa fila).
      */
     private static final String EQUIPO_PRIMER_EQUIPO = "Primer Equipo";
 
@@ -1377,9 +1377,9 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         return PROPIA_PUERTA.equals(autor) ? textos.texto(idioma, "directo.golPropiaPuerta") : autor;
     }
 
-    /** "Mutxamel CF 2 - 1 Rival": no cambia con el idioma. */
+    /** "Mutxamel C.F. 2 - 1 Rival": no cambia con el idioma. */
     private String textoMarcador(Partido partido, EstadoPartidoEnVivoResponse estado) {
-        return "Mutxamel CF " + estado.golesFavor() + " - " + estado.golesContra() + " " + nombreRival(partido);
+        return "Mutxamel C.F. " + estado.golesFavor() + " - " + estado.golesContra() + " " + nombreRival(partido);
     }
 
     /*

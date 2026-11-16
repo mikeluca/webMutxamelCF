@@ -18,6 +18,7 @@ import org.springframework.stereotype.Repository;
 
 import com.mikedev.mutxamelcf.dao.PartidoLiveEventoDao;
 import com.mikedev.mutxamelcf.model.EventoDirectoResumen;
+import com.mikedev.mutxamelcf.model.GolesJugador;
 import com.mikedev.mutxamelcf.model.JugadorBasico;
 import com.mikedev.mutxamelcf.model.PartidoLiveEvento;
 
@@ -129,6 +130,22 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 						+ marcadores + ")",
 				(rs, n) -> mapJugadorBasico(rs, "ID", "DORSAL", "NOMBRE", "APELLIDOS", "NOMBRE_RETRANSMISION"),
 				jugadorIds.toArray());
+	}
+
+	@Override
+	public List<GolesJugador> obtenerGolesEstadisticas(Long partidoId) {
+
+		return jdbcTemplate.query("""
+				SELECT J.ID AS J_ID, J.DORSAL AS J_DORSAL, J.NOMBRE AS J_NOMBRE, J.APELLIDOS AS J_APELLIDOS,
+				       J.NOMBRE_RETRANSMISION AS J_NOMBRE_RETRANSMISION, EJ.GOLES
+				FROM PARTIDO_ESTADISTICAS_JUGADOR EJ
+				JOIN JUGADORES J ON J.ID = EJ.JUGADOR_ID
+				WHERE EJ.PARTIDO_ID = ? AND EJ.GOLES > 0
+				ORDER BY EJ.GOLES DESC, EJ.ID
+				""", (rs, n) -> new GolesJugador(
+						mapJugadorBasico(rs, "J_ID", "J_DORSAL", "J_NOMBRE", "J_APELLIDOS", "J_NOMBRE_RETRANSMISION"),
+						rs.getInt("GOLES")),
+				partidoId);
 	}
 
 	@Override

@@ -27,11 +27,26 @@ public record FichaPartidoDTO(
      * @param reloj reloj en directo; null salvo en la primera parte, el descanso y la segunda parte
      * @param escudoRivalUrl ruta relativa a la URL base del escudo del club rival (/api/public/escudos-rivales/{id}?v=N); null si no tiene
      * @param rivalEsPropio true si el rival es un equipo de nuestro club (la app pone nuestro escudo)
+     * @param mutxamelLocal true si el Mutxamel juega en casa. La app nueva decide el lado con este campo y no con el
+     *                      texto de equipoLocal
+     * @param goleadores nuestros goleadores, en orden del primer gol (retransmisión) o de más a menos goles
+     *                   (estadísticas guardadas); vacía sin datos
+     * @param campo el campo del partido tal cual; null si no hay
+     * @param jornada número de jornada; null si no la tiene
      */
     public record Cabecera(
             Long partidoId, String equipoLocal, String equipoVisitante, LocalDate dia, String hora,
             Integer golesFavor, Integer golesContra, String estado, String competicion, RelojPartido reloj,
-            int minutosParte, String escudoRivalUrl, boolean rivalEsPropio) {
+            int minutosParte, String escudoRivalUrl, boolean rivalEsPropio, boolean mutxamelLocal,
+            List<Goleador> goleadores, String campo, Integer jornada) {
+    }
+
+    /**
+     * @param nombre nombre en directo del goleador (o el autor libre / "Gol en propia puerta del rival" en el idioma
+     *               pedido)
+     * @param minutos minutos de sus goles; vacía si el dato viene de las estadísticas guardadas
+     */
+    public record Goleador(String nombre, int goles, List<Integer> minutos) {
     }
 
     /**

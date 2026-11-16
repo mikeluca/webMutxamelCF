@@ -272,7 +272,13 @@ los últimos resultados; sin consultas por jugador.
     "dia": "2026-11-08", "hora": "18:00", "golesFavor": 2, "golesContra": 1,
     "estado": "EN_JUEGO", "competicion": "Preferente Valenciana · Jornada 9",
     "reloj": null, "minutosParte": 45,
-    "escudoRivalUrl": "/api/public/escudos-rivales/7?v=3", "rivalEsPropio": false
+    "escudoRivalUrl": "/api/public/escudos-rivales/7?v=3", "rivalEsPropio": false,
+    "mutxamelLocal": true,
+    "goleadores": [
+      { "nombre": "Pablito", "goles": 2, "minutos": [23, 67] },
+      { "nombre": "Otro", "goles": 1, "minutos": [70] }
+    ],
+    "campo": "Camp Municipal de Mutxamel", "jornada": 9
   },
   "eventos": [
     { "tipo": "TARJETA_ROJA", "minuto": 80, "jugador": "Ana Ruiz", "jugadorEntra": null,
@@ -298,7 +304,23 @@ los últimos resultados; sin consultas por jugador.
 ```
 
 **Cabecera.**
-- `equipoLocal` / `equipoVisitante`: "Mutxamel CF" y el rival, según sea local o visitante.
+- `equipoLocal` / `equipoVisitante`: "Mutxamel CF" (**sin puntos**, a propósito) y el rival, según sea local o visitante.
+  **TODO de compatibilidad:** el club se llama ya "Mutxamel C.F." en todo texto visible, pero la app 1.0.9 (ya
+  publicada) decide qué lado es el Mutxamel comparando `equipoLocal` con el texto "Mutxamel CF". Por eso este campo no
+  cambia hasta que la versión mínima obligue a actualizar la app; entonces habrá que pasar `NOMBRE_CLUB` de
+  `FichaPartidoServiceImpl` a "Mutxamel C.F." (hay un TODO en el código). La app nueva **no** compara nombres: usa
+  `mutxamelLocal`. Es el único sitio de la API donde la app compara por el nombre del club.
+- `mutxamelLocal`: `true` si el Mutxamel juega en casa (es el `ES_LOCAL` del partido). Siempre presente.
+- `goleadores`: nuestros goleadores del partido, `{ nombre, goles, minutos }`. **Con retransmisión** (hay eventos de
+  fase), de los `GOL_FAVOR` no anulados, agrupados por jugador (el autor libre, como "Otro", y la propia puerta se
+  agrupan por su texto) y **en orden del primer gol**; `minutos` son los de sus goles (los goles sin minuto no añaden
+  minuto); un gol sin autor no se añade; la propia puerta sale como "Gol en propia puerta del rival" en el idioma de
+  `Accept-Language`. **Sin retransmisión pero con estadísticas guardadas**, de `PARTIDO_ESTADISTICAS_JUGADOR` con
+  `GOLES > 0`, de más goles a menos y con `minutos: []`. Sin datos, `[]`. El nombre es siempre el nombre en directo
+  (`NOMBRE_RETRANSMISION` o nombre y apellidos); no sale ningún otro dato del jugador. Una sola consulta más (las
+  estadísticas) y solo cuando no hay retransmisión.
+- `campo`: el campo del partido (`PARTIDOS.CAMPO`) tal cual; `null` si no hay.
+- `jornada`: número de jornada si lo tiene (`null` si no), aparte del texto de `competicion`.
 - `golesFavor` / `golesContra`: los del directo si hay retransmisión; si no, los del resultado guardado (`null` si no hay).
 - `estado`: `CANCELADO` si el partido está cancelado; si no, por el directo: `EN_JUEGO` (primera o segunda parte),
   `DESCANSO` o `FINALIZADO`; sin retransmisión, `FINALIZADO` si tiene resultado guardado y `PROXIMO` si no.

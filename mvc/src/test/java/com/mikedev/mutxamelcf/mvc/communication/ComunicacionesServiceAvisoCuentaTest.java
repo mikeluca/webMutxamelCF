@@ -48,7 +48,7 @@ class ComunicacionesServiceAvisoCuentaTest {
                 LocalDate.of(2027, 6, 10), "ca");
 
         assertThat(enviado).isTrue();
-        assertThat(mensaje.getSubject()).isEqualTo("El teu compte de l'app del Mutxamel CF es desactivarà");
+        assertThat(mensaje.getSubject()).isEqualTo("El teu compte de l'app del Mutxamel C.F. es desactivarà");
         verify(sender).send(mensaje);
     }
 }

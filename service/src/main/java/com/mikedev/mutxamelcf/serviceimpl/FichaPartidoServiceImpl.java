@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,6 +35,8 @@ import com.mikedev.mutxamelcf.model.FichaPartidoDTO.FormaFicha;
 import com.mikedev.mutxamelcf.model.FichaPartidoDTO.Suplente;
 import com.mikedev.mutxamelcf.model.FichaPartidoDTO.Tarjeta;
 import com.mikedev.mutxamelcf.model.FichaPartidoDTO.Titular;
+import com.mikedev.mutxamelcf.model.FichaPartidoDTO.Goleador;
+import com.mikedev.mutxamelcf.model.GolesJugador;
 import com.mikedev.mutxamelcf.model.JugadorBasico;
 import com.mikedev.mutxamelcf.model.JugadorFicha;
 import com.mikedev.mutxamelcf.model.Partido;
@@ -119,7 +122,7 @@ public class FichaPartidoServiceImpl implements FichaPartidoService {
         Map<Long, JugadorFicha> jugadores = jugadores(eventos, alineacion, dia, primerEquipo.getId());
 
         return new FichaPartidoDTO(
-                cabecera(partido, dia, eventos, idioma, primerEquipo.getModalidad()),
+                cabecera(partido, dia, eventos, jugadores, idioma, primerEquipo.getModalidad()),
                 eventos(eventos, jugadores, idioma),
                 alineacion(partidoId, alineacion, eventos, jugadores),
                 forma(partido, dia, primerEquipo.getId()));
@@ -129,8 +132,8 @@ public class FichaPartidoServiceImpl implements FichaPartidoService {
     // Cabecera
     // ------------------------------------------------------------------
 
-    private Cabecera cabecera(Partido partido, LocalDate dia, List<PartidoLiveEvento> eventos, String idioma,
-            String modalidad) {
+    private Cabecera cabecera(Partido partido, LocalDate dia, List<PartidoLiveEvento> eventos,
+            Map<Long, JugadorFicha> jugadores, String idioma, String modalidad) {
 
         String rival = partido.getRival() == null ? "" : partido.getRival();
 
@@ -163,13 +166,75 @@ public class FichaPartidoServiceImpl implements FichaPartidoService {
 
         return new Cabecera(
                 partido.getId(),
+                // TODO: cambiar NOMBRE_CLUB a "Mutxamel C.F." cuando la versión mínima de la app obligue a actualizar:
+                // la 1.0.9 decide qué lado es el Mutxamel comparando equipoLocal con "Mutxamel CF". La app nueva usa
+                // mutxamelLocal.
                 partido.isLocal() ? NOMBRE_CLUB : rival,
                 partido.isLocal() ? rival : NOMBRE_CLUB,
                 dia, partido.getHora(), golesFavor, golesContra, estado, competicion(partido, dia, idioma),
                 reloj(eventos, fase, modalidad),
                 RelojDirecto.minutosParte(modalidad, minutosParteF11, minutosParteF8, minutosParteF5),
                 EscudosRivales.url(partido.getClubRivalId(), partido.getEscudoRivalVersion()),
-                NombreClub.esPropio(partido.getRival()));
+                NombreClub.esPropio(partido.getRival()),
+                partido.isLocal(),
+                goleadores(partido.getId(), fase != null, eventos, jugadores, idioma),
+                partido.getCampo(),
+                partido.getJornada());
+    }
+
+    /*
+     * Nuestros goleadores. Con retransmisión, de los GOL_FAVOR no anulados (los eventos ya vienen sin anulados), con
+     * sus minutos y en orden del primer gol; un gol sin autor no se añade. Sin retransmisión, de las estadísticas
+     * guardadas (una consulta más, solo en este caso), de más goles a menos y sin minutos.
+     */
+    private List<Goleador> goleadores(Long partidoId, boolean retransmitido, List<PartidoLiveEvento> eventos,
+            Map<Long, JugadorFicha> jugadores, String idioma) {
+
+        if (!retransmitido) {
+
+            List<Goleador> desdeEstadisticas = new ArrayList<>();
+
+            for (GolesJugador goles : eventoDao.obtenerGolesEstadisticas(partidoId)) {
+                desdeEstadisticas.add(new Goleador(goles.jugador().nombreEnDirecto(), goles.goles(), List.of()));
+            }
+
+            return desdeEstadisticas;
+        }
+
+        // Un jugador se agrupa por id; un autor libre ("Otro", propia puerta), por su texto.
+        Map<String, String> nombres = new LinkedHashMap<>();
+        Map<String, Integer> goles = new HashMap<>();
+        Map<String, List<Integer>> minutos = new HashMap<>();
+
+        for (PartidoLiveEvento evento : eventos) {
+
+            if (!PartidoLiveEvento.GOL_FAVOR.equals(evento.getTipo())) {
+                continue;
+            }
+
+            String nombre = autorGol(evento, jugadores, idioma);
+
+            if (nombre == null || nombre.isBlank()) {
+                continue;
+            }
+
+            String clave = evento.getJugadorId() != null ? "J" + evento.getJugadorId() : "T" + nombre;
+
+            nombres.putIfAbsent(clave, nombre);
+            goles.merge(clave, 1, Integer::sum);
+
+            List<Integer> suyos = minutos.computeIfAbsent(clave, c -> new ArrayList<>());
+
+            if (evento.getMinuto() != null) {
+                suyos.add(evento.getMinuto());
+            }
+        }
+
+        List<Goleador> goleadores = new ArrayList<>();
+
+        nombres.forEach((clave, nombre) -> goleadores.add(new Goleador(nombre, goles.get(clave), minutos.get(clave))));
+
+        return goleadores;
     }
 
     /*

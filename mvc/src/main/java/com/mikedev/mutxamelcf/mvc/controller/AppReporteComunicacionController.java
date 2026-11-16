@@ -172,7 +172,7 @@ public class AppReporteComunicacionController {
 
         StringBuilder cuerpo = new StringBuilder();
 
-        cuerpo.append("Un usuario ha reportado un contenido en la app del Mutxamel CF.\n\n");
+        cuerpo.append("Un usuario ha reportado un contenido en la app del Mutxamel C.F.\n\n");
 
         cuerpo.append("== REPORTE ==\n");
         cuerpo.append("Fecha del reporte: ").append(LocalDateTime.now().format(FORMATO_FECHA)).append('\n');
