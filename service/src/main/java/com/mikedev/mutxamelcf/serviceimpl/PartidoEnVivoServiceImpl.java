@@ -56,6 +56,7 @@ import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.TextoDifusion;
 import com.mikedev.mutxamelcf.model.PartidoEstadisticaJugador;
 import com.mikedev.mutxamelcf.model.PartidoLiveEvento;
+import com.mikedev.mutxamelcf.model.RelojPartido;
 import com.mikedev.mutxamelcf.service.FcmPushService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
 import com.mikedev.mutxamelcf.service.PartidoEnVivoService;
@@ -370,8 +371,8 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
     @Override
     @Transactional
-    public EstadoPartidoEnVivoResponse enviarGolContra(Long usuarioId, Long partidoId, Integer minuto) {
-        return registrar(usuarioId, partidoId, PartidoLiveEvento.GOL_CONTRA, null, null, minuto);
+    public EstadoPartidoEnVivoResponse enviarGolContra(Long usuarioId, Long partidoId, Integer minuto, Integer dorsal) {
+        return registrar(usuarioId, partidoId, PartidoLiveEvento.GOL_CONTRA, null, null, minuto, null, false, dorsal);
     }
 
     @Override
@@ -402,7 +403,8 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     @Override
     @Transactional
     public EstadoPartidoEnVivoResponse enviarTarjeta(
-            Long usuarioId, Long partidoId, Long jugadorId, String color, Integer minuto) {
+            Long usuarioId, Long partidoId, Long jugadorId, String color, Integer minuto, boolean rival,
+            Integer dorsal) {
 
         String tipo = color == null ? "" : switch (color.trim().toUpperCase(Locale.ROOT)) {
             case "AMARILLA" -> PartidoLiveEvento.TARJETA_AMARILLA;
@@ -416,12 +418,51 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             throw new IllegalArgumentException("El color de la tarjeta debe ser AMARILLA o ROJA");
         }
 
-        return registrar(usuarioId, partidoId, tipo, jugadorId, null, minuto, null);
+        return registrar(usuarioId, partidoId, tipo, jugadorId, null, minuto, null, rival, dorsal);
     }
 
     private EstadoPartidoEnVivoResponse registrar(
             Long usuarioId, Long partidoId, String tipo, Long jugadorId, String autorTexto, Integer minuto) {
-        return registrar(usuarioId, partidoId, tipo, jugadorId, autorTexto, minuto, null);
+        return registrar(usuarioId, partidoId, tipo, jugadorId, autorTexto, minuto, null, false, null);
+    }
+
+    private EstadoPartidoEnVivoResponse registrar(
+            Long usuarioId, Long partidoId, String tipo, Long jugadorId, String autorTexto, Integer minuto,
+            Long jugadorEntraId) {
+        return registrar(usuarioId, partidoId, tipo, jugadorId, autorTexto, minuto, jugadorEntraId, false, null);
+    }
+
+    static final int DORSAL_MAXIMO = 99;
+
+    private static Integer validarDorsal(Integer dorsal) {
+
+        if (dorsal != null && (dorsal < 0 || dorsal > DORSAL_MAXIMO)) {
+            throw new IllegalArgumentException("El dorsal debe estar entre 0 y " + DORSAL_MAXIMO);
+        }
+
+        return dorsal;
+    }
+
+    /*
+     * Forma de lo que es del rival: el dorsal (0-99) solo en el gol del rival y en la tarjeta del rival; la tarjeta
+     * del rival no lleva jugador nuestro. Se comprueba antes que nada para que un cuerpo mal formado no llegue a
+     * la base de datos (sus CHECK lo rechazarían igual, pero con un error 500).
+     */
+    private static void validarRival(String tipo, Long jugadorId, boolean rival, Integer dorsal) {
+
+        validarDorsal(dorsal);
+
+        if (rival && !TarjetasEventos.esTarjeta(tipo)) {
+            throw new IllegalArgumentException("Solo una tarjeta puede ser del rival");
+        }
+
+        if (rival && jugadorId != null) {
+            throw new IllegalArgumentException("Una tarjeta del rival no lleva jugador: quita el jugadorId");
+        }
+
+        if (dorsal != null && !rival && !PartidoLiveEvento.GOL_CONTRA.equals(tipo)) {
+            throw new IllegalArgumentException("El dorsal solo se admite en un gol del rival o en una tarjeta del rival");
+        }
     }
 
     /*
@@ -432,9 +473,11 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
      */
     private EstadoPartidoEnVivoResponse registrar(
             Long usuarioId, Long partidoId, String tipo, Long jugadorId, String autorTexto, Integer minuto,
-            Long jugadorEntraId) {
+            Long jugadorEntraId, boolean rival, Integer dorsalRival) {
 
         validarRolRetransmision(usuarioId);
+
+        validarRival(tipo, jugadorId, rival, dorsalRival);
 
         bloquearPartido(partidoId);
 
@@ -456,6 +499,10 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             evento.setMinuto(minuto != null ? validarMinuto(minuto) : calcularMinuto(partido, eventos, ahora));
         }
 
+        if (PartidoLiveEvento.GOL_CONTRA.equals(tipo)) {
+            evento.setDorsalRival(dorsalRival);
+        }
+
         if (PartidoLiveEvento.GOL_FAVOR.equals(tipo)) {
 
             resolverAutor(evento, partido, jugadorId, autorTexto);
@@ -471,6 +518,8 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             evento.setMinuto(minuto != null ? validarMinuto(minuto) : minutoPorDefecto(partido, eventos, ahora));
             evento.setJugadorId(jugadorId);
             evento.setJugadorEntraId(jugadorEntraId);
+            evento.setRival(rival);
+            evento.setDorsalRival(rival ? dorsalRival : null);
 
             if (esReintentoDuplicado(eventos, evento, ahora)) {
                 // Mismo cambio o tarjeta reintentado (el push tardó): no se registra dos veces (una segunda
@@ -480,7 +529,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
             if (PartidoLiveEvento.CAMBIO.equals(tipo)) {
                 validarCambio(partido, eventos, jugadorId, jugadorEntraId);
-            } else {
+            } else if (!rival) {
                 validarTarjeta(partido, eventos, jugadorId);
             }
         }
@@ -609,13 +658,18 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
         }
     }
 
-    /** Mismo tipo y mismos jugadores que el último evento igual, dentro de la ventana de deduplicación. */
+    /*
+     * Mismo tipo y mismos jugadores (o, en el rival, mismo dorsal) que el último evento igual, dentro de la ventana de
+     * deduplicación. Dos tarjetas del rival sin dorsal seguidas en esa ventana son indistinguibles de un reintento.
+     */
     private boolean esReintentoDuplicado(List<PartidoLiveEvento> eventos, PartidoLiveEvento nuevo, LocalDateTime ahora) {
 
         return eventos.stream()
                 .filter(e -> e.getTipo().equals(nuevo.getTipo())
                         && Objects.equals(e.getJugadorId(), nuevo.getJugadorId())
-                        && Objects.equals(e.getJugadorEntraId(), nuevo.getJugadorEntraId()))
+                        && Objects.equals(e.getJugadorEntraId(), nuevo.getJugadorEntraId())
+                        && e.isRival() == nuevo.isRival()
+                        && Objects.equals(e.getDorsalRival(), nuevo.getDorsalRival()))
                 .reduce((primero, segundo) -> segundo)
                 .filter(ultimo -> ahora.isBefore(ultimo.getFecha().plus(VENTANA_DEDUPLICACION_GOL)))
                 .isPresent();
@@ -671,18 +725,24 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
     /** Duración de una parte según la modalidad del equipo (F11 por defecto). */
     private int minutosDeParte(Partido partido) {
 
-        Equipo equipo = equipoDao.obtenerEquipoPorId(partido.getEquipoId());
-        String modalidad = equipo == null ? null : equipo.getModalidad();
+        return RelojDirecto.minutosParte(modalidad(partido), minutosParteF11, minutosParteF8, minutosParteF5);
+    }
 
-        if ("F8".equals(modalidad)) {
-            return minutosParteF8;
+    /** La fecha del último INICIO (1.ª parte) o SEGUNDA_PARTE (2.ª parte) no anulado; null en otra fase. */
+    private static LocalDateTime inicioParteEnCurso(List<PartidoLiveEvento> eventos, String fase) {
+
+        String tipoInicio = EstadoPartidoEnVivoResponse.SEGUNDA_PARTE.equals(fase) ? PartidoLiveEvento.SEGUNDA_PARTE
+                : EstadoPartidoEnVivoResponse.PRIMERA_PARTE.equals(fase) ? PartidoLiveEvento.INICIO : null;
+
+        if (tipoInicio == null) {
+            return null;
         }
 
-        if ("F5".equals(modalidad)) {
-            return minutosParteF5;
-        }
-
-        return minutosParteF11;
+        return eventos.stream()
+                .filter(e -> tipoInicio.equals(e.getTipo()))
+                .map(PartidoLiveEvento::getFecha)
+                .reduce((primero, segundo) -> segundo)
+                .orElse(null);
     }
 
     /**
@@ -1119,7 +1179,7 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             respuesta.add(new EventoEnVivo(evento.getId(), evento.getTipo(), evento.getJugadorId(), autor,
                     evento.getFecha(), evento.getMinuto(), evento.getJugadorEntraId(),
                     evento.getJugadorEntraId() == null ? null : nombres.get(evento.getJugadorEntraId()),
-                    dobles.contains(evento.getId())));
+                    dobles.contains(evento.getId()), evento.isRival(), evento.getDorsalRival()));
 
             if (PartidoLiveEvento.GOL_FAVOR.equals(evento.getTipo()) && autor != null) {
                 goleadores.add(autor);
@@ -1142,18 +1202,27 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             }
         }
 
+        String fase = fase(eventos);
+
+        // minutosDeParte consulta el equipo: solo cuando hay reloj.
+        RelojPartido reloj = RelojDirecto.conReloj(fase)
+                ? RelojDirecto.reloj(fase, inicioParteEnCurso(eventos, fase), minutosDeParte(partido), clock)
+                : null;
+
         return new EstadoPartidoEnVivoResponse(
                 partido.getId(),
                 nombreRival(partido),
                 partido.isLocal(),
-                fase(eventos),
+                fase,
                 contar(eventos, PartidoLiveEvento.GOL_FAVOR),
                 contar(eventos, PartidoLiveEvento.GOL_CONTRA),
                 goleadores,
                 respuesta,
                 deshacible,
                 calcularMinuto(partido, eventos, ahora()),
-                alineacionEnVivo(partido, eventos));
+                alineacionEnVivo(partido, eventos),
+                TarjetasEventos.dorsalesRivalConAmarilla(eventos),
+                reloj);
     }
 
     /** La alineación guardada y quién está en el campo; null si no se ha enviado ninguna. */
@@ -1246,13 +1315,11 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
             }
             case PartidoLiveEvento.GOL_CONTRA -> {
                 Integer minuto = evento.getMinuto();
+                Integer dorsal = evento.getDorsalRival();
 
                 difundirTrasCommit(partido.getId(), idioma -> new TextoDifusion(
                         textos.texto(idioma, "directo.golContra.titulo"),
-                        minuto == null
-                                ? textos.texto(idioma, "directo.golContra.textoSinMinuto", "marcador", marcador)
-                                : textos.texto(idioma, "directo.golContra.texto",
-                                        "minuto", String.valueOf(minuto), "marcador", marcador)));
+                        textoGolContra(idioma, minuto, dorsal, marcador)));
             }
             case PartidoLiveEvento.DESCANSO ->
                 difundirTrasCommit(partido.getId(), idioma -> new TextoDifusion(
@@ -1282,6 +1349,23 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
                 // sin difusión
             }
         }
+    }
+
+    /** El texto del aviso del gol del rival: con el dorsal del autor si se indicó, y con el minuto si lo hay. */
+    private String textoGolContra(String idioma, Integer minuto, Integer dorsal, String marcador) {
+
+        if (dorsal == null) {
+            return minuto == null
+                    ? textos.texto(idioma, "directo.golContra.textoSinMinuto", "marcador", marcador)
+                    : textos.texto(idioma, "directo.golContra.texto",
+                            "minuto", String.valueOf(minuto), "marcador", marcador);
+        }
+
+        return minuto == null
+                ? textos.texto(idioma, "directo.golContra.textoDorsalSinMinuto",
+                        "dorsal", String.valueOf(dorsal), "marcador", marcador)
+                : textos.texto(idioma, "directo.golContra.textoDorsal",
+                        "dorsal", String.valueOf(dorsal), "minuto", String.valueOf(minuto), "marcador", marcador);
     }
 
     private String textoAutor(String idioma, String autor) {

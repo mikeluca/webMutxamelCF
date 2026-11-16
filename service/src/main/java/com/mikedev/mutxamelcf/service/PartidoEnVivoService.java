@@ -83,11 +83,18 @@ public interface PartidoEnVivoService {
         return enviarGolFavor(usuarioId, partidoId, jugadorId, autorTexto, null);
     }
 
-    /** El minuto (0-150) es opcional: sin él lo calcula el servidor. */
-    EstadoPartidoEnVivoResponse enviarGolContra(Long usuarioId, Long partidoId, Integer minuto);
+    /**
+     * El minuto (0-150) es opcional: sin él lo calcula el servidor. El dorsal (0-99) del autor, también opcional, sale
+     * en el aviso y en la ficha.
+     */
+    EstadoPartidoEnVivoResponse enviarGolContra(Long usuarioId, Long partidoId, Integer minuto, Integer dorsal);
+
+    default EstadoPartidoEnVivoResponse enviarGolContra(Long usuarioId, Long partidoId, Integer minuto) {
+        return enviarGolContra(usuarioId, partidoId, minuto, null);
+    }
 
     default EstadoPartidoEnVivoResponse enviarGolContra(Long usuarioId, Long partidoId) {
-        return enviarGolContra(usuarioId, partidoId, null);
+        return enviarGolContra(usuarioId, partidoId, null, null);
     }
 
     /**
@@ -103,8 +110,20 @@ public interface PartidoEnVivoService {
      * Tarjeta ({@code color} AMARILLA o ROJA) a un jugador de la lista elegible. La segunda amarilla del mismo
      * jugador es una expulsión por doble amarilla (en la ficha sale como roja). Sin push. El minuto es opcional.
      */
+    default EstadoPartidoEnVivoResponse enviarTarjeta(
+            Long usuarioId, Long partidoId, Long jugadorId, String color, Integer minuto) {
+        return enviarTarjeta(usuarioId, partidoId, jugadorId, color, minuto, false, null);
+    }
+
+    /**
+     * Tarjeta a un jugador nuestro ({@code rival} false: {@code jugadorId} obligatorio, sin dorsal) o a uno del rival
+     * ({@code rival} true: sin {@code jugadorId} y con el dorsal 0-99 opcional). La segunda amarilla al mismo dorsal
+     * del rival es expulsión por doble amarilla; sin dorsal cada amarilla cuenta suelta. Las del rival no cuentan en
+     * estadísticas, sanciones ni avisos de tarjetas, ni en quién está en el campo.
+     */
     EstadoPartidoEnVivoResponse enviarTarjeta(
-            Long usuarioId, Long partidoId, Long jugadorId, String color, Integer minuto);
+            Long usuarioId, Long partidoId, Long jugadorId, String color, Integer minuto, boolean rival,
+            Integer dorsal);
 
     /**
      * Corrige el minuto (0-150) de un gol, cambio o tarjeta no anulado de un partido de hoy, sea cual sea su orden

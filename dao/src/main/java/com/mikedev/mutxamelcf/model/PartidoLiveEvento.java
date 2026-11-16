@@ -27,6 +27,12 @@ public class PartidoLiveEvento {
     /** Solo en un CAMBIO: el jugador que entra (jugadorId es el que sale). */
     private Long jugadorEntraId;
 
+    /** true en una tarjeta a un jugador del rival (jugadorId es null); false en todo lo demás. */
+    private boolean rival;
+
+    /** Dorsal del rival (0-99) en un GOL_CONTRA o en una tarjeta del rival; null si no se indicó. */
+    private Integer dorsalRival;
+
     /** Minuto del partido en que ocurrió (goles, cambios y tarjetas); null si no consta. */
     private Integer minuto;
     private Long usuarioAppId;
@@ -83,6 +89,22 @@ public class PartidoLiveEvento {
 
     public void setJugadorEntraId(Long jugadorEntraId) {
         this.jugadorEntraId = jugadorEntraId;
+    }
+
+    public boolean isRival() {
+        return rival;
+    }
+
+    public void setRival(boolean rival) {
+        this.rival = rival;
+    }
+
+    public Integer getDorsalRival() {
+        return dorsalRival;
+    }
+
+    public void setDorsalRival(Integer dorsalRival) {
+        this.dorsalRival = dorsalRival;
     }
 
     public String getAutorTexto() {

@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -80,6 +81,16 @@ public class PartidoServiceImpl implements PartidoService {
 	private final ConvocatoriaService convocatoriaService;
 	private final TextosAvisos textos;
 	private final Clock clock;
+
+	/** Duración de cada parte según la modalidad del equipo (retransmision.minutos-parte.*), para el reloj. */
+	@Value("${retransmision.minutos-parte.F11:45}")
+	private int minutosParteF11 = 45;
+
+	@Value("${retransmision.minutos-parte.F8:25}")
+	private int minutosParteF8 = 25;
+
+	@Value("${retransmision.minutos-parte.F5:20}")
+	private int minutosParteF5 = 20;
 
 	public PartidoServiceImpl(
 			PartidoDao partidoDao,
@@ -764,12 +775,20 @@ public class PartidoServiceImpl implements PartidoService {
 		String fase = null;
 		int golesFavor = 0;
 		int golesContra = 0;
+		// Inicio de la parte en juego: el último INICIO o SEGUNDA_PARTE no anulado (para el reloj).
+		LocalDateTime inicioParte = null;
 
 		for (EventoDirectoResumen evento : eventos) {
 			switch (evento.tipo()) {
-				case PartidoLiveEvento.INICIO -> fase = "PRIMERA_PARTE";
+				case PartidoLiveEvento.INICIO -> {
+					fase = "PRIMERA_PARTE";
+					inicioParte = evento.fecha();
+				}
 				case PartidoLiveEvento.DESCANSO -> fase = "DESCANSO";
-				case PartidoLiveEvento.SEGUNDA_PARTE -> fase = "SEGUNDA_PARTE";
+				case PartidoLiveEvento.SEGUNDA_PARTE -> {
+					fase = "SEGUNDA_PARTE";
+					inicioParte = evento.fecha();
+				}
 				case PartidoLiveEvento.FINAL -> fase = "FINALIZADO";
 				case PartidoLiveEvento.GOL_FAVOR -> golesFavor++;
 				case PartidoLiveEvento.GOL_CONTRA -> golesContra++;
@@ -793,6 +812,14 @@ public class PartidoServiceImpl implements PartidoService {
 		if (!finalizado) {
 			// Se está jugando: no es un resultado pendiente de introducir.
 			resultado.setPendienteResultado(false);
+
+			// Solo en juego se consulta el equipo (para la duración de la parte); sin consultas de eventos nuevas.
+			Equipo equipo = equipoDao.obtenerEquipoPorId(partido.getEquipoId());
+
+			resultado.setReloj(RelojDirecto.reloj(fase, inicioParte,
+					RelojDirecto.minutosParte(equipo == null ? null : equipo.getModalidad(), minutosParteF11,
+							minutosParteF8, minutosParteF5),
+					clock));
 			return;
 		}
 

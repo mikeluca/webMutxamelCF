@@ -23,7 +23,7 @@ class PublicFichaPartidoControllerTest {
     private static FichaPartidoDTO ficha() {
         return new FichaPartidoDTO(
                 new FichaPartidoDTO.Cabecera(30L, "Mutxamel CF", "Pego C.F.", LocalDate.of(2026, 11, 8), "18:00", 1, 0,
-                        "EN_JUEGO", "Preferente Valenciana · Jornada 9"),
+                        "EN_JUEGO", "Preferente Valenciana · Jornada 9", null),
                 List.of(), new FichaPartidoDTO.AlineacionFicha(null, List.of(), List.of()), List.of());
     }
 

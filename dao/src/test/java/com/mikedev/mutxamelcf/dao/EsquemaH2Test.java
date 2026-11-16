@@ -392,6 +392,43 @@ class EsquemaH2Test {
     }
 
     @Test
+    void losEventosDelRivalTienenElEsquemaDelScript() throws Exception {
+        JdbcTemplate jdbc = new JdbcTemplate(new DriverManagerDataSource(
+                "jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=Oracle;DB_CLOSE_DELAY=-1", "sa", ""));
+        EsquemaH2.crear(jdbc);
+
+        assertThat(columnas(jdbc, "PARTIDO_LIVE_EVENTOS")).contains("RIVAL", "DORSAL_RIVAL");
+
+        String base = "INSERT INTO PARTIDO_LIVE_EVENTOS (PARTIDO_ID, TIPO, JUGADOR_ID, RIVAL, DORSAL_RIVAL, USUARIO_APP_ID,"
+                + " FECHA) VALUES (1, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)";
+
+        // Lo válido: tarjeta del rival con y sin dorsal, gol del rival con dorsal, y todo lo de antes con RIVAL = 0.
+        jdbc.update(base, "TARJETA_AMARILLA", null, 1, 9);
+        jdbc.update(base, "TARJETA_ROJA", null, 1, null);
+        jdbc.update(base, "GOL_CONTRA", null, 0, 99);
+        jdbc.update(base, "GOL_CONTRA", null, 0, 0);
+        jdbc.update(base, "TARJETA_AMARILLA", 10, 0, null);
+
+        // RIVAL solo 0/1, solo en tarjetas y sin jugador nuestro.
+        assertThatThrownBy(() -> jdbc.update(base, "TARJETA_AMARILLA", null, 2, null)).isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update(base, "GOL_CONTRA", null, 1, null)).isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update(base, "TARJETA_AMARILLA", 10, 1, null)).isInstanceOf(Exception.class);
+
+        // DORSAL_RIVAL de 0 a 99 y solo en un gol del rival o una tarjeta del rival.
+        assertThatThrownBy(() -> jdbc.update(base, "GOL_CONTRA", null, 0, 100)).isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update(base, "GOL_CONTRA", null, 0, -1)).isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update(base, "TARJETA_AMARILLA", 10, 0, 9)).isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> jdbc.update(base, "GOL_FAVOR", null, 0, 9)).isInstanceOf(Exception.class);
+
+        // Y el script de Oracle tiene lo mismo.
+        String script = Files.readString(Path.of("..", "sql", "2026-11-16_eventos_rival.sql"));
+        assertThat(script).contains("RIVAL         NUMBER(1) DEFAULT 0 NOT NULL", "DORSAL_RIVAL  NUMBER(3) NULL",
+                "CHECK (RIVAL IN (0, 1))",
+                "CHECK (RIVAL = 0 OR (TIPO IN ('TARJETA_AMARILLA', 'TARJETA_ROJA') AND JUGADOR_ID IS NULL))",
+                "CHECK (DORSAL_RIVAL IS NULL OR (DORSAL_RIVAL BETWEEN 0 AND 99 AND (TIPO = 'GOL_CONTRA' OR RIVAL = 1)))");
+    }
+
+    @Test
     void sinTablaPartidosLaFichaDelPartidoSeCreaIgual() {
         assertThat(columnas(nuevaBase(), "PARTIDO_ALINEACION")).isNotEmpty();
     }

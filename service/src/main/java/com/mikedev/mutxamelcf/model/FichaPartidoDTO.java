@@ -24,10 +24,11 @@ public record FichaPartidoDTO(
      * @param estado PROXIMO, EN_JUEGO, DESCANSO, FINALIZADO o CANCELADO
      * @param golesFavor goles del Mutxamel (en directo, o los del resultado guardado); null si no hay ninguno todavía
      * @param competicion texto ya redactado en el idioma pedido ("Liga ... · Jornada 5", "Copa", "Amistoso")
+     * @param reloj reloj en directo; null salvo en la primera parte, el descanso y la segunda parte
      */
     public record Cabecera(
             Long partidoId, String equipoLocal, String equipoVisitante, LocalDate dia, String hora,
-            Integer golesFavor, Integer golesContra, String estado, String competicion) {
+            Integer golesFavor, Integer golesContra, String estado, String competicion, RelojPartido reloj) {
     }
 
     /**
@@ -36,15 +37,18 @@ public record FichaPartidoDTO(
      * @param tipo GOL_FAVOR, GOL_CONTRA, CAMBIO, TARJETA_AMARILLA, TARJETA_ROJA (también la doble amarilla), o los
      *             separadores DESCANSO y FINAL
      * @param jugador nombre en directo del goleador, del amonestado o del que sale en un cambio; null en un gol en
-     *                contra y en los separadores
+     *                contra y en los separadores. En una tarjeta del rival, un texto para las versiones de la app que
+     *                solo conocen este campo: "Dorsal 9" o, sin dorsal, "Rival" (en el idioma pedido)
      * @param jugadorEntra el que entra en un cambio
      * @param golesFavor marcador tras el gol, o al descanso / al final en los separadores; null en el resto
      * @param texto solo en los separadores, en el idioma pedido
-     * @param dobleAmarilla true en la tarjeta roja que es una expulsión por doble amarilla
+     * @param dobleAmarilla true en la tarjeta roja que es una expulsión por doble amarilla (también la del rival)
+     * @param rival true en una tarjeta a un jugador del rival
+     * @param dorsalRival dorsal del rival en una tarjeta del rival o en un gol en contra; null si no se indicó
      */
     public record EventoFicha(
             String tipo, Integer minuto, String jugador, String jugadorEntra, Integer golesFavor,
-            Integer golesContra, String texto, boolean dobleAmarilla) {
+            Integer golesContra, String texto, boolean dobleAmarilla, boolean rival, Integer dorsalRival) {
     }
 
     /** formacion null y listas vacías si no se ha enviado alineación. */

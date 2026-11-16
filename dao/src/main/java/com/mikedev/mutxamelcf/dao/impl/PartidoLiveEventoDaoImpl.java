@@ -28,7 +28,8 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 
 	private static final String CAMPOS = """
 			ID, PARTIDO_ID, TIPO, JUGADOR_ID, AUTOR_TEXTO, USUARIO_APP_ID, FECHA, ANULADO, FECHA_ANULACION,
-			RESULTADO_ANTERIOR, GOLES_FAVOR_ANTERIOR, GOLES_CONTRA_ANTERIOR, AVISO_ANTERIOR, ESTADISTICAS_GUARDADAS, MINUTO, JUGADOR_ENTRA_ID
+			RESULTADO_ANTERIOR, GOLES_FAVOR_ANTERIOR, GOLES_CONTRA_ANTERIOR, AVISO_ANTERIOR, ESTADISTICAS_GUARDADAS, MINUTO, JUGADOR_ENTRA_ID,
+				RIVAL, DORSAL_RIVAL
 			""";
 
 	private final JdbcTemplate jdbcTemplate;
@@ -47,8 +48,8 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 					INSERT INTO PARTIDO_LIVE_EVENTOS (
 					    PARTIDO_ID, TIPO, JUGADOR_ID, AUTOR_TEXTO, USUARIO_APP_ID, FECHA,
 					    RESULTADO_ANTERIOR, GOLES_FAVOR_ANTERIOR, GOLES_CONTRA_ANTERIOR, AVISO_ANTERIOR,
-					    ESTADISTICAS_GUARDADAS, MINUTO, JUGADOR_ENTRA_ID)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					    ESTADISTICAS_GUARDADAS, MINUTO, JUGADOR_ENTRA_ID, RIVAL, DORSAL_RIVAL)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					""", new String[] { "ID" });
 
 			ps.setLong(1, evento.getPartidoId());
@@ -64,6 +65,8 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 			ps.setInt(11, evento.isEstadisticasGuardadas() ? 1 : 0);
 			ponerInteger(ps, 12, evento.getMinuto());
 			ponerLong(ps, 13, evento.getJugadorEntraId());
+			ps.setInt(14, evento.isRival() ? 1 : 0);
+			ponerInteger(ps, 15, evento.getDorsalRival());
 
 			return ps;
 		}, keyHolder);
@@ -133,7 +136,7 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 
 		// Una sola consulta (con el autor ya unido): la portada de la app la pide a menudo durante el partido.
 		return jdbcTemplate.query("""
-				SELECT E.TIPO, E.AUTOR_TEXTO, E.JUGADOR_ID, J.DORSAL AS J_DORSAL, J.NOMBRE AS J_NOMBRE,
+				SELECT E.TIPO, E.AUTOR_TEXTO, E.FECHA, E.JUGADOR_ID, J.DORSAL AS J_DORSAL, J.NOMBRE AS J_NOMBRE,
 				       J.APELLIDOS AS J_APELLIDOS, J.NOMBRE_RETRANSMISION AS J_NOMBRE_RETRANSMISION
 				FROM PARTIDO_LIVE_EVENTOS E
 				LEFT JOIN JUGADORES J ON J.ID = E.JUGADOR_ID
@@ -144,7 +147,8 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 					JugadorBasico jugador = rs.wasNull() ? null
 							: mapJugadorBasico(rs, "JUGADOR_ID", "J_DORSAL", "J_NOMBRE", "J_APELLIDOS",
 									"J_NOMBRE_RETRANSMISION");
-					return new EventoDirectoResumen(rs.getString("TIPO"), rs.getString("AUTOR_TEXTO"), jugador);
+					return new EventoDirectoResumen(rs.getString("TIPO"), rs.getString("AUTOR_TEXTO"), jugador,
+							rs.getTimestamp("FECHA").toLocalDateTime());
 				}, partidoId);
 	}
 
@@ -209,6 +213,11 @@ public class PartidoLiveEventoDaoImpl implements PartidoLiveEventoDao {
 
 		long entra = rs.getLong("JUGADOR_ENTRA_ID");
 		evento.setJugadorEntraId(rs.wasNull() ? null : entra);
+
+		evento.setRival(rs.getInt("RIVAL") == 1);
+
+		int dorsalRival = rs.getInt("DORSAL_RIVAL");
+		evento.setDorsalRival(rs.wasNull() ? null : dorsalRival);
 
 		return evento;
 	}

@@ -118,6 +118,7 @@ no eligen jugadores; se quitará cuando la versión mínima obligue a actualizar
 | `fase` | string o `null` | `PRIMERA_PARTE`, `DESCANSO`, `SEGUNDA_PARTE` o `FINALIZADO`; `null` si el partido no se ha retransmitido |
 | `golesFavor`, `golesContra` | número o `null` | Marcador calculado con los eventos de la retransmisión; `null` si no se ha retransmitido |
 | `goleadores` | lista de texto | Goles del Mutxamel, en orden. Solo con el partido retransmitido y `FINALIZADO`; vacía en otro caso |
+| `reloj` | objeto o `null` | Reloj en directo (ver [sección 6](#6-eventos-del-rival-y-reloj-en-directo)); `null` salvo en la primera parte, el descanso y la segunda parte |
 
 Detalles:
 
@@ -349,3 +350,96 @@ ResultadoDTO que sale de un partido real. Es `null` en la entrada de un equipo s
 ningún partido, en el "sin partido" de la portada y cuando el equipo **descansa** (`descansa: true`, aunque conserve los datos del
 último partido jugado). Es un campo nuevo y aditivo: las versiones anteriores de la app lo
 ignoran.
+
+## 6. Eventos del rival y reloj en directo
+
+Requiere `sql/2026-11-16_eventos_rival.sql` (columnas `RIVAL` y `DORSAL_RIVAL` de `PARTIDO_LIVE_EVENTOS`) aplicado
+**antes** de desplegar. Todo lo nuevo es aditivo: la app 1.0.9 sigue funcionando sin cambios.
+
+### `POST /{partidoId}/gol-contra`: dorsal
+
+Cuerpo opcional: `{ "minuto": 31, "dorsal": 9 }`. `dorsal` (0-99) es opcional; el `0` es un dorsal válido. Fuera de rango:
+`400` con `El dorsal debe estar entre 0 y 99`. Sin dorsal, el gol queda sin autor, como siempre. Con dorsal, el push lo
+indica (`Dorsal 9 · Minuto 31'`, ver [avisos.md](avisos.md)) y el evento lleva `dorsalRival`.
+
+### `POST /{partidoId}/tarjeta`: tarjeta al rival
+
+```json
+{ "rival": true, "color": "AMARILLA", "dorsal": 9, "minuto": 35 }
+```
+
+- `rival: true`: `jugadorId` **debe venir vacío** (`400`: `Una tarjeta del rival no lleva jugador: quita el jugadorId`).
+  `dorsal` (0-99) es opcional (`400` fuera de rango). Sin push.
+- `rival: false` o ausente: como siempre (`jugadorId` obligatorio). Mandar `dorsal` sin `rival: true` es `400` (`El dorsal
+  solo se admite en un gol del rival o en una tarjeta del rival`).
+- **Doble amarilla del rival:** una segunda amarilla al **mismo dorsal** en el partido es una expulsión por doble amarilla
+  (`dobleAmarilla: true`; en la ficha sale como roja, igual que las nuestras). Sin dorsal no se puede saber a quién es:
+  cada amarilla sin dorsal cuenta suelta. Las del rival se agrupan aparte, por dorsal, y **nunca se mezclan con las de
+  nuestros jugadores** (aunque el dorsal coincida con el de uno nuestro).
+- Una tarjeta idéntica reintentada en menos de 15 segundos no se registra (mismo tipo y mismo dorsal; dos amarillas
+  seguidas a dorsales distintos sí se registran. Dos sin dorsal en esa ventana son indistinguibles de un reintento).
+- **No cuentan** en estadísticas, sanciones ni avisos de tarjetas (`tarjetas.*`), ni en «quién está en el campo»
+  (`alineacion.enElCampo` / `expulsados`). Al `FINAL` y al deshacer el final se ignoran.
+- Corregir el minuto y deshacer funcionan igual que con los demás eventos. Corregir el minuto no cambia el dorsal.
+
+### Estado (`GET /{partidoId}` y las respuestas de eventos)
+
+Cada elemento de `eventos[]` gana `rival` (boolean) y `dorsalRival` (número o `null`). En una tarjeta del rival,
+`jugadorId` y `autor` son `null`; en un `GOL_CONTRA`, `rival` es `false` y `dorsalRival` el del autor, si se indicó.
+Además, el estado trae:
+
+- `dorsalesRivalConAmarilla`: lista (de menor a mayor) con los dorsales del rival que tienen **una** amarilla, para que
+  la app avise de que la siguiente es expulsión. Un dorsal ya expulsado por doble amarilla deja de salir. Vacía si no hay.
+- `reloj`: ver abajo.
+
+### Reloj en directo
+
+`reloj` aparece en el estado de la retransmisión, en la cabecera de la ficha
+(`GET /api/public/partidos/{id}/ficha` → `cabecera.reloj`) y en la portada (`GET /api/public/resultados/primer-equipo`
+→ `reloj`). Es `null` salvo en juego y en el descanso (antes del inicio y tras el final no hay reloj).
+
+```json
+"reloj": {
+  "fase": "SEGUNDA_PARTE",
+  "inicioParteEpochMs": 1794151500000,
+  "minutoBase": 45,
+  "minutosParte": 45,
+  "ahoraServidorEpochMs": 1794151980000
+}
+```
+
+| Campo | Significado |
+|---|---|
+| `fase` | `PRIMERA_PARTE`, `DESCANSO` o `SEGUNDA_PARTE` |
+| `inicioParteEpochMs` | Instante (epoch ms) del `INICIO` (1.ª parte) o de `SEGUNDA_PARTE` (2.ª), el último no anulado; `null` en el descanso |
+| `minutoBase` | `0` en la 1.ª parte; la duración de la parte en la 2.ª y en el descanso |
+| `minutosParte` | Duración de cada parte según la modalidad del equipo (`retransmision.minutos-parte.F11/F8/F5`: 45/25/20) |
+| `ahoraServidorEpochMs` | Hora del servidor (epoch ms) al construir la respuesta |
+
+La app pinta `minutoBase + (ahora - inicioParte)`, con `ahora = DateTime.now() + (ahoraServidorEpochMs - reloj del móvil
+al recibir la respuesta)` para corregir el desfase del móvil. Es coherente con `minutoActual` (el minuto que propone la
+app al marcar un gol): `minutoActual` = minutos **cumplidos** desde el inicio de la parte + `minutoBase` + 1.
+
+Zona horaria: `FECHA` de `PARTIDO_LIVE_EVENTOS` es una hora local sin zona (`LocalDateTime`) que se escribe con
+`LocalDateTime.now(clock)`, y el reloj de la aplicación es **Europe/Madrid** (`AppServiceConfig`). Se convierte a epoch ms con
+la zona de ese mismo reloj, así que no depende de la zona del servidor ni del móvil.
+
+El reloj se calcula de los eventos no anulados que ya se leen para la fase y el marcador (sin consultas de eventos nuevas;
+solo mientras se juega se consulta el equipo para la duración de la parte). Deshacer `INICIO` (no se puede), `DESCANSO` o
+`SEGUNDA_PARTE` se refleja solo: tras deshacer `SEGUNDA_PARTE` vuelve el reloj del descanso; tras deshacer `DESCANSO`, el de
+la primera parte con su inicio original.
+
+### Ficha pública con eventos del rival
+
+Cada elemento de `eventos[]` de la ficha gana `rival` y `dorsalRival`:
+
+- Tarjeta del rival: `rival: true`, `dorsalRival` (o `null`) y, para que la **app 1.0.9** (que solo conoce `jugador`) no
+  se rompa, `jugador` con un texto: `"Dorsal 9"` (`"Number 9"` en inglés) o, sin dorsal, `"Rival"` / `"Rival"` /
+  `"Opponent"` según `Accept-Language`. La doble amarilla del rival sale como `TARJETA_ROJA` con `dobleAmarilla: true`.
+- Gol en contra: `rival: false`, `dorsalRival` si se indicó y `jugador: null` (sin autor, como siempre).
+- Los eventos nuestros llevan `rival: false` y `dorsalRival: null`. Las tarjetas del rival no salen en la alineación.
+
+**App 1.0.9 con estos eventos** (revisado en `appMutxamelCF`, `lib/features/ficha_partido`): `EventoFicha.fromJson` lee
+`jugador` como `String?` y la ficha pinta `evento.jugador ?? ''`, así que no falla con tarjetas del rival ni con un gol
+en contra con `dorsalRival`; ignora los campos nuevos. Sin embargo la pinta del lado del Mutxamel (`esNuestro` es
+`tipo != GOL_CONTRA`), con el texto "Dorsal 9" / "Rival", hasta que la app nueva use `rival`.

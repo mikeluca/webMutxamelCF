@@ -11,6 +11,9 @@ import java.util.List;
  * @param fase SIN_EMPEZAR, PRIMERA_PARTE, DESCANSO, SEGUNDA_PARTE o FINAL
  * @param minutoActual el minuto del partido calculado ahora; null antes del inicio, en el descanso
  *                     y tras el final
+ * @param dorsalesRivalConAmarilla dorsales del rival con exactamente una amarilla (la siguiente a ese dorsal es
+ *                                 expulsión), de menor a mayor; vacía si no hay
+ * @param reloj reloj en directo; null salvo en la primera parte, el descanso y la segunda parte
  * @param ultimoEventoDeshacible el último evento si se puede deshacer
  *                               todavía (no es el inicio y no han pasado 2
  *                               minutos); null en otro caso
@@ -26,7 +29,9 @@ public record EstadoPartidoEnVivoResponse(
         List<EventoEnVivo> eventos,
         UltimoEventoDeshacible ultimoEventoDeshacible,
         Integer minutoActual,
-        AlineacionEnVivo alineacion) {
+        AlineacionEnVivo alineacion,
+        List<Integer> dorsalesRivalConAmarilla,
+        RelojPartido reloj) {
 
     public static final String SIN_EMPEZAR = "SIN_EMPEZAR";
     public static final String PRIMERA_PARTE = "PRIMERA_PARTE";
@@ -37,11 +42,13 @@ public record EstadoPartidoEnVivoResponse(
     /**
      * autor: nombre del jugador, el texto libre o "p.p."; null en eventos sin autor. En un CAMBIO, jugadorId/autor son
      * el que sale y jugadorEntraId/jugadorEntra el que entra. En una tarjeta, jugadorId/autor son el amonestado;
-     * dobleAmarilla es true en la segunda TARJETA_AMARILLA del jugador (expulsión).
+     * dobleAmarilla es true en la segunda TARJETA_AMARILLA del jugador (expulsión) o del mismo dorsal del rival.
+     * rival es true en una tarjeta a un jugador del rival (jugadorId y autor son null); dorsalRival es su dorsal, o el
+     * del autor de un GOL_CONTRA (null si no se indicó).
      */
     public record EventoEnVivo(
             Long id, String tipo, Long jugadorId, String autor, LocalDateTime fecha, Integer minuto,
-            Long jugadorEntraId, String jugadorEntra, boolean dobleAmarilla) {
+            Long jugadorEntraId, String jugadorEntra, boolean dobleAmarilla, boolean rival, Integer dorsalRival) {
     }
 
     /**

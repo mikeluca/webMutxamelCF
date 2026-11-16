@@ -152,6 +152,19 @@ retransmisión del jugador), `directo.inicio.*`, `directo.gol.*` (con o sin minu
 `directo.golAnulado.*`, `directo.descanso.*`, `directo.segundaParte.*`, `directo.final.*`. El marcador
 (`Mutxamel CF 2 - 1 Rival`) no cambia con el idioma.
 
+**Gol del rival con dorsal.** `POST /{partidoId}/gol-contra` admite `dorsal` (0-99). Con dorsal el aviso usa las claves
+`directo.golContra.textoDorsal` (con minuto) y `directo.golContra.textoDorsalSinMinuto`; sin dorsal, las de siempre
+(`directo.golContra.texto` y `directo.golContra.textoSinMinuto`):
+
+| Clave | es | ca | en |
+|---|---|---|---|
+| `directo.golContra.textoDorsal` | `Dorsal {dorsal} · Minuto {minuto}'` + salto doble + `{marcador}` | `Dorsal {dorsal} · Minut {minuto}'` + ... | `Number {dorsal} · Minute {minuto}'` + ... |
+| `directo.golContra.textoDorsalSinMinuto` | `Dorsal {dorsal}` + salto doble + `{marcador}` | `Dorsal {dorsal}` + ... | `Number {dorsal}` + ... |
+
+Mismo formato que `directo.golContra.texto` (minuto con `'`, dos saltos de línea `\n\n` antes del marcador). Un gol siempre
+lleva minuto en juego (el propuesto por el servidor si la app no lo manda), así que `...SinMinuto` solo existe por
+simetría con las claves de siempre.
+
 **Data para abrir la ficha del partido.** Todos estos avisos llevan el partido (textos, destinatarios y preferencias no
 cambian):
 
@@ -166,7 +179,12 @@ en el estado de la retransmisión. Tampoco avisan corregir su minuto ni deshacer
 con `avisar: true` (reenviarla sin `avisar` no vuelve a avisar). Lo único que avisa por tarjetas es el aviso interno
 `tarjetas.*` al cuerpo técnico (sección 5), que se dispara al terminar el partido con las tarjetas de la retransmisión
 igual que al guardar las estadísticas. Los textos fijos de la ficha pública (`ficha.amistoso`, `ficha.copa`,
-`ficha.liga`, `ficha.jornada`, `ficha.separador.descanso`, `ficha.separador.final`) viven en el mismo catálogo.
+`ficha.liga`, `ficha.jornada`, `ficha.separador.descanso`, `ficha.separador.final`, `ficha.rival` y
+`ficha.rival.dorsal`) viven en el mismo catálogo.
+
+**Las tarjetas del rival tampoco avisan.** `POST /{partidoId}/tarjeta` con `"rival": true` no genera push (ni a las
+cuentas ni a los topics), no cuenta en las estadísticas ni en el ciclo de sanciones y **no dispara `tarjetas.*`** al
+terminar el partido: ese aviso interno solo mira las tarjetas de nuestros jugadores.
 
 ### 7. Temporada, continuidad y cuentas
 

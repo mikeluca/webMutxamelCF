@@ -26,7 +26,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * sql/2026-11-03_equipajes_convocatoria.sql (tabla EQUIPACIONES y, si el test ya tiene CONVOCATORIAS, sus columnas de
  * equipaje) y
  * sql/2026-11-12_ficha_partido.sql (PARTIDOS.FORMACION si la tabla existe, PARTIDO_ALINEACION, y en
- * PARTIDO_LIVE_EVENTOS JUGADOR_ENTRA_ID y los tipos CAMBIO y TARJETA_*). Los tests no deben definir su
+ * PARTIDO_LIVE_EVENTOS JUGADOR_ENTRA_ID y los tipos CAMBIO y TARJETA_*) y
+ * sql/2026-11-16_eventos_rival.sql (RIVAL y DORSAL_RIVAL de PARTIDO_LIVE_EVENTOS). Los tests no deben definir su
  * propia versión de estas tablas.
  *
  * <p>Los scripts viven en src/test/resources/h2; el de ajustes es una copia
@@ -52,6 +53,7 @@ public final class EsquemaH2 {
         ejecutar(jdbc, "/h2/equipajes_convocatoria.sql");
         ejecutar(jdbc, "/h2/idioma_usuario_app.sql");
         ejecutar(jdbc, "/h2/ficha_partido.sql");
+        ejecutar(jdbc, "/h2/eventos_rival.sql");
     }
 
     /**

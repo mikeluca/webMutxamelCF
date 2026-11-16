@@ -2,6 +2,7 @@ package com.mikedev.mutxamelcf.serviceimpl;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,7 @@ import com.mikedev.mutxamelcf.model.JugadorBasico;
 import com.mikedev.mutxamelcf.model.JugadorFicha;
 import com.mikedev.mutxamelcf.model.Partido;
 import com.mikedev.mutxamelcf.model.PartidoLiveEvento;
+import com.mikedev.mutxamelcf.model.RelojPartido;
 import com.mikedev.mutxamelcf.model.Temporada;
 import com.mikedev.mutxamelcf.service.FichaPartidoService;
 import com.mikedev.mutxamelcf.util.ImageUtils;
@@ -61,6 +64,16 @@ public class FichaPartidoServiceImpl implements FichaPartidoService {
     private final EquipoFfcvDao equipoFfcvDao;
     private final TextosAvisos textos;
     private final Clock clock;
+
+    /** Duración de cada parte según la modalidad del equipo (retransmision.minutos-parte.*), para el reloj. */
+    @Value("${retransmision.minutos-parte.F11:45}")
+    private int minutosParteF11 = 45;
+
+    @Value("${retransmision.minutos-parte.F8:25}")
+    private int minutosParteF8 = 25;
+
+    @Value("${retransmision.minutos-parte.F5:20}")
+    private int minutosParteF5 = 20;
 
     public FichaPartidoServiceImpl(
             PartidoDao partidoDao,
@@ -106,7 +119,7 @@ public class FichaPartidoServiceImpl implements FichaPartidoService {
         Map<Long, JugadorFicha> jugadores = jugadores(eventos, alineacion, dia, primerEquipo.getId());
 
         return new FichaPartidoDTO(
-                cabecera(partido, dia, eventos, idioma),
+                cabecera(partido, dia, eventos, idioma, primerEquipo.getModalidad()),
                 eventos(eventos, jugadores, idioma),
                 alineacion(partidoId, alineacion, eventos, jugadores),
                 forma(partido, dia, primerEquipo.getId()));
@@ -116,7 +129,8 @@ public class FichaPartidoServiceImpl implements FichaPartidoService {
     // Cabecera
     // ------------------------------------------------------------------
 
-    private Cabecera cabecera(Partido partido, LocalDate dia, List<PartidoLiveEvento> eventos, String idioma) {
+    private Cabecera cabecera(Partido partido, LocalDate dia, List<PartidoLiveEvento> eventos, String idioma,
+            String modalidad) {
 
         String rival = partido.getRival() == null ? "" : partido.getRival();
 
@@ -151,7 +165,30 @@ public class FichaPartidoServiceImpl implements FichaPartidoService {
                 partido.getId(),
                 partido.isLocal() ? NOMBRE_CLUB : rival,
                 partido.isLocal() ? rival : NOMBRE_CLUB,
-                dia, partido.getHora(), golesFavor, golesContra, estado, competicion(partido, dia, idioma));
+                dia, partido.getHora(), golesFavor, golesContra, estado, competicion(partido, dia, idioma),
+                reloj(eventos, fase, modalidad));
+    }
+
+    /*
+     * El reloj sale de los mismos eventos que la fase: el inicio de la parte en juego es la fecha del último INICIO
+     * (1.ª parte) o SEGUNDA_PARTE (2.ª) no anulado, así que deshacer uno se refleja solo. Un partido cancelado no
+     * tiene reloj.
+     */
+    private RelojPartido reloj(List<PartidoLiveEvento> eventos, String fase, String modalidad) {
+
+        if (!RelojDirecto.conReloj(fase)) {
+            return null;
+        }
+
+        String tipoInicio = RelojDirecto.SEGUNDA_PARTE.equals(fase) ? PartidoLiveEvento.SEGUNDA_PARTE
+                : RelojDirecto.PRIMERA_PARTE.equals(fase) ? PartidoLiveEvento.INICIO : null;
+
+        LocalDateTime inicio = tipoInicio == null ? null
+                : eventos.stream().filter(e -> tipoInicio.equals(e.getTipo())).map(PartidoLiveEvento::getFecha)
+                        .reduce((primero, segundo) -> segundo).orElse(null);
+
+        return RelojDirecto.reloj(fase, inicio,
+                RelojDirecto.minutosParte(modalidad, minutosParteF11, minutosParteF8, minutosParteF5), clock);
     }
 
     /** La fase que marcan los eventos ("PRIMERA_PARTE", "DESCANSO", "SEGUNDA_PARTE", "FINAL"); null sin retransmisión. */
@@ -315,27 +352,31 @@ public class FichaPartidoServiceImpl implements FichaPartidoService {
                 case PartidoLiveEvento.GOL_FAVOR -> {
                     favor++;
                     resultado.add(new EventoFicha(evento.getTipo(), evento.getMinuto(),
-                            autorGol(evento, jugadores, idioma), null, favor, contra, null, false));
+                            autorGol(evento, jugadores, idioma), null, favor, contra, null, false, false, null));
                 }
                 case PartidoLiveEvento.GOL_CONTRA -> {
                     contra++;
+                    // Sin autor en "jugador" (como siempre): el dorsal va aparte, en dorsalRival.
                     resultado.add(new EventoFicha(evento.getTipo(), evento.getMinuto(), null, null, favor, contra,
-                            null, false));
+                            null, false, false, evento.getDorsalRival()));
                 }
                 case PartidoLiveEvento.CAMBIO -> resultado.add(new EventoFicha(evento.getTipo(), evento.getMinuto(),
                         nombre(jugadores, evento.getJugadorId()), nombre(jugadores, evento.getJugadorEntraId()),
-                        null, null, null, false));
+                        null, null, null, false, false, null));
                 case PartidoLiveEvento.TARJETA_AMARILLA, PartidoLiveEvento.TARJETA_ROJA -> {
                     boolean doble = dobles.contains(evento.getId());
                     // La doble amarilla es una expulsión: en la ficha sale como roja.
                     String tipo = doble ? PartidoLiveEvento.TARJETA_ROJA : evento.getTipo();
-                    resultado.add(new EventoFicha(tipo, evento.getMinuto(), nombre(jugadores, evento.getJugadorId()),
-                            null, null, null, null, doble));
+                    // La app 1.0.9 solo conoce "jugador": en una tarjeta del rival lleva un texto ("Dorsal 9" o "Rival").
+                    String nombre = evento.isRival() ? nombreRival(evento, idioma)
+                            : nombre(jugadores, evento.getJugadorId());
+                    resultado.add(new EventoFicha(tipo, evento.getMinuto(), nombre, null, null, null, null, doble,
+                            evento.isRival(), evento.isRival() ? evento.getDorsalRival() : null));
                 }
                 case PartidoLiveEvento.DESCANSO -> resultado.add(new EventoFicha(evento.getTipo(), null, null, null,
-                        favor, contra, textos.texto(idioma, "ficha.separador.descanso"), false));
+                        favor, contra, textos.texto(idioma, "ficha.separador.descanso"), false, false, null));
                 case PartidoLiveEvento.FINAL -> resultado.add(new EventoFicha(evento.getTipo(), null, null, null,
-                        favor, contra, textos.texto(idioma, "ficha.separador.final"), false));
+                        favor, contra, textos.texto(idioma, "ficha.separador.final"), false, false, null));
                 default -> {
                     // INICIO y SEGUNDA_PARTE no salen en la ficha
                 }
@@ -346,6 +387,14 @@ public class FichaPartidoServiceImpl implements FichaPartidoService {
         Collections.reverse(resultado);
 
         return resultado;
+    }
+
+    /** "Dorsal 9" o, sin dorsal, "Rival" / "Opponent" según el idioma. */
+    private String nombreRival(PartidoLiveEvento evento, String idioma) {
+
+        return evento.getDorsalRival() == null
+                ? textos.texto(idioma, "ficha.rival")
+                : textos.texto(idioma, "ficha.rival.dorsal", "dorsal", String.valueOf(evento.getDorsalRival()));
     }
 
     private String autorGol(PartidoLiveEvento evento, Map<Long, JugadorFicha> jugadores, String idioma) {
@@ -389,7 +438,7 @@ public class FichaPartidoServiceImpl implements FichaPartidoService {
             if (PartidoLiveEvento.CAMBIO.equals(evento.getTipo())) {
                 salidas.put(evento.getJugadorId(), evento.getMinuto());
                 entradas.put(evento.getJugadorEntraId(), evento.getMinuto());
-            } else if (TarjetasEventos.esTarjeta(evento.getTipo())) {
+            } else if (TarjetasEventos.esTarjeta(evento.getTipo()) && !evento.isRival()) {
 
                 boolean doble = dobles.contains(evento.getId());
                 String color = doble || PartidoLiveEvento.TARJETA_ROJA.equals(evento.getTipo()) ? "ROJA" : "AMARILLA";

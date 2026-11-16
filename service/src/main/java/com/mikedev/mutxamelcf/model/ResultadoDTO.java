@@ -41,6 +41,8 @@ public class ResultadoDTO {
 	 * retransmitido y FINALIZADO; vacía en otro caso.
 	 */
 	private List<String> goleadores = new ArrayList<>();
+	/** Reloj en directo; null salvo en la primera parte, el descanso y la segunda parte. */
+	private RelojPartido reloj;
 
 	public ResultadoDTO() {
 		super();
@@ -201,6 +203,14 @@ public class ResultadoDTO {
 
 	public void setGoleadores(List<String> goleadores) {
 		this.goleadores = goleadores;
+	}
+
+	public RelojPartido getReloj() {
+		return reloj;
+	}
+
+	public void setReloj(RelojPartido reloj) {
+		this.reloj = reloj;
 	}
 
 	public boolean isLocal() {

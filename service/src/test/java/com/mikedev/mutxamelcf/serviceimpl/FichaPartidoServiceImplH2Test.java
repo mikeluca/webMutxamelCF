@@ -287,6 +287,119 @@ class FichaPartidoServiceImplH2Test {
         assertThat(service.obtenerFicha(PARTIDO, "en").eventos().get(0).texto()).isEqualTo("Final score");
     }
 
+    /** Un evento del rival: tarjeta (rival = true) o gol en contra con dorsal. */
+    private void eventoRival(String tipo, boolean rival, Integer dorsal, Integer minuto) {
+        reloj = reloj.plusMinutes(1);
+        jdbc.update("INSERT INTO PARTIDO_LIVE_EVENTOS (PARTIDO_ID, TIPO, USUARIO_APP_ID, FECHA, MINUTO, RIVAL,"
+                + " DORSAL_RIVAL) VALUES (?, ?, 7, ?, ?, ?, ?)",
+                PARTIDO, tipo, java.sql.Timestamp.valueOf(reloj), minuto, rival ? 1 : 0, dorsal);
+    }
+
+    @Test
+    void losEventosDelRivalSalenConRivalDorsalYUnNombreParaLasVersionesAntiguasDeLaApp() {
+        evento("INICIO", null, null, null, null, false);
+        eventoRival("GOL_CONTRA", false, 9, 10);
+        eventoRival("TARJETA_AMARILLA", true, 9, 20);
+        eventoRival("TARJETA_AMARILLA", true, null, 25);
+        eventoRival("TARJETA_AMARILLA", true, 9, 30); // segunda al 9: expulsión, sale como roja
+        eventoRival("TARJETA_ROJA", true, 3, 40);
+        eventoRival("GOL_CONTRA", false, null, 50);
+
+        List<FichaPartidoDTO.EventoFicha> eventos = ficha().eventos();
+
+        assertThat(eventos).extracting(FichaPartidoDTO.EventoFicha::tipo).containsExactly(
+                "GOL_CONTRA", "TARJETA_ROJA", "TARJETA_ROJA", "TARJETA_AMARILLA", "TARJETA_AMARILLA", "GOL_CONTRA");
+
+        // Gol del rival sin dorsal: como siempre.
+        assertThat(eventos.get(0).rival()).isFalse();
+        assertThat(eventos.get(0).dorsalRival()).isNull();
+        assertThat(eventos.get(0).jugador()).isNull();
+
+        // Roja directa del 3: rival, dorsal y, para la app 1.0.9, el nombre "Dorsal 3".
+        assertThat(eventos.get(1).rival()).isTrue();
+        assertThat(eventos.get(1).dorsalRival()).isEqualTo(3);
+        assertThat(eventos.get(1).jugador()).isEqualTo("Dorsal 3");
+        assertThat(eventos.get(1).dobleAmarilla()).isFalse();
+
+        // Doble amarilla del 9: roja con dobleAmarilla, igual que las nuestras.
+        assertThat(eventos.get(2).dorsalRival()).isEqualTo(9);
+        assertThat(eventos.get(2).dobleAmarilla()).isTrue();
+        assertThat(eventos.get(2).jugador()).isEqualTo("Dorsal 9");
+        assertThat(eventos.get(2).minuto()).isEqualTo(30);
+
+        // Amarilla sin dorsal: "Rival" / "Opponent" y dorsalRival null.
+        assertThat(eventos.get(3).rival()).isTrue();
+        assertThat(eventos.get(3).dorsalRival()).isNull();
+        assertThat(eventos.get(3).jugador()).isEqualTo("Rival");
+        assertThat(service.obtenerFicha(PARTIDO, "ca").eventos().get(3).jugador()).isEqualTo("Rival");
+        assertThat(service.obtenerFicha(PARTIDO, "en").eventos().get(3).jugador()).isEqualTo("Opponent");
+        assertThat(service.obtenerFicha(PARTIDO, "en").eventos().get(1).jugador()).isEqualTo("Number 3");
+
+        // Primera amarilla del 9 (no es doble) y gol del rival con dorsal.
+        assertThat(eventos.get(4).dobleAmarilla()).isFalse();
+        assertThat(eventos.get(4).jugador()).isEqualTo("Dorsal 9");
+        assertThat(eventos.get(5).rival()).isFalse();
+        assertThat(eventos.get(5).dorsalRival()).isEqualTo(9);
+        assertThat(eventos.get(5).jugador()).isNull();
+        assertThat(eventos.get(5).golesContra()).isEqualTo(1);
+    }
+
+    @Test
+    void losDorsalesDelRivalNoSeMezclanConNuestrosJugadoresNiSalenEnLaAlineacion() {
+        jugador(100, 9, "Pablo", "Garcia", null, 1995, PRIMER_EQUIPO, null);
+        new PartidoAlineacionDaoImpl(jdbc).reemplazar(PARTIDO, null, List.of(100L), List.of());
+
+        evento("INICIO", null, null, null, null, false);
+        evento("TARJETA_AMARILLA", 100L, null, null, 20, false);
+        eventoRival("TARJETA_AMARILLA", true, 9, 30);   // el 9 del rival, no nuestro 100 (dorsal 9)
+        eventoRival("TARJETA_ROJA", true, 9, 40);
+
+        FichaPartidoDTO ficha = ficha();
+
+        assertThat(ficha.eventos()).filteredOn(FichaPartidoDTO.EventoFicha::dobleAmarilla).isEmpty();
+        assertThat(ficha.alineacion().titulares().get(0).tarjetas()).extracting(FichaPartidoDTO.Tarjeta::color)
+                .containsExactly("AMARILLA");
+    }
+
+    // ---- reloj en directo ------------------------------------------------------------------------
+
+    @Test
+    void elRelojSoloExisteEnJuegoOEnElDescansoYSeCalculaDeLosEventosNoAnulados() {
+        // Sin retransmisión: no hay reloj.
+        assertThat(ficha().cabecera().reloj()).isNull();
+
+        evento("INICIO", null, null, null, null, false);                 // 12:01
+        var primera = ficha().cabecera().reloj();
+        assertThat(primera.fase()).isEqualTo("PRIMERA_PARTE");
+        assertThat(primera.inicioParteEpochMs()).isEqualTo(epochMs(DIA.atTime(12, 1)));
+        assertThat(primera.minutoBase()).isZero();
+        assertThat(primera.minutosParte()).isEqualTo(45);
+        // La hora del servidor es la del reloj (fijo) de la aplicación: 12:00 de Madrid.
+        assertThat(primera.ahoraServidorEpochMs()).isEqualTo(epochMs(DIA.atTime(12, 0)));
+
+        evento("DESCANSO", null, null, null, null, false);               // 12:02
+        var descanso = ficha().cabecera().reloj();
+        assertThat(descanso.fase()).isEqualTo("DESCANSO");
+        assertThat(descanso.inicioParteEpochMs()).isNull();
+        assertThat(descanso.minutoBase()).isEqualTo(45);
+
+        evento("SEGUNDA_PARTE", null, null, null, null, true);           // anulada: no cuenta
+        assertThat(ficha().cabecera().reloj().fase()).isEqualTo("DESCANSO");
+
+        evento("SEGUNDA_PARTE", null, null, null, null, false);          // 12:04
+        var segunda = ficha().cabecera().reloj();
+        assertThat(segunda.fase()).isEqualTo("SEGUNDA_PARTE");
+        assertThat(segunda.inicioParteEpochMs()).isEqualTo(epochMs(DIA.atTime(12, 4)));
+        assertThat(segunda.minutoBase()).isEqualTo(45);
+
+        evento("FINAL", null, null, null, null, false);
+        assertThat(ficha().cabecera().reloj()).isNull();
+    }
+
+    private static long epochMs(LocalDateTime madrid) {
+        return madrid.atZone(ZoneId.of("Europe/Madrid")).toInstant().toEpochMilli();
+    }
+
     // ---- alineación ----------------------------------------------------------------------------
 
     @Test

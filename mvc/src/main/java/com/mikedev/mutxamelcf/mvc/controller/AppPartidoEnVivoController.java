@@ -3,6 +3,7 @@ package com.mikedev.mutxamelcf.mvc.controller;
 import com.mikedev.mutxamelcf.model.AlineacionJugadoresRequest;
 import com.mikedev.mutxamelcf.model.AlineacionRequest;
 import com.mikedev.mutxamelcf.model.CambioRequest;
+import com.mikedev.mutxamelcf.model.GolContraRequest;
 import com.mikedev.mutxamelcf.model.GolFavorRequest;
 import com.mikedev.mutxamelcf.model.MinutoRequest;
 import com.mikedev.mutxamelcf.model.TarjetaRequest;
@@ -71,7 +72,10 @@ public class AppPartidoEnVivoController {
                 usuarioId, partidoId, request.getJugadorSaleId(), request.getJugadorEntraId(), request.getMinuto()));
     }
 
-    /** Tarjeta: {"jugadorId":1, "color":"AMARILLA"|"ROJA", "minuto":30}. Sin push. */
+    /**
+     * Tarjeta: {"jugadorId":1, "color":"AMARILLA"|"ROJA", "minuto":30}, o a un jugador del rival: {"rival":true,
+     * "color":"AMARILLA", "dorsal":9, "minuto":30} (sin jugadorId; dorsal opcional, 0-99). Sin push.
+     */
     @PostMapping("/{partidoId}/tarjeta")
     public ResponseEntity<?> tarjeta(
             @PathVariable Long partidoId,
@@ -79,7 +83,8 @@ public class AppPartidoEnVivoController {
             Authentication authentication) {
 
         return ejecutar(authentication, usuarioId -> partidoEnVivoService.enviarTarjeta(
-                usuarioId, partidoId, request.getJugadorId(), request.getColor(), request.getMinuto()));
+                usuarioId, partidoId, request.getJugadorId(), request.getColor(), request.getMinuto(),
+                Boolean.TRUE.equals(request.getRival()), request.getDorsal()));
     }
 
     /** Partidos del Primer Equipo de hoy, no cancelados. */
@@ -118,17 +123,21 @@ public class AppPartidoEnVivoController {
                 usuarioId, partidoId, request.getJugadorId(), request.getAutorTexto(), request.getMinuto()));
     }
 
-    /** El cuerpo es opcional: {"minuto": 0-150}; sin él el servidor calcula el minuto. */
+    /**
+     * El cuerpo es opcional: {"minuto": 0-150, "dorsal": 0-99}; sin minuto el servidor lo calcula y sin dorsal el gol
+     * queda sin autor.
+     */
     @PostMapping("/{partidoId}/gol-contra")
     public ResponseEntity<?> golContra(
             @PathVariable Long partidoId,
-            @RequestBody(required = false) MinutoRequest request,
+            @RequestBody(required = false) GolContraRequest request,
             Authentication authentication) {
 
         Integer minuto = request == null ? null : request.getMinuto();
+        Integer dorsal = request == null ? null : request.getDorsal();
 
         return ejecutar(authentication,
-                usuarioId -> partidoEnVivoService.enviarGolContra(usuarioId, partidoId, minuto));
+                usuarioId -> partidoEnVivoService.enviarGolContra(usuarioId, partidoId, minuto, dorsal));
     }
 
     @PostMapping("/{partidoId}/descanso")

@@ -34,4 +34,40 @@ class TarjetasEventosTest {
         assertThat(TarjetasEventos.amarillasQueCuentan(eventos)).containsOnly(
                 org.assertj.core.api.Assertions.entry(2L, 1), org.assertj.core.api.Assertions.entry(3L, 1));
     }
+
+    private void tarjetaRival(String tipo, Integer dorsal) {
+        PartidoLiveEvento e = new PartidoLiveEvento();
+        e.setId((long) eventos.size() + 1);
+        e.setTipo(tipo);
+        e.setRival(true);
+        e.setDorsalRival(dorsal);
+        eventos.add(e);
+    }
+
+    @Test
+    void lasTarjetasDelRivalSeAgrupanPorDorsalYNuncaSeMezclanConNuestrosJugadores() {
+        tarjeta(PartidoLiveEvento.TARJETA_AMARILLA, 9);        // id 1: nuestro jugador 9 (id de jugador, no dorsal)
+        tarjetaRival(PartidoLiveEvento.TARJETA_AMARILLA, 9);   // id 2: dorsal 9 del rival
+        tarjetaRival(PartidoLiveEvento.TARJETA_AMARILLA, 9);   // id 3: segunda del dorsal 9: doble
+        tarjetaRival(PartidoLiveEvento.TARJETA_AMARILLA, null);// id 4: sin dorsal: suelta
+        tarjetaRival(PartidoLiveEvento.TARJETA_AMARILLA, null);// id 5: sin dorsal: suelta, no es doble
+        tarjetaRival(PartidoLiveEvento.TARJETA_AMARILLA, 4);   // id 6: una amarilla del 4
+
+        assertThat(TarjetasEventos.dobles(eventos)).containsExactly(3L);
+        assertThat(TarjetasEventos.dorsalesRivalConAmarilla(eventos)).containsExactly(4);
+
+        // Nada del rival cuenta para los nuestros: ni expulsados ni amarillas.
+        assertThat(TarjetasEventos.expulsados(eventos)).isEmpty();
+        assertThat(TarjetasEventos.amarillasQueCuentan(eventos))
+                .containsOnly(org.assertj.core.api.Assertions.entry(9L, 1));
+    }
+
+    @Test
+    void laRojaDelRivalNoExpulsaANadieDeLosNuestros() {
+        tarjeta(PartidoLiveEvento.TARJETA_ROJA, 5);
+        tarjetaRival(PartidoLiveEvento.TARJETA_ROJA, 5);
+
+        assertThat(TarjetasEventos.expulsados(eventos)).containsExactly(5L);
+        assertThat(TarjetasEventos.dorsalesRivalConAmarilla(eventos)).isEmpty();
+    }
 }

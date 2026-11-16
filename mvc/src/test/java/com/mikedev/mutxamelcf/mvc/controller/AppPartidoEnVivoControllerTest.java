@@ -37,7 +37,8 @@ class AppPartidoEnVivoControllerTest {
 
     private static EstadoPartidoEnVivoResponse estado() {
         return new EstadoPartidoEnVivoResponse(30L, "Pego C.F.", true, "PRIMERA_PARTE", 1, 0, List.of("Pablo"),
-                List.of(), new UltimoEventoDeshacible(5L, LocalDateTime.of(2026, 10, 24, 11, 2), 87), 12, null);
+                List.of(), new UltimoEventoDeshacible(5L, LocalDateTime.of(2026, 10, 24, 11, 2), 87), 12, null, List.of(),
+                null);
     }
 
     @Test
@@ -73,7 +74,7 @@ class AppPartidoEnVivoControllerTest {
     @Test
     void cadaEventoLlevaElPartidoIdYDevuelveElEstado() {
         when(servicio.enviarInicioPartido(7L, 30L)).thenReturn(estado());
-        when(servicio.enviarGolContra(7L, 30L, null)).thenReturn(estado());
+        when(servicio.enviarGolContra(7L, 30L, null, null)).thenReturn(estado());
         when(servicio.enviarDescanso(7L, 30L)).thenReturn(estado());
         when(servicio.enviarSegundaParte(7L, 30L)).thenReturn(estado());
         when(servicio.enviarFinalPartido(7L, 30L)).thenReturn(estado());
@@ -123,7 +124,7 @@ class AppPartidoEnVivoControllerTest {
 
     @Test
     void unPartidoOUnOrdenNoValidosDevuelven400ConElMensaje() {
-        when(servicio.enviarGolContra(any(), any(), any()))
+        when(servicio.enviarGolContra(any(), any(), any(), any()))
                 .thenThrow(new IllegalArgumentException("El partido todavía no ha empezado"));
 
         ResponseEntity<?> respuesta = controller.golContra(30L, null, autenticado("7"));
@@ -168,14 +169,43 @@ class AppPartidoEnVivoControllerTest {
         golFavor.setJugadorId(10L);
         golFavor.setMinuto(23);
 
-        MinutoRequest golContra = new MinutoRequest();
+        com.mikedev.mutxamelcf.model.GolContraRequest golContra = new com.mikedev.mutxamelcf.model.GolContraRequest();
         golContra.setMinuto(31);
 
         when(servicio.enviarGolFavor(7L, 30L, 10L, null, 23)).thenReturn(estado());
-        when(servicio.enviarGolContra(7L, 30L, 31)).thenReturn(estado());
+        when(servicio.enviarGolContra(7L, 30L, 31, null)).thenReturn(estado());
 
         assertThat(controller.golFavor(30L, golFavor, autenticado("7")).getBody()).isEqualTo(estado());
         assertThat(controller.golContra(30L, golContra, autenticado("7")).getBody()).isEqualTo(estado());
+    }
+
+    @Test
+    void elGolContraPasaElDorsalYLaTarjetaDelRivalPasaRivalYDorsal() {
+        com.mikedev.mutxamelcf.model.GolContraRequest golContra = new com.mikedev.mutxamelcf.model.GolContraRequest();
+        golContra.setMinuto(31);
+        golContra.setDorsal(9);
+
+        com.mikedev.mutxamelcf.model.TarjetaRequest tarjeta = new com.mikedev.mutxamelcf.model.TarjetaRequest();
+        tarjeta.setRival(true);
+        tarjeta.setColor("AMARILLA");
+        tarjeta.setDorsal(5);
+
+        com.mikedev.mutxamelcf.model.TarjetaRequest nuestra = new com.mikedev.mutxamelcf.model.TarjetaRequest();
+        nuestra.setJugadorId(1L);
+        nuestra.setColor("ROJA");
+
+        when(servicio.enviarGolContra(any(), any(), any(), any())).thenReturn(estado());
+        when(servicio.enviarTarjeta(any(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(),
+                any())).thenReturn(estado());
+
+        controller.golContra(30L, golContra, autenticado("7"));
+        controller.tarjeta(30L, tarjeta, autenticado("7"));
+        controller.tarjeta(30L, nuestra, autenticado("7"));
+
+        verify(servicio).enviarGolContra(7L, 30L, 31, 9);
+        verify(servicio).enviarTarjeta(7L, 30L, null, "AMARILLA", null, true, 5);
+        // Sin "rival" (como la app 1.0.9) es una tarjeta nuestra.
+        verify(servicio).enviarTarjeta(7L, 30L, 1L, "ROJA", null, false, null);
     }
 
     @Test
@@ -222,7 +252,7 @@ class AppPartidoEnVivoControllerTest {
     @Test
     void elCambioYLaTarjetaLlevanElPartidoIdYDevuelvenElEstado() {
         when(servicio.enviarCambio(7L, 30L, 1L, 2L, 60)).thenReturn(estado());
-        when(servicio.enviarTarjeta(7L, 30L, 1L, "ROJA", 70)).thenReturn(estado());
+        when(servicio.enviarTarjeta(7L, 30L, 1L, "ROJA", 70, false, null)).thenReturn(estado());
 
         com.mikedev.mutxamelcf.model.CambioRequest cambio = new com.mikedev.mutxamelcf.model.CambioRequest();
         cambio.setJugadorSaleId(1L);
@@ -244,7 +274,8 @@ class AppPartidoEnVivoControllerTest {
     void unCambioOTarjetaInvalidosDan400YSinRolDan403() {
         when(servicio.enviarCambio(any(), any(), any(), any(), any()))
                 .thenThrow(new IllegalArgumentException("El jugador que sale no está en el campo"));
-        when(servicio.enviarTarjeta(any(), any(), any(), any(), any()))
+        when(servicio.enviarTarjeta(any(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(),
+                any()))
                 .thenThrow(new SecurityException("sin permiso"));
 
         ResponseEntity<?> cambio = controller.cambio(30L, new com.mikedev.mutxamelcf.model.CambioRequest(),

@@ -2010,4 +2010,408 @@ class PartidoEnVivoServiceImplTest {
         verify(estadisticaDao, never()).guardar(any());
         verify(comunicacionService, never()).crearPrivada(any(), any(), any());
     }
+
+    // ---- eventos del rival: dorsal en sus goles y sus tarjetas ----------------------------------------
+
+    private static EstadoPartidoEnVivoResponse.EventoEnVivo ultimo(EstadoPartidoEnVivoResponse estado) {
+        return estado.eventos().get(estado.eventos().size() - 1);
+    }
+
+    private EstadoPartidoEnVivoResponse tarjetaRival(String color, Integer dorsal, Integer minuto) {
+        return service.enviarTarjeta(USUARIO, PARTIDO, null, color, minuto, true, dorsal);
+    }
+
+    @Test
+    void elGolDelRivalConDorsalLoGuardaYElPushLoIndica() {
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(9));
+
+        EstadoPartidoEnVivoResponse estado = service.enviarGolContra(USUARIO, PARTIDO, null, 9);
+
+        assertThat(ultimo(estado).tipo()).isEqualTo("GOL_CONTRA");
+        assertThat(ultimo(estado).dorsalRival()).isEqualTo(9);
+        assertThat(ultimo(estado).rival()).isFalse();
+        assertThat(estado.golesContra()).isEqualTo(1);
+
+        assertThat(difusion("es", -1)).isEqualTo(
+                new TextoDifusion("Gol del rival", "Dorsal 9 · Minuto 10'\n\nMutxamel CF 0 - 1 Pego C.F."));
+        assertThat(difusion("ca", -1).mensaje()).isEqualTo("Dorsal 9 · Minut 10'\n\nMutxamel CF 0 - 1 Pego C.F.");
+        assertThat(difusion("en", -1).mensaje()).isEqualTo("Number 9 · Minute 10'\n\nMutxamel CF 0 - 1 Pego C.F.");
+    }
+
+    @Test
+    void elGolDelRivalConDorsalYSinMinutoUsaElTextoSinMinuto() {
+        // Un gol siempre tiene minuto en juego: se comprueba el texto de la clave tal cual.
+        assertThat(AvisosTest.TEXTOS.texto("es", "directo.golContra.textoDorsalSinMinuto",
+                "dorsal", "9", "marcador", "Mutxamel CF 0 - 1 Pego C.F.")).isEqualTo("Dorsal 9\n\nMutxamel CF 0 - 1 Pego C.F.");
+        assertThat(AvisosTest.TEXTOS.texto("ca", "directo.golContra.textoDorsalSinMinuto",
+                "dorsal", "9", "marcador", "M")).isEqualTo("Dorsal 9\n\nM");
+        assertThat(AvisosTest.TEXTOS.texto("en", "directo.golContra.textoDorsalSinMinuto",
+                "dorsal", "9", "marcador", "M")).isEqualTo("Number 9\n\nM");
+    }
+
+    @Test
+    void elGolDelRivalSinDorsalSigueComoAntes() {
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(9));
+
+        EstadoPartidoEnVivoResponse estado = service.enviarGolContra(USUARIO, PARTIDO);
+
+        assertThat(ultimo(estado).dorsalRival()).isNull();
+        assertThat(difusion("es", -1).mensaje()).isEqualTo("Minuto 10'\n\nMutxamel CF 0 - 1 Pego C.F.");
+    }
+
+    @Test
+    void elDorsalDelGolDelRivalVaDe0A99() {
+        empezarPartido();
+
+        assertThatThrownBy(() -> service.enviarGolContra(USUARIO, PARTIDO, null, 100))
+                .isInstanceOf(IllegalArgumentException.class).hasMessage("El dorsal debe estar entre 0 y 99");
+        assertThatThrownBy(() -> service.enviarGolContra(USUARIO, PARTIDO, null, -1))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("entre 0 y 99");
+        assertThat(service.obtenerEstado(USUARIO, PARTIDO).golesContra()).isZero();
+
+        // Los extremos valen (y el 0 es un dorsal, no "sin dorsal").
+        assertThat(ultimo(service.enviarGolContra(USUARIO, PARTIDO, 5, 0)).dorsalRival()).isEqualTo(0);
+        assertThat(ultimo(service.enviarGolContra(USUARIO, PARTIDO, 6, 99)).dorsalRival()).isEqualTo(99);
+    }
+
+    @Test
+    void laTarjetaDelRivalSeRegistraConYSinDorsalSinPushYSinJugador() {
+        empezarPartido();
+        int pushs = pushsHechos();
+
+        EstadoPartidoEnVivoResponse conDorsal = tarjetaRival("amarilla", 9, 20);
+        assertThat(ultimo(conDorsal).tipo()).isEqualTo("TARJETA_AMARILLA");
+        assertThat(ultimo(conDorsal).rival()).isTrue();
+        assertThat(ultimo(conDorsal).dorsalRival()).isEqualTo(9);
+        assertThat(ultimo(conDorsal).jugadorId()).isNull();
+        assertThat(ultimo(conDorsal).autor()).isNull();
+        assertThat(ultimo(conDorsal).minuto()).isEqualTo(20);
+
+        EstadoPartidoEnVivoResponse sinDorsal = tarjetaRival("ROJA", null, 30);
+        assertThat(ultimo(sinDorsal).tipo()).isEqualTo("TARJETA_ROJA");
+        assertThat(ultimo(sinDorsal).rival()).isTrue();
+        assertThat(ultimo(sinDorsal).dorsalRival()).isNull();
+
+        // Sin minuto, el del momento; y sin push.
+        reloj.avanzar(Duration.ofMinutes(12));
+        assertThat(ultimo(tarjetaRival("AMARILLA", 4, null)).minuto()).isEqualTo(13);
+        assertThat(pushsHechos()).isEqualTo(pushs);
+    }
+
+    @Test
+    void laTarjetaDelRivalNoAdmiteJugadorNiDorsalFueraDeRangoNiDorsalEnLasNuestras() {
+        empezarPartido();
+
+        rechazado(() -> service.enviarTarjeta(USUARIO, PARTIDO, 10L, "AMARILLA", 5, true, null), "no lleva jugador");
+        rechazado(() -> service.enviarTarjeta(USUARIO, PARTIDO, 10L, "AMARILLA", 5, true, 9), "no lleva jugador");
+        rechazado(() -> tarjetaRival("AMARILLA", 100, 5), "entre 0 y 99");
+        rechazado(() -> tarjetaRival("AMARILLA", -1, 5), "entre 0 y 99");
+        rechazado(() -> tarjetaRival("AZUL", 9, 5), "AMARILLA o ROJA");
+        rechazado(() -> service.enviarTarjeta(USUARIO, PARTIDO, 10L, "AMARILLA", 5, false, 9), "solo se admite");
+
+        // Con rival false o ausente, jugadorId sigue siendo obligatorio.
+        rechazado(() -> service.enviarTarjeta(USUARIO, PARTIDO, null, "AMARILLA", 5, false, null), "Indica el jugador");
+        rechazado(() -> service.enviarTarjeta(USUARIO, PARTIDO, null, "AMARILLA", 5), "Indica el jugador");
+
+        assertThat(service.obtenerEstado(USUARIO, PARTIDO).eventos()).hasSize(1);
+    }
+
+    @Test
+    void laTarjetaDelRivalExigeElRolYElMomentoComoLasNuestras() {
+        rechazado(() -> tarjetaRival("AMARILLA", 9, 5), "todavía no ha empezado");
+
+        empezarPartido();
+        when(usuarioAppService.tieneRol(USUARIO.intValue(), "RETRANSMISION")).thenReturn(false);
+
+        assertThatThrownBy(() -> tarjetaRival("AMARILLA", 9, 5)).isInstanceOf(SecurityException.class);
+        assertThatThrownBy(() -> service.enviarGolContra(USUARIO, PARTIDO, null, 9))
+                .isInstanceOf(SecurityException.class);
+    }
+
+    @Test
+    void laSegundaAmarillaAlMismoDorsalDelRivalEsExpulsionYLaListaAvisaDeLaPrimera() {
+        empezarPartido();
+
+        EstadoPartidoEnVivoResponse primera = tarjetaRival("AMARILLA", 9, 20);
+        assertThat(ultimo(primera).dobleAmarilla()).isFalse();
+        assertThat(primera.dorsalesRivalConAmarilla()).containsExactly(9);
+
+        // Otro dorsal, inmediatamente: no es un reintento y tampoco una doble.
+        EstadoPartidoEnVivoResponse otro = tarjetaRival("AMARILLA", 4, 21);
+        assertThat(otro.dorsalesRivalConAmarilla()).containsExactly(4, 9);
+        assertThat(otro.eventos()).filteredOn(e -> e.tipo().equals("TARJETA_AMARILLA")).hasSize(2);
+
+        reloj.avanzar(Duration.ofMinutes(5));
+        EstadoPartidoEnVivoResponse segunda = tarjetaRival("AMARILLA", 9, 40);
+
+        assertThat(ultimo(segunda).tipo()).isEqualTo("TARJETA_AMARILLA");
+        assertThat(ultimo(segunda).dobleAmarilla()).isTrue();
+        assertThat(segunda.eventos()).filteredOn(EstadoPartidoEnVivoResponse.EventoEnVivo::dobleAmarilla).hasSize(1);
+        // El 9 ya está expulsado: ya no tiene "una amarilla".
+        assertThat(segunda.dorsalesRivalConAmarilla()).containsExactly(4);
+    }
+
+    @Test
+    void sinDorsalCadaAmarillaDelRivalCuentaSuelta() {
+        empezarPartido();
+
+        tarjetaRival("AMARILLA", null, 20);
+        reloj.avanzar(Duration.ofMinutes(5));
+        EstadoPartidoEnVivoResponse segunda = tarjetaRival("AMARILLA", null, 40);
+
+        assertThat(segunda.eventos()).filteredOn(e -> e.tipo().equals("TARJETA_AMARILLA")).hasSize(2)
+                .noneMatch(EstadoPartidoEnVivoResponse.EventoEnVivo::dobleAmarilla);
+        assertThat(segunda.dorsalesRivalConAmarilla()).isEmpty();
+    }
+
+    @Test
+    void unaAmarillaDelRivalReintentadaAlPocoNoEsUnaDobleAmarilla() {
+        empezarPartido();
+
+        tarjetaRival("AMARILLA", 9, 20);
+        EstadoPartidoEnVivoResponse estado = tarjetaRival("AMARILLA", 9, 20);
+
+        assertThat(estado.eventos()).filteredOn(e -> e.tipo().equals("TARJETA_AMARILLA")).hasSize(1);
+        assertThat(estado.dorsalesRivalConAmarilla()).containsExactly(9);
+    }
+
+    @Test
+    void losDorsalesDelRivalNoSeMezclanConLosJugadoresNuestros() {
+        // El jugador 10 es nuestro dorsal 9: una amarilla suya y otra al 9 del rival no son una doble.
+        empezarPartido();
+
+        service.enviarTarjeta(USUARIO, PARTIDO, 10L, "AMARILLA", 20);
+        reloj.avanzar(Duration.ofMinutes(5));
+        EstadoPartidoEnVivoResponse rival = tarjetaRival("AMARILLA", 9, 30);
+
+        assertThat(rival.eventos()).filteredOn(EstadoPartidoEnVivoResponse.EventoEnVivo::dobleAmarilla).isEmpty();
+        assertThat(rival.dorsalesRivalConAmarilla()).containsExactly(9);
+
+        // Y al revés: la segunda de nuestro 10 es doble sin que el rival cuente; el rival sigue con una.
+        reloj.avanzar(Duration.ofMinutes(5));
+        EstadoPartidoEnVivoResponse nuestra = service.enviarTarjeta(USUARIO, PARTIDO, 10L, "AMARILLA", 50);
+
+        assertThat(ultimo(nuestra).dobleAmarilla()).isTrue();
+        assertThat(ultimo(nuestra).rival()).isFalse();
+        assertThat(nuestra.dorsalesRivalConAmarilla()).containsExactly(9);
+        assertThat(nuestra.eventos()).filteredOn(e -> e.rival() && e.dobleAmarilla()).isEmpty();
+    }
+
+    @Test
+    void lasTarjetasDelRivalNoCuentanNiEnElCampoNiEnLasEstadisticasAlFinal() {
+        plantillaDeDoce();
+        service.enviarAlineacion(USUARIO, PARTIDO, desde(100, 11), List.of(111L), null, false);
+
+        empezarPartido();
+        service.enviarGolFavor(USUARIO, PARTIDO, 100L, null, 10);
+        // Una roja y una doble amarilla del rival.
+        tarjetaRival("ROJA", 3, 20);
+        tarjetaRival("AMARILLA", 9, 25);
+        reloj.avanzar(Duration.ofMinutes(5));
+        EstadoPartidoEnVivoResponse conRival = tarjetaRival("AMARILLA", 9, 35);
+
+        assertThat(conRival.alineacion().expulsados()).isEmpty();
+        assertThat(conRival.alineacion().enElCampo()).containsExactlyInAnyOrderElementsOf(desde(100, 11));
+
+        EstadoPartidoEnVivoResponse fin = service.enviarFinalPartido(USUARIO, PARTIDO);
+
+        // Solo el gol de nuestro 100: nada de tarjetas del rival, y por tanto ningún aviso de tarjetas.
+        ArgumentCaptor<PartidoEstadisticaJugador> guardadas = ArgumentCaptor.forClass(PartidoEstadisticaJugador.class);
+        verify(estadisticaDao, times(1)).guardar(guardadas.capture());
+        assertThat(guardadas.getValue().getJugadorId()).isEqualTo(100L);
+        assertThat(guardadas.getValue().getGoles()).isEqualTo(1);
+        assertThat(guardadas.getValue().getTarjetasAmarillas()).isZero();
+        assertThat(guardadas.getValue().isTarjetaRoja()).isFalse();
+        verify(comunicacionService, never()).crearPrivada(any(), any(), any());
+
+        // Y al deshacer el final, los eventos del rival siguen ahí.
+        EstadoPartidoEnVivoResponse deshecho = service.deshacer(USUARIO, PARTIDO, ultimo(fin).id());
+        assertThat(deshecho.eventos()).filteredOn(EstadoPartidoEnVivoResponse.EventoEnVivo::rival).hasSize(3);
+        assertThat(deshecho.alineacion().expulsados()).isEmpty();
+        verify(estadisticaDao).eliminarPorPartido(PARTIDO);
+    }
+
+    @Test
+    void sePuedeDeshacerUnaTarjetaDelRivalYLaSegundaAmarillaDejaDeSerExpulsion() {
+        empezarPartido();
+
+        tarjetaRival("AMARILLA", 9, 20);
+        reloj.avanzar(Duration.ofMinutes(5));
+        EstadoPartidoEnVivoResponse conDoble = tarjetaRival("AMARILLA", 9, 40);
+        assertThat(ultimo(conDoble).dobleAmarilla()).isTrue();
+
+        EstadoPartidoEnVivoResponse sinDoble = service.deshacer(USUARIO, PARTIDO, ultimo(conDoble).id());
+
+        assertThat(sinDoble.eventos()).filteredOn(EstadoPartidoEnVivoResponse.EventoEnVivo::rival).hasSize(1)
+                .allMatch(e -> !e.dobleAmarilla());
+        assertThat(sinDoble.dorsalesRivalConAmarilla()).containsExactly(9);
+    }
+
+    @Test
+    void sePuedeCorregirElMinutoDeUnEventoDelRivalSinTocarSuDorsal() {
+        empezarPartido();
+        service.enviarGolContra(USUARIO, PARTIDO, 10, 7);
+        EstadoPartidoEnVivoResponse estado = tarjetaRival("AMARILLA", 9, 20);
+
+        Long golId = estado.eventos().get(1).id();
+        Long tarjetaId = estado.eventos().get(2).id();
+
+        EstadoPartidoEnVivoResponse corregido = service.corregirMinuto(USUARIO, PARTIDO, golId, 12);
+        assertThat(corregido.eventos().get(1).minuto()).isEqualTo(12);
+        assertThat(corregido.eventos().get(1).dorsalRival()).isEqualTo(7);
+
+        corregido = service.corregirMinuto(USUARIO, PARTIDO, tarjetaId, 22);
+        assertThat(corregido.eventos().get(2).minuto()).isEqualTo(22);
+        assertThat(corregido.eventos().get(2).dorsalRival()).isEqualTo(9);
+        assertThat(corregido.eventos().get(2).rival()).isTrue();
+    }
+
+    @Test
+    void sePuedeDeshacerElGolDelRivalConDorsal() {
+        empezarPartido();
+        EstadoPartidoEnVivoResponse conGol = service.enviarGolContra(USUARIO, PARTIDO, null, 9);
+
+        EstadoPartidoEnVivoResponse sinGol = service.deshacer(USUARIO, PARTIDO, ultimo(conGol).id());
+
+        assertThat(sinGol.golesContra()).isZero();
+        assertThat(sinGol.eventos()).hasSize(1);
+    }
+
+    // ---- reloj en directo -------------------------------------------------------------------------
+
+    private static long epochMs(LocalDateTime madrid) {
+        return madrid.atZone(MADRID).toInstant().toEpochMilli();
+    }
+
+    @Test
+    void sinEmpezarYTrasElFinalNoHayReloj() {
+        assertThat(service.obtenerEstado(USUARIO, PARTIDO).reloj()).isNull();
+
+        empezarPartido();
+        service.enviarFinalPartido(USUARIO, PARTIDO);
+
+        assertThat(service.obtenerEstado(USUARIO, PARTIDO).reloj()).isNull();
+    }
+
+    @Test
+    void elRelojDeLaPrimeraParteLlevaElInicioElMinutoBaseCeroYLaHoraDelServidor() {
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(5).plusSeconds(30));
+
+        var r = service.obtenerEstado(USUARIO, PARTIDO).reloj();
+
+        assertThat(r.fase()).isEqualTo("PRIMERA_PARTE");
+        assertThat(r.inicioParteEpochMs()).isEqualTo(epochMs(HOY.atTime(11, 0)));
+        assertThat(r.minutoBase()).isZero();
+        assertThat(r.minutosParte()).isEqualTo(45);
+        assertThat(r.ahoraServidorEpochMs()).isEqualTo(epochMs(HOY.atTime(11, 5, 30)));
+    }
+
+    @Test
+    void elRelojEsCoherenteConElMinutoQueProponeLaApp() {
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(22).plusSeconds(30));
+
+        EstadoPartidoEnVivoResponse estado = service.obtenerEstado(USUARIO, PARTIDO);
+        var r = estado.reloj();
+        long cumplidos = (r.ahoraServidorEpochMs() - r.inicioParteEpochMs()) / 60_000;
+
+        // minutoActual = cumplidos + 1; el reloj muestra minutoBase + tiempo desde el inicio.
+        assertThat(estado.minutoActual()).isEqualTo((int) (r.minutoBase() + cumplidos + 1)).isEqualTo(23);
+    }
+
+    @Test
+    void elRelojDelDescansoNoTieneInicioYTieneElMinutoBaseDeLaParte() {
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(47));
+
+        var r = service.enviarDescanso(USUARIO, PARTIDO).reloj();
+
+        assertThat(r.fase()).isEqualTo("DESCANSO");
+        assertThat(r.inicioParteEpochMs()).isNull();
+        assertThat(r.minutoBase()).isEqualTo(45);
+        assertThat(r.minutosParte()).isEqualTo(45);
+    }
+
+    @Test
+    void elRelojDeLaSegundaParteEmpiezaEnLaSegundaParteConLaDuracionDeLaModalidad() {
+        equipoConModalidad("F8");
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(26));
+        service.enviarDescanso(USUARIO, PARTIDO);
+        reloj.avanzar(Duration.ofMinutes(15));
+        service.enviarSegundaParte(USUARIO, PARTIDO);
+        reloj.avanzar(Duration.ofMinutes(3));
+
+        EstadoPartidoEnVivoResponse estado = service.obtenerEstado(USUARIO, PARTIDO);
+        var r = estado.reloj();
+
+        assertThat(r.fase()).isEqualTo("SEGUNDA_PARTE");
+        assertThat(r.inicioParteEpochMs()).isEqualTo(epochMs(HOY.atTime(11, 41)));
+        assertThat(r.minutoBase()).isEqualTo(25);
+        assertThat(r.minutosParte()).isEqualTo(25);
+        assertThat(estado.minutoActual()).isEqualTo(25 + 3 + 1);
+    }
+
+    @Test
+    void deshacerLaSegundaParteOElDescansoSeReflejaEnElReloj() {
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(47));
+        EstadoPartidoEnVivoResponse enDescanso = service.enviarDescanso(USUARIO, PARTIDO);
+        reloj.avanzar(Duration.ofSeconds(30));
+        EstadoPartidoEnVivoResponse enSegunda = service.enviarSegundaParte(USUARIO, PARTIDO);
+        assertThat(enSegunda.reloj().fase()).isEqualTo("SEGUNDA_PARTE");
+        assertThat(enSegunda.reloj().inicioParteEpochMs()).isEqualTo(epochMs(HOY.atTime(11, 47, 30)));
+
+        // Deshacer SEGUNDA_PARTE: vuelve el descanso.
+        EstadoPartidoEnVivoResponse vuelveDescanso = service.deshacer(USUARIO, PARTIDO, ultimo(enSegunda).id());
+        assertThat(vuelveDescanso.reloj().fase()).isEqualTo("DESCANSO");
+        assertThat(vuelveDescanso.reloj().inicioParteEpochMs()).isNull();
+        assertThat(vuelveDescanso.reloj().minutoBase()).isEqualTo(45);
+
+        // Deshacer DESCANSO: vuelve la primera parte con su inicio original.
+        EstadoPartidoEnVivoResponse vuelvePrimera = service.deshacer(USUARIO, PARTIDO, ultimo(enDescanso).id());
+        assertThat(vuelvePrimera.reloj().fase()).isEqualTo("PRIMERA_PARTE");
+        assertThat(vuelvePrimera.reloj().inicioParteEpochMs()).isEqualTo(epochMs(HOY.atTime(11, 0)));
+        assertThat(vuelvePrimera.reloj().minutoBase()).isZero();
+    }
+
+    @Test
+    void laPortadaTraeElRelojEnJuegoYEnElDescansoPeroNoAlFinal() {
+        PartidoService portada = new PartidoServiceImpl(
+                partidoDao, equipoGestionDao, equipoDao, convocatoriaDao, convocatoriaJugadorDao,
+                mock(DescansoEquipoDao.class), mock(JustificacionFaltaPartidoDao.class), mock(TemporadaDao.class),
+                mock(InvitadosService.class), eventoDao, mock(com.mikedev.mutxamelcf.service.ConvocatoriaService.class),
+                AvisosTest.TEXTOS, reloj);
+        when(partidoDao.obtenerMasRelevantePorEquipoNombre("Primer Equipo", "Primer Equipo")).thenReturn(partido);
+
+        assertThat(portada.obtenerResultadoPrimerEquipo("es").getReloj()).isNull();
+
+        empezarPartido();
+        reloj.avanzar(Duration.ofMinutes(10));
+        var primera = portada.obtenerResultadoPrimerEquipo("es").getReloj();
+        assertThat(primera.fase()).isEqualTo("PRIMERA_PARTE");
+        assertThat(primera.inicioParteEpochMs()).isEqualTo(epochMs(HOY.atTime(11, 0)));
+        assertThat(primera.minutoBase()).isZero();
+        assertThat(primera.minutosParte()).isEqualTo(45);
+        assertThat(primera.ahoraServidorEpochMs()).isEqualTo(epochMs(HOY.atTime(11, 10)));
+
+        service.enviarDescanso(USUARIO, PARTIDO);
+        var descanso = portada.obtenerResultadoPrimerEquipo("es").getReloj();
+        assertThat(descanso.fase()).isEqualTo("DESCANSO");
+        assertThat(descanso.inicioParteEpochMs()).isNull();
+        assertThat(descanso.minutoBase()).isEqualTo(45);
+
+        reloj.avanzar(Duration.ofMinutes(15));
+        service.enviarSegundaParte(USUARIO, PARTIDO);
+        var segunda = portada.obtenerResultadoPrimerEquipo("es").getReloj();
+        assertThat(segunda.fase()).isEqualTo("SEGUNDA_PARTE");
+        assertThat(segunda.inicioParteEpochMs()).isEqualTo(epochMs(HOY.atTime(11, 25)));
+        assertThat(segunda.minutoBase()).isEqualTo(45);
+
+        service.enviarFinalPartido(USUARIO, PARTIDO);
+        assertThat(portada.obtenerResultadoPrimerEquipo("es").getReloj()).isNull();
+    }
 }
