@@ -101,8 +101,9 @@ class ImagenesRedesServiceImplTest {
         ArgumentCaptor<String> titulos = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Long> cuentas = ArgumentCaptor.forClass(Long.class);
 
+        // La referencia es el viernes como yyyyMMdd
         verify(notificaciones, times(3)).crear(cuentas.capture(), eq("IMAGENES_REDES"), titulos.capture(), anyString(),
-                any());
+                eq(20261113L));
         assertThat(cuentas.getAllValues()).containsExactlyInAnyOrder(7L, 8L, 9L);
         assertThat(titulos.getAllValues()).containsExactlyInAnyOrder("Imatges del cap de setmana",
                 "Weekend images", "Imágenes del fin de semana");

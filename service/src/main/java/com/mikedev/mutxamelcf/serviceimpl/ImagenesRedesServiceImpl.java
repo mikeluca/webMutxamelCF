@@ -237,8 +237,13 @@ public class ImagenesRedesServiceImpl implements ImagenesRedesService {
 				String titulo = textos.texto(idioma, prefijo + ".titulo");
 				String mensaje = textos.texto(idioma, prefijo + ".texto");
 
-				notificacionAppService.crear(cuenta, TIPO_NOTIFICACION, titulo, mensaje, null);
-				fcmPushService.enviarNotificacionAUsuario(cuenta, TIPO_NOTIFICACION, titulo, mensaje, null, datos);
+				// La referencia es el viernes del fin de semana (yyyyMMdd): la app abre ese fin de semana, y un
+				// referenciaId positivo es lo que hace que el push se muestre con la app abierta.
+				Long referencia = Long.valueOf(viernes.format(DateTimeFormatter.BASIC_ISO_DATE));
+
+				notificacionAppService.crear(cuenta, TIPO_NOTIFICACION, titulo, mensaje, referencia);
+				fcmPushService.enviarNotificacionAUsuario(cuenta, TIPO_NOTIFICACION, titulo, mensaje, referencia,
+						datos);
 
 			} catch (RuntimeException e) {
 				logger.error("No se ha podido avisar a la cuenta {} de las imágenes para redes: {}", cuenta,
