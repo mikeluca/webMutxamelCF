@@ -88,6 +88,12 @@ public class JugadorTemporadaDaoImpl implements JugadorTemporadaDao {
 		}
 	}
 
+
+	@Override
+	public boolean actualizarDorsal(Long jugadorId, Long temporadaId, Integer dorsal) {
+		return jdbcTemplate.update("UPDATE JUGADOR_TEMPORADA SET DORSAL = ?, FECHA_ACTUALIZACION = ? WHERE JUGADOR_ID = ?"
+				+ " AND TEMPORADA_ID = ?", dorsal, Timestamp.valueOf(LocalDateTime.now()), jugadorId, temporadaId) == 1;
+	}
 	@Override
 	public int eliminarPorTemporada(Long temporadaId) {
 		return jdbcTemplate.update("DELETE FROM JUGADOR_TEMPORADA WHERE TEMPORADA_ID = ?", temporadaId);

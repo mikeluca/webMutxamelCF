@@ -34,6 +34,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final RequestMatcher API_APP_MATCHER = PathPatternRequestMatcher.withDefaults()
             .matcher("/api/app/**");
 
+    /*
+     * Las plantillas publicas llevan "editable" (el usuario puede editar dorsal y posicion): se calcula si la peticion trae
+     * su sesion de la app. Sin Authorization (o con un token invalido) la peticion sigue siendo anonima, como antes.
+     */
+    private static final RequestMatcher API_PUBLIC_EQUIPOS_MATCHER = PathPatternRequestMatcher.withDefaults()
+            .matcher("/api/public/equipos/**");
+
     private final JwtService jwtService;
     private final UsuarioAppService usuarioAppService;
 
@@ -47,7 +54,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !API_APP_MATCHER.matches(request);
+        return !API_APP_MATCHER.matches(request) && !API_PUBLIC_EQUIPOS_MATCHER.matches(request);
     }
 
     @Override

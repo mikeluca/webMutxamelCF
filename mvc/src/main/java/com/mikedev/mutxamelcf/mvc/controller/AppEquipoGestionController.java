@@ -130,6 +130,7 @@ public class AppEquipoGestionController {
 
                                 if (jugador != null) {
                                         JugadorEquipoAppDTO dto = JugadorEquipoAppDTO.desde(jugador);
+                                        dto.setEditable(true); // solo llega aqui quien puede gestionar el equipo
                                         JustificacionFaltaPartido ausencia = ausencias.get(jugadorId);
 
                                         if (ausencia != null) {

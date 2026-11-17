@@ -244,6 +244,28 @@ public class JugadorDaoImpl implements JugadorDao {
 		return jdbcTemplate.update("UPDATE JUGADORES SET ANIO_NACIMIENTO = ? WHERE ID = ?", anioNacimiento, id) == 1;
 	}
 
+	@Override
+	public List<Jugador> bloquearActivosDelEquipo(Long equipoId) {
+		return jdbcTemplate.query(
+				"SELECT ID, NOMBRE, APELLIDOS, DORSAL FROM JUGADORES WHERE EQUIPO_ID = ? AND FECHA_BAJA IS NULL"
+						+ " ORDER BY ID FOR UPDATE",
+				(rs, n) -> {
+					Jugador jugador = new Jugador();
+					jugador.setId(rs.getLong("ID"));
+					jugador.setNombre(rs.getString("NOMBRE"));
+					jugador.setApellidos(rs.getString("APELLIDOS"));
+					int dorsal = rs.getInt("DORSAL");
+					jugador.setDorsal(rs.wasNull() ? null : dorsal);
+					jugador.setEquipoId(equipoId);
+					return jugador;
+				}, equipoId);
+	}
+
+	@Override
+	public boolean actualizarDorsalPosicion(Long id, Integer dorsal, String posicion) {
+		return jdbcTemplate.update("UPDATE JUGADORES SET DORSAL = ?, POSICION = ? WHERE ID = ?", dorsal, posicion, id) == 1;
+	}
+
 	private static Jugador mapRow(ResultSet rs, int rowNum) throws SQLException {
 		Jugador jugador = new Jugador();
 		jugador.setId(rs.getLong("id"));

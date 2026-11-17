@@ -45,4 +45,13 @@ public interface JugadorDao {
 
 	boolean actualizarAnioNacimiento(Long id, Integer anioNacimiento);
 
+	/**
+	 * Los jugadores activos del equipo (solo id, nombre, apellidos y dorsal) bloqueando sus filas hasta el final de la
+	 * transacción (SELECT ... FOR UPDATE): dos cambios de dorsal a la vez en el mismo equipo se hacen uno detrás de otro.
+	 */
+	List<Jugador> bloquearActivosDelEquipo(Long equipoId);
+
+	/** Solo DORSAL y POSICION (nulos = vacío). */
+	boolean actualizarDorsalPosicion(Long id, Integer dorsal, String posicion);
+
 }

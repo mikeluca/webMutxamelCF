@@ -15,6 +15,7 @@ public class JugadorEquipoAppDTO {
     private Integer dorsal;
     private String posicion;
     private String fotoBase64;
+    private boolean editable;
 
     public JugadorEquipoAppDTO() {
     }
@@ -76,6 +77,23 @@ public class JugadorEquipoAppDTO {
 
     public String getPosicion() {
         return posicion;
+    }
+
+    /**
+     * La posición de la lista (PORTERO, DEFENSA, CENTROCAMPISTA, EXTREMO, DELANTERO) a la que corresponde el texto guardado,
+     * o null si no coincide con ninguna; "posicion" conserva el texto tal cual.
+     */
+    public String getPosicionCodigo() {
+        return PosicionJugador.codigoDeTexto(posicion);
+    }
+
+    /** true si el usuario autenticado puede editar el dorsal y la posición de este jugador (gestiona su equipo). */
+    public boolean isEditable() {
+        return editable;
+    }
+
+    public void setEditable(boolean editable) {
+        this.editable = editable;
     }
 
     public void setPosicion(String posicion) {

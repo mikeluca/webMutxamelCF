@@ -151,7 +151,11 @@
 								</div>
 								<div class="mb-3">
 									<label for="posicion">Posición:</label>
-									<input type="text" class="form-control" id="posicion" name="posicion">
+									<select class="form-control" id="posicion" name="posicion">
+										<option value="">(sin posición)</option>
+										<option th:each="posicion : ${posiciones}" th:value="${posicion}"
+											th:text="${posicion}"></option>
+									</select>
 								</div>
 								<div class="mb-3">
 									<label for="equipo">Equipo <span class="text-danger">*</span>:</label>
@@ -341,6 +345,7 @@
 			if (button.classList.contains('btn-success')) {
 				// Nuevo Jugador
 				document.getElementById('jugadorForm').reset();
+				seleccionarPosicion('');
 				document.getElementById('id').value = '';
 				document.getElementById('ayudaFoto').style.display = 'none';
 				modalTitle.textContent = 'Nuevo Jugador';
@@ -355,6 +360,26 @@
 			}
 		});
 
+		// Selecciona la posición en el desplegable. Un texto antiguo que no está en la lista (p. ej. "DEL") se ofrece como
+		// la opción "(texto actual)" para no perderlo hasta que se cambie.
+		function seleccionarPosicion(texto) {
+			const select = document.getElementById('posicion');
+			select.querySelectorAll('option[data-texto-actual]').forEach(o => o.remove());
+
+			const valor = (texto && texto !== 'null') ? texto : '';
+			const existe = Array.from(select.options).some(o => o.value === valor);
+
+			if (valor !== '' && !existe) {
+				const opcion = document.createElement('option');
+				opcion.value = valor;
+				opcion.textContent = valor + ' (texto actual)';
+				opcion.setAttribute('data-texto-actual', 'true');
+				select.appendChild(opcion);
+			}
+
+			select.value = valor;
+		}
+
 		function abrirModalEditar(btn) {
 			const data = btn.dataset;
 
@@ -362,7 +387,7 @@
 			document.getElementById('nombre').value = data.nombre || '';
 			document.getElementById('apellidos').value = data.apellidos || '';
 			document.getElementById('dorsal').value = (data.dorsal !== 'null' && data.dorsal !== undefined) ? data.dorsal : '';
-			document.getElementById('posicion').value = data.posicion || '';
+			seleccionarPosicion(data.posicion);
 			document.getElementById('ayudaFoto').style.display = 'block';
 
 			document.getElementById('anioNacimiento').value = (data.anio && data.anio !== 'null') ? data.anio : '';

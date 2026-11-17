@@ -4,12 +4,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoDTO;
 import com.mikedev.mutxamelcf.model.CuerpoTecnicoPublicDTO;
 import com.mikedev.mutxamelcf.model.EquipoDTO;
@@ -26,14 +31,53 @@ public class PublicEquipoController {
     private final EquipoService equipoService;
     private final JugadorService jugadorService;
     private final CuerpoTecnicoService cuerpoTecnicoService;
+    private final EquipoGestionDao equipoGestionDao;
 
+    @Autowired
     public PublicEquipoController(
             EquipoService equipoService,
             JugadorService jugadorService,
-            CuerpoTecnicoService cuerpoTecnicoService) {
+            CuerpoTecnicoService cuerpoTecnicoService,
+            EquipoGestionDao equipoGestionDao) {
         this.equipoService = equipoService;
         this.jugadorService = jugadorService;
         this.cuerpoTecnicoService = cuerpoTecnicoService;
+        this.equipoGestionDao = equipoGestionDao;
+    }
+
+    /** Sin la comprobacion de permisos: "editable" sale siempre false. */
+    PublicEquipoController(
+            EquipoService equipoService,
+            JugadorService jugadorService,
+            CuerpoTecnicoService cuerpoTecnicoService) {
+        this(equipoService, jugadorService, cuerpoTecnicoService, null);
+    }
+
+    /**
+     * true si quien hace la peticion (con su sesion de la app, si la lleva) puede gestionar el equipo: entrenador de ese
+     * equipo, COORDINADOR o ADMIN_APP. Sin sesion, o sin permiso, false.
+     */
+    private boolean puedeEditar(Long equipoId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (equipoGestionDao == null || auth == null || !auth.isAuthenticated()
+                || auth instanceof AnonymousAuthenticationToken) {
+            return false;
+        }
+
+        try {
+            return equipoGestionDao.puedeGestionarEquipo(Long.valueOf(auth.getName()), equipoId);
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private List<JugadorPublicDTO> conEditable(List<JugadorPublicDTO> jugadores, Long equipoId) {
+        boolean editable = puedeEditar(equipoId);
+
+        jugadores.forEach(j -> j.setEditable(editable));
+
+        return jugadores;
     }
 
     @GetMapping
@@ -65,7 +109,7 @@ public class PublicEquipoController {
         Map<String, Object> respuesta = new LinkedHashMap<>();
         respuesta.put("enPreparacion", enPreparacion);
         respuesta.put("jugadores", enPreparacion ? List.of()
-                : jugadorService.obtenerJugadoresPublicosPorEquipo(equipo.getNombre()));
+                : conEditable(jugadorService.obtenerJugadoresPublicosPorEquipo(equipo.getNombre()), equipo.getId()));
 
         return ResponseEntity.ok(respuesta);
     }
@@ -80,9 +124,7 @@ public class PublicEquipoController {
             return List.of();
         }
 
-        return jugadorService
-                .obtenerJugadoresPublicosPorEquipo(
-                        equipo.getNombre());
+        return conEditable(jugadorService.obtenerJugadoresPublicosPorEquipo(equipo.getNombre()), equipo.getId());
     }
 
     @GetMapping("/{id}/cuerpo-tecnico")

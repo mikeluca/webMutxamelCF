@@ -40,6 +40,9 @@ public interface JugadorTemporadaDao {
 
 	boolean existenParaEquipo(Long equipoId);
 
+	/** Solo el dorsal de la fila de esa temporada (la ficha de la plantilla); false si el jugador no tiene fila. */
+	boolean actualizarDorsal(Long jugadorId, Long temporadaId, Integer dorsal);
+
 	/** Jugadores (sin las bajas) con ese equipo en la temporada activa y EQUIPO_DEFINITIVO = 1. */
 	int contarDefinitivosEnLaTemporadaActiva(Long equipoId);
 

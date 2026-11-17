@@ -100,6 +100,9 @@ public class JugadorServiceImpl implements JugadorService {
 			}
 		}
 
+		// Mismo criterio que la app: el dorsal no se repite entre los jugadores activos del equipo.
+		ReglaDorsal.comprobar(jugadorDao, entidad.getEquipoId(), entidad.getId(), entidad.getDorsal());
+
 		boolean resultado = jugadorDao.guardarJugador(entidad);
 
 		if (resultado) {

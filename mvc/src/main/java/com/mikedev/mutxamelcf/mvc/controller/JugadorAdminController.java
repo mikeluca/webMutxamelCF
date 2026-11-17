@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.mikedev.mutxamelcf.model.AnioNacimiento;
 import com.mikedev.mutxamelcf.model.EquipoDTO;
+import com.mikedev.mutxamelcf.model.DorsalRepetidoException;
+import com.mikedev.mutxamelcf.model.PosicionJugador;
 import com.mikedev.mutxamelcf.model.FamiliarDTO;
 import com.mikedev.mutxamelcf.model.HistorialJugadorDTO;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
@@ -62,6 +64,8 @@ public class JugadorAdminController {
 		logger.debug("Inicio listarJugadores: estado={}", estado);
 		List<EquipoDTO> listaEquipos = equiposService.obtenerTodos(); // Obtener todos los equipos
 		model.addAttribute("listaEquipos", listaEquipos);
+		// Las opciones del desplegable "Posicion" (la misma lista cerrada que usa la app)
+		model.addAttribute("posiciones", PosicionJugador.textos());
 
 		// El filtro de categoría se aplica en el navegador (ver jugadores.html); el de estado, aquí.
 		String filtro = "bajas".equals(estado) || "todos".equals(estado) ? estado : "activos";
@@ -175,6 +179,12 @@ public class JugadorAdminController {
 				return ResponseEntity.badRequest().body(response);
 			}
 
+		} catch (DorsalRepetidoException e) {
+			// "El dorsal 7 ya lo tiene Nombre Apellido": el panel lo muestra tal cual en el modal
+			logger.warn("Guardar jugador rechazado: {}", e.getMessage());
+			response.put("error", e.getMessage());
+			logger.debug("Fin guardarJugador: resultado=DORSAL_REPETIDO");
+			return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
 		} catch (DataAccessException e) {
 			logger.error("Error de base de datos al guardar el jugador: {}", e.getMessage(), e);
 			response.put("error", MENSAJE_ERROR_BASE_DE_DATOS);
