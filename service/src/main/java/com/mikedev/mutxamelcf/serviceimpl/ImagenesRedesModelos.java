@@ -28,7 +28,14 @@ public final class ImagenesRedesModelos {
             String campo,
             String marcador,
             Estado estado,
-            byte[] escudo) {
+            byte[] escudo,
+            boolean rivalPropio) {
+
+        /** Sin el indicador de rival propio (un rival de otro club). */
+        public Fila(String equipo, String rival, String hora, String fecha, String campo, String marcador, Estado estado,
+                byte[] escudo) {
+            this(equipo, rival, hora, fecha, campo, marcador, estado, escudo, false);
+        }
     }
 
     /** Una imagen completa: tipo (PREVIA/RESULTADOS), modalidad (F11/F8/F5), página y sus filas. */

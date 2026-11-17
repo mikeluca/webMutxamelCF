@@ -5,9 +5,11 @@ import com.mikedev.mutxamelcf.model.DorsalRepetidoException;
 import com.mikedev.mutxamelcf.model.Jugador;
 
 /**
- * Un dorsal no se puede repetir entre los jugadores activos (sin baja) de un mismo equipo. La comprobación bloquea las
- * filas del equipo hasta el final de la transacción, así que dos cambios a la vez no dejan dorsales repetidos. Se usa
- * desde la app y desde el panel.
+ * Un dorsal no se puede repetir entre los jugadores activos (sin baja) de un mismo equipo. Solo se comprueba cuando el
+ * dorsal es nuevo para el jugador (cambia de dorsal o de equipo): así un jugador cuyo dorsal ya estaba repetido por datos
+ * antiguos puede seguir guardando otros cambios (foto, año, posición...) hasta que se corrija. Cuando se comprueba, se
+ * bloquean las filas del equipo hasta el final de la transacción, así que dos cambios a la vez no dejan dorsales
+ * repetidos. Se usa desde la app y desde el panel.
  */
 final class ReglaDorsal {
 
@@ -15,11 +17,17 @@ final class ReglaDorsal {
     }
 
     /**
+     * @param actual el jugador tal como está guardado (null si es nuevo)
      * @throws DorsalRepetidoException "El dorsal 7 ya lo tiene Nombre Apellido" si lo tiene otro jugador activo del equipo
      */
-    static void comprobar(JugadorDao jugadorDao, Long equipoId, Long jugadorId, Integer dorsal) {
+    static void comprobar(JugadorDao jugadorDao, Long equipoId, Long jugadorId, Integer dorsal, Jugador actual) {
 
         if (equipoId == null || dorsal == null) {
+            return;
+        }
+
+        // Ni el dorsal ni el equipo cambian: lo que ya había se respeta, aunque estuviera repetido.
+        if (actual != null && dorsal.equals(actual.getDorsal()) && equipoId.equals(actual.getEquipoId())) {
             return;
         }
 

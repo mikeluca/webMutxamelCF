@@ -88,7 +88,7 @@ public class JugadorDorsalPosicionServiceImpl implements JugadorDorsalPosicionSe
 		}
 
 		// Misma transacción: bloquea al equipo y comprueba que nadie más tiene el dorsal.
-		ReglaDorsal.comprobar(jugadorDao, equipoId, jugadorId, dorsal);
+		ReglaDorsal.comprobar(jugadorDao, equipoId, jugadorId, dorsal, jugador);
 
 		String posicionNueva = posicion == null ? null : posicion.texto();
 

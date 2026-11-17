@@ -89,8 +89,9 @@ public class JugadorServiceImpl implements JugadorService {
 		logger.debug("Inicio guardarJugador: id={}", jugador == null ? null : jugador.getId());
 		Jugador entidad = toEntity(jugador);
 
+		Jugador existente = entidad.getId() == null ? null : jugadorDao.obtenerPorId(entidad.getId());
+
 		if (entidad.getId() != null) {
-			Jugador existente = jugadorDao.obtenerPorId(entidad.getId());
 			if (existente != null && existente.estaDeBaja()) {
 				// Un jugador de baja no tiene equipo: vuelve a la plantilla con "Reactivar", no al editarlo.
 				entidad.setEquipoId(null);
@@ -100,8 +101,10 @@ public class JugadorServiceImpl implements JugadorService {
 			}
 		}
 
-		// Mismo criterio que la app: el dorsal no se repite entre los jugadores activos del equipo.
-		ReglaDorsal.comprobar(jugadorDao, entidad.getEquipoId(), entidad.getId(), entidad.getDorsal());
+		// Mismo criterio que la app: el dorsal no se repite entre los jugadores activos del equipo, pero solo se
+		// comprueba si el jugador cambia de dorsal o de equipo (un dorsal ya repetido por datos antiguos no impide
+		// guardar otros cambios).
+		ReglaDorsal.comprobar(jugadorDao, entidad.getEquipoId(), entidad.getId(), entidad.getDorsal(), existente);
 
 		boolean resultado = jugadorDao.guardarJugador(entidad);
 

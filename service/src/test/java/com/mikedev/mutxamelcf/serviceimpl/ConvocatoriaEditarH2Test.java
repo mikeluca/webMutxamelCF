@@ -47,7 +47,7 @@ class ConvocatoriaEditarH2Test {
 
     private static final Long ENTRENADOR = 1L;
     private static final Long EQUIPO = 10L;
-    private static final String DUCHA = "\n\n🚿 Ducha recomendable después del partido";
+    private static final String DUCHA = "\n\n🚿 Recomendamos que los jugadores se duchen después del partido.";
 
     private ConvocatoriaJugadorDaoImpl convocatoriaJugadorDao;
     private JustificacionFaltaPartidoDaoImpl justificacionDao;
@@ -359,7 +359,7 @@ class ConvocatoriaEditarH2Test {
         verify(comunicacionService).crearPrivada(aviso.capture(), eq(List.of(60L)), eq(ENTRENADOR));
 
         assertThat(aviso.getValue().getContenido())
-                .isEqualTo("Se han quitado de la convocatoria del partido contra Elx porque tienen la ausencia"
+                .isEqualTo("Se han quitado de la convocatoria del partido contra el Elx porque tienen la ausencia"
                         + " justificada: Jugador 101.");
     }
 
@@ -574,7 +574,7 @@ class ConvocatoriaEditarH2Test {
         service.actualizar(ENTRENADOR, creada.getId(), request(30L, "09:30", List.of(100L)));
 
         assertThat(avisoA(51).getContenido())
-                .isEqualTo("Ya no estás en la convocatoria del partido contra Pego del sábado 24/10.");
+                .isEqualTo("Ya no estás en la convocatoria del partido contra el Pego del sábado 24/10.");
 
         avisosEnviados = 1;
         nadieMasAvisado();
@@ -793,7 +793,7 @@ class ConvocatoriaEditarH2Test {
 
         assertThat(aviso.getValue().getTitulo()).isEqualTo("Convocatoria anulada");
         assertThat(aviso.getValue().getContenido())
-                .isEqualTo("Se ha anulado la convocatoria del partido contra Pego del sábado 24/10.");
+                .isEqualTo("Se ha anulado la convocatoria del partido contra el Pego del sábado 24/10.");
         assertThat(opciones.getValue().datos())
                 .containsEntry("tipo", "CONVOCATORIA")
                 .doesNotContainKey("convocatoriaId");
@@ -1072,7 +1072,7 @@ class ConvocatoriaEditarH2Test {
 
         Comunicacion aviso = avisoA(50);
         assertThat(aviso.getContenido())
-                .contains("Citación: 09:30 en Vestuarios.\n\nEquipaje: Segunda. En la mochila: Primera.")
+                .contains("Citación: 09:30 en Vestuarios.\n\n\n\nJugaremos con el equipaje Segunda. Y nos llevamos en la mochila el Primera, por si hiciera falta.")
                 .endsWith(DUCHA);
     }
 
@@ -1094,7 +1094,7 @@ class ConvocatoriaEditarH2Test {
 
         service.crear(ENTRENADOR, conEquipaje(request(30L, "09:30", List.of(100L)), segunda, null, false));
 
-        assertThat(avisoA(50).getContenido()).contains("Equipaje: Segunda.").doesNotContain("mochila");
+        assertThat(avisoA(50).getContenido()).contains("Jugaremos con el equipaje Segunda.").doesNotContain("mochila");
     }
 
     @Test
@@ -1209,7 +1209,7 @@ class ConvocatoriaEditarH2Test {
         assertThat(aviso.getAllValues()).allSatisfy(c -> {
             assertThat(c.getTitulo()).isEqualTo("Cambio de equipaje");
             assertThat(c.getContenido()).isEqualTo("Cambio en tu convocatoria del partido contra Pego:"
-                    + " cambia el equipaje.\n\nEquipaje: Segunda. En la mochila: Primera." + DUCHA);
+                    + " cambia el equipaje.\n\nJugaremos con el equipaje Segunda. Y nos llevamos en la mochila el Primera, por si hiciera falta." + DUCHA);
         });
         // Mismo tipo y pantalla que el aviso de cambio de hora o lugar.
         assertThat(opciones.getAllValues()).allSatisfy(o -> assertThat(o.datos())
@@ -1230,7 +1230,7 @@ class ConvocatoriaEditarH2Test {
 
         Comunicacion aviso = avisoA(50);
         assertThat(aviso.getTitulo()).isEqualTo("Cambio de equipaje");
-        assertThat(aviso.getContenido()).contains("\n\nYa no hay equipaje indicado.");
+        assertThat(aviso.getContenido()).contains("\n\nNo hay equipaje indicado.");
     }
 
     @Test
@@ -1262,7 +1262,7 @@ class ConvocatoriaEditarH2Test {
         Comunicacion aviso = avisoA(50);
         assertThat(aviso.getTitulo()).isEqualTo("Cambio en la convocatoria");
         assertThat(aviso.getContenido()).isEqualTo("Cambio en tu convocatoria del partido contra Pego:"
-                + " nueva hora de citación, 10:00; cambia el equipaje.\n\nEquipaje: Segunda." + DUCHA);
+                + " nueva hora de citación, 10:00; cambia el equipaje.\n\nJugaremos con el equipaje Segunda." + DUCHA);
         verify(comunicacionService, org.mockito.Mockito.times(1)).crearPrivada(any(Comunicacion.class), any(),
                 anyLong(), any(OpcionesPushComunicacion.class));
     }
@@ -1303,7 +1303,7 @@ class ConvocatoriaEditarH2Test {
 
         assertThat(jdbc.queryForObject("SELECT T FROM PRUEBA_EMOJI", String.class)).isEqualTo(DUCHA);
         assertThat(jdbc.queryForObject("SELECT C FROM PRUEBA_EMOJI", String.class)).isEqualTo(DUCHA);
-        assertThat(DUCHA).isEqualTo("\n\n🚿 Ducha recomendable después del partido");
+        assertThat(DUCHA).isEqualTo("\n\n🚿 Recomendamos que los jugadores se duchen después del partido.");
     }
 
     // ---- avisos de cambio a los invitados autorizados -------------------------------------
@@ -1359,7 +1359,7 @@ class ConvocatoriaEditarH2Test {
         assertThat(destinatariosDeAvisos()).containsExactly(50L, 53L);
         assertThat(avisoA(53).getTitulo()).isEqualTo("Cambio en la convocatoria");
         assertThat(avisoA(53).getContenido()).isEqualTo("Cambio en tu convocatoria del partido contra Pego:"
-                + " nueva hora de citación, 10:00; cambia el equipaje.\n\nEquipaje: Segunda." + DUCHA);
+                + " nueva hora de citación, 10:00; cambia el equipaje.\n\nJugaremos con el equipaje Segunda." + DUCHA);
     }
 
     @Test
@@ -1466,8 +1466,8 @@ class ConvocatoriaEditarH2Test {
         Comunicacion en = avisoA(52);
 
         assertThat(es.getTitulo()).isEqualTo("Nueva convocatoria");
-        assertThat(es.getContenido()).isEqualTo("Te han convocado con Cadete A para el partido contra Pego del sábado"
-                + " 24/10 a las 11:00.\n\nCitación: 09:30 en Vestuarios.\n\nEquipaje: Segunda. En la mochila: Primera."
+        assertThat(es.getContenido()).isEqualTo("Te han convocado con el Cadete A para el partido contra el Pego del sábado"
+                + " 24/10 a las 11:00.\n\nCitación: 09:30 en Vestuarios.\n\n\n\nJugaremos con el equipaje Segunda. Y nos llevamos en la mochila el Primera, por si hiciera falta."
                 + DUCHA);
 
         assertThat(ca.getTitulo()).isEqualTo("Nova convocatòria");
@@ -1492,7 +1492,7 @@ class ConvocatoriaEditarH2Test {
 
         service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L)));
 
-        assertThat(avisoA(50).getContenido()).startsWith("Te han convocado con Cadete A");
+        assertThat(avisoA(50).getContenido()).startsWith("Te han convocado con el Cadete A");
         assertThat(avisoA(60).getContenido()).startsWith("Han convocat Ana amb Cadete A");
         assertThat(avisoA(61).getContenido()).startsWith("Ana has been called up with Cadete A");
     }
@@ -1514,7 +1514,7 @@ class ConvocatoriaEditarH2Test {
 
         assertThat(es.getTitulo()).isEqualTo("Cambio en la convocatoria");
         assertThat(es.getContenido()).isEqualTo("Cambio en tu convocatoria del partido contra Pego: nueva hora de"
-                + " citación, 10:00; cambia el equipaje.\n\nEquipaje: Segunda." + DUCHA);
+                + " citación, 10:00; cambia el equipaje.\n\nJugaremos con el equipaje Segunda." + DUCHA);
 
         assertThat(ca.getTitulo()).isEqualTo("Canvi en la convocatòria");
         assertThat(ca.getContenido()).isEqualTo("Canvi en la teua convocatòria del partit contra Pego: nova hora de"
@@ -1568,7 +1568,7 @@ class ConvocatoriaEditarH2Test {
         service.crear(ENTRENADOR, request(30L, "09:30", List.of(100L, 101L, 102L)));
 
         assertThat(avisoA(50).getContenido()).isEqualTo("Te han convocado con Cadete A para el partido contra Pego del"
-                + " sábado 24/10.\n\nCitación: 09:30 en Vestuarios." + DUCHA);
+                + " sábado 24/10.\n\nCitación: 09:30 en Vestuarios.\n\n" + DUCHA);
         assertThat(avisoA(51).getContenido()).startsWith("T'han convocat amb Cadete A per al partit contra Pego del"
                 + " dissabte 24/10.\n\nCitació: 09:30 a Vestuarios.");
         assertThat(avisoA(52).getContenido()).startsWith("You've been called up with Cadete A for the match against"

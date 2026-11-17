@@ -169,4 +169,30 @@ class ImagenesRedesServiceImplTest {
         assertThat(respuesta.textoPrevia()).endsWith("#somMTX #mareaAzul #MutxamelCF");
         assertThat(respuesta.textoResultados()).endsWith("#somMTX #mareaAzul #MutxamelCF");
     }
+
+    @Test
+    void contraUnFilialSeMarcaElRivalComoPropioYNoSePideEscudoDeRival() {
+
+        when(dao.partidosEntre(VIERNES, DOMINGO)).thenReturn(List.of(
+                new PartidoImagen(20L, 20L, "Juvenil A", "20", "F11", "Mutxamel C.F. B", 77L, VIERNES.plusDays(1),
+                        "10:00", "Campo", true, false, null, null, null),
+                new PartidoImagen(21L, 21L, "Juvenil B", "21", "F11", "Pego C.F.", 78L, VIERNES.plusDays(1), "12:00",
+                        "Campo", true, false, null, null, null)));
+        when(dao.escudoRival(78L)).thenReturn(new byte[] { 9 });
+
+        servicio.generarYAvisar("PREVIA", VIERNES);
+
+        ArgumentCaptor<com.mikedev.mutxamelcf.serviceimpl.ImagenesRedesModelos.Imagen> imagen = ArgumentCaptor
+                .forClass(com.mikedev.mutxamelcf.serviceimpl.ImagenesRedesModelos.Imagen.class);
+        verify(renderer).renderizar(imagen.capture());
+
+        var filas = imagen.getValue().filas();
+
+        assertThat(filas.get(0).rival()).isEqualTo("VS MUTXAMEL C.F. “B”");
+        assertThat(filas.get(0).rivalPropio()).isTrue();
+        assertThat(filas.get(0).escudo()).isNull();
+        assertThat(filas.get(1).rivalPropio()).isFalse();
+        assertThat(filas.get(1).escudo()).containsExactly(9);
+        verify(dao, never()).escudoRival(77L);
+    }
 }

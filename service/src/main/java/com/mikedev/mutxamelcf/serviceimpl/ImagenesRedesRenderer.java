@@ -202,7 +202,7 @@ public class ImagenesRedesRenderer {
         int centroY = y + paso / 2;
         int alto = paso - 20;
 
-        pintarEscudoRival(g, fila.escudo(), PARALELOGRAMO_X, centroY - alto / 2, PARALELOGRAMO_ANCHO, alto);
+        pintarEscudoRival(g, fila, PARALELOGRAMO_X, centroY - alto / 2, PARALELOGRAMO_ANCHO, alto);
         pintarEquipoYRival(g, fila, centroY);
 
         if (resultados) {
@@ -310,7 +310,7 @@ public class ImagenesRedesRenderer {
     // ---- elementos sueltos -------------------------------------------------------------------
 
     /** Paralelogramo beige con el escudo del rival (o uno genérico si no tiene). */
-    private void pintarEscudoRival(Graphics2D g, byte[] png, int x, int y, int ancho, int alto) {
+    private void pintarEscudoRival(Graphics2D g, Fila fila, int x, int y, int ancho, int alto) {
 
         int inclinacion = 34;
         Path2D forma = new Path2D.Double();
@@ -326,7 +326,8 @@ public class ImagenesRedesRenderer {
         int cx = x + ancho / 2;
         int cy = y + alto / 2;
 
-        BufferedImage escudo = leerEscudo(png);
+        // Un rival de nuestro club (un filial): el escudo del Mutxamel C.F., el mismo del titulo.
+        BufferedImage escudo = fila.rivalPropio() ? escudoClub : leerEscudo(fila.escudo());
 
         if (escudo == null) {
             pintarEscudoGenerico(g, cx, cy, lado);

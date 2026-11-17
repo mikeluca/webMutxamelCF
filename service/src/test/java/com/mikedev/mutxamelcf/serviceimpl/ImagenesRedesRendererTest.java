@@ -176,4 +176,42 @@ class ImagenesRedesRendererTest {
             throw new IllegalStateException(e);
         }
     }
+
+    @Test
+    void unRivalDeNuestroClubLlevaElEscudoDelMutxamelEnVezDelGenerico() throws Exception {
+
+        Fila ajeno = new Fila("JUVENIL A", "VS PEGO C.F.", "10:00 H", "14/11", "CAMPO", null, Estado.SIN_RESULTADO, null,
+                false);
+        Fila filial = new Fila("JUVENIL A", "VS MUTXAMEL C.F. “B”", "10:00 H", "14/11", "CAMPO", null,
+                Estado.SIN_RESULTADO, null, true);
+
+        BufferedImage generico = ImageIO.read(new ByteArrayInputStream(
+                renderer.renderizar(new Imagen("PREVIA", "F11", 1, 1, List.of(ajeno)))));
+        BufferedImage propio = ImageIO.read(new ByteArrayInputStream(
+                renderer.renderizar(new Imagen("PREVIA", "F11", 1, 1, List.of(filial)))));
+
+        // El escudo de la fila: dentro del paralelogramo de la izquierda (x 150-350) de la primera fila (y 240-380).
+        // El del club tiene rojo y amarillo (barras) y el genérico solo grises.
+        assertThat(colorido(generico)).isFalse();
+        assertThat(colorido(propio)).isTrue();
+    }
+
+    /** Hay píxeles claramente saturados (rojo o amarillo) en la zona del escudo de la primera fila. */
+    private static boolean colorido(BufferedImage imagen) {
+
+        for (int y = 250; y < 370; y++) {
+            for (int x = 190; x < 330; x++) {
+                Color c = new Color(imagen.getRGB(x, y));
+                int max = Math.max(c.getRed(), Math.max(c.getGreen(), c.getBlue()));
+                int min = Math.min(c.getRed(), Math.min(c.getGreen(), c.getBlue()));
+
+                // El paralelogramo beige tiene poca saturación (< 60); el rojo/amarillo del escudo, mucha
+                if (max - min > 120) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 }

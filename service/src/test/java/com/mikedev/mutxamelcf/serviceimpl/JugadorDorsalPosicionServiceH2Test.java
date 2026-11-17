@@ -362,4 +362,105 @@ class JugadorDorsalPosicionServiceH2Test {
         assertThat(jugadorService.guardarJugador(dto)).isTrue();
         assertThat(dorsal(activo)).isNull();
     }
+
+    // ---- la regla solo se comprueba si el dorsal (o el equipo) cambia -------------------------
+
+    @Test
+    void conUnDorsalYaRepetidoPorDatosAntiguosSePuedeCambiarSoloLaPosicion() {
+
+        jugador("Pablo", "Garcia", 1, 7, null, false);
+        long repetido = jugador("Luis", "Perez", 1, 7, null, false);
+
+        JugadorEquipoAppDTO dto = service.actualizar(ENTRENADOR_CADETE, repetido, 7, "PORTERO");
+
+        assertThat(dto.getDorsal()).isEqualTo(7);
+        assertThat(posicion(repetido)).isEqualTo("Portero");
+
+        // Quitar el dorsal también vale (deja de estar repetido)
+        service.actualizar(ENTRENADOR_CADETE, repetido, null, "PORTERO");
+        assertThat(dorsal(repetido)).isNull();
+    }
+
+    @Test
+    void cambiarAlDorsalDeOtroSigueDandoConflictoAunqueYaHayaRepetidos() {
+
+        jugador("Pablo", "Garcia", 1, 7, null, false);
+        jugador("Luis", "Perez", 1, 7, null, false);
+        long otro = jugador("Ana", "Diaz", 1, 9, null, false);
+
+        assertThatThrownBy(() -> service.actualizar(ENTRENADOR_CADETE, otro, 7, null))
+                .isInstanceOf(DorsalRepetidoException.class)
+                .hasMessageStartingWith("El dorsal 7 ya lo tiene ");
+        assertThat(dorsal(otro)).isEqualTo(9);
+    }
+
+    @Test
+    void elPanelGuardaOtrosCambiosDeUnJugadorConElDorsalYaRepetido() {
+
+        jugador("Pablo", "Garcia", 1, 7, null, false);
+        long repetido = jugador("Luis", "Perez", 1, 7, null, false);
+
+        JugadorDTO dto = jugadorService.obtenerJugadorPorId(repetido);
+        dto.setAnioNacimiento(2012);
+        dto.setPosicion("Defensa");
+
+        assertThat(jugadorService.guardarJugador(dto)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT ANIO_NACIMIENTO FROM JUGADORES WHERE ID = ?", Integer.class, repetido))
+                .isEqualTo(2012);
+        assertThat(dorsal(repetido)).isEqualTo(7);
+        assertThat(posicion(repetido)).isEqualTo("Defensa");
+    }
+
+    @Test
+    void elPanelSigueBloqueandoUnDorsalNuevoOcupado() {
+
+        jugador("Pablo", "Garcia", 1, 7, null, false);
+        jugador("Luis", "Perez", 1, 7, null, false);
+        long otro = jugador("Ana", "Diaz", 1, 9, null, false);
+
+        JugadorDTO dto = jugadorService.obtenerJugadorPorId(otro);
+        dto.setDorsal(7);
+
+        assertThatThrownBy(() -> jugadorService.guardarJugador(dto)).isInstanceOf(DorsalRepetidoException.class);
+    }
+
+    @Test
+    void elPanelComprobaElDorsalAlCambiarDeEquipo() {
+
+        jugador("Pablo", "Garcia", 1, 5, null, false);
+        long deOtroEquipo = jugador("Luis", "Perez", 2, 5, null, false);
+
+        JugadorDTO dto = jugadorService.obtenerJugadorPorId(deOtroEquipo);
+        dto.setEquipoId(1L);
+        dto.setEquipo("Cadete A");
+        dto.setCategoria("Cadete");
+
+        assertThatThrownBy(() -> jugadorService.guardarJugador(dto))
+                .isInstanceOf(DorsalRepetidoException.class)
+                .hasMessage("El dorsal 5 ya lo tiene Pablo Garcia");
+        assertThat(jdbc.queryForObject("SELECT EQUIPO_ID FROM JUGADORES WHERE ID = ?", Long.class, deOtroEquipo))
+                .isEqualTo(2L);
+
+        // Con el dorsal libre en el equipo nuevo sí puede cambiar
+        dto.setDorsal(6);
+        assertThat(jugadorService.guardarJugador(dto)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT EQUIPO_ID FROM JUGADORES WHERE ID = ?", Long.class, deOtroEquipo))
+                .isEqualTo(1L);
+    }
+
+    @Test
+    void elNombreCortoUsaElPrimerApellidoAunqueHayaVariosEspacios() {
+
+        jugador("Pablo", "Garcia   Lopez", 1, 7, null, false);
+        long otro = jugador("Luis", "Perez", 1, 9, null, false);
+
+        assertThatThrownBy(() -> service.actualizar(ENTRENADOR_CADETE, otro, 7, null))
+                .hasMessage("El dorsal 7 ya lo tiene Pablo Garcia");
+
+        com.mikedev.mutxamelcf.model.Jugador tabulado = new com.mikedev.mutxamelcf.model.Jugador();
+        tabulado.setNombre(" Ana ");
+        tabulado.setApellidos("De\t la   Cruz");
+
+        assertThat(ReglaDorsal.nombreCorto(tabulado)).isEqualTo("Ana De");
+    }
 }

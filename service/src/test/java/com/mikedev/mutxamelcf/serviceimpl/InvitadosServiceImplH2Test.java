@@ -1211,8 +1211,8 @@ class InvitadosServiceImplH2Test {
         service.aprobar(COORDINADOR, fila(100, ANA).getId());
 
         assertThat(avisosDe("CONVOCATORIA")).isNotEmpty().allSatisfy(a -> assertThat(a.contenido())
-                .contains("Citación: 10:00 en Vestuarios.\n\nEquipaje: Segunda. En la mochila: Primera.")
-                .endsWith("\n\n🚿 Ducha recomendable después del partido"));
+                .contains("Citación: 10:00 en Vestuarios.\n\n\n\nJugaremos con el equipaje Segunda. Y nos llevamos en la mochila el Primera, por si hiciera falta.")
+                .endsWith("\n\n🚿 Recomendamos que los jugadores se duchen después del partido."));
     }
 
     @Test
@@ -1223,7 +1223,7 @@ class InvitadosServiceImplH2Test {
 
         assertThat(avisosDe("CONVOCATORIA")).isNotEmpty().allSatisfy(a -> assertThat(a.contenido())
                 .contains("en Vestuarios.\n\n").doesNotContain("Equipaje")
-                .endsWith("🚿 Ducha recomendable después del partido"));
+                .endsWith("🚿 Recomendamos que los jugadores se duchen después del partido."));
     }
 
     // ---- un destinatario en cada idioma --------------------------------------------------------

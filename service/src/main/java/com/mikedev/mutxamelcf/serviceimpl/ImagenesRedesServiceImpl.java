@@ -193,9 +193,11 @@ public class ImagenesRedesServiceImpl implements ImagenesRedesService {
 	private Fila fila(PartidoImagen p, String tipo, Map<Long, byte[]> escudos) {
 
 		boolean resultados = TIPO_RESULTADOS.equals(tipo);
+		// Un rival de nuestro club (un filial): el renderizador pinta el escudo del Mutxamel C.F.
+		boolean rivalPropio = NombreClub.esPropio(p.rival());
 		byte[] escudo = null;
 
-		if (p.clubRivalId() != null) {
+		if (!rivalPropio && p.clubRivalId() != null) {
 			escudo = escudos.computeIfAbsent(p.clubRivalId(), imagenRedesDao::escudoRival);
 		}
 
@@ -207,7 +209,8 @@ public class ImagenesRedesServiceImpl implements ImagenesRedesService {
 				p.campo() == null ? "" : p.campo().trim().toUpperCase(Locale.ROOT),
 				resultados ? SeleccionImagenesRedes.marcador(p) : null,
 				SeleccionImagenesRedes.estado(p),
-				escudo);
+				escudo,
+				rivalPropio);
 	}
 
 	// ---- aviso a coordinación ----------------------------------------------------------------

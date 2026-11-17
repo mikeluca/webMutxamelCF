@@ -114,7 +114,7 @@ class TextosAvisosTest {
         String texto = textos.texto("es", "convocatoria.quitado.jugador",
                 "rival", "{fecha} $1 \\ X", "fecha", "sábado 25/10");
 
-        assertThat(texto).isEqualTo("Ya no estás en la convocatoria del partido contra {fecha} $1 \\ X del sábado 25/10.");
+        assertThat(texto).isEqualTo("Ya no estás en la convocatoria del partido contra el {fecha} $1 \\ X del sábado 25/10.");
     }
 
     @Test
@@ -126,7 +126,7 @@ class TextosAvisosTest {
 
     @Test
     void losTextosSeLeenEnUtf8() {
-        assertThat(textos.texto("es", "ducha")).isEqualTo("🚿 Ducha recomendable después del partido");
+        assertThat(textos.texto("es", "ducha")).isEqualTo("🚿 Recomendamos que los jugadores se duchen después del partido.");
         assertThat(textos.texto("ca", "convocatoria.anulada.titulo")).isEqualTo("Convocatòria anul·lada");
     }
 
