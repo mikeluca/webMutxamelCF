@@ -32,27 +32,27 @@ class SolicitudesFamiliaSchedulerTest {
     @Test
     void alCaducarAvisaPorEmailACadaFamiliaEnSuIdioma() {
 
-        when(servicio.caducarVencidas()).thenReturn(List.of(new Caducada("ana@example.com", "Ana", "ca"),
-                new Caducada("luis@example.com", "Luis", "en")));
-        when(comunicaciones.enviarSolicitudFamiliaCaducada(any(), any(), any())).thenReturn(true);
+        when(servicio.caducarVencidas()).thenReturn(List.of(new Caducada("ana@example.com", "Ana", "ca", true),
+                new Caducada("luis@example.com", "Luis", "en", false)));
+        when(comunicaciones.enviarSolicitudFamiliaCaducada(any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn(true);
 
         scheduler.caducarSolicitudes();
 
-        verify(comunicaciones).enviarSolicitudFamiliaCaducada("ana@example.com", "Ana", "ca");
-        verify(comunicaciones).enviarSolicitudFamiliaCaducada("luis@example.com", "Luis", "en");
+        verify(comunicaciones).enviarSolicitudFamiliaCaducada("ana@example.com", "Ana", "ca", true);
+        verify(comunicaciones).enviarSolicitudFamiliaCaducada("luis@example.com", "Luis", "en", false);
     }
 
     @Test
     void unEmailQueFallaNoImpideAvisarALosDemas() {
 
-        when(servicio.caducarVencidas()).thenReturn(List.of(new Caducada("a@example.com", "A", "es"),
-                new Caducada("b@example.com", "B", "es")));
-        when(comunicaciones.enviarSolicitudFamiliaCaducada(any(), any(), any()))
+        when(servicio.caducarVencidas()).thenReturn(List.of(new Caducada("a@example.com", "A", "es", true),
+                new Caducada("b@example.com", "B", "es", true)));
+        when(comunicaciones.enviarSolicitudFamiliaCaducada(any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
                 .thenThrow(new RuntimeException("smtp")).thenReturn(true);
 
         assertThatCode(() -> scheduler.caducarSolicitudes()).doesNotThrowAnyException();
 
-        verify(comunicaciones).enviarSolicitudFamiliaCaducada("b@example.com", "B", "es");
+        verify(comunicaciones).enviarSolicitudFamiliaCaducada("b@example.com", "B", "es", true);
     }
 
     @Test
@@ -62,7 +62,7 @@ class SolicitudesFamiliaSchedulerTest {
 
         scheduler.caducarSolicitudes();
 
-        verify(comunicaciones, never()).enviarSolicitudFamiliaCaducada(any(), any(), any());
+        verify(comunicaciones, never()).enviarSolicitudFamiliaCaducada(any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
     }
 
     @Test

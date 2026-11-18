@@ -41,7 +41,7 @@ public final class SolicitudFamiliaResponses {
             List<HijoRevision> hijos) {
     }
 
-    /** Lo que hace falta para avisar a un familiar de que su solicitud ha caducado y se ha borrado. */
-    public record Caducada(String email, String nombre, String idioma) {
+    /** Lo que hace falta para avisar a un familiar de que su solicitud ha caducado sin revisarse y se ha borrado; {@code cuentaEliminada} si el registro creó la cuenta y también se ha borrado. */
+    public record Caducada(String email, String nombre, String idioma, boolean cuentaEliminada) {
     }
 }

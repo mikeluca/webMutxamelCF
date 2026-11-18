@@ -1,6 +1,7 @@
 package com.mikedev.mutxamelcf.serviceimpl;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -10,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
+import com.mikedev.mutxamelcf.service.AvisosCuentaEmail;
 import com.mikedev.mutxamelcf.service.FcmPushService;
 import com.mikedev.mutxamelcf.service.NotificacionAppService;
 
@@ -44,15 +46,18 @@ public class AvisosSolicitudFamilia {
     private final IdiomasUsuarios idiomas;
     private final TextosAvisos textos;
     private final EquipoGestionDao equipoGestionDao;
+    private final AvisosCuentaEmail email;
 
     public AvisosSolicitudFamilia(NotificacionAppService notificacionAppService, FcmPushService fcmPushService,
-            IdiomasUsuarios idiomas, TextosAvisos textos, EquipoGestionDao equipoGestionDao) {
+            IdiomasUsuarios idiomas, TextosAvisos textos, EquipoGestionDao equipoGestionDao,
+            AvisosCuentaEmail email) {
 
         this.notificacionAppService = notificacionAppService;
         this.fcmPushService = fcmPushService;
         this.idiomas = idiomas;
         this.textos = textos;
         this.equipoGestionDao = equipoGestionDao;
+        this.email = email;
     }
 
     /** Coordinación, administradores de la app y los entrenadores de esos equipos (sin repetidos, sin {@code excluir}). */
@@ -113,6 +118,47 @@ public class AvisosSolicitudFamilia {
 
         enviar(cuenta, TIPO_RESPUESTA, textos.texto(idioma, "solicitudFamilia.rechazada.titulo"), bandeja, texto,
                 solicitudId, datos(TIPO_RESPUESTA, PANTALLA_MI_SOLICITUD, solicitudId));
+    }
+
+    /**
+     * El email de la aprobación, en el idioma de la cuenta: el primero ("Ya tienes acceso a la app", con lo que puede
+     * hacer una familia) si es el primer hijo aprobado de la solicitud, y uno corto para los siguientes. Si el envío
+     * falla no se rompe la aprobación: se registra y se sigue.
+     */
+    public void emailAprobada(Long cuenta, String destino, String nombre, String jugador, boolean primerHijo) {
+
+        try {
+            String idioma = idiomas.idiomaDe(cuenta);
+
+            boolean enviado = primerHijo
+                    ? email.enviarSolicitudFamiliaAprobada(destino, nombre, List.of(jugador), idioma)
+                    : email.enviarSolicitudFamiliaOtroAprobado(destino, nombre, jugador, idioma);
+
+            if (!enviado) {
+                logger.warn("No se ha podido enviar el email de solicitud de familia aprobada a la cuenta {}", cuenta);
+            }
+
+        } catch (RuntimeException e) {
+            logger.warn("No se ha podido enviar el email de solicitud de familia aprobada a la cuenta {}: {}", cuenta,
+                    e.getMessage());
+        }
+    }
+
+    /** El email del rechazo de un hijo, con el motivo solo si el revisor escribió uno. Best-effort como el anterior. */
+    public void emailRechazada(Long cuenta, String destino, String nombre, String jugador, String motivo) {
+
+        try {
+            boolean enviado = email.enviarSolicitudFamiliaRechazada(destino, nombre, jugador, motivo,
+                    idiomas.idiomaDe(cuenta));
+
+            if (!enviado) {
+                logger.warn("No se ha podido enviar el email de solicitud de familia rechazada a la cuenta {}", cuenta);
+            }
+
+        } catch (RuntimeException e) {
+            logger.warn("No se ha podido enviar el email de solicitud de familia rechazada a la cuenta {}: {}", cuenta,
+                    e.getMessage());
+        }
     }
 
     /** El recordatorio diario a coordinación y administración: hay solicitudes pendientes de más de 2 días. */

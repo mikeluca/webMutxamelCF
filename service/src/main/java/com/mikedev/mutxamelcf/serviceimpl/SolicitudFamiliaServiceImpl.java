@@ -389,13 +389,20 @@ public class SolicitudFamiliaServiceImpl implements SolicitudFamiliaService {
                     new FamiliarJugador(null, ficha.getId(), jugadorId, textoParentesco(s.parentesco()), 0));
         }
 
+        // El primer hijo aprobado de la solicitud recibe el email completo; los siguientes, uno corto.
+        boolean primerHijo = dao.obtenerHijos(s.id()).stream()
+                .noneMatch(h -> SolicitudFamiliaJugador.APROBADO.equals(h.estado()));
+
         dao.aprobarHijo(hijoId, jugadorId);
 
         cerrarSiTodoRevisado(s, revisor);
 
         String nombreJugador = (jugador.nombre() + " " + jugador.apellidos()).trim();
 
-        despuesDelCommit(() -> avisos.avisarAprobada(s.usuarioAppId(), nombreJugador, s.id()));
+        despuesDelCommit(() -> {
+            avisos.avisarAprobada(s.usuarioAppId(), nombreJugador, s.id());
+            avisos.emailAprobada(s.usuarioAppId(), s.email(), s.nombre(), nombreJugador, primerHijo);
+        });
 
         logger.info("Hijo de solicitud de familia aprobado: solicitudId={}, hijoId={}, jugadorId={}", s.id(), hijoId,
                 jugadorId);
@@ -428,7 +435,10 @@ public class SolicitudFamiliaServiceImpl implements SolicitudFamiliaService {
 
         String nombreHijo = (c.hijo.nombre() + " " + c.hijo.apellidos()).trim();
 
-        despuesDelCommit(() -> avisos.avisarRechazada(s.usuarioAppId(), nombreHijo, guardado, s.id()));
+        despuesDelCommit(() -> {
+            avisos.avisarRechazada(s.usuarioAppId(), nombreHijo, guardado, s.id());
+            avisos.emailRechazada(s.usuarioAppId(), s.email(), s.nombre(), nombreHijo, guardado);
+        });
 
         logger.info("Hijo de solicitud de familia rechazado: solicitudId={}, hijoId={}", s.id(), hijoId);
 
@@ -720,12 +730,16 @@ public class SolicitudFamiliaServiceImpl implements SolicitudFamiliaService {
                 dao.caducar(s.id());
 
                 // Solo la cuenta que creó el propio registro y sin roles ni vínculos; las demás no se tocan nunca.
+                boolean cuentaEliminada = false;
+
                 if (sinRolesNiVinculos(s.usuarioAppId().intValue())) {
                     cuentaAppService.eliminarCuentaPorSistema(s.usuarioAppId().intValue());
+                    cuentaEliminada = true;
                 }
 
-                if (email != null && !email.isBlank()) {
-                    caducadas.add(new Caducada(email, nombre, idioma));
+                // Solo se avisa si caducó SIN haberse revisado: una rechazada ya recibió el email del rechazo.
+                if (!SolicitudFamilia.RECHAZADA.equals(s.estado()) && email != null && !email.isBlank()) {
+                    caducadas.add(new Caducada(email, nombre, idioma, cuentaEliminada));
                 }
 
                 logger.info("Solicitud de familia caducada y borrada: solicitudId={}", s.id());

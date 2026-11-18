@@ -42,7 +42,7 @@ public class ComunicacionesService implements AvisosCuentaEmail {
 
     /** Orden de las secciones por rol en el email de cuenta activada. */
     private static final List<String> SECCIONES_DE_ROL = List.of(
-            "JUGADOR", "FAMILIAR", "ENTRENADOR", "COORDINADOR", "RETRANSMISION");
+            "JUGADOR", "FAMILIAR", "ENTRENADOR", "COORDINADOR", "RETRANSMISION", "ADMIN_APP");
 
     private final JavaMailSender emailSender;
 
@@ -228,17 +228,110 @@ public class ComunicacionesService implements AvisosCuentaEmail {
                 "dias", String.valueOf(UsuarioAppService.DIAS_VALIDEZ_ACTIVACION));
     }
 
-    /** Avisa a la familia de que su solicitud ha caducado y se han borrado sus datos; puede volver a pedirla. */
-    public boolean enviarSolicitudFamiliaCaducada(String email, String nombrePersona, String idioma) {
+    /**
+     * Avisa a la familia de que su solicitud ha caducado SIN haberse revisado y se han borrado los datos de la solicitud.
+     * Dos variantes: si el registro creó la cuenta y se ha borrado ({@code cuentaBorrada}), puede volver a pedirlo en
+     * «Soy familiar de un jugador»; si la cuenta se conserva (ya tenía roles), en «Pedir acceso a otro jugador».
+     */
+    public boolean enviarSolicitudFamiliaCaducada(String email, String nombrePersona, String idioma,
+            boolean cuentaBorrada) {
         logger.debug("Inicio enviarSolicitudFamiliaCaducada");
 
         boolean enviado = enviarEmail(REMITENTE, email, null,
                 PlantillasEmail.texto(idioma, "solicitudFamiliaCaducada.asunto"),
-                PlantillasEmail.texto(idioma, "solicitudFamiliaCaducada.cuerpo",
-                        "saludo", saludo(idioma, nombrePersona, false)));
+                construirSolicitudFamiliaCaducada(nombrePersona, idioma, cuentaBorrada));
 
         logger.debug("Fin enviarSolicitudFamiliaCaducada: enviado={}", enviado);
         return enviado;
+    }
+
+    static String construirSolicitudFamiliaCaducada(String nombrePersona, String idioma, boolean cuentaBorrada) {
+
+        return PlantillasEmail.texto(idioma,
+                cuentaBorrada ? "solicitudFamiliaCaducada.cuerpo.cuentaBorrada"
+                        : "solicitudFamiliaCaducada.cuerpo.cuentaConservada",
+                "saludo", saludo(idioma, nombrePersona, false));
+    }
+
+    /** "Ya tienes acceso" (primer hijo aprobado), con los jugadores aprobados y el bloque de lo que puede hacer una familia. */
+    @Override
+    public boolean enviarSolicitudFamiliaAprobada(String email, String nombrePersona, List<String> jugadores,
+            String idioma) {
+        logger.debug("Inicio enviarSolicitudFamiliaAprobada");
+
+        boolean enviado = enviarEmail(REMITENTE, email, null,
+                PlantillasEmail.texto(idioma, "solicitudFamiliaAprobada.asunto"),
+                construirSolicitudFamiliaAprobada(nombrePersona, jugadores, idioma));
+
+        logger.debug("Fin enviarSolicitudFamiliaAprobada: enviado={}", enviado);
+        return enviado;
+    }
+
+    static String construirSolicitudFamiliaAprobada(String nombrePersona, List<String> jugadores, String idioma) {
+
+        return PlantillasEmail.texto(idioma, "solicitudFamiliaAprobada.cuerpo",
+                "saludo", saludo(idioma, nombrePersona, false),
+                "jugadores", unirNombres(jugadores, idioma),
+                "roles", PlantillasEmail.texto(idioma, "rol.FAMILIAR"));
+    }
+
+    /** "Pepe García", "Pepe García y Ana García" o "A, B y C", con la palabra de cada idioma. */
+    static String unirNombres(List<String> nombres, String idioma) {
+
+        if (nombres == null || nombres.isEmpty()) {
+            return "";
+        }
+
+        if (nombres.size() == 1) {
+            return nombres.get(0);
+        }
+
+        String y = PlantillasEmail.texto(idioma, "solicitudFamilia.y");
+
+        return String.join(", ", nombres.subList(0, nombres.size() - 1)) + " " + y + " "
+                + nombres.get(nombres.size() - 1);
+    }
+
+    /** Se aprueba otro hijo de la misma solicitud: email corto. */
+    @Override
+    public boolean enviarSolicitudFamiliaOtroAprobado(String email, String nombrePersona, String jugador,
+            String idioma) {
+        logger.debug("Inicio enviarSolicitudFamiliaOtroAprobado");
+
+        boolean enviado = enviarEmail(REMITENTE, email, null,
+                PlantillasEmail.texto(idioma, "solicitudFamiliaOtroAprobado.asunto", "jugador", jugador),
+                PlantillasEmail.texto(idioma, "solicitudFamiliaOtroAprobado.cuerpo",
+                        "saludo", saludo(idioma, nombrePersona, false),
+                        "jugador", jugador));
+
+        logger.debug("Fin enviarSolicitudFamiliaOtroAprobado: enviado={}", enviado);
+        return enviado;
+    }
+
+    /** Se rechaza un hijo; el motivo solo va si el revisor escribió uno. */
+    @Override
+    public boolean enviarSolicitudFamiliaRechazada(String email, String nombrePersona, String jugador, String motivo,
+            String idioma) {
+        logger.debug("Inicio enviarSolicitudFamiliaRechazada");
+
+        boolean enviado = enviarEmail(REMITENTE, email, null,
+                PlantillasEmail.texto(idioma, "solicitudFamiliaRechazada.asunto"),
+                construirSolicitudFamiliaRechazada(nombrePersona, jugador, motivo, idioma));
+
+        logger.debug("Fin enviarSolicitudFamiliaRechazada: enviado={}", enviado);
+        return enviado;
+    }
+
+    static String construirSolicitudFamiliaRechazada(String nombrePersona, String jugador, String motivo,
+            String idioma) {
+
+        String limpio = motivo == null ? "" : motivo.trim();
+
+        return PlantillasEmail.texto(idioma, "solicitudFamiliaRechazada.cuerpo",
+                "saludo", saludo(idioma, nombrePersona, false),
+                "jugador", jugador,
+                "motivo", limpio.isEmpty() ? ""
+                        : PlantillasEmail.texto(idioma, "solicitudFamiliaRechazada.motivo", "motivo", limpio));
     }
 
     /** "Hola Ana:" (o "Hola Ana," en la invitación); sin nombre, "Hola:" / "Hola,". */

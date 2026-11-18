@@ -222,7 +222,12 @@ Emails (un solo idioma, el de la petición o el de la cuenta):
 | Plantilla (`emails_*.properties`) | Cuándo | Idioma |
 | --- | --- | --- |
 | `solicitudFamilia.*` | Se registra una familia, o pide otro código: el código de 6 dígitos para **confirmar el email de la solicitud** (no es una invitación). Caduca en 5 días | El de la petición |
-| `solicitudFamiliaCaducada.*` | Job diario a las 04:00: la solicitud caducó (7 días sin revisar o rechazada) y se han borrado sus datos | El de la cuenta |
+| `solicitudFamiliaAprobada.*` | Se aprueba el **primer** hijo de una solicitud: "Ya tienes acceso a la app", con el/los jugadores aprobados y el bloque `rol.FAMILIAR` | La cuenta |
+| `solicitudFamiliaOtroAprobado.*` | Se aprueba otro hijo de la misma solicitud: email corto ("Acceso aprobado a {jugador}") | La cuenta |
+| `solicitudFamiliaRechazada.*` | Se rechaza un hijo. `{motivo}` (`solicitudFamiliaRechazada.motivo`) solo si el revisor escribió uno | La cuenta |
+| `solicitudFamiliaCaducada.cuerpo.cuentaBorrada` / `.cuentaConservada` | Job diario a las 04:00, **solo** si caducó SIN revisarse (`PENDIENTE_EMAIL` o `PENDIENTE`): el registro creó la cuenta y se ha borrado, o la cuenta ya tenía roles y se conserva (cambia dónde puede volver a pedirlo). Al borrar una `RECHAZADA` no se envía nada | La cuenta |
+
+Los emails de la aprobación y del rechazo salen tras confirmarse la operación y son best-effort: si el envío falla se registra y no se deshace nada. `solicitudFamilia.y` es la palabra que une los nombres ("Pepe García y Ana García").
 
 El código de activación de las **invitaciones** (`invitacion.*`), de los reenvíos y del registro de familias dura **5 días
 (120 horas)**: una sola constante, `UsuarioAppService.HORAS_VALIDEZ_ACTIVACION`; el texto de los emails usa el marcador
@@ -245,11 +250,11 @@ tiene la app): castellano, valenciano e inglés con el separador de siempre.
 | Plantilla (`emails_*.properties`) | Cuándo | Idioma |
 | --- | --- | --- |
 | `invitacion.*` | Se crea o se reenvía la invitación de la cuenta | Los tres, con separador |
-| `cuentaActivada.*`, `rol.*` | La cuenta se activa. Las secciones `rol.*` se añaden según los roles | La cuenta (el que manda la app al activar) |
+| `cuentaActivada.*`, `rol.*` | La cuenta se activa. Las secciones `rol.*` (JUGADOR, FAMILIAR, ENTRENADOR, COORDINADOR, RETRANSMISION y ADMIN_APP) se añaden según los roles; un ADMIN_APP recibe también la de COORDINADOR | La cuenta (el que manda la app al activar) |
 | `codigoRecuperacion.*` | "¿Has olvidado tu contraseña?" | El que manda la app en la petición; si no, el de la cuenta |
 | `contrasenaCambiada.*` | Se cambia la contraseña | La cuenta |
-| `cuentaSinJugadores.*` | Job diario (ver arriba) | La cuenta |
-| `solicitudFamilia.*`, `solicitudFamiliaCaducada.*` | Registro de familias (ver arriba) | El de la petición / la cuenta |
+| `cuentaSinJugadores.*` | Job diario (ver arriba). Recuerda que se puede pedir acceso a otro jugador desde la app | La cuenta |
+| `solicitudFamilia*.*` | Registro de familias (ver arriba) | El de la petición / la cuenta |
 
 ## Cómo añadir o cambiar un aviso
 

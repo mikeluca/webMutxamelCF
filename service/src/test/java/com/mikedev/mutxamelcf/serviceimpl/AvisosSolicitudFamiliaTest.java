@@ -30,6 +30,7 @@ class AvisosSolicitudFamiliaTest {
     private FcmPushService push;
     private UsuarioAppDao usuarioAppDao;
     private EquipoGestionDao equipoGestionDao;
+    private com.mikedev.mutxamelcf.service.AvisosCuentaEmail emails;
     private AvisosSolicitudFamilia avisos;
 
     @BeforeEach
@@ -38,13 +39,14 @@ class AvisosSolicitudFamiliaTest {
         push = mock(FcmPushService.class);
         usuarioAppDao = mock(UsuarioAppDao.class);
         equipoGestionDao = mock(EquipoGestionDao.class);
+        emails = mock(com.mikedev.mutxamelcf.service.AvisosCuentaEmail.class);
 
         when(notificaciones.puedeRecibir(anyLong(), anyString())).thenReturn(true);
         when(usuarioAppDao.obtenerIdioma(anyLong())).thenReturn("es");
         when(usuarioAppDao.obtenerIdiomas(any())).thenReturn(Map.of());
 
         avisos = new AvisosSolicitudFamilia(notificaciones, push, new IdiomasUsuarios(usuarioAppDao),
-                new TextosAvisos(), equipoGestionDao);
+                new TextosAvisos(), equipoGestionDao, emails);
     }
 
     @Test
@@ -203,5 +205,42 @@ class AvisosSolicitudFamiliaTest {
         assertThat(texto.getAllValues()).containsOnly(
                 "Hay solicitudes de acceso de familias sin revisar desde hace más de 2 días.");
         verify(equipoGestionDao, never()).obtenerEntrenadoresPorEquipo(anyLong());
+    }
+
+    @Test
+    void elEmailDeAprobacionVaEnElIdiomaDeLaCuentaYElPrimerHijoLlevaElCompleto() {
+
+        when(usuarioAppDao.obtenerIdioma(40L)).thenReturn("ca");
+
+        avisos.emailAprobada(40L, "ana@example.com", "Ana", "Pepe García", true);
+        avisos.emailAprobada(40L, "ana@example.com", "Ana", "Ana García", false);
+
+        verify(emails).enviarSolicitudFamiliaAprobada("ana@example.com", "Ana", List.of("Pepe García"), "ca");
+        verify(emails).enviarSolicitudFamiliaOtroAprobado("ana@example.com", "Ana", "Ana García", "ca");
+        verify(emails, never()).enviarSolicitudFamiliaRechazada(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void elEmailDeRechazoLlevaElMotivoYElIdioma() {
+
+        when(usuarioAppDao.obtenerIdioma(40L)).thenReturn("en");
+
+        avisos.emailRechazada(40L, "ana@example.com", "Ana", "Luis Pérez", "No es de nuestro club");
+
+        verify(emails).enviarSolicitudFamiliaRechazada("ana@example.com", "Ana", "Luis Pérez",
+                "No es de nuestro club", "en");
+    }
+
+    @Test
+    void siElEmailFallaONoSaleLaAprobacionNoSeRompe() {
+
+        when(emails.enviarSolicitudFamiliaAprobada(any(), any(), any(), any())).thenReturn(false);
+        org.mockito.Mockito.doThrow(new RuntimeException("smtp")).when(emails).enviarSolicitudFamiliaRechazada(any(),
+                any(), any(), any(), any());
+
+        org.assertj.core.api.Assertions.assertThatCode(() -> {
+            avisos.emailAprobada(40L, "a@b.es", "Ana", "Luis", true);
+            avisos.emailRechazada(40L, "a@b.es", "Ana", "Luis", null);
+        }).doesNotThrowAnyException();
     }
 }

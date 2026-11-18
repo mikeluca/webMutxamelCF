@@ -180,7 +180,7 @@ Al familiar: `SOLICITUD_FAMILIA_RESPUESTA` / `MI_SOLICITUD_FAMILIA`.
 - **04:00**: las solicitudes `PENDIENTE_EMAIL` o `PENDIENTE` de más de **7 días** sin revisar, y las `RECHAZADA` revisadas hace
   más de 7 días, se **borran** (datos del familiar y de los hijos escritos). Si la cuenta no tiene ningún rol ni vínculo
   se elimina como en "Eliminar cuenta" (queda anonimizada y el email vuelve a estar libre). Las cuentas con roles
-  nunca se tocan. Se avisa por email de que ha caducado y puede volver a pedirla. Las `APROBADA` no se borran.
+  nunca se tocan. Se avisa por email de que ha caducado y puede volver a pedirla, solo si caducó sin revisarse (a una rechazada no se le envía nada: ya recibió el email del rechazo). Las `APROBADA` no se borran.
 - **10:00**: recordatorio a coordinación y administradores si hay solicitudes `PENDIENTE` de más de 2 días.
 
 La tabla tiene una columna `IP_ORIGEN` que el backend **no rellena**: ningún otro formulario público guarda la IP y el

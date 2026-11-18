@@ -48,7 +48,8 @@ public class SolicitudesFamiliaScheduler {
             for (Caducada c : caducadas) {
 
                 try {
-                    if (comunicacionesService.enviarSolicitudFamiliaCaducada(c.email(), c.nombre(), c.idioma())) {
+                    if (comunicacionesService.enviarSolicitudFamiliaCaducada(c.email(), c.nombre(), c.idioma(),
+                            c.cuentaEliminada())) {
                         avisadas++;
                     }
                 } catch (RuntimeException e) {

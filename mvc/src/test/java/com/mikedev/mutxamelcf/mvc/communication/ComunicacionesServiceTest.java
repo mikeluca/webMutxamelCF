@@ -90,9 +90,9 @@ class ComunicacionesServiceTest {
         String texto = ComunicacionesService.construirInvitacionApp("Ana", "123456");
 
         int separador = texto.indexOf("------------------------------");
-        int castellano = texto.indexOf("Se ha creado tu acceso a la app oficial");
+        int castellano = texto.indexOf("Se ha creado tu acceso a la app oficial del Mutxamel Club de Fútbol.");
         int valenciano = texto.indexOf("S'ha creat el teu accés a l'app oficial");
-        int ingles = texto.indexOf("Your access to the official Mutxamel Club de Futbol app has been created");
+        int ingles = texto.indexOf("Your access to the official Mutxamel C.F. app has been created");
 
         assertTrue(texto.startsWith("Hola Ana,"));
         assertTrue(castellano >= 0 && castellano < separador);

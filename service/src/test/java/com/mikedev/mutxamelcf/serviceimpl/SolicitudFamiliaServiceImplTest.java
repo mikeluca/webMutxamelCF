@@ -836,6 +836,8 @@ class SolicitudFamiliaServiceImplTest {
         assertThat(dao.obtenerPorId(id).revisadaPorId()).isEqualTo(ENTRENADOR_ALEVIN);
         assertThat(dao.obtenerPorId(id).fechaRevision()).isEqualTo(AHORA);
         verify(avisos).avisarAprobada((long) cuenta, "Luis Pérez Gómez", id);
+        // Primer hijo aprobado de la solicitud: email completo, al email que escribió la familia.
+        verify(avisos).emailAprobada((long) cuenta, "ana@example.com", "Ana", "Luis Pérez Gómez", true);
     }
 
     @Test
@@ -898,6 +900,10 @@ class SolicitudFamiliaServiceImplTest {
 
         Revision r = service.aprobarHijo(Revisor.app(COORDINADOR), hijoId(id, 1), 57);
 
+        // Es el segundo hijo aprobado de la misma solicitud: email corto, no el completo.
+        verify(avisos).emailAprobada((long) cuenta, "ana@example.com", "Ana", "Luis Pérez Gómez", true);
+        verify(avisos).emailAprobada((long) cuenta, "ana@example.com", "Ana", "Eva García", false);
+
         verify(usuarioAppService, times(1)).agregarVinculosAUsuarioExistente(anyInt(), any());
         verify(familiarDao, times(1)).guardarFamiliar(any());
         verify(familiarJugadorDao, times(2)).guardarFamiliarJugador(any());
@@ -956,6 +962,7 @@ class SolicitudFamiliaServiceImplTest {
         assertThat(dao.obtenerPorId(id).revisadaPorId()).isNull();
 
         verify(avisos).avisarRechazada((long) cuenta, "Luis Pérez", "No lo encontramos", id);
+        verify(avisos).emailRechazada((long) cuenta, "ana@example.com", "Ana", "Luis Pérez", "No lo encontramos");
         verify(usuarioAppService, never()).asignarRol(anyInt(), anyInt());
         verify(usuarioAppService, never()).agregarVinculosAUsuarioExistente(anyInt(), any());
         verify(familiarJugadorDao, never()).guardarFamiliarJugador(any());
@@ -1080,7 +1087,10 @@ class SolicitudFamiliaServiceImplTest {
         long id = dao.solicitudes.keySet().iterator().next();
         dao.solicitudes.put(id, SolicitudFamiliaConFecha(dao.solicitudes.get(id), AHORA.minusDays(8)));
 
-        assertThat(service.caducarVencidas()).hasSize(1);
+        List<Caducada> avisar = service.caducarVencidas();
+
+        // Caducó sin revisarse y el registro creó la cuenta: se avisa y la cuenta se ha borrado (variante 1).
+        assertThat(avisar).singleElement().extracting(Caducada::cuentaEliminada).isEqualTo(true);
         assertThat(dao.solicitudes).isEmpty();
         verify(cuentaAppService).eliminarCuentaPorSistema(anyInt());
     }
@@ -1097,8 +1107,9 @@ class SolicitudFamiliaServiceImplTest {
         assertThat(dao.obtenerPorId(id)).isNotNull();
 
         dao.cerrar(id, "RECHAZADA", null, AHORA.minusDays(8), (long) COORDINADOR, null);
-
-        assertThat(service.caducarVencidas()).hasSize(1);
+        // Al borrar una rechazada (la cuenta sin roles también) no se avisa por email: ya recibió el del rechazo.
+        assertThat(service.caducarVencidas()).isEmpty();
+        verify(cuentaAppService).eliminarCuentaPorSistema(anyInt());
         assertThat(dao.obtenerPorId(id)).isNull();
     }
 
@@ -1139,6 +1150,8 @@ class SolicitudFamiliaServiceImplTest {
         verify(cuentaAppService, never()).eliminarCuentaPorSistema(anyInt());
         assertThat(avisar).hasSize(1);
         assertThat(cuenta.isActivo()).isTrue();
+        // Se avisa igual (caducó sin revisarse) pero con la variante de la cuenta que se conserva.
+        assertThat(avisar).singleElement().extracting(Caducada::cuentaEliminada).isEqualTo(false);
     }
 
     @Test
