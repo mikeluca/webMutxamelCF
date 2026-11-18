@@ -1,5 +1,6 @@
 package com.mikedev.mutxamelcf.serviceimpl;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -91,26 +92,65 @@ public final class SeleccionImagenesRedes {
                 Integer.valueOf(m.group(1)), Integer.valueOf(m.group(2)), p.resultado());
     }
 
+    /** Categorías en el orden fijo del club (comparadas sin mayúsculas ni acentos). */
+    private static final List<String> ORDEN_CATEGORIAS = List.of("primer equipo", "veteranos", "filial", "juvenil",
+            "cadete", "infantil", "alevin", "benjamin", "prebenjamin", "escuelita");
+
+    /**
+     * Orden fijo del club, independiente de EQUIPO.ORDEN, del día y de la hora: primero la categoría según
+     * {@link #ORDEN_CATEGORIAS}; dentro de ella, la letra (sin letra primero, luego A, B, C, D...). Las categorías
+     * que no están en la lista van al final, por nombre. Los partidos de un mismo equipo quedan juntos por día y hora.
+     */
     private static final Comparator<PartidoImagen> ORDEN_CLUB = Comparator
-            .comparing((PartidoImagen p) -> numeroOrden(p.ordenEquipo()))
-            .thenComparing(p -> p.equipo() == null ? "" : p.equipo())
+            .comparingInt((PartidoImagen p) -> rangoCategoria(categoria(p.equipo())))
+            .thenComparing(p -> categoria(p.equipo()))
+            .thenComparing(p -> letra(p.equipo()))
+            .thenComparing(p -> normalizarTexto(p.equipo()))
             .thenComparing(PartidoImagen::dia)
             .thenComparing(p -> p.hora() == null ? "" : p.hora());
+
+    /** La categoría del equipo, normalizada: su nombre sin la letra final ("Alevín A" es "alevin"). */
+    static String categoria(String equipo) {
+
+        String texto = normalizarTexto(equipo);
+        Matcher m = LETRA_EQUIPO.matcher(texto);
+
+        return m.matches() ? m.group(1) : texto;
+    }
+
+    /** La letra del equipo en minúscula ("Alevín B" es "b"), o "" si no tiene ("Veteranos"). */
+    static String letra(String equipo) {
+
+        Matcher m = LETRA_EQUIPO.matcher(normalizarTexto(equipo));
+
+        return m.matches() ? m.group(2) : "";
+    }
+
+    private static int rangoCategoria(String categoria) {
+
+        int i = ORDEN_CATEGORIAS.indexOf(categoria);
+
+        return i < 0 ? ORDEN_CATEGORIAS.size() : i;
+    }
+
+    private static final Pattern LETRA_EQUIPO = Pattern.compile("^(.*\\S)\\s+([a-z])$");
+
+    /** Minúsculas, sin acentos y con los espacios normalizados. */
+    private static String normalizarTexto(String texto) {
+
+        if (texto == null) {
+            return "";
+        }
+
+        return Normalizer.normalize(texto, Normalizer.Form.NFD).replaceAll("\\p{M}+", "")
+                .trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
 
     private static String modalidad(PartidoImagen p) {
 
         String m = p.modalidad() == null ? "" : p.modalidad().trim().toUpperCase(Locale.ROOT);
 
         return m.isEmpty() ? "F11" : m;
-    }
-
-    private static int numeroOrden(String orden) {
-
-        try {
-            return Integer.parseInt(orden == null ? "" : orden.trim());
-        } catch (NumberFormatException e) {
-            return Integer.MAX_VALUE;
-        }
     }
 
     /** El nombre en minúsculas y sin espacios sobrantes, para comparar con la lista de exclusiones. */

@@ -40,7 +40,7 @@ class SeleccionImagenesRedesTest {
                 partido("Veteranos", "3", ""),
                 partido("Alevín A", "20", "F8")), "PREVIA", Set.of());
 
-        assertThat(nombres(r.get("F11"))).containsExactly("Primer Equipo", "Filial", "Veteranos");
+        assertThat(nombres(r.get("F11"))).containsExactly("Primer Equipo", "Veteranos", "Filial");
         assertThat(nombres(r.get("F8"))).containsExactly("Alevín A");
         assertThat(r).doesNotContainKey("F5");
     }
@@ -110,8 +110,108 @@ class SeleccionImagenesRedesTest {
         Map<String, List<PartidoImagen>> r = SeleccionImagenesRedes.seleccionar(List.of(temprano, tarde, primero),
                 "PREVIA", Set.of());
 
-        // El 10 va después del 2 (orden numérico), aunque su partido sea más temprano.
-        assertThat(nombres(r.get("F11"))).containsExactly("Filial", "Cadete A", "Juvenil A");
+        // El orden es el fijo del club: no depende de EQUIPO.ORDEN ni de la hora.
+        assertThat(nombres(r.get("F11"))).containsExactly("Filial", "Juvenil A", "Cadete A");
+    }
+
+    private static List<PartidoImagen> desordenados(String modalidad, String... equipos) {
+
+        List<PartidoImagen> lista = new ArrayList<>();
+
+        // EQUIPO.ORDEN al revés a propósito: no debe influir.
+        for (int i = 0; i < equipos.length; i++) {
+            lista.add(partido(equipos[i], String.valueOf(100 - i), modalidad));
+        }
+
+        java.util.Collections.shuffle(lista, new java.util.Random(7));
+
+        return lista;
+    }
+
+    @Test
+    void ordenFijoDeFutbol11() {
+
+        List<PartidoImagen> entrada = desordenados("F11", "Infantil B", "Cadete A", "Veteranos", "Juvenil B",
+                "Filial", "Infantil A", "Cadete B", "Juvenil A");
+
+        assertThat(nombres(SeleccionImagenesRedes.seleccionar(entrada, "PREVIA", Set.of()).get("F11")))
+                .containsExactly("Veteranos", "Filial", "Juvenil A", "Juvenil B", "Cadete A", "Cadete B", "Infantil A",
+                        "Infantil B");
+    }
+
+    @Test
+    void ordenFijoDeFutbol8() {
+
+        List<PartidoImagen> entrada = desordenados("F8", "Prebenjamín B", "Benjamín C", "Alevín B", "Prebenjamín A",
+                "Alevín A", "Benjamín A", "Alevín C", "Benjamín B");
+
+        assertThat(nombres(SeleccionImagenesRedes.seleccionar(entrada, "PREVIA", Set.of()).get("F8")))
+                .containsExactly("Alevín A", "Alevín B", "Alevín C", "Benjamín A", "Benjamín B", "Benjamín C",
+                        "Prebenjamín A", "Prebenjamín B");
+    }
+
+    @Test
+    void unEquipoNuevoSeColocaPorCategoriaYLetraSinTocarNada() {
+
+        List<PartidoImagen> entrada = desordenados("F8", "Benjamín A", "Alevín D", "Alevín A", "Alevín C");
+        List<PartidoImagen> f11 = desordenados("F11", "Cadete C", "Cadete B", "Infantil A", "Cadete A");
+
+        assertThat(nombres(SeleccionImagenesRedes.seleccionar(entrada, "PREVIA", Set.of()).get("F8")))
+                .containsExactly("Alevín A", "Alevín C", "Alevín D", "Benjamín A");
+        assertThat(nombres(SeleccionImagenesRedes.seleccionar(f11, "PREVIA", Set.of()).get("F11")))
+                .containsExactly("Cadete A", "Cadete B", "Cadete C", "Infantil A");
+    }
+
+    @Test
+    void categoriaYLetraSeComparanSinMayusculasNiAcentos() {
+
+        List<PartidoImagen> entrada = desordenados("F8", "BENJAMIN A", "alevin b", "Alevín A");
+
+        assertThat(nombres(SeleccionImagenesRedes.seleccionar(entrada, "PREVIA", Set.of()).get("F8")))
+                .containsExactly("Alevín A", "alevin b", "BENJAMIN A");
+    }
+
+    @Test
+    void dosPartidosDelMismoEquipoVanJuntosPorDiaYHora() {
+
+        PartidoImagen domingo = new PartidoImagen(1L, 1L, "Cadete A", "10", "F11", "X", null, SABADO.plusDays(1),
+                "09:00", "C", true, false, null, null, null);
+        PartidoImagen sabadoTarde = new PartidoImagen(2L, 1L, "Cadete A", "10", "F11", "X", null, SABADO, "17:00", "C",
+                true, false, null, null, null);
+        PartidoImagen sabadoMañana = new PartidoImagen(3L, 1L, "Cadete A", "10", "F11", "X", null, SABADO, "09:00",
+                "C", true, false, null, null, null);
+        PartidoImagen otro = partido("Cadete B", "1", "F11");
+        PartidoImagen juvenil = partido("Juvenil A", "99", "F11");
+
+        List<PartidoImagen> r = SeleccionImagenesRedes
+                .seleccionar(List.of(otro, domingo, juvenil, sabadoTarde, sabadoMañana), "PREVIA", Set.of()).get("F11");
+
+        assertThat(r).containsExactly(juvenil, sabadoMañana, sabadoTarde, domingo, otro);
+    }
+
+    @Test
+    void lasCategoriasFueraDeLaListaVanAlFinalPorNombre() {
+
+        List<PartidoImagen> entrada = desordenados("F11", "Femenino B", "Cadete A", "Amateur", "Femenino A",
+                "Primer Equipo");
+
+        assertThat(nombres(SeleccionImagenesRedes.seleccionar(entrada, "PREVIA", Set.of()).get("F11")))
+                .containsExactly("Primer Equipo", "Cadete A", "Amateur", "Femenino A", "Femenino B");
+    }
+
+    @Test
+    void elReparteEnVariasImagenesRespetaElOrden() {
+
+        List<PartidoImagen> entrada = desordenados("F8", "Alevín A", "Alevín B", "Alevín C", "Alevín D", "Benjamín A",
+                "Benjamín B", "Benjamín C", "Prebenjamín A", "Prebenjamín B");
+
+        List<List<PartidoImagen>> paginas = SeleccionImagenesRedes
+                .paginar(SeleccionImagenesRedes.seleccionar(entrada, "PREVIA", Set.of()).get("F8"));
+
+        assertThat(nombres(paginas.get(0))).containsExactly("Alevín A", "Alevín B", "Alevín C", "Alevín D",
+                "Benjamín A");
+        assertThat(nombres(paginas.get(1))).containsExactly("Benjamín B", "Benjamín C", "Prebenjamín A",
+                "Prebenjamín B");
     }
 
     @Test

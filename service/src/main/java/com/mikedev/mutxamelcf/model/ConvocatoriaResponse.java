@@ -18,6 +18,8 @@ public class ConvocatoriaResponse {
      */
     private String rival;
     private String campo;
+    /** true si el Mutxamel juega en casa (PARTIDOS.ES_LOCAL del partido vinculado; true si no hay partido). */
+    private boolean local = true;
     private LocalDate fechaPartido;
     private String horaPartido;
     private String horaConvocatoria;
@@ -76,6 +78,14 @@ public class ConvocatoriaResponse {
 
     public String getCampo() {
         return campo;
+    }
+
+    public boolean isLocal() {
+        return local;
+    }
+
+    public void setLocal(boolean local) {
+        this.local = local;
     }
 
     public void setCampo(String campo) {
