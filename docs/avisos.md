@@ -205,6 +205,29 @@ terminar el partido: ese aviso interno solo mira las tarjetas de nuestros jugado
 | `noticia.titulo` | Se publica una noticia nueva (el cuerpo es el título de la noticia, sin traducir) | Todas las cuentas con la preferencia + topics de noticias | No |
 | `reporte.*` | Un usuario reporta un mensaje | Administradores de la app | No |
 
+### Solicitudes de acceso de las familias
+
+Contrato completo en `docs/api-app-solicitudes-familia.md`. Los avisos son bandeja + push, uno por cuenta y en su idioma
+(no una comunicación). Todos llevan `data.tipo` y `data.pantalla` para que la app abra la pantalla.
+
+| Clave | Cuándo | A quién | `tipo` / `pantalla` | Push distinto |
+| --- | --- | --- | --- | --- |
+| `solicitudFamilia.nueva.*` | La solicitud queda lista para revisar (email confirmado, o enviada con sesión) | Coordinación, administradores de la app y los entrenadores de los equipos de las coincidencias (no a quien la pide) | `SOLICITUD_FAMILIA` / `SOLICITUDES_FAMILIA` | Sí (`.push`): **sin datos del menor ni de la familia**, "Nueva solicitud de acceso de una familia"; la bandeja tampoco los lleva |
+| `solicitudFamilia.aprobada.*` | Se aprueba un hijo | Solo la cuenta que pidió el acceso, no a los familiares ya vinculados con ese jugador. "Ya puedes ver la información de {jugador}" | `SOLICITUD_FAMILIA_RESPUESTA` / `MI_SOLICITUD_FAMILIA` | No |
+| `solicitudFamilia.rechazada.*` | Se rechaza un hijo | Igual que el anterior | `SOLICITUD_FAMILIA_RESPUESTA` / `MI_SOLICITUD_FAMILIA` | Sí: el motivo (si lo hay) va solo en la bandeja, como el resto de motivos |
+| `solicitudFamilia.recordatorio.*` | Job diario a las 10:00: hay solicitudes `PENDIENTE` de más de 2 días | Coordinación y administradores de la app | `SOLICITUD_FAMILIA` / `SOLICITUDES_FAMILIA` | No |
+
+Emails (un solo idioma, el de la petición o el de la cuenta):
+
+| Plantilla (`emails_*.properties`) | Cuándo | Idioma |
+| --- | --- | --- |
+| `solicitudFamilia.*` | Se registra una familia, o pide otro código: el código de 6 dígitos para **confirmar el email de la solicitud** (no es una invitación). Caduca en 5 días | El de la petición |
+| `solicitudFamiliaCaducada.*` | Job diario a las 04:00: la solicitud caducó (7 días sin revisar o rechazada) y se han borrado sus datos | El de la cuenta |
+
+El código de activación de las **invitaciones** (`invitacion.*`), de los reenvíos y del registro de familias dura **5 días
+(120 horas)**: una sola constante, `UsuarioAppService.HORAS_VALIDEZ_ACTIVACION`; el texto de los emails usa el marcador
+`{dias}`. El código de recuperación de contraseña sigue en 30 minutos.
+
 ## Topics de FCM (gente sin cuenta)
 
 | Topic | Contenido |
@@ -226,6 +249,7 @@ tiene la app): castellano, valenciano e inglés con el separador de siempre.
 | `codigoRecuperacion.*` | "¿Has olvidado tu contraseña?" | El que manda la app en la petición; si no, el de la cuenta |
 | `contrasenaCambiada.*` | Se cambia la contraseña | La cuenta |
 | `cuentaSinJugadores.*` | Job diario (ver arriba) | La cuenta |
+| `solicitudFamilia.*`, `solicitudFamiliaCaducada.*` | Registro de familias (ver arriba) | El de la petición / la cuenta |
 
 ## Cómo añadir o cambiar un aviso
 

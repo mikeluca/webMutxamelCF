@@ -92,6 +92,11 @@ public final class EsquemaH2 {
         ejecutar(jdbc, "/h2/escudos_rivales.sql");
     }
 
+    /** SOLICITUDES_FAMILIA y SOLICITUDES_FAMILIA_JUGADOR (sql/2026-11-18_solicitudes_familia.sql), sin claves ajenas. */
+    public static void crearSolicitudesFamilia(JdbcTemplate jdbc) {
+        ejecutar(jdbc, "/h2/solicitudes_familia.sql");
+    }
+
     /** El script de ajustes tal cual, para compararlo con el de sql/. */
     public static String ajustes() {
         return leer("/h2/ajustes_post_revision.sql");

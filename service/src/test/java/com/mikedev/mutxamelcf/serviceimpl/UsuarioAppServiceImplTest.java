@@ -35,6 +35,7 @@ import com.mikedev.mutxamelcf.model.UsuarioApp;
 import com.mikedev.mutxamelcf.model.VinculoSolicitado;
 import com.mikedev.mutxamelcf.model.VinculoUsuarioApp;
 import com.mikedev.mutxamelcf.service.JwtService;
+import com.mikedev.mutxamelcf.service.UsuarioAppService;
 import com.mikedev.mutxamelcf.util.TokenUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -338,6 +339,57 @@ class UsuarioAppServiceImplTest {
         verify(usuarioAppVinculoDao).vincularJugador(42, 55L);
         verify(rolAppDao).asignarRol(42, 2);
         verify(usuarioAppDao).actualizarTokenActivacion(eq(42), any(), any());
+    }
+
+    @Test
+    void elCodigoDeActivacionDuraCincoDiasEnUnaSolaConstante() {
+        assertThat(UsuarioAppService.HORAS_VALIDEZ_ACTIVACION).isEqualTo(120);
+        assertThat(UsuarioAppService.DIAS_VALIDEZ_ACTIVACION).isEqualTo(5);
+        // La recuperación de contraseña no se toca.
+        assertThat(UsuarioAppService.MINUTOS_VALIDEZ_RECUPERACION).isEqualTo(30);
+    }
+
+    @Test
+    void laInvitacionCaducaALas120Horas() {
+        InvitarUsuarioAppRequest request = requestInvitacion("JUGADOR", 55L, "nuevo@mutxamelcf.es");
+
+        when(usuarioAppVinculoDao.jugadorTieneCuenta(55L)).thenReturn(false);
+        when(usuarioAppVinculoDao.obtenerNombrePersona("JUGADOR", 55L)).thenReturn("Juan Perez");
+        when(rolAppDao.obtenerPorCodigo("JUGADOR")).thenReturn(rol(2, "JUGADOR"));
+        when(usuarioAppDao.obtenerPorEmail("nuevo@mutxamelcf.es")).thenReturn(null);
+        when(usuarioAppDao.guardar(any())).thenReturn(42);
+
+        UsuarioApp creado = new UsuarioApp();
+        creado.setId(42);
+        creado.setActivo(false);
+        when(usuarioAppDao.obtenerPorId(42)).thenReturn(creado);
+
+        Instant antes = Instant.now();
+        service.invitarUsuario(request);
+
+        org.mockito.ArgumentCaptor<Timestamp> caducidad = org.mockito.ArgumentCaptor.forClass(Timestamp.class);
+        verify(usuarioAppDao).actualizarTokenActivacion(eq(42), any(), caducidad.capture());
+
+        assertThat(caducidad.getValue().toInstant())
+                .isBetween(antes.plus(120, ChronoUnit.HOURS), Instant.now().plus(120, ChronoUnit.HOURS));
+    }
+
+    @Test
+    void elRegistroDeUnaFamiliaTambienCaducaALas120Horas() {
+        // El registro nuevo usa el mismo generarTokenActivacion que las invitaciones y los reenvíos.
+        UsuarioApp sinActivar = new UsuarioApp();
+        sinActivar.setId(77);
+        sinActivar.setActivo(false);
+        when(usuarioAppDao.obtenerPorId(77)).thenReturn(sinActivar);
+
+        Instant antes = Instant.now();
+        String codigo = service.generarTokenActivacion(77);
+
+        org.mockito.ArgumentCaptor<Timestamp> caducidad = org.mockito.ArgumentCaptor.forClass(Timestamp.class);
+        verify(usuarioAppDao).actualizarTokenActivacion(eq(77), eq(TokenUtils.hashToken(codigo)), caducidad.capture());
+
+        assertThat(caducidad.getValue().toInstant())
+                .isBetween(antes.plus(120, ChronoUnit.HOURS), Instant.now().plus(120, ChronoUnit.HOURS));
     }
 
     @Test
@@ -813,12 +865,12 @@ class UsuarioAppServiceImplTest {
 
         org.mockito.ArgumentCaptor<Timestamp> caducidad = org.mockito.ArgumentCaptor.forClass(Timestamp.class);
 
-        // El código se guarda con hash (nunca en claro), con 48 h de validez; actualizarTokenActivacion
+        // El código se guarda con hash (nunca en claro), con 120 h (5 días) de validez; actualizarTokenActivacion
         // también deja INTENTOS_ACTIVACION a cero.
         verify(usuarioAppDao).actualizarTokenActivacion(
                 eq(8), eq(TokenUtils.hashToken(invitacion.getTokenActivacion())), caducidad.capture());
         assertThat(caducidad.getValue().toInstant())
-                .isBetween(ahora.plus(47, ChronoUnit.HOURS), Instant.now().plus(48, ChronoUnit.HOURS));
+                .isBetween(ahora.plus(119, ChronoUnit.HOURS), Instant.now().plus(120, ChronoUnit.HOURS));
     }
 
     @Test

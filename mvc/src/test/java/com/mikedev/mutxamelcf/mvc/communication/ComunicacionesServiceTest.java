@@ -104,6 +104,32 @@ class ComunicacionesServiceTest {
     }
 
     @Test
+    void laInvitacionDiceQueElCodigoCaducaEnCincoDiasEnLosTresIdiomas() {
+        String texto = ComunicacionesService.construirInvitacionApp("Ana", "123456");
+
+        assertTrue(texto.contains("Este código caduca en 5 días"));
+        assertTrue(texto.contains("Este codi caduca en 5 dies"));
+        assertTrue(texto.contains("This code expires in 5 days"));
+        assertFalse(texto.contains("48"));
+        assertFalse(texto.contains("{dias}"));
+    }
+
+    @Test
+    void elEmailDeLaSolicitudDeFamiliaEsParaConfirmarElEmailYCaducaEnCincoDias() {
+        String es = ComunicacionesService.construirCodigoSolicitudFamilia("Ana", "654321", "es");
+        String ca = ComunicacionesService.construirCodigoSolicitudFamilia("Ana", "654321", "ca");
+        String en = ComunicacionesService.construirCodigoSolicitudFamilia("Ana", "654321", "en");
+
+        assertTrue(es.contains("654321") && es.contains("confirmar el email de la solicitud")
+                && es.contains("caduca en 5 días"));
+        assertTrue(ca.contains("654321") && ca.contains("confirmar l'email de la sol·licitud")
+                && ca.contains("caduca en 5 dies"));
+        assertTrue(en.contains("654321") && en.contains("confirm the email of the request")
+                && en.contains("expires in 5 days"));
+        assertFalse(es.contains("{") || ca.contains("{") || en.contains("{"));
+    }
+
+    @Test
     void laInvitacionSinNombreSaludaSinNombre() {
         assertTrue(ComunicacionesService.construirInvitacionApp(null, "123456").startsWith("Hola,"));
         assertTrue(ComunicacionesService.construirInvitacionApp("  ", "123456").contains("Hello,"));

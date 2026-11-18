@@ -136,10 +136,19 @@ public class SecurityConfig {
                                                  * API PRIVADA DE LA APP
                                                  *
                                                  * Requiere JWT válido.
+                                                 *
+                                                 * Una cuenta SIN roles (la de una familia que ha pedido acceso y
+                                                 * aún no está aprobada) solo llega a lo mínimo para ver el estado
+                                                 * de su solicitud; todo lo demás exige algún rol
+                                                 * (AccesoCuentaSinRoles).
                                                  */
                                                 .requestMatchers(
-                                                                "/api/app/**")
+                                                                AccesoCuentaSinRoles.RUTAS_SIN_ROL)
                                                 .authenticated()
+
+                                                .requestMatchers(
+                                                                "/api/app/**")
+                                                .access(AccesoCuentaSinRoles.CON_ALGUN_ROL)
 
                                                 /*
                                                  * ADMINISTRACIÓN WEB
@@ -159,7 +168,8 @@ public class SecurityConfig {
                                                  */
                                                 .requestMatchers(
                                                                 "/admin/ffcv/**",
-                                                                "/admin/equipos-ffcv/**")
+                                                                "/admin/equipos-ffcv/**",
+                                                                "/admin/solicitudes-familia/**")
                                                 .hasAnyRole("SUPER", "ADMIN")
 
                                                 /*

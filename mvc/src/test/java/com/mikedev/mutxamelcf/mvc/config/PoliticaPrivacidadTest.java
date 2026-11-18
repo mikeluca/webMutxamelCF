@@ -72,7 +72,8 @@ class PoliticaPrivacidadTest {
                 "politicaPrivacidad.app.publicacion.primerEquipo", "politicaPrivacidad.app.publicacion.redes",
                 "politicaPrivacidad.app.publicacion.oposicion", "politicaPrivacidad.p2", "politicaPrivacidad.p7",
                 "politicaPrivacidad.app.intro", "politicaPrivacidad.app.sinPermisos",
-                "politicaPrivacidad.app.finalidad", "politicaPrivacidad.app.proveedores" }) {
+                "politicaPrivacidad.app.finalidad", "politicaPrivacidad.app.proveedores",
+                "politicaPrivacidad.app.familias" }) {
 
             String texto = m.getProperty(clave);
 
@@ -112,6 +113,27 @@ class PoliticaPrivacidadTest {
         assertThat(html).contains("<li>" + escapado(m.getProperty("politicaPrivacidad.app.datos.preferencias")))
                 .contains("<li>" + escapado(m.getProperty("politicaPrivacidad.app.datos.diagnostico")))
                 .contains("<h3>" + escapado(m.getProperty("politicaPrivacidad.app.publicacion.titulo")) + "</h3>");
+    }
+
+    @ParameterizedTest
+    @CsvSource({ "es,messages_es.properties,Registro de familias,7 días", "ca,messages_ca.properties,Registre de famílies,7 dies",
+            "en,messages_en.properties,Family registration,7 days" })
+    void elRegistroDeFamiliasEstaExplicadoEnLaSeccionDeLaApp(String idioma, String fichero, String inicio, String plazo)
+            throws Exception {
+
+        String texto = mensajes(fichero).getProperty("politicaPrivacidad.app.familias");
+        String html = pagina(idioma);
+
+        assertThat(texto).startsWith(inicio).contains(plazo);
+        assertThat(html).contains(escapado(texto));
+
+        // Dentro de la sección de la app (8), antes de la información pública de los partidos.
+        int seccion = html.indexOf("id=\"aplicacion-movil\"");
+        int familias = html.indexOf(escapado(texto));
+        int publica = html.indexOf(escapado(mensajes(fichero).getProperty("politicaPrivacidad.app.publicacion.titulo")));
+
+        assertThat(seccion).isGreaterThanOrEqualTo(0);
+        assertThat(familias).isGreaterThan(seccion).isLessThan(publica);
     }
 
     @Test

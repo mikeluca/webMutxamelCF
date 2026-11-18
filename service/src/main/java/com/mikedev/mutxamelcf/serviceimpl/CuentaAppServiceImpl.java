@@ -65,6 +65,30 @@ public class CuentaAppServiceImpl implements CuentaAppService {
             throw new IllegalArgumentException(MENSAJE_PASSWORD_INCORRECTA);
         }
 
+        borrarDatosDeLaCuenta(usuarioAppId);
+
+        // Privacidad: se registra el id, no el email.
+        logger.info("Cuenta de app eliminada por su titular: usuarioAppId={}", usuarioAppId);
+    }
+
+    @Override
+    @Transactional
+    public void eliminarCuentaPorSistema(int usuarioAppId) {
+
+        UsuarioApp usuario = usuarioAppDao.obtenerPorId(usuarioAppId);
+
+        if (usuario == null || usuario.isEliminada()) {
+            return;
+        }
+
+        borrarDatosDeLaCuenta(usuarioAppId);
+
+        logger.info("Cuenta de app eliminada por el sistema: usuarioAppId={}", usuarioAppId);
+    }
+
+    /** Lo que borra "Eliminar cuenta" (la misma lógica para el titular y para el sistema). */
+    private void borrarDatosDeLaCuenta(int usuarioAppId) {
+
         Long id = (long) usuarioAppId;
 
         dispositivoAppDao.eliminarTodosDeUsuario(id);
@@ -73,9 +97,6 @@ public class CuentaAppServiceImpl implements CuentaAppService {
         usuarioAppVinculoDao.desvincularTodo(usuarioAppId);
         rolAppDao.eliminarTodosLosRoles(usuarioAppId);
         usuarioAppDao.anonimizar(usuarioAppId, emailAnonimo(usuarioAppId));
-
-        // Privacidad: se registra el id, no el email.
-        logger.info("Cuenta de app eliminada por su titular: usuarioAppId={}", usuarioAppId);
     }
 
     static String emailAnonimo(int usuarioAppId) {

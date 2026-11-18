@@ -220,4 +220,45 @@ public class FamiliarDaoImpl implements FamiliarDao {
         return familiares;
     }
 
+    @Override
+    public Familiar obtenerPorEmailOTelefono(String email, String telefono) {
+
+        String correo = email == null ? "" : email.trim().toLowerCase(java.util.Locale.ROOT);
+
+        if (!correo.isEmpty()) {
+
+            List<Familiar> porEmail = jdbcTemplate.query(
+                    "SELECT * FROM FAMILIARES WHERE LOWER(TRIM(EMAIL)) = ? ORDER BY ID", FAMILIAR_ROW_MAPPER, correo);
+
+            if (!porEmail.isEmpty()) {
+                return porEmail.get(0);
+            }
+        }
+
+        String digitos = soloDigitos(telefono);
+
+        if (digitos.length() < 6) {
+            return null;
+        }
+
+        for (Familiar f : jdbcTemplate.query(
+                "SELECT * FROM FAMILIARES WHERE TELEFONO IS NOT NULL ORDER BY ID", FAMILIAR_ROW_MAPPER)) {
+
+            if (digitos.equals(soloDigitos(f.getTelefono()))) {
+                return f;
+            }
+        }
+
+        return null;
+    }
+
+    /** Solo los dígitos: "+34 623 17 68 18" y "623176818" no son el mismo texto pero sí el mismo teléfono si coinciden los últimos. */
+    private static String soloDigitos(String telefono) {
+
+        String digitos = telefono == null ? "" : telefono.replaceAll("[^0-9]", "");
+
+        // Sin el prefijo del país (34) que a veces se escribe y a veces no.
+        return digitos.length() > 9 && digitos.startsWith("34") ? digitos.substring(2) : digitos;
+    }
+
 }

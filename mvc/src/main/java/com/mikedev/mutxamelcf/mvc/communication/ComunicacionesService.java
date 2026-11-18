@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import com.mikedev.mutxamelcf.model.IdiomaApp;
 import com.mikedev.mutxamelcf.service.AvisosCuentaEmail;
+import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -86,7 +87,8 @@ public class ComunicacionesService implements AvisosCuentaEmail {
         return IdiomaApp.TODOS.stream()
                 .map(idioma -> PlantillasEmail.texto(idioma, "invitacion.cuerpo",
                         "saludo", saludo(idioma, nombrePersona, true),
-                        "codigo", codigoActivacion))
+                        "codigo", codigoActivacion,
+                        "dias", String.valueOf(UsuarioAppService.DIAS_VALIDEZ_ACTIVACION)))
                 .collect(Collectors.joining(SEPARADOR_IDIOMAS));
     }
 
@@ -201,6 +203,42 @@ public class ComunicacionesService implements AvisosCuentaEmail {
 
         return PlantillasEmail.texto(idioma, "contrasenaCambiada.cuerpo",
                 "saludo", saludo(idioma, nombrePersona, false));
+    }
+
+    /**
+     * El código para confirmar el email de una solicitud de familia, en el idioma de la petición. No es una invitación del
+     * club: el texto dice que es para confirmar el email de la solicitud de acceso.
+     */
+    public boolean enviarCodigoSolicitudFamilia(String email, String nombrePersona, String codigo, String idioma) {
+        logger.debug("Inicio enviarCodigoSolicitudFamilia");
+
+        boolean enviado = enviarEmail(REMITENTE, email, null,
+                PlantillasEmail.texto(idioma, "solicitudFamilia.asunto"),
+                construirCodigoSolicitudFamilia(nombrePersona, codigo, idioma));
+
+        logger.debug("Fin enviarCodigoSolicitudFamilia: enviado={}", enviado);
+        return enviado;
+    }
+
+    static String construirCodigoSolicitudFamilia(String nombrePersona, String codigo, String idioma) {
+
+        return PlantillasEmail.texto(idioma, "solicitudFamilia.cuerpo",
+                "saludo", saludo(idioma, nombrePersona, false),
+                "codigo", codigo,
+                "dias", String.valueOf(UsuarioAppService.DIAS_VALIDEZ_ACTIVACION));
+    }
+
+    /** Avisa a la familia de que su solicitud ha caducado y se han borrado sus datos; puede volver a pedirla. */
+    public boolean enviarSolicitudFamiliaCaducada(String email, String nombrePersona, String idioma) {
+        logger.debug("Inicio enviarSolicitudFamiliaCaducada");
+
+        boolean enviado = enviarEmail(REMITENTE, email, null,
+                PlantillasEmail.texto(idioma, "solicitudFamiliaCaducada.asunto"),
+                PlantillasEmail.texto(idioma, "solicitudFamiliaCaducada.cuerpo",
+                        "saludo", saludo(idioma, nombrePersona, false)));
+
+        logger.debug("Fin enviarSolicitudFamiliaCaducada: enviado={}", enviado);
+        return enviado;
     }
 
     /** "Hola Ana:" (o "Hola Ana," en la invitación); sin nombre, "Hola:" / "Hola,". */

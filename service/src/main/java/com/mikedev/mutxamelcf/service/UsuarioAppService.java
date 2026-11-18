@@ -14,6 +14,14 @@ import java.util.List;
 
 public interface UsuarioAppService {
 
+    /**
+     * Validez del código de activación de una cuenta (invitación del club, reenvío y registro de una familia): 5 días
+     * desde que se envía el email. El único sitio donde se define; el texto de los emails usa {@code DIAS_VALIDEZ_ACTIVACION}.
+     */
+    int HORAS_VALIDEZ_ACTIVACION = 120;
+
+    int DIAS_VALIDEZ_ACTIVACION = HORAS_VALIDEZ_ACTIVACION / 24;
+
     /** Validez del código de recuperación de contraseña. */
     int MINUTOS_VALIDEZ_RECUPERACION = 30;
 
@@ -109,7 +117,7 @@ public interface UsuarioAppService {
      * Comprueba que el solicitante es ADMIN_APP (SecurityException si no) y que la
      * cuenta sigue pendiente de activar (IllegalStateException si ya está activa, la
      * eliminó su titular o un administrador la desactivó) y reenvía la invitación con
-     * {@link #reenviarInvitacion(int)}: código nuevo, 48 h de validez y contador de
+     * {@link #reenviarInvitacion(int)}: código nuevo, 5 días (120 h) de validez y contador de
      * intentos a cero.
      */
     InvitacionUsuarioApp reenviarActivacionPendiente(int solicitanteId, int usuarioAppId);

@@ -130,4 +130,40 @@ class CuentaAppServiceImplTest {
 
         verify(usuarioAppDao, never()).anonimizar(anyInt(), anyString());
     }
+
+    @Test
+    void eliminarPorElSistemaBorraLoMismoQueElTitularSinPedirContrasenaNiExigirCuentaActiva() {
+        UsuarioApp pendiente = new UsuarioApp();
+        pendiente.setId(9);
+        pendiente.setActivo(false);
+        when(usuarioAppDao.obtenerPorId(9)).thenReturn(pendiente);
+
+        service.eliminarCuentaPorSistema(9);
+
+        InOrder orden = inOrder(dispositivoAppDao, notificacionAppDao, preferenciasNotificacionDao,
+                usuarioAppVinculoDao, rolAppDao, usuarioAppDao);
+        orden.verify(dispositivoAppDao).eliminarTodosDeUsuario(9L);
+        orden.verify(notificacionAppDao).eliminarTodasDeUsuario(9L);
+        orden.verify(preferenciasNotificacionDao).eliminarPorUsuario(9L);
+        orden.verify(usuarioAppVinculoDao).desvincularTodo(9);
+        orden.verify(rolAppDao).eliminarTodosLosRoles(9);
+        orden.verify(usuarioAppDao).anonimizar(9, CuentaAppServiceImpl.emailAnonimo(9));
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
+    }
+
+    @Test
+    void eliminarPorElSistemaIgnoraUnaCuentaInexistenteOYaEliminada() {
+        when(usuarioAppDao.obtenerPorId(1)).thenReturn(null);
+
+        UsuarioApp eliminada = new UsuarioApp();
+        eliminada.setId(2);
+        eliminada.setFechaEliminacion(new Timestamp(0));
+        when(usuarioAppDao.obtenerPorId(2)).thenReturn(eliminada);
+
+        service.eliminarCuentaPorSistema(1);
+        service.eliminarCuentaPorSistema(2);
+
+        verify(usuarioAppDao, never()).anonimizar(anyInt(), anyString());
+        verify(rolAppDao, never()).eliminarTodosLosRoles(anyInt());
+    }
 }
