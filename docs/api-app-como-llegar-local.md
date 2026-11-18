@@ -1,9 +1,9 @@
 # Cómo llegar: el campo `local` en las respuestas (contrato para la app)
 
-El botón "Cómo llegar" solo tiene sentido cuando el Mutxamel **no** juega en casa. Para decidirlo, la app necesita
-saber si el Mutxamel es el local: el campo `local` (boolean) es `true` si el Mutxamel juega en casa. Sale de
-`PARTIDOS.ES_LOCAL` (el mismo criterio que usa la ficha del partido: `ES_LOCAL` nulo o 1 = local). No hace falta ningún
-script SQL. El campo mostrado (`campo`) no cambia.
+El botón "Cómo llegar" se muestra siempre que el partido tiene campo. El campo `local` (boolean, `true` si el Mutxamel
+juega en casa) sirve para que, en los partidos en casa, la app envíe a los mapas "Poliesportiu Municipal de Mutxamel" en
+lugar del texto del campo. Sale de `PARTIDOS.ES_LOCAL` (el mismo criterio que usa la ficha del partido: `ES_LOCAL` nulo
+o 1 = local). No hace falta ningún script SQL. El campo mostrado (`campo`) no cambia.
 
 ## Endpoints que lo traen
 
@@ -16,7 +16,7 @@ script SQL. El campo mostrado (`campo`) no cambia.
 | Calendario del jugador, de la familia y de gestión | `GET /api/app/calendario` (`partidos[]`) | `CalendarioResponse` con `PartidoDTO` | `local` |
 | Convocatoria, detalle (entrenador / gestión) | `GET /api/app/convocatorias/{id}` y `GET /api/app/convocatorias` | `ConvocatoriaResponse` | `local` (**nuevo**) |
 | Convocatoria, vista de la familia | `GET /api/app/partidos/{id}/convocatoria` | `ConvocatoriaPartidoResponse` | `local` |
-| Ficha del partido | `GET /api/public/partidos/{id}/ficha` | `FichaPartidoDTO` | `local` |
+| Ficha del partido | `GET /api/public/partidos/{id}/ficha` | `FichaPartidoDTO` | `mutxamelLocal` (en la cabecera) |
 
 ## Qué cambió
 
