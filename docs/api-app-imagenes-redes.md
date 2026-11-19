@@ -40,10 +40,10 @@ Se genera en el servidor (Java2D) cada vez que se pide y **no se guarda**. Dise�
 
 ### Qué partido
 
-El **próximo partido del Primer Equipo no cancelado** desde hoy (el primero por fecha y hora):
+El **próximo partido del Primer Equipo** (el primero por fecha y hora). Se saltan los cancelados y los **ya terminados**: con resultado (goles o resultado guardado), con el directo en FINAL o empezados hace más de 3 horas.
 
 - Si su fecha y hora de inicio aún no han llegado → `disponible: true`.
-- **Desde la hora de inicio** → `YA_EMPEZADO` (haya o no directo). Un partido sin hora cuenta como empezado desde las
+- Si el primero que queda **está en juego** (empezó hace menos de 3 horas y no tiene resultado) → `YA_EMPEZADO`. Un partido sin hora cuenta como empezado desde las
   00:00 de su día.
 - Si no hay ningún partido futuro (o solo cancelados) → `SIN_PARTIDO`.
 

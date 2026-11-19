@@ -5,7 +5,7 @@ Referencias en esta carpeta (no van en `resources`):
 - `referencia_publicacion_1080x1350.png` y `referencia_historia_1080x1920.png`: el diseño a imitar.
 - `medidas.md`: posición y tamaño en píxeles de cada elemento en los dos formatos. Están copiadas tal cual como
   constantes `PUBLICACION` y `HISTORIA` en `CartelPrimerEquipoRenderer`; si cambia una medida, se cambia en los dos sitios.
-- `ejemplos/`: cuatro PNG generados por `CartelPrimerEquipoServiceImplTest.generaLosEjemplosParaRevisarElDiseno`
+- `ejemplos/`: cinco PNG generados por `CartelPrimerEquipoServiceImplTest.generaLosEjemplosParaRevisarElDiseno`
   (publicación e historia, en casa y fuera, en castellano y catalán) con datos inventados y un escudo de rival de
   ejemplo. Se regeneran al pasar los tests.
 
@@ -59,3 +59,6 @@ Todos los textos son blancos. No hay nombres ni fotos de jugadores.
 
 Preparado, sin diseño: basta con el valor `FILIAL` del enum `CartelRedes` (ya está) y su fondo en `IMAGENES_REDES_FONDOS`.
 Falta su fondo por defecto, su renderizador y su ruta.
+
+`ejemplos/publicacion-fuera-es-escudo-real.png` usa un escudo de verdad en el lado del rival (el del Mutxamel, porque el
+repositorio no tiene escudos de rivales) para comprobar el tamaño y la sombra.

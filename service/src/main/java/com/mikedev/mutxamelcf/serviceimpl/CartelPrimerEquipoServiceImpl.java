@@ -25,11 +25,13 @@ import com.mikedev.mutxamelcf.dao.EquipoFfcvDao;
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.ImagenRedesDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
+import com.mikedev.mutxamelcf.dao.PartidoLiveEventoDao;
 import com.mikedev.mutxamelcf.dao.TemporadaDao;
 import com.mikedev.mutxamelcf.model.CartelRedes;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.EquipoFfcv;
 import com.mikedev.mutxamelcf.model.Partido;
+import com.mikedev.mutxamelcf.model.PartidoLiveEvento;
 import com.mikedev.mutxamelcf.model.PartidoPrimerEquipoResponse;
 import com.mikedev.mutxamelcf.model.PartidoPrimerEquipoResponse.TextoPublicacion;
 import com.mikedev.mutxamelcf.model.Temporada;
@@ -65,12 +67,14 @@ public class CartelPrimerEquipoServiceImpl implements CartelPrimerEquipoService 
     private final EquipoFfcvDao equipoFfcvDao;
     private final TemporadaDao temporadaDao;
     private final ImagenRedesDao imagenRedesDao;
+    private final PartidoLiveEventoDao eventoDao;
     private final FondosCartelesService fondos;
     private final CartelPrimerEquipoRenderer renderer;
     private final Clock clock;
 
     public CartelPrimerEquipoServiceImpl(EquipoGestionDao equipoGestionDao, EquipoDao equipoDao, PartidoDao partidoDao,
             EquipoFfcvDao equipoFfcvDao, TemporadaDao temporadaDao, ImagenRedesDao imagenRedesDao,
+            PartidoLiveEventoDao eventoDao,
             FondosCartelesService fondos, CartelPrimerEquipoRenderer renderer, Clock clock) {
 
         this.equipoGestionDao = equipoGestionDao;
@@ -79,6 +83,7 @@ public class CartelPrimerEquipoServiceImpl implements CartelPrimerEquipoService 
         this.equipoFfcvDao = equipoFfcvDao;
         this.temporadaDao = temporadaDao;
         this.imagenRedesDao = imagenRedesDao;
+        this.eventoDao = eventoDao;
         this.fondos = fondos;
         this.renderer = renderer;
         this.clock = clock;
@@ -141,9 +146,10 @@ public class CartelPrimerEquipoServiceImpl implements CartelPrimerEquipoService 
     }
 
     /**
-     * El próximo partido del Primer Equipo no cancelado: el primero (por fecha y hora) desde hoy. Si su hora de inicio
-     * aún no ha llegado se puede generar el cartel; desde la hora de inicio, YA_EMPEZADO (haya o no directo). Sin
-     * ninguno, SIN_PARTIDO.
+     * El próximo partido del Primer Equipo: se saltan los cancelados y los ya terminados (con resultado —goles o
+     * resultado guardado—, con el directo en FINAL o que empezaron hace más de {@link #HORAS_EN_JUEGO} horas) y se
+     * elige el primero que queda por fecha y hora. Si su hora de inicio aún no ha llegado se puede generar el cartel;
+     * si ya ha empezado (en juego: menos de 3 horas y sin resultado), YA_EMPEZADO. Sin ninguno, SIN_PARTIDO.
      */
     private Eleccion elegir() {
 
@@ -154,12 +160,14 @@ public class CartelPrimerEquipoServiceImpl implements CartelPrimerEquipoService 
         }
 
         LocalDateTime ahora = LocalDateTime.now(clock);
-        LocalDate hoy = ahora.toLocalDate();
+        LocalDate ayer = ahora.toLocalDate().minusDays(1);
 
         Partido siguiente = partidoDao.obtenerPorEquipo(primerEquipo.getId()).stream()
-                .filter(p -> !p.isCancelado() && p.getDia() != null && !aLocalDate(p.getDia()).isBefore(hoy))
-                .min(Comparator.comparing(CartelPrimerEquipoServiceImpl::inicio).thenComparing(Partido::getId))
-                .orElse(null);
+                .filter(p -> !p.isCancelado() && p.getDia() != null && !aLocalDate(p.getDia()).isBefore(ayer))
+                .sorted(Comparator.comparing(CartelPrimerEquipoServiceImpl::inicio)
+                        .thenComparing(Partido::getId, Comparator.nullsFirst(Comparator.naturalOrder())))
+                .filter(p -> !terminado(p, ahora))
+                .findFirst().orElse(null);
 
         if (siguiente == null) {
             return new Eleccion(null, PartidoPrimerEquipoResponse.SIN_PARTIDO);
@@ -170,6 +178,34 @@ public class CartelPrimerEquipoServiceImpl implements CartelPrimerEquipoService 
         }
 
         return new Eleccion(siguiente, null);
+    }
+
+    /** Horas que se da por "en juego" un partido sin resultado; pasado ese tiempo se da por terminado. */
+    static final long HORAS_EN_JUEGO = 3;
+
+    /**
+     * Un partido terminado: tiene resultado (goles o resultado guardado), su directo llegó a FINAL o empezó hace más de
+     * 3 horas. Un partido que aún no ha empezado nunca está terminado.
+     */
+    private boolean terminado(Partido p, LocalDateTime ahora) {
+
+        LocalDateTime inicio = inicio(p);
+
+        if (inicio.isAfter(ahora)) {
+            return false;
+        }
+
+        if ((p.getGolesFavor() != null && p.getGolesContra() != null)
+                || (p.getResultado() != null && !p.getResultado().isBlank())) {
+            return true;
+        }
+
+        if (!inicio.plusHours(HORAS_EN_JUEGO).isAfter(ahora)) {
+            return true;
+        }
+
+        return eventoDao.obtenerNoAnuladosPorPartido(p.getId()).stream()
+                .anyMatch(e -> PartidoLiveEvento.FINAL.equals(e.getTipo()));
     }
 
     /** DIA + HORA válida, o el día a medianoche (mismo criterio que los recordatorios de partidos). */

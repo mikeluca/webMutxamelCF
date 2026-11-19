@@ -127,6 +127,9 @@ public class CartelPrimerEquipoRenderer {
     // ---- diseño ----------------------------------------------------------------------------------
 
     private static final double COMPRESION_TITULO = 0.56;
+    // El paso entre líneas del texto de datos y el borde derecho al que puede llegar el campo.
+    private static final double PASO_LINEAS = 1.04;
+    private static final double MARGEN_DERECHO = 1040;
     // El título manda el ancho; la altura (con la tilde de la Ó) puede pasar algo de la caja, como en la referencia.
     private static final double ALTURA_TITULO_MAXIMA = 1.12;
     private static final int PATROCINADORES_POR_FILA = 4;
@@ -371,24 +374,151 @@ public class CartelPrimerEquipoRenderer {
         Rect campo = m.campo();
 
         if (d.campo() != null && !d.campo().isBlank()) {
-            Ajuste ajuste = ajustarCampo(g, d.campo(), campo);
-            lineas(g, ajuste, campo, -1, true);
+
+            String[] fijas = d.campo().split("\n");
+
+            if (fijas.length > 1) {
+                // Líneas fijas (el campo de casa): un tamaño con el que todas caben, centradas en su caja.
+                double maximo = campo.h() / 3 / PASO_LINEAS;
+                Font fuente = ajustar(g, luz, (float) maximo, campo.w(), campo.h() / 3 * PASO_LINEAS, fijas);
+                lineas(g, new Ajuste(fuente, List.of(fijas), PASO_LINEAS), campo, -1, true);
+            } else {
+                // Fuera: el bloque se ancla arriba, en la línea de la fecha (nunca por encima de su caja), y la caja llega
+                // hasta el margen derecho.
+                double arribaFecha = fecha.cy() - 2 * fuenteFecha.getSize2D() * PASO_LINEAS / 2;
+                double arriba = Math.max(campo.y(), arribaFecha);
+                Rect caja = new Rect(campo.x(), arriba, MARGEN_DERECHO - campo.x(), campo.y() + campo.h() - arriba);
+
+                lineas(g, ajustarCampoFuera(g, luz, d.campo(), caja.w(), caja.h(), campo.h() / 3 / PASO_LINEAS), caja,
+                        -1, false);
+            }
         }
     }
 
-    private Ajuste ajustarCampo(Graphics2D g, String campo, Rect caja) {
+    /**
+     * El campo de fuera con el menor número de líneas posible: prueba 1, 2 y 3 líneas (repartidas por palabras con la
+     * longitud equilibrada) y se queda con la de menos líneas cuyo tamaño de letra sea al menos el 85 % del mayor
+     * posible; si ninguna llega, la de mayor tamaño.
+     *
+     * @param maximo el tamaño de letra más grande que se admite
+     */
+    static Ajuste ajustarCampoFuera(Graphics2D g, Font base, String texto, double ancho, double alto,
+            double maximo) {
 
-        double maximo = caja.h() / 3 / 1.04;
+        Ajuste[] opciones = new Ajuste[3];
+        double mejor = 0;
 
-        String[] fijas = campo.split("\n");
+        for (int lineas = 1; lineas <= 3; lineas++) {
 
-        if (fijas.length > 1) {
-            // Líneas fijas (el campo de casa): un tamaño con el que todas caben.
-            Font fuente = ajustar(g, luz, (float) maximo, caja.w(), caja.h() / 3 * 1.04, fijas);
-            return new Ajuste(fuente, List.of(fijas), 1.04);
+            opciones[lineas - 1] = ajustarEnLineas(g, base, texto, lineas, ancho, alto, maximo);
+
+            if (opciones[lineas - 1] != null) {
+                mejor = Math.max(mejor, opciones[lineas - 1].fuente().getSize2D());
+            }
         }
 
-        return ajustarLineas(g, luz, campo, 3, caja.w(), caja.h(), maximo, 1.04);
+        Ajuste elegida = null;
+
+        for (Ajuste opcion : opciones) {
+            if (opcion != null && opcion.fuente().getSize2D() >= mejor * 0.85) {
+                elegida = opcion;
+                break;
+            }
+        }
+
+        if (elegida == null) {
+            // Nada cabe en los tamaños admitidos (una palabra enorme): la mínima, partida como se pueda.
+            Font minima = base.deriveFont(8f);
+
+            return new Ajuste(minima, partir(g, minima, texto, ancho), PASO_LINEAS);
+        }
+
+        return elegida;
+    }
+
+    /** El mayor tamaño con el que el texto cabe repartido en exactamente [lineas] líneas; null si no cabe (o no hay palabras). */
+    private static Ajuste ajustarEnLineas(Graphics2D g, Font base, String texto, int lineas, double ancho,
+            double alto, double maximo) {
+
+        String[] palabras = texto.trim().split("\s+");
+
+        if (palabras.length < lineas) {
+            return null;
+        }
+
+        for (double tamano = maximo; tamano > 8; tamano -= 0.5) {
+
+            if (lineas * tamano * PASO_LINEAS > alto) {
+                continue;
+            }
+
+            Font fuente = base.deriveFont((float) tamano);
+            List<String> repartidas = repartirEquilibrado(g, fuente, palabras, lineas);
+
+            if (repartidas.stream().allMatch(l -> limites(g, fuente, l).getWidth() <= ancho)) {
+                return new Ajuste(fuente, repartidas, PASO_LINEAS);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Reparte las palabras en [lineas] líneas seguidas buscando que la más ancha sea lo más estrecha posible (a igualdad,
+     * la que deja las líneas más parecidas): "LES COSTERES" / "GATA" y no "LES" / "COSTERES GATA".
+     */
+    static List<String> repartirEquilibrado(Graphics2D g, Font fuente, String[] palabras, int lineas) {
+
+        int n = palabras.length;
+
+        if (lineas == 1 || n < lineas) {
+            return List.of(String.join(" ", palabras));
+        }
+
+        List<String> mejor = null;
+        double mejorMaximo = Double.MAX_VALUE;
+        double mejorSuma = Double.MAX_VALUE;
+
+        // Primer corte en a; con tres líneas, segundo corte en b (con dos líneas solo hay un corte).
+        for (int a = 1; a < n; a++) {
+
+            int primeroB = lineas == 2 ? n : a + 1;
+            int ultimoB = lineas == 2 ? n : n - 1;
+
+            for (int b = primeroB; b <= ultimoB; b++) {
+
+                List<String> candidata = new ArrayList<>();
+                candidata.add(unir(palabras, 0, a));
+
+                if (lineas == 2) {
+                    candidata.add(unir(palabras, a, n));
+                } else {
+                    candidata.add(unir(palabras, a, b));
+                    candidata.add(unir(palabras, b, n));
+                }
+
+                double maximo = 0;
+                double suma = 0;
+
+                for (String linea : candidata) {
+                    double ancho = limites(g, fuente, linea).getWidth();
+                    maximo = Math.max(maximo, ancho);
+                    suma += ancho * ancho;
+                }
+
+                if (maximo < mejorMaximo - 0.01 || (Math.abs(maximo - mejorMaximo) <= 0.01 && suma < mejorSuma)) {
+                    mejor = candidata;
+                    mejorMaximo = maximo;
+                    mejorSuma = suma;
+                }
+            }
+        }
+
+        return mejor == null ? List.of(String.join(" ", palabras)) : mejor;
+    }
+
+    private static String unir(String[] palabras, int desde, int hasta) {
+        return String.join(" ", java.util.Arrays.copyOfRange(palabras, desde, hasta));
     }
 
     // ---- escudos, VS y nombres -------------------------------------------------------------------
@@ -396,7 +526,9 @@ public class CartelPrimerEquipoRenderer {
     private void pintarEnfrentamiento(Graphics2D g, Medidas m, Datos d) {
 
         BufferedImage mutxamel = escudoClub;
-        BufferedImage rival = d.rivalPropio() ? escudoClub : leerEscudo(d.escudoRival());
+        // El escudo del rival sin su margen transparente (como el del Mutxamel): ocupa su hueco entero.
+        BufferedImage leido = d.rivalPropio() ? null : leerEscudo(d.escudoRival());
+        BufferedImage rival = d.rivalPropio() ? escudoClub : leido == null ? null : ImagenesRedesRenderer.recortarTransparencia(leido);
 
         Rect cajaMutxamel = d.local() ? m.escudoIzquierda() : m.escudoDerecha();
         Rect cajaRival = d.local() ? m.escudoDerecha() : m.escudoIzquierda();

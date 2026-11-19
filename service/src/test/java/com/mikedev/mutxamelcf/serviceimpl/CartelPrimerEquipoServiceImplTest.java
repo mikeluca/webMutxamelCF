@@ -42,6 +42,8 @@ import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.ImagenRedesDao;
 import com.mikedev.mutxamelcf.dao.ImagenRedesFondoDao;
 import com.mikedev.mutxamelcf.dao.PartidoDao;
+import com.mikedev.mutxamelcf.dao.PartidoLiveEventoDao;
+import com.mikedev.mutxamelcf.model.PartidoLiveEvento;
 import com.mikedev.mutxamelcf.dao.TemporadaDao;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.EquipoFfcv;
@@ -68,6 +70,7 @@ class CartelPrimerEquipoServiceImplTest {
     private final TemporadaDao temporadaDao = mock(TemporadaDao.class);
     private final ImagenRedesDao imagenRedesDao = mock(ImagenRedesDao.class);
     private final ImagenRedesFondoDao fondoDao = mock(ImagenRedesFondoDao.class);
+    private final PartidoLiveEventoDao eventoDao = mock(PartidoLiveEventoDao.class);
     private final CartelPrimerEquipoRenderer renderer = spy(new CartelPrimerEquipoRenderer());
 
     private CartelPrimerEquipoServiceImpl servicio;
@@ -77,7 +80,8 @@ class CartelPrimerEquipoServiceImplTest {
     void setUp() {
 
         servicio = new CartelPrimerEquipoServiceImpl(gestion, equipoDao, partidoDao, ffcvDao, temporadaDao,
-                imagenRedesDao, new FondosCartelesServiceImpl(fondoDao), renderer, Clock.fixed(AHORA, MADRID));
+                imagenRedesDao, eventoDao, new FondosCartelesServiceImpl(fondoDao), renderer,
+                Clock.fixed(AHORA, MADRID));
 
         // 7 es Retransmisión, 9 administrador de la app, 5 (un coordinador) no tiene acceso.
         when(gestion.esRetransmisionOAdmin(7L)).thenReturn(true);
@@ -282,6 +286,115 @@ class CartelPrimerEquipoServiceImplTest {
                 partido(2L, LocalDate.of(2026, 11, 22), "12:00"), partido(3L, LocalDate.of(2026, 11, 22), "10:00")));
 
         assertThat(servicio.partido(7L).partidoId()).isEqualTo(3L);
+    }
+
+    // ---- partidos ya terminados ----------------------------------------------------------------------------
+
+    @Test
+    void unPartidoDeHoyTerminadoConResultadoSeSaltaYSeEligeElSiguiente() {
+
+        Partido terminado = partido(1L, LocalDate.of(2026, 11, 19), "10:00");
+        terminado.setGolesFavor(2);
+        terminado.setGolesContra(1);
+
+        when(partidoDao.obtenerPorEquipo(1L))
+                .thenReturn(List.of(terminado, partido(2L, LocalDate.of(2026, 11, 26), "17:30")));
+
+        PartidoPrimerEquipoResponse r = servicio.partido(7L);
+
+        assertThat(r.disponible()).isTrue();
+        assertThat(r.partidoId()).isEqualTo(2L);
+    }
+
+    @Test
+    void elResultadoGuardadoComoTextoTambienCuentaComoTerminado() {
+
+        Partido terminado = partido(1L, LocalDate.of(2026, 11, 19), "11:30");
+        terminado.setResultado("2-1");
+
+        when(partidoDao.obtenerPorEquipo(1L))
+                .thenReturn(List.of(terminado, partido(2L, LocalDate.of(2026, 11, 26), "17:30")));
+
+        assertThat(servicio.partido(7L).partidoId()).isEqualTo(2L);
+    }
+
+    @Test
+    void unDirectoEnFinalCuentaComoTerminadoAunSinResultadoEnElPartido() {
+
+        Partido enFinal = partido(1L, LocalDate.of(2026, 11, 19), "11:00");
+        PartidoLiveEvento fin = new PartidoLiveEvento();
+        fin.setTipo(PartidoLiveEvento.FINAL);
+
+        when(eventoDao.obtenerNoAnuladosPorPartido(1L)).thenReturn(List.of(fin));
+        when(partidoDao.obtenerPorEquipo(1L))
+                .thenReturn(List.of(enFinal, partido(2L, LocalDate.of(2026, 11, 26), "17:30")));
+
+        assertThat(servicio.partido(7L).partidoId()).isEqualTo(2L);
+    }
+
+    @Test
+    void unPartidoEmpezadoHaceUnaHoraSinResultadoEsYaEmpezado() {
+
+        // Ahora son las 12:00; empezó a las 11:00.
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of(partido(1L, LocalDate.of(2026, 11, 19), "11:00"),
+                partido(2L, LocalDate.of(2026, 11, 26), "17:30")));
+
+        PartidoPrimerEquipoResponse r = servicio.partido(7L);
+
+        assertThat(r.disponible()).isFalse();
+        assertThat(r.motivo()).isEqualTo("YA_EMPEZADO");
+    }
+
+    @Test
+    void empezadoHaceCuatroHorasSinResultadoSeDaPorTerminadoYSeEligeElSiguiente() {
+
+        // Ahora son las 12:00; empezó a las 08:00.
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of(partido(1L, LocalDate.of(2026, 11, 19), "08:00"),
+                partido(2L, LocalDate.of(2026, 11, 26), "17:30")));
+
+        assertThat(servicio.partido(7L).partidoId()).isEqualTo(2L);
+    }
+
+    @Test
+    void justoATresHorasYaSeDaPorTerminadoYUnMinutoAntesSigueEnJuego() {
+
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of(partido(1L, LocalDate.of(2026, 11, 19), "09:00")));
+        assertThat(servicio.partido(7L).motivo()).isEqualTo("SIN_PARTIDO");
+
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of(partido(1L, LocalDate.of(2026, 11, 19), "09:01")));
+        assertThat(servicio.partido(7L).motivo()).isEqualTo("YA_EMPEZADO");
+    }
+
+    @Test
+    void sinMasPartidosTrasUnoTerminadoEsSinPartido() {
+
+        Partido terminado = partido(1L, LocalDate.of(2026, 11, 19), "10:00");
+        terminado.setGolesFavor(0);
+        terminado.setGolesContra(0);
+        when(partidoDao.obtenerPorEquipo(1L)).thenReturn(List.of(terminado));
+
+        assertThat(servicio.partido(7L).motivo()).isEqualTo("SIN_PARTIDO");
+        assertThatThrownBy(() -> servicio.png(7L, "PUBLICACION", "es", true, true, true))
+                .isInstanceOfSatisfying(CartelNoDisponibleException.class,
+                        e -> assertThat(e.motivo()).isEqualTo("SIN_PARTIDO"));
+    }
+
+    @Test
+    void elDomingoPorLaNocheYaSePuedeHacerElCartelDelSiguientePartido() {
+
+        // Domingo 22/11 a las 22:30: el partido de la tarde (17:30) ya terminó con resultado.
+        Clock noche = Clock.fixed(Instant.parse("2026-11-22T21:30:00Z"), MADRID);
+        CartelPrimerEquipoServiceImpl de = new CartelPrimerEquipoServiceImpl(gestion, equipoDao, partidoDao,
+                ffcvDao, temporadaDao, imagenRedesDao, eventoDao, new FondosCartelesServiceImpl(fondoDao), renderer,
+                noche);
+
+        Partido tarde = partido(1L, LocalDate.of(2026, 11, 22), "17:30");
+        tarde.setGolesFavor(3);
+        tarde.setGolesContra(2);
+        when(partidoDao.obtenerPorEquipo(1L))
+                .thenReturn(List.of(tarde, partido(2L, LocalDate.of(2026, 11, 29), "17:30")));
+
+        assertThat(de.partido(7L).partidoId()).isEqualTo(2L);
     }
 
     // ---- la respuesta JSON -------------------------------------------------------------------------------------
@@ -552,6 +665,144 @@ class CartelPrimerEquipoServiceImplTest {
         }
 
         return total;
+    }
+
+    // ---- el campo de fuera ----------------------------------------------------------------------------------------
+
+    private static java.awt.Graphics2D grafico() {
+
+        java.awt.Graphics2D g = new BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB).createGraphics();
+        ImagenesRedesRenderer.configurar(g);
+
+        return g;
+    }
+
+    private static CartelPrimerEquipoRenderer.Ajuste campo(String texto) {
+
+        java.awt.Font luz = ImagenesRedesRenderer.fuente("Inter-Light.otf");
+
+        // La caja de publicación: de x=745 a 1040 (295 de ancho) y, anclada a la línea de la fecha, unos 114 de alto.
+        return CartelPrimerEquipoRenderer.ajustarCampoFuera(grafico(), luz, texto, 295, 114, 135 / 3 / 1.04);
+    }
+
+    @Test
+    void lesCosteresGataVaEnDosLineasEquilibradas() {
+
+        var ajuste = campo("LES COSTERES GATA");
+
+        assertThat(ajuste.lineas()).containsExactly("LES COSTERES", "GATA");
+    }
+
+    @Test
+    void unNombreLargoRealVaEnTresLineas() {
+
+        var ajuste = campo("CIUDAD DEPORTIVA SANT JOAN D'ALACANT");
+
+        assertThat(ajuste.lineas()).hasSize(3);
+        assertThat(String.join(" ", ajuste.lineas())).isEqualTo("CIUDAD DEPORTIVA SANT JOAN D'ALACANT");
+    }
+
+    @Test
+    void unNombreCortoVaEnUnaLinea() {
+
+        assertThat(campo("GATA").lineas()).containsExactly("GATA");
+        assertThat(campo("EL PLA").lineas()).containsExactly("EL PLA");
+    }
+
+    @Test
+    void conMenosLineasLaLetraNoBajaDelOchentaYCincoPorCientoDelMaximo() {
+
+        var uno = campo("EL PLA");
+        var dos = campo("LES COSTERES GATA");
+        var tres = campo("CIUDAD DEPORTIVA SANT JOAN D'ALACANT");
+
+        // El de una línea y el de dos mantienen una letra grande; el de tres, la máxima que cabe
+        assertThat(uno.fuente().getSize2D()).isGreaterThan(30f);
+        assertThat(dos.fuente().getSize2D()).isGreaterThan(30f);
+        assertThat(tres.fuente().getSize2D()).isGreaterThan(20f);
+    }
+
+    @Test
+    void alPartirEnDosLineasSeEquilibraLaLongitud() {
+
+        var lineas = CartelPrimerEquipoRenderer.repartirEquilibrado(grafico(),
+                ImagenesRedesRenderer.fuente("Inter-Light.otf").deriveFont(30f),
+                new String[] { "LES", "COSTERES", "GATA" }, 2);
+
+        assertThat(lineas).containsExactly("LES COSTERES", "GATA");
+
+        var tres = CartelPrimerEquipoRenderer.repartirEquilibrado(grafico(),
+                ImagenesRedesRenderer.fuente("Inter-Light.otf").deriveFont(30f),
+                new String[] { "A", "BB", "CCC", "DDDD" }, 3);
+
+        assertThat(tres).hasSize(3);
+        assertThat(String.join(" ", tres)).isEqualTo("A BB CCC DDDD");
+    }
+
+    @Test
+    void elCampoDeFueraNoSubePorEncimaDeSuCajaNiPasaDelMargenDerecho() throws Exception {
+
+        for (String formato : new String[] { "PUBLICACION", "HISTORIA" }) {
+
+            fondoNegro(formato);
+            unico().setLocal(false);
+            unico().setCampo("Campo Mpal. Les Costeres F-11 Gata");
+
+            BufferedImage imagen = leer(servicio.png(7L, formato, "es", false, false, false));
+
+            // PUBLICACION: caja (745,317,255,135); HISTORIA: (707,512,293,153)
+            int x = formato.equals("HISTORIA") ? 707 : 745;
+            int y = formato.equals("HISTORIA") ? 512 : 317;
+            int alto = formato.equals("HISTORIA") ? 153 : 135;
+
+            assertThat(contarClaros(imagen, x, y + alto / 2, 1040 - x, alto / 2 + 10)).as(formato).isGreaterThan(300);
+            // Nada pasa del margen derecho (x hasta 1040) ni sube por encima de la caja de medidas.md
+            assertThat(contarClaros(imagen, 1041, y, 39, alto + 20)).as(formato).isZero();
+            assertThat(contarClaros(imagen, x, y - 8, 1040 - x, 8)).as(formato).isZero();
+        }
+    }
+
+    @Test
+    void elCampoDeFueraArrancaEnLaLineaDeLaFechaYElDeCasaNoCambia() throws Exception {
+
+        fondoNegro();
+
+        unico().setLocal(false);
+        unico().setCampo("Campo Mpal. Les Costeres F-11 Gata");
+
+        BufferedImage fuera = leer(servicio.png(7L, "PUBLICACION", "es", false, false, false));
+        int primeraFilaCampo = primeraFilaClara(fuera, 745, 1040, 310, 470);
+        int primeraFilaFecha = primeraFilaClara(fuera, 80, 282, 310, 470);
+
+        // Mismo comienzo (la fecha lleva una tilde en "SÁBADO": se admite unos píxeles de diferencia)
+        assertThat(Math.abs(primeraFilaCampo - primeraFilaFecha)).isLessThan(20);
+
+        unico().setLocal(true);
+
+        BufferedImage casa = leer(servicio.png(7L, "PUBLICACION", "es", false, false, false));
+
+        // Casa: tres líneas fijas centradas en la caja de medidas (317..452)
+        assertThat(primeraFilaClara(casa, 745, 1040, 310, 470)).isBetween(317, 345);
+    }
+
+    private static int primeraFilaClara(BufferedImage imagen, int desdeX, int hastaX, int desdeY, int hastaY) {
+
+        for (int y = desdeY; y < hastaY; y++) {
+            for (int x = desdeX; x < hastaX; x++) {
+                int rgb = imagen.getRGB(x, y);
+                if (((rgb >> 16) & 0xFF) > 200 && ((rgb >> 8) & 0xFF) > 200 && (rgb & 0xFF) > 200) {
+                    return y;
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    private void fondoNegro(String formato) throws Exception {
+        // El fondo se escala (cover) a cualquier formato: basta uno negro grande.
+        when(fondoDao.obtener("PRIMER_EQUIPO")).thenReturn(new FondoCartel("PRIMER_EQUIPO",
+                png(1080, 1920, Color.BLACK), "image/png", 1080, 1920, LocalDateTime.now(), null));
     }
 
     // ---- racha, qr y hashtags -------------------------------------------------------------------------------
@@ -921,8 +1172,20 @@ class CartelPrimerEquipoServiceImplTest {
         escribir(carpeta.resolve("publicacion-fuera-ca.png"), servicio.png(7L, "PUBLICACION", "ca", true, true, true));
         escribir(carpeta.resolve("historia-fuera-es.png"), servicio.png(7L, "HISTORIA", "es", true, true, true));
 
+        // Un escudo de verdad en el lado del rival (no hay escudos de rivales en el repositorio: se usa el del Mutxamel como
+        // si fuera el del rival) para ver cómo queda a ese tamaño y con la sombra.
+        try (var entrada = CartelPrimerEquipoServiceImplTest.class.getResourceAsStream("/redes/escudo.png")) {
+            when(imagenRedesDao.escudoRival(40L)).thenReturn(entrada.readAllBytes());
+        }
+
+        p.setTipo("LIGA");
+        p.setJornada(11);
+
+        escribir(carpeta.resolve("publicacion-fuera-es-escudo-real.png"),
+                servicio.png(7L, "PUBLICACION", "es", true, true, true));
+
         for (String nombre : List.of("publicacion-casa-es", "historia-casa-ca", "publicacion-fuera-ca",
-                "historia-fuera-es")) {
+                "historia-fuera-es", "publicacion-fuera-es-escudo-real")) {
             assertThat(leer(Files.readAllBytes(carpeta.resolve(nombre + ".png"))).getWidth()).isEqualTo(1080);
         }
     }
