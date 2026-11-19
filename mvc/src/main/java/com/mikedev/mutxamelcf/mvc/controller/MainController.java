@@ -66,9 +66,6 @@ public class MainController {
 		this.formRateLimiter = formRateLimiter;
 	}
 
-	// Logos de patrocinadores
-	List<String> patrocinadores = Arrays.asList("patrocinador1.jpg", "patrocinador2.jpg", "patrocinador3.jpg",
-			"patrocinador4.jpg", "patrocinador5.jpg", "patrocinador6.jpg", "patrocinador7.jpg", "patrocinador8.jpg");
 
 	@GetMapping("/login")
 	public String login(@RequestParam(required = false) String error, Model model) {
@@ -93,7 +90,6 @@ public class MainController {
 	@GetMapping("/historia")
 	public String historia(Model model) {
 		logger.debug("Inicio historia");
-		model.addAttribute("patrocinadores", patrocinadores);
 		logger.debug("Fin historia");
 		return "historia";
 	}
@@ -101,7 +97,6 @@ public class MainController {
 	@GetMapping("/estadisticasPalmares")
 	public String estadisticasPalmares(Model model) {
 		logger.debug("Inicio estadisticasPalmares");
-		model.addAttribute("patrocinadores", patrocinadores);
 		logger.debug("Fin estadisticasPalmares");
 		return "estadisticasPalmares";
 	}
@@ -109,7 +104,6 @@ public class MainController {
 	@GetMapping("/obraSocial")
 	public String obraSocial(Model model) {
 		logger.debug("Inicio obraSocial");
-		model.addAttribute("patrocinadores", patrocinadores);
 		logger.debug("Fin obraSocial");
 		return "obraSocial";
 	}
@@ -121,7 +115,6 @@ public class MainController {
 		List<NoticiaDTO> noticias = noticiaService.obtenerNoticiasParaMostrar();
 
 		model.addAttribute("noticias", noticias);
-		model.addAttribute("patrocinadores", patrocinadores);
 		logger.debug("Fin inicio: noticias={}", noticias.size());
 		return "index";
 	}
@@ -129,7 +122,6 @@ public class MainController {
 	@GetMapping("/contacto")
 	public String contacto(Model model) {
 		logger.debug("Inicio contacto");
-		model.addAttribute("patrocinadores", patrocinadores);
 		logger.debug("Fin contacto");
 		return "contacto";
 	}
@@ -137,7 +129,6 @@ public class MainController {
 	@GetMapping("/tienda")
 	public String tienda(Model model) {
 		logger.debug("Inicio tienda");
-		model.addAttribute("patrocinadores", patrocinadores);
 		logger.debug("Fin tienda");
 		return "tienda";
 	}
@@ -208,7 +199,6 @@ public class MainController {
 		}
 
 		model.addAttribute("resultadosPorCategoria", resultadosPorCategoria);
-		model.addAttribute("patrocinadores", patrocinadores);
 
 		logger.debug("Fin mostrarResultados: total={}, categorias={}", resultadosFutbol.size(),
 				resultadosPorCategoria.size());
@@ -252,7 +242,6 @@ public class MainController {
 		}
 
 		model.addAttribute("categoria", equipo);
-		model.addAttribute("patrocinadores", patrocinadores);
 
 		logger.debug("Fin categorias: equipo={}, pantalla={}", equipo, pantalla);
 		return pantalla;
@@ -264,7 +253,6 @@ public class MainController {
 		NoticiaDTO noticia = noticiaService.obtenerNoticiaPorId(id);
 		model.addAttribute("noticia", noticia);
 
-		model.addAttribute("patrocinadores", patrocinadores);
 
 		logger.debug("Fin ampliarNoticia: id={}, encontrada={}", id, noticia != null);
 		return "noticia";
@@ -304,7 +292,6 @@ public class MainController {
 		Map<String, List<EquipoDTO>> equiposPorCategoria = equipoService.obtenerEquiposAgrupadosPorCategoria(deporte);
 		model.addAttribute("equiposPorCategoria", equiposPorCategoria);
 
-		model.addAttribute("patrocinadores", patrocinadores);
 
 		logger.debug("Fin mostrarEquiposPorCategoria: deporte={}, grupos={}", deporte, equiposPorCategoria.size());
 		return "listaEquipos";
@@ -313,7 +300,6 @@ public class MainController {
 	@GetMapping("/politicaPrivacidad")
 	public String politicaPrivacidad(Model model) {
 		logger.debug("Inicio politicaPrivacidad");
-		model.addAttribute("patrocinadores", patrocinadores);
 
 		logger.debug("Fin politicaPrivacidad");
 		return "politicaPrivacidad";
@@ -324,7 +310,6 @@ public class MainController {
 		logger.debug("Inicio todasNoticias");
 		List<NoticiaDTO> todas = noticiaService.obtenerTodas();
 		model.addAttribute("noticias", todas);
-		model.addAttribute("patrocinadores", patrocinadores);
 
 		logger.debug("Fin todasNoticias: total={}", todas.size());
 		return "todasNoticias";

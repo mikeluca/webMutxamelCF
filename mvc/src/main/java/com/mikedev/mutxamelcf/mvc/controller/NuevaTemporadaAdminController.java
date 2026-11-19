@@ -56,7 +56,6 @@ public class NuevaTemporadaAdminController {
 		List<Temporada> destinos = nuevaTemporadaService.temporadasDestino();
 		model.addAttribute("activa", activa);
 		model.addAttribute("destinos", destinos);
-		model.addAttribute("patrocinadores", AdminViewSupport.PATROCINADORES);
 
 		Temporada destino = temporadaId == null ? null
 				: destinos.stream().filter(t -> temporadaId.equals(t.getId())).findFirst().orElse(null);

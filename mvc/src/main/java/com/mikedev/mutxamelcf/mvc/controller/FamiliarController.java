@@ -49,10 +49,6 @@ public class FamiliarController {
         this.jugadorService = jugadorService;
     }
 
-    private static final List<String> PATROCINADORES = Arrays.asList(
-            "patrocinador1.jpg", "patrocinador2.jpg", "patrocinador3.jpg",
-            "patrocinador4.jpg", "patrocinador5.jpg", "patrocinador6.jpg",
-            "patrocinador7.jpg", "patrocinador8.jpg");
 
     /**
      * Mostrar listado de familiares
@@ -65,7 +61,6 @@ public class FamiliarController {
 
         model.addAttribute("familiares", familiares);
         model.addAttribute("listaJugadores", jugadores);
-        model.addAttribute("patrocinadores", PATROCINADORES);
 
         logger.debug("Fin listarFamiliares: totalFamiliares={}, totalJugadores={}",
                 familiares.size(), jugadores.size());

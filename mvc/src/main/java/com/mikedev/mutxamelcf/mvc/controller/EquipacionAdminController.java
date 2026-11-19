@@ -37,7 +37,6 @@ public class EquipacionAdminController {
 	@GetMapping
 	public String listar(Model model) {
 		model.addAttribute("equipaciones", equipacionService.obtenerTodas());
-		model.addAttribute("patrocinadores", AdminViewSupport.PATROCINADORES);
 		return "admin/equipajes";
 	}
 

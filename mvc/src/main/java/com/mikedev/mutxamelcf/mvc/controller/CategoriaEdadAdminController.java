@@ -42,7 +42,6 @@ public class CategoriaEdadAdminController {
 	public String listar(Model model) {
 		model.addAttribute("categoriasEdad", categoriaPorEdad.obtenerTodas());
 		model.addAttribute("categoriasEquipos", equipoService.obtenerCategorias());
-		model.addAttribute("patrocinadores", AdminViewSupport.PATROCINADORES);
 		return "admin/categorias-edad";
 	}
 

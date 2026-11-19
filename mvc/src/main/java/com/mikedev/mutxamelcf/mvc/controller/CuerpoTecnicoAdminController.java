@@ -60,7 +60,6 @@ public class CuerpoTecnicoAdminController {
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("cuerpoTecnico", cuerpoTecnico);
 
-		model.addAttribute("patrocinadores", AdminViewSupport.PATROCINADORES);
 
 		logger.debug("Fin listarCuerpoTecnico: total={}", cuerpoTecnico.size());
 		return "admin/cuerpo-tecnico"; // Retornar la vista para listar el cuerpo técnico

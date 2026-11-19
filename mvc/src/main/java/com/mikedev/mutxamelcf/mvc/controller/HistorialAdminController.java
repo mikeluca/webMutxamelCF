@@ -30,7 +30,6 @@ public class HistorialAdminController {
 	public String pagina(@RequestParam(name = "temporadaId", required = false) Long temporadaId,
 			@RequestParam(name = "equipoId", required = false) Long equipoId, Model model) {
 		logger.debug("Inicio pagina historial: temporadaId={}, equipoId={}", temporadaId, equipoId);
-		model.addAttribute("patrocinadores", AdminViewSupport.PATROCINADORES);
 		model.addAttribute("temporadas", historialService.temporadas());
 
 		if (temporadaId != null) {

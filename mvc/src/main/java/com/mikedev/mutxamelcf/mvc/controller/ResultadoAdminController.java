@@ -75,7 +75,6 @@ public class ResultadoAdminController {
 		model.addAttribute("equiposFutbol", equiposFutbol);
 		model.addAttribute("equiposFutbolSala", equiposFutbolSala);
 
-		model.addAttribute("patrocinadores", AdminViewSupport.PATROCINADORES);
 
 		logger.debug("Fin listarResultados: equiposFutbol={}, equiposFutbolSala={}", equiposFutbol.size(),
 				equiposFutbolSala.size());

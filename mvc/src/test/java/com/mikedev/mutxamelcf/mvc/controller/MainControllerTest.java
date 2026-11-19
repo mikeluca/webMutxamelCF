@@ -96,20 +96,6 @@ class MainControllerTest {
     }
 
     @Test
-    void historiaRellenaPatrocinadores() {
-        Model model = new ExtendedModelMap();
-        assertEquals("historia", controller.historia(model));
-        assertEquals(8, ((List<?>) model.getAttribute("patrocinadores")).size());
-    }
-
-    @Test
-    void estadisticasPalmaresRellenaPatrocinadores() {
-        Model model = new ExtendedModelMap();
-        assertEquals("estadisticasPalmares", controller.estadisticasPalmares(model));
-        assertTrue(((List<?>) model.getAttribute("patrocinadores")).size() > 0);
-    }
-
-    @Test
     void obraSocialRellenaPatrocinadores() {
         Model model = new ExtendedModelMap();
         assertEquals("obraSocial", controller.obraSocial(model));

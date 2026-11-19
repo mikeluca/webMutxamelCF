@@ -49,7 +49,6 @@ public class RepartoAdminController {
 	@GetMapping
 	public String pagina(@RequestParam(name = "categoria", required = false) String categoria, Model model) {
 		logger.debug("Inicio pagina reparto: categoria={}", categoria);
-		model.addAttribute("patrocinadores", AdminViewSupport.PATROCINADORES);
 
 		try {
 			List<String> categorias = repartoService.categorias();

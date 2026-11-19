@@ -68,7 +68,6 @@ public class NoticiaAdminController {
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("listaNoticias", listaNoticias);
 
-		model.addAttribute("patrocinadores", AdminViewSupport.PATROCINADORES);
 
 		logger.debug("Fin listarNoticias: total={}", listaNoticias.size());
 		return "admin/noticias"; // Retornar la vista para listar noticias

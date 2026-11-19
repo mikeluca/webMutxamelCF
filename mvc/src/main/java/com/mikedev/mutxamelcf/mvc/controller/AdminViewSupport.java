@@ -8,17 +8,14 @@ import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Utilidades compartidas por los controladores de administración
- * (logos de patrocinadores mostrados en todas las pantallas del
- * panel, y validación de imágenes subidas en los formularios).
+ * (
+ * validación de imágenes subidas en los formularios).
  */
 final class AdminViewSupport {
 
 	private AdminViewSupport() {
 	}
 
-	static final List<String> PATROCINADORES = List.of("patrocinador1.jpg", "patrocinador2.jpg",
-			"patrocinador3.jpg", "patrocinador4.jpg", "patrocinador5.jpg", "patrocinador6.jpg",
-			"patrocinador7.jpg", "patrocinador8.jpg");
 
 	private static final Set<String> TIPOS_IMAGEN_PERMITIDOS = Set.of("image/jpeg", "image/png", "image/webp");
 

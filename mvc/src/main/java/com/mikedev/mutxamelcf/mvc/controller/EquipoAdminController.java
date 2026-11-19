@@ -48,7 +48,6 @@ public class EquipoAdminController {
 		model.addAttribute("categorias", categorias);
 		model.addAttribute("equipos", equipos);
 
-		model.addAttribute("patrocinadores", AdminViewSupport.PATROCINADORES);
 
 		logger.debug("Fin listarEquipos: total={}", equipos.size());
 		return "admin/equipos"; // Retornar la vista para listar equipos

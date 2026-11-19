@@ -42,7 +42,6 @@ public class MorosidadController {
 	public String pagina(@RequestParam(name = "temporadaId", required = false) Long temporadaId,
 			@RequestParam(name = "cobradas", defaultValue = "false") boolean cobradas, Model model) {
 		logger.debug("Inicio morosidad: temporadaId={}, cobradas={}", temporadaId, cobradas);
-		model.addAttribute("patrocinadores", AdminViewSupport.PATROCINADORES);
 		model.addAttribute("temporadas", morosidadService.temporadasAnteriores());
 		model.addAttribute("temporadaId", temporadaId);
 		model.addAttribute("cobradas", cobradas);

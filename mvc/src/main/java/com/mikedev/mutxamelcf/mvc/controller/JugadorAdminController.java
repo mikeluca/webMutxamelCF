@@ -82,7 +82,6 @@ public class JugadorAdminController {
 		model.addAttribute("jugadores", jugadores);
 		model.addAttribute("listaFamiliares", listaFamiliares);
 
-		model.addAttribute("patrocinadores", AdminViewSupport.PATROCINADORES);
 
 		logger.debug("Fin listarJugadores: total={}", jugadores.size());
 		return "admin/jugadores"; // Retornar la vista para listar jugadores
