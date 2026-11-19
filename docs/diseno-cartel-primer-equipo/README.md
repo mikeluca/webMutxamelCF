@@ -51,7 +51,7 @@ Contrato de las rutas, permisos y fondos del panel: `docs/api-app-imagenes-redes
    dos diagonales finas, y una sombra suave bajo cada escudo. Rival sin escudo: su nombre en grande en su hueco y nada
    debajo. Nombres bajo los escudos en Inter Light (hasta 2 líneas, mismo tamaño en los dos).
 6. **Opcionales** (racha, hashtags y QR): ver `docs/api-app-imagenes-redes.md`. Se centran con lo que quede.
-7. **Patrocinadores** de abajo, en filas de 4 como máximo, centradas, cada logo encajado en su celda.
+7. **Patrocinadores** de abajo: cada logo con un tamaño por superficie (ancho = K·√a, alto = K/√a con topes, ver `medidas.md`), en filas que se llenan de izquierda a derecha, centradas, y el bloque anclado abajo.
 
 Todos los textos son blancos. No hay nombres ni fotos de jugadores.
 

@@ -569,8 +569,8 @@ class CartelPrimerEquipoServiceImplTest {
         assertThat(datosDelUltimoRender().local()).isTrue();
 
         // En el hueco de la derecha (625..925) está el rojo del rival; en el de la izquierda, no.
-        assertThat(contarMagenta(casa, 625, 477, 300, 300)).isGreaterThan(50_000);
-        assertThat(contarMagenta(casa, 155, 477, 300, 300)).isZero();
+        assertThat(contarMagenta(casa, 644, 474, 262, 262)).isGreaterThan(50_000);
+        assertThat(contarMagenta(casa, 174, 474, 262, 262)).isZero();
 
         unico().setLocal(false);
         org.mockito.Mockito.clearInvocations(renderer);
@@ -578,8 +578,8 @@ class CartelPrimerEquipoServiceImplTest {
         BufferedImage fuera = leer(servicio.png(7L, "PUBLICACION", "es", false, false, false));
         assertThat(datosDelUltimoRender().local()).isFalse();
 
-        assertThat(contarMagenta(fuera, 155, 477, 300, 300)).isGreaterThan(50_000);
-        assertThat(contarMagenta(fuera, 625, 477, 300, 300)).isZero();
+        assertThat(contarMagenta(fuera, 174, 474, 262, 262)).isGreaterThan(50_000);
+        assertThat(contarMagenta(fuera, 644, 474, 262, 262)).isZero();
     }
 
     @Test
@@ -608,10 +608,10 @@ class CartelPrimerEquipoServiceImplTest {
         assertThat(datosDelUltimoRender().escudoRival()).isNull();
 
         // Hueco del rival (derecha): su nombre en blanco; debajo del hueco no hay nada.
-        assertThat(contarClaros(imagen, 625, 477, 300, 300)).isGreaterThan(1500);
-        assertThat(contarClaros(imagen, 560, 791, 460, 98)).isZero();
+        assertThat(contarClaros(imagen, 644, 474, 262, 262)).isGreaterThan(1500);
+        assertThat(contarClaros(imagen, 560, 748, 460, 98)).isZero();
         // Debajo del Mutxamel sí está su nombre.
-        assertThat(contarClaros(imagen, 60, 791, 460, 98)).isGreaterThan(300);
+        assertThat(contarClaros(imagen, 60, 748, 460, 98)).isGreaterThan(300);
     }
 
     @Test
@@ -622,7 +622,7 @@ class CartelPrimerEquipoServiceImplTest {
 
         BufferedImage imagen = leer(servicio.png(7L, "PUBLICACION", "es", false, false, false));
 
-        assertThat(contarClaros(imagen, 560, 791, 460, 98)).isGreaterThan(300);
+        assertThat(contarClaros(imagen, 560, 748, 460, 98)).isGreaterThan(300);
         verify(imagenRedesDao).escudoRival(40L);
     }
 
@@ -839,6 +839,19 @@ class CartelPrimerEquipoServiceImplTest {
         verify(partidoDao, never()).obtenerUltimosConResultado(anyLong(), any(), anyInt());
     }
 
+    /** Las filas entre las que está la fila de racha, hashtags y QR (con todo marcado), con un margen. */
+    private static int filaY0() {
+        return (int) CartelPrimerEquipoRenderer.cajaFilaInferior(CartelPrimerEquipoRenderer.Formato.PUBLICACION, true,
+                true).y() - 4;
+    }
+
+    private static int filaY1() {
+        var caja = CartelPrimerEquipoRenderer.cajaFilaInferior(CartelPrimerEquipoRenderer.Formato.PUBLICACION, true,
+                true);
+
+        return (int) (caja.y() + caja.h()) + 4;
+    }
+
     private record Region(int minX, int maxX, int minY, int maxY, int pixeles) {
     }
 
@@ -851,7 +864,7 @@ class CartelPrimerEquipoServiceImplTest {
         int maxY = -1;
         int pixeles = 0;
 
-        for (int y = 900; y < 1070; y++) {
+        for (int y = filaY0(); y < filaY1(); y++) {
             for (int x = 0; x < imagen.getWidth(); x++) {
                 int rgb = imagen.getRGB(x, y);
                 if (((rgb >> 16) & 0xFF) + ((rgb >> 8) & 0xFF) + (rgb & 0xFF) > 60) {
@@ -975,7 +988,7 @@ class CartelPrimerEquipoServiceImplTest {
 
         int total = 0;
 
-        for (int y = 900; y < 1070; y++) {
+        for (int y = filaY0(); y < filaY1(); y++) {
             for (int x = 0; x < imagen.getWidth(); x++) {
                 int rgb = imagen.getRGB(x, y) & 0xFFFFFF;
                 if (Math.abs(((rgb >> 16) & 0xFF) - ((rgbEsperado >> 16) & 0xFF)) < 8
@@ -1137,9 +1150,14 @@ class CartelPrimerEquipoServiceImplTest {
 
         BufferedImage imagen = leer(servicio.png(7L, "PUBLICACION", "es", false, false, false));
 
-        // El bloque de patrocinadores (40,1124,1000,200) tiene logos blancos en las dos filas.
-        assertThat(contarClaros(imagen, 40, 1124, 1000, 100)).isGreaterThan(3000);
-        assertThat(contarClaros(imagen, 40, 1224, 1000, 100)).isGreaterThan(3000);
+        // Cada logo de patrocinador, en su caja calculada, tiene su contenido blanco.
+        for (var colocado : CartelPrimerEquipoRenderer.bloquePatrocinadores(CartelPrimerEquipoRenderer.Formato.PUBLICACION)
+                .logos()) {
+            var caja = colocado.caja();
+
+            assertThat(contarClaros(imagen, (int) caja.x(), (int) caja.y(), (int) caja.w(), (int) caja.h()))
+                    .as("logo " + colocado.indice()).isGreaterThan(100);
+        }
         // Y el destacado (ayuntamiento) arriba a la izquierda.
         assertThat(contarClaros(imagen, 40, 34, 185, 92)).isGreaterThan(500);
     }

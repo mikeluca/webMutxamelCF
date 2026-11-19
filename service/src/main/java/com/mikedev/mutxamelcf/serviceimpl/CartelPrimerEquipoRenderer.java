@@ -109,20 +109,183 @@ public class CartelPrimerEquipoRenderer {
         return new Rect(x, y, w, h);
     }
 
+    /**
+     * Como se dimensionan y colocan los patrocinadores de abajo: el tamano de cada logo sale de su proporcion
+     * (ancho = k*raiz(a), alto = k/raiz(a), limitados a [hmax] de alto y [wmax] de ancho), las filas se llenan de
+     * izquierda a derecha hasta [ANCHO_UTIL_PATROCINADORES], y el bloque se ancla abajo a [margenInferior] del final.
+     */
+    record Patrocinio(double k, double hmax, double wmax, double huecoH, double huecoV, double margenInferior) {
+    }
+
+    /** El ancho util de una fila de patrocinadores (de x=40 a x=1040, centrada en el lienzo). */
+    static final double ANCHO_UTIL_PATROCINADORES = 1000;
+
+    /** El hueco minimo entre dos bloques seguidos (nombres, fila de racha/QR y patrocinadores). */
+    static final double HUECO_MINIMO_BLOQUES = 8;
+
+    /**
+     * Las cajas de cada elemento. En [racha] y [qr] solo importan el ancho y el alto: su posicion vertical se calcula
+     * (centrada entre los nombres y los patrocinadores, que se anclan abajo).
+     */
     record Medidas(Rect ayuntamiento, Rect jornada, Rect competicion, Rect titulo, Rect fecha, Rect hora, Rect campo,
             Rect escudoIzquierda, Rect vs, Rect escudoDerecha, Rect nombreIzquierda, Rect nombreDerecha, Rect racha,
-            Rect qr, Rect patrocinadores) {
+            Rect qr, Patrocinio patrocinio, double escudoReferencia) {
     }
 
     static final Medidas PUBLICACION = new Medidas(r(40, 34, 185, 92), r(384, 53, 236, 54), r(779, 37, 261, 86),
             r(55, 146, 971, 155), r(80, 339, 202, 90), r(451, 362, 124, 45), r(745, 317, 255, 135),
-            r(155, 477, 300, 300), r(485, 580, 110, 95), r(625, 477, 300, 300), r(60, 791, 460, 98),
-            r(560, 791, 460, 98), r(167, 917, 572, 135), r(773, 915, 140, 139), r(40, 1124, 1000, 200));
+            r(174, 474, 262, 262), r(485, 558, 110, 95), r(644, 474, 262, 262), r(60, 748, 460, 98),
+            r(560, 748, 460, 98), r(167, 0, 572, 135), r(773, 0, 140, 139), new Patrocinio(150, 112, 300, 40, 18, 26),
+            300);
 
     static final Medidas HISTORIA = new Medidas(r(40, 70, 221, 110), r(381, 98, 236, 54), r(736, 75, 304, 100),
             r(21, 265, 1037, 166), r(80, 537, 233, 102), r(438, 563, 143, 51), r(707, 512, 293, 153),
-            r(125, 756, 330, 330), r(485, 873, 110, 95), r(625, 756, 330, 330), r(60, 1157, 460, 108),
-            r(560, 1157, 460, 108), r(130, 1364, 646, 140), r(810, 1356, 140, 157), r(40, 1604, 1000, 266));
+            r(135, 745, 310, 310), r(485, 853, 110, 95), r(635, 745, 310, 310), r(60, 1067, 460, 108),
+            r(560, 1067, 460, 108), r(130, 0, 646, 140), r(810, 0, 140, 157), new Patrocinio(200, 150, 330, 50, 34, 50),
+            330);
+
+    static Medidas medidas(Formato formato) {
+        return formato == Formato.HISTORIA ? HISTORIA : PUBLICACION;
+    }
+
+    // ---- patrocinadores: tamanos y filas ---------------------------------------------------------------
+
+    /** El tamano de un logo. */
+    record Tamano(double ancho, double alto) {
+    }
+
+    /**
+     * El tamano de un logo de proporcion [aspecto] (ancho/alto de su contenido no transparente) que iguala el peso
+     * visual: ancho = k*raiz(a) y alto = k/raiz(a); si el alto pasa de [hmax], alto = hmax y ancho = hmax*a; si el
+     * ancho pasa de [wmax], ancho = wmax y alto = wmax/a.
+     */
+    static Tamano tamanoLogo(double aspecto, double k, double hmax, double wmax) {
+
+        double ancho = k * Math.sqrt(aspecto);
+        double alto = k / Math.sqrt(aspecto);
+
+        if (alto > hmax) {
+            alto = hmax;
+            ancho = hmax * aspecto;
+        }
+
+        if (ancho > wmax) {
+            ancho = wmax;
+            alto = wmax / aspecto;
+        }
+
+        return new Tamano(ancho, alto);
+    }
+
+    /** Un logo colocado: su posicion en la lista de patrocinadores y su caja. */
+    record Colocado(int indice, Rect caja) {
+    }
+
+    /** Los logos colocados, cuantos hay en cada fila y la caja que ocupa todo el bloque. */
+    record Bloque(Rect caja, List<Colocado> logos, List<Integer> logosPorFila) {
+    }
+
+    /**
+     * Coloca los logos (por su proporcion, en el orden dado): las filas se llenan de izquierda a derecha sin pasar de
+     * {@link #ANCHO_UTIL_PATROCINADORES}, cada una centrada en el lienzo y con sus logos centrados en vertical entre
+     * ellos, y el bloque se ancla abajo a {@code margenInferior} del final.
+     */
+    static Bloque colocarPatrocinadores(List<Double> aspectos, Patrocinio p, double anchoLienzo, double altoLienzo) {
+
+        List<List<Integer>> filas = new ArrayList<>();
+        List<Tamano> tamanos = new ArrayList<>();
+        List<Integer> actual = new ArrayList<>();
+        double anchoActual = 0;
+
+        for (int i = 0; i < aspectos.size(); i++) {
+
+            Tamano t = tamanoLogo(aspectos.get(i), p.k(), p.hmax(), p.wmax());
+            tamanos.add(t);
+
+            double conEste = actual.isEmpty() ? t.ancho() : anchoActual + p.huecoH() + t.ancho();
+
+            if (!actual.isEmpty() && conEste > ANCHO_UTIL_PATROCINADORES) {
+                filas.add(actual);
+                actual = new ArrayList<>();
+                conEste = t.ancho();
+            }
+
+            actual.add(i);
+            anchoActual = conEste;
+        }
+
+        if (!actual.isEmpty()) {
+            filas.add(actual);
+        }
+
+        double altoTotal = 0;
+        List<Double> altosFila = new ArrayList<>();
+
+        for (List<Integer> fila : filas) {
+            double alto = fila.stream().mapToDouble(i -> tamanos.get(i).alto()).max().orElse(0);
+            altosFila.add(alto);
+            altoTotal += alto;
+        }
+
+        altoTotal += p.huecoV() * Math.max(0, filas.size() - 1);
+
+        double abajo = altoLienzo - p.margenInferior();
+        double y = abajo - altoTotal;
+        double anchoBloque = 0;
+        List<Colocado> colocados = new ArrayList<>();
+        List<Integer> porFila = new ArrayList<>();
+
+        for (int f = 0; f < filas.size(); f++) {
+
+            List<Integer> fila = filas.get(f);
+            double anchoFila = p.huecoH() * (fila.size() - 1)
+                    + fila.stream().mapToDouble(i -> tamanos.get(i).ancho()).sum();
+            double x = anchoLienzo / 2 - anchoFila / 2;
+
+            anchoBloque = Math.max(anchoBloque, anchoFila);
+            porFila.add(fila.size());
+
+            for (int i : fila) {
+
+                Tamano t = tamanos.get(i);
+                colocados.add(new Colocado(i, new Rect(x, y + (altosFila.get(f) - t.alto()) / 2, t.ancho(), t.alto())));
+                x += t.ancho() + p.huecoH();
+            }
+
+            y += altosFila.get(f) + p.huecoV();
+        }
+
+        return new Bloque(new Rect(anchoLienzo / 2 - anchoBloque / 2, abajo - altoTotal, anchoBloque, altoTotal),
+                colocados, porFila);
+    }
+
+    /** El bloque de patrocinadores del cartel de ese formato con los logos reales (sus proporciones recortadas). */
+    static Bloque bloquePatrocinadores(Formato formato) {
+
+        List<Double> aspectos = new ArrayList<>();
+
+        for (Patrocinador p : PatrocinadoresClub.paraCartel()) {
+            BufferedImage logo = logoRecortado(p.recursoLogoCartel());
+            aspectos.add((double) logo.getWidth() / logo.getHeight());
+        }
+
+        return colocarPatrocinadores(aspectos, medidas(formato).patrocinio(), formato.ancho(), formato.alto());
+    }
+
+    /**
+     * La caja de la fila de racha + hashtags y QR: centrada en vertical entre los nombres de los escudos y los
+     * patrocinadores (que se anclan abajo). Su alto es el del mas alto de los que salen.
+     */
+    static Rect cajaFilaInferior(Formato formato, boolean izquierda, boolean qr) {
+
+        Medidas m = medidas(formato);
+        double alto = Math.max(izquierda ? m.racha().h() : 0, qr ? m.qr().h() : 0);
+        double arriba = m.nombreIzquierda().y() + m.nombreIzquierda().h();
+        double abajo = bloquePatrocinadores(formato).caja().y();
+        double y = arriba + (abajo - arriba - alto) / 2;
+
+        return new Rect(m.racha().x(), y, m.qr().x() + m.qr().w() - m.racha().x(), alto);
+    }
 
     // ---- diseño ----------------------------------------------------------------------------------
 
@@ -132,8 +295,6 @@ public class CartelPrimerEquipoRenderer {
     private static final double MARGEN_DERECHO = 1040;
     // El título manda el ancho; la altura (con la tilde de la Ó) puede pasar algo de la caja, como en la referencia.
     private static final double ALTURA_TITULO_MAXIMA = 1.12;
-    private static final int PATROCINADORES_POR_FILA = 4;
-    private static final int PADDING_LOGO = 10;
 
     private static final Color BLANCO = Color.WHITE;
     private static final Color VERDE = new Color(0x2E9E4F);
@@ -167,7 +328,7 @@ public class CartelPrimerEquipoRenderer {
     /** El PNG del cartel. {@code fondo} es el JPG o PNG del fondo (el de la tabla o el de por defecto). */
     public byte[] renderizar(Formato formato, Datos datos, byte[] fondo) {
 
-        Medidas m = formato == Formato.HISTORIA ? HISTORIA : PUBLICACION;
+        Medidas m = medidas(formato);
         int ancho = formato.ancho();
         int alto = formato.alto();
 
@@ -184,8 +345,8 @@ public class CartelPrimerEquipoRenderer {
             pintarTitulo(g, m, datos);
             pintarDatos(g, m, datos);
             pintarEnfrentamiento(g, m, datos);
-            pintarInferior(g, m, datos, ancho);
-            pintarPatrocinadores(g, m);
+            pintarInferior(g, m, formato, datos, ancho);
+            pintarPatrocinadores(g, formato);
 
         } finally {
             g.dispose();
@@ -554,7 +715,10 @@ public class CartelPrimerEquipoRenderer {
 
         g.setStroke(new BasicStroke(2.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
-        for (double[] l : DIAGONALES) {
+        double f = m.escudoIzquierda().h() / m.escudoReferencia();
+
+        for (double[] l0 : DIAGONALES) {
+            double[] l = { l0[0] * f, l0[1] * f, l0[2] * f, l0[3] * f };
             g.draw(new Line2D.Double(m.vs().cx() + l[0], m.vs().cy() + l[1], m.vs().cx() + l[2], m.vs().cy() + l[3]));
         }
 
@@ -648,7 +812,7 @@ public class CartelPrimerEquipoRenderer {
 
     // ---- racha, hashtags y QR ----------------------------------------------------------------------
 
-    private void pintarInferior(Graphics2D g, Medidas m, Datos d, int ancho) {
+    private void pintarInferior(Graphics2D g, Medidas m, Formato formato, Datos d, int ancho) {
 
         boolean hayRacha = d.racha() != null && !d.racha().isEmpty();
         boolean hayIzquierda = hayRacha || d.hashtags();
@@ -658,19 +822,22 @@ public class CartelPrimerEquipoRenderer {
             return;
         }
 
-        // Lo que quede se centra en la fila, con el mismo hueco que entre el bloque y el QR de la referencia.
+        // La fila va centrada en vertical entre los nombres y los patrocinadores; lo que quede se centra en horizontal.
+        Rect fila = cajaFilaInferior(formato, hayIzquierda, hayQr);
+
         double hueco = m.qr().x() - (m.racha().x() + m.racha().w());
         double total = (hayIzquierda ? m.racha().w() : 0) + (hayIzquierda && hayQr ? hueco : 0)
                 + (hayQr ? m.qr().w() : 0);
         double x = ancho / 2.0 - total / 2;
 
         if (hayIzquierda) {
-            pintarRachaYHashtags(g, new Rect(x, m.racha().y(), m.racha().w(), m.racha().h()), d, hayRacha);
+            pintarRachaYHashtags(g, new Rect(x, fila.y() + (fila.h() - m.racha().h()) / 2, m.racha().w(), m.racha().h()),
+                    d, hayRacha);
             x += m.racha().w() + hueco;
         }
 
         if (hayQr) {
-            pintarQr(g, new Rect(x, m.qr().y(), m.qr().w(), m.qr().h()), d.textoQr());
+            pintarQr(g, new Rect(x, fila.y() + (fila.h() - m.qr().h()) / 2, m.qr().w(), m.qr().h()), d.textoQr());
         }
     }
 
@@ -794,37 +961,26 @@ public class CartelPrimerEquipoRenderer {
 
     // ---- patrocinadores ----------------------------------------------------------------------------
 
-    private void pintarPatrocinadores(Graphics2D g, Medidas m) {
+    private void pintarPatrocinadores(Graphics2D g, Formato formato) {
 
         List<Patrocinador> lista = PatrocinadoresClub.paraCartel();
 
-        if (lista.isEmpty()) {
-            return;
+        for (Colocado colocado : bloquePatrocinadores(formato).logos()) {
+
+            BufferedImage logo = logoRecortado(lista.get(colocado.indice()).recursoLogoCartel());
+            Rect caja = colocado.caja();
+
+            g.drawImage(escalar(logo, (int) Math.round(caja.w()), (int) Math.round(caja.h())),
+                    (int) Math.round(caja.x()), (int) Math.round(caja.y()), null);
         }
+    }
 
-        Rect caja = m.patrocinadores();
-        int filas = (lista.size() + PATROCINADORES_POR_FILA - 1) / PATROCINADORES_POR_FILA;
-        double anchoCelda = caja.w() / PATROCINADORES_POR_FILA;
-        double altoCelda = caja.h() / Math.max(2, filas);
-        double y0 = caja.y() + (caja.h() - altoCelda * filas) / 2;
+    private static final Map<String, BufferedImage> LOGOS_RECORTADOS = new ConcurrentHashMap<>();
 
-        for (int fila = 0; fila < filas; fila++) {
-
-            int desde = fila * PATROCINADORES_POR_FILA;
-            int hasta = Math.min(lista.size(), desde + PATROCINADORES_POR_FILA);
-            double anchoFila = anchoCelda * (hasta - desde);
-            double x0 = caja.cx() - anchoFila / 2;
-
-            for (int i = desde; i < hasta; i++) {
-
-                BufferedImage logo = logo(lista.get(i).recursoLogoCartel());
-
-                if (logo != null) {
-                    Rect celda = new Rect(x0 + (i - desde) * anchoCelda, y0 + fila * altoCelda, anchoCelda, altoCelda);
-                    dibujarContenido(g, logo, celda, PADDING_LOGO);
-                }
-            }
-        }
+    /** El logo sin su margen transparente (su proporcion es la del contenido visible). */
+    static BufferedImage logoRecortado(String recurso) {
+        return LOGOS_RECORTADOS.computeIfAbsent(recurso,
+                r -> ImagenesRedesRenderer.recortarTransparencia(ImagenesRedesRenderer.imagen(r)));
     }
 
     // ---- utilidades de dibujo ----------------------------------------------------------------------

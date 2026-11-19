@@ -45,8 +45,8 @@ La respuesta no cambia de forma: los campos nuevos (`logoCartel`, `destacadoCart
 Dónde está el PNG del cartel: los normales en `service/src/main/resources/redes/logos/patrocinadores-cartel/`; el
 **destacado** en `service/src/main/resources/redes/logos/` (el Ayuntamiento es `ayuntamiento-blanco.png`).
 
-El bloque de abajo del cartel lleva los patrocinadores con `logoCartel` y no destacados, por `ordenCartel`, en filas de 4
-como máximo centradas; cada logo se encaja (sin deformarlo) en su celda. Orden actual: La Bodega, Frutas Juanete,
+El bloque de abajo del cartel lleva los patrocinadores con `logoCartel` y no destacados, por `ordenCartel`, en filas de hasta 1000 px
+centradas; cada logo tiene un tamaño que iguala el peso visual (ver `docs/diseno-cartel-primer-equipo/medidas.md`) y se conserva su proporción. Orden actual: La Bodega, Frutas Juanete,
 Mercury, Unlimited, Aresala, AA Energy, Dental Company.
 
 ## Cómo añadir, quitar o reordenar un patrocinador
