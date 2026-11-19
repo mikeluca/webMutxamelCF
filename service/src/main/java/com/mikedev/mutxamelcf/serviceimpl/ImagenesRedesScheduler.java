@@ -13,9 +13,10 @@ import org.springframework.stereotype.Component;
 import com.mikedev.mutxamelcf.service.ImagenesRedesService;
 
 /**
- * Genera las imágenes para redes sociales: la PREVIA los viernes a las 12:00 (partidos de ese fin de semana) y los
- * RESULTADOS los lunes a las 09:00 (los del fin de semana que acaba de terminar), hora de Madrid. Al terminar avisa a
- * coordinación (bandeja + push).
+ * Las imágenes de la previa y de los resultados ya NO se generan solas: las genera Retransmisión (o un administrador
+ * de la app) a mano. Este scheduler solo recuerda hacerlo: la PREVIA los viernes a las 12:00 (partidos del fin de
+ * semana que empieza ese viernes) y los RESULTADOS los lunes a las 09:00 (los del fin de semana anterior), hora de
+ * Madrid. Si ya están generadas no avisa a nadie.
  */
 @Component
 public class ImagenesRedesScheduler {
@@ -31,39 +32,39 @@ public class ImagenesRedesScheduler {
     }
 
     @Scheduled(cron = "0 0 12 * * FRI", zone = "Europe/Madrid")
-    public void generarPrevia() {
-        generarPrevia(LocalDate.now(clock));
+    public void recordarPrevia() {
+        recordarPrevia(LocalDate.now(clock));
     }
 
     @Scheduled(cron = "0 0 9 * * MON", zone = "Europe/Madrid")
-    public void generarResultados() {
-        generarResultados(LocalDate.now(clock));
+    public void recordarResultados() {
+        recordarResultados(LocalDate.now(clock));
     }
 
     /** La previa del fin de semana que empieza el viernes de {@code hoy}. */
-    void generarPrevia(LocalDate hoy) {
-        generar(ImagenesRedesService.TIPO_PREVIA, hoy.with(TemporalAdjusters.nextOrSame(DayOfWeek.FRIDAY)));
+    void recordarPrevia(LocalDate hoy) {
+        recordar(ImagenesRedesService.TIPO_PREVIA, hoy.with(TemporalAdjusters.nextOrSame(DayOfWeek.FRIDAY)));
     }
 
     /** Los resultados del fin de semana anterior: su viernes es el anterior a {@code hoy}. */
-    void generarResultados(LocalDate hoy) {
-        generar(ImagenesRedesService.TIPO_RESULTADOS, hoy.with(TemporalAdjusters.previous(DayOfWeek.FRIDAY)));
+    void recordarResultados(LocalDate hoy) {
+        recordar(ImagenesRedesService.TIPO_RESULTADOS, hoy.with(TemporalAdjusters.previous(DayOfWeek.FRIDAY)));
     }
 
-    private void generar(String tipo, LocalDate viernes) {
+    private void recordar(String tipo, LocalDate viernes) {
 
-        logger.info("Inicio generación de imágenes para redes {} del fin de semana {}", tipo, viernes);
+        logger.info("Inicio recordatorio de imágenes para redes {} del fin de semana {}", tipo, viernes);
 
         try {
 
-            int generadas = imagenesRedesService.generarYAvisar(tipo, viernes);
+            int avisadas = imagenesRedesService.recordarSiPendiente(tipo, viernes);
 
-            logger.info("Fin generación de imágenes para redes {}: fin de semana={}, imágenes={}", tipo, viernes,
-                    generadas);
+            logger.info("Fin recordatorio de imágenes para redes {}: fin de semana={}, cuentas avisadas={}", tipo,
+                    viernes, avisadas);
 
         } catch (Exception e) {
 
-            logger.error("Error al generar las imágenes para redes {}: {}", tipo, e.getMessage(), e);
+            logger.error("Error al recordar las imágenes para redes {}: {}", tipo, e.getMessage(), e);
         }
     }
 }

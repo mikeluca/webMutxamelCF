@@ -6,14 +6,14 @@ import com.mikedev.mutxamelcf.model.ImagenesRedesResponse;
 
 /**
  * Imágenes para redes sociales (previa y resultados del fin de semana). Los métodos que reciben un usuario son solo
- * para COORDINADOR y ADMIN_APP ({@link SecurityException} al resto).
+ * para RETRANSMISION y ADMIN_APP ({@link SecurityException} al resto, también a COORDINADOR).
  */
 public interface ImagenesRedesService {
 
     String TIPO_PREVIA = "PREVIA";
     String TIPO_RESULTADOS = "RESULTADOS";
 
-    /** Valor de data["tipo"] y data["pantalla"] del push que avisa de que están listas. */
+    /** Valor de data["tipo"] y data["pantalla"] del push que recuerda generarlas. */
     String PUSH_IMAGENES_REDES = "IMAGENES_REDES";
 
     /** Las imágenes del fin de semana de {@code fecha} (por defecto hoy; mismo criterio que el panel Fin de semana). */
@@ -26,8 +26,9 @@ public interface ImagenesRedesService {
     ImagenesRedesResponse regenerar(Long usuarioAppId, String tipo, LocalDate fecha);
 
     /**
-     * Genera las imágenes de ese tipo para el fin de semana que empieza el viernes {@code viernes} y avisa a
-     * coordinación (bandeja + push). Lo usan los schedulers. Devuelve cuántas imágenes se han generado.
+     * Si para el fin de semana que empieza el viernes {@code viernes} NO hay imágenes de ese tipo generadas, manda un
+     * recordatorio (bandeja + push) a las cuentas activas con rol RETRANSMISION o, si no hay ninguna, a las de
+     * ADMIN_APP. Si ya están generadas no hace nada. Lo usan los schedulers. Devuelve a cuántas cuentas ha avisado.
      */
-    int generarYAvisar(String tipo, LocalDate viernes);
+    int recordarSiPendiente(String tipo, LocalDate viernes);
 }

@@ -6,7 +6,7 @@
 	</p>
 	<div class="row justify-content-center">
 
-		<!-- Lista unica: PatrocinadoresClub (mvc, paquete web). Alli se anaden, quitan o reordenan los patrocinadores. -->
+		<!-- Lista unica: PatrocinadoresClub (modulo service, paquete model). Alli se anaden, quitan o reordenan los patrocinadores. -->
 		<div class="col-7 col-sm-4 col-md-3 col-lg mb-3" th:each="patrocinador : ${patrocinadoresFooter}">
 			<a th:if="${patrocinador.url != null}" th:href="${patrocinador.url}" target="_blank" rel="noopener">
 				<img th:src="${patrocinador.imagenUrl}" class="patrocinador-img img-fluid" th:alt="${patrocinador.nombre}"

@@ -205,6 +205,28 @@ terminar el partido: ese aviso interno solo mira las tarjetas de nuestros jugado
 | `noticia.titulo` | Se publica una noticia nueva (el cuerpo es el título de la noticia, sin traducir) | Todas las cuentas con la preferencia + topics de noticias | No |
 | `reporte.*` | Un usuario reporta un mensaje | Administradores de la app | No |
 
+### 9. Imágenes para redes (recordatorio a Retransmisión)
+
+Las imágenes de la previa y de los resultados **ya no se generan solas**: las genera a mano Retransmisión (o un
+administrador de la app) en Directo y RRSS › Imágenes para redes. El `ImagenesRedesScheduler` solo **recuerda** hacerlo,
+y generarlas a mano no avisa a nadie. Contrato completo en `docs/api-app-imagenes-redes.md`.
+
+| Clave | Cuándo | A quién | Push distinto |
+| --- | --- | --- | --- |
+| `imagenesRedes.recordatorioPrevia.titulo` / `.texto` | Viernes 12:00 (Europe/Madrid), si para el fin de semana que empieza ese viernes **no hay** imágenes de PREVIA generadas | Cuentas activas con rol `RETRANSMISION`; si no hay ninguna, las de `ADMIN_APP` (bandeja + push, en el idioma de cada cuenta) | No |
+| `imagenesRedes.recordatorioResultados.titulo` / `.texto` | Lunes 09:00 (Europe/Madrid), si para el fin de semana anterior **no hay** imágenes de RESULTADOS generadas | Igual | No |
+
+Si ya están generadas no se manda nada. Se respeta la preferencia de comunicaciones de cada cuenta.
+
+**Datos del push** (`data`, todos strings; la bandeja guarda el tipo `IMAGENES_REDES` y `referenciaId` = viernes como `yyyyMMdd`):
+
+| Campo | Valor | Para qué |
+| --- | --- | --- |
+| `tipo` | `IMAGENES_REDES` | La app abre la sección Imágenes para redes |
+| `pantalla` | `IMAGENES_REDES` | Igual (mismo valor que `tipo`) |
+| `tipoImagen` | `PREVIA` o `RESULTADOS` | La pestaña que se abre |
+| `desde` | `yyyy-MM-dd` (el viernes del fin de semana) | El fin de semana que se abre |
+
 ### Solicitudes de acceso de las familias
 
 Contrato completo en `docs/api-app-solicitudes-familia.md`. Los avisos son bandeja + push, uno por cuenta y en su idioma

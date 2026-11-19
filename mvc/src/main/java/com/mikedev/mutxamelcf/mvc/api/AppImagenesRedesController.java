@@ -2,6 +2,7 @@ package com.mikedev.mutxamelcf.mvc.api;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.Map;
 
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
@@ -15,17 +16,25 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.mikedev.mutxamelcf.service.CartelNoDisponibleException;
+import com.mikedev.mutxamelcf.service.CartelPrimerEquipoService;
 import com.mikedev.mutxamelcf.service.ImagenesRedesService;
 
-/** Imágenes para redes sociales: solo COORDINADOR y ADMIN_APP (lo comprueba el servicio). */
+/**
+ * Imágenes para redes sociales (previa, resultados y cartel del próximo partido del Primer Equipo): solo RETRANSMISION y
+ * ADMIN_APP (lo comprueban los servicios). COORDINADOR ya no tiene acceso: recibe 403.
+ */
 @RestController
 @RequestMapping("/api/app/imagenes-redes")
 public class AppImagenesRedesController {
 
     private final ImagenesRedesService imagenesRedesService;
+    private final CartelPrimerEquipoService cartelPrimerEquipoService;
 
-    public AppImagenesRedesController(ImagenesRedesService imagenesRedesService) {
+    public AppImagenesRedesController(ImagenesRedesService imagenesRedesService,
+            CartelPrimerEquipoService cartelPrimerEquipoService) {
         this.imagenesRedesService = imagenesRedesService;
+        this.cartelPrimerEquipoService = cartelPrimerEquipoService;
     }
 
     /** GET /api/app/imagenes-redes?fecha=yyyy-MM-dd : las imágenes del fin de semana y los textos sugeridos. */
@@ -81,6 +90,42 @@ public class AppImagenesRedesController {
                 usuarioId -> ResponseEntity.ok(imagenesRedesService.regenerar(usuarioId, tipo, dia)));
     }
 
+    /**
+     * GET /api/app/imagenes-redes/partido-primer-equipo : el próximo partido del Primer Equipo para el cartel
+     * (disponible, motivo SIN_PARTIDO | YA_EMPEZADO, datos del partido y textoPublicacion en es y ca).
+     */
+    @GetMapping("/partido-primer-equipo")
+    public ResponseEntity<?> partidoPrimerEquipo(Authentication authentication) {
+
+        return responder(authentication, "Error al obtener el próximo partido",
+                usuarioId -> ResponseEntity.ok(cartelPrimerEquipoService.partido(usuarioId)));
+    }
+
+    /**
+     * GET /api/app/imagenes-redes/partido-primer-equipo/png?formato=PUBLICACION|HISTORIA&amp;idioma=es|ca&amp;racha=true
+     * &amp;qr=true&amp;hashtags=true : el cartel, generado al momento. 409 con código si no está disponible; 400 si un
+     * parámetro no es válido.
+     */
+    @GetMapping("/partido-primer-equipo/png")
+    public ResponseEntity<?> cartelPrimerEquipo(
+            @RequestParam(defaultValue = "PUBLICACION") String formato,
+            @RequestParam(defaultValue = "es") String idioma,
+            @RequestParam(defaultValue = "true") boolean racha,
+            @RequestParam(defaultValue = "true") boolean qr,
+            @RequestParam(defaultValue = "true") boolean hashtags,
+            Authentication authentication) {
+
+        return responder(authentication, "Error al generar el cartel", usuarioId -> {
+
+            byte[] png = cartelPrimerEquipoService.png(usuarioId, formato, idioma, racha, qr, hashtags);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.IMAGE_PNG)
+                    .cacheControl(CacheControl.noStore())
+                    .body(png);
+        });
+    }
+
     private static LocalDate parsear(String fecha) {
         return fecha == null || fecha.isBlank() ? null : LocalDate.parse(fecha.trim());
     }
@@ -103,6 +148,11 @@ public class AppImagenesRedesController {
         } catch (NumberFormatException e) {
 
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no válido");
+
+        } catch (CartelNoDisponibleException e) {
+
+            return ResponseEntity.status(HttpStatus.CONFLICT).contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("codigo", e.motivo(), "mensaje", "El cartel no está disponible: " + e.motivo()));
 
         } catch (SecurityException e) {
 

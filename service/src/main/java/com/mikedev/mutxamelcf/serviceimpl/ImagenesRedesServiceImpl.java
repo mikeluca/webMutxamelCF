@@ -18,8 +18,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.mikedev.mutxamelcf.dao.EquipoGestionDao;
 import com.mikedev.mutxamelcf.dao.ImagenRedesDao;
@@ -131,21 +129,19 @@ public class ImagenesRedesServiceImpl implements ImagenesRedesService {
 	}
 
 	@Override
-	@Transactional
-	public int generarYAvisar(String tipo, LocalDate viernes) {
+	@Transactional(readOnly = true)
+	public int recordarSiPendiente(String tipo, LocalDate viernes) {
 
 		String tipoNormalizado = normalizarTipo(tipo);
-		int generadas = generar(tipoNormalizado, viernes);
 
-		if (generadas == 0) {
-			logger.info("Imágenes para redes {} del {}: no hay partidos que mostrar, no se avisa", tipoNormalizado,
-					viernes);
+		boolean generadas = imagenRedesDao.listar(viernes).stream().anyMatch(i -> tipoNormalizado.equals(i.tipo()));
+
+		if (generadas) {
+			logger.info("Imágenes para redes {} del {}: ya están generadas, no se recuerda", tipoNormalizado, viernes);
 			return 0;
 		}
 
-		despuesDelCommit(() -> avisar(tipoNormalizado, viernes));
-
-		return generadas;
+		return recordar(tipoNormalizado, viernes);
 	}
 
 	// ---- generación -------------------------------------------------------------------------------
@@ -213,22 +209,37 @@ public class ImagenesRedesServiceImpl implements ImagenesRedesService {
 				rivalPropio);
 	}
 
-	// ---- aviso a coordinación ----------------------------------------------------------------
+	// ---- recordatorio a Retransmisión ------------------------------------------------------------
 
-	private void avisar(String tipo, LocalDate viernes) {
+	/**
+	 * Avisa (bandeja + push, en el idioma de cada cuenta) a las cuentas activas con rol RETRANSMISION o, si no hay
+	 * ninguna, a las de ADMIN_APP. Devuelve a cuántas cuentas ha avisado.
+	 */
+	private int recordar(String tipo, LocalDate viernes) {
 
-		Set<Long> destinatarios = new LinkedHashSet<>(equipoGestionDao.obtenerCoordinadores());
-		destinatarios.addAll(equipoGestionDao.obtenerAdministradoresApp());
+		List<Long> destinatarios = equipoGestionDao.obtenerRetransmision();
 
-		String prefijo = TIPO_PREVIA.equals(tipo) ? "imagenesRedes.previa" : "imagenesRedes.resultados";
+		if (destinatarios.isEmpty()) {
+			destinatarios = equipoGestionDao.obtenerAdministradoresApp();
+		}
 
+		String prefijo = TIPO_PREVIA.equals(tipo) ? "imagenesRedes.recordatorioPrevia"
+				: "imagenesRedes.recordatorioResultados";
+
+		// La app abre Imágenes para redes en la pestaña tipoImagen (PREVIA o RESULTADOS) y en el fin de semana "desde".
 		Map<String, String> datos = new LinkedHashMap<>();
 		datos.put("tipo", PUSH_IMAGENES_REDES);
 		datos.put("pantalla", PUSH_IMAGENES_REDES);
 		datos.put("desde", viernes.toString());
 		datos.put("tipoImagen", tipo);
 
-		for (Long cuenta : destinatarios) {
+		// La referencia es el viernes del fin de semana (yyyyMMdd): la app abre ese fin de semana, y un
+		// referenciaId positivo es lo que hace que el push se muestre con la app abierta.
+		Long referencia = Long.valueOf(viernes.format(DateTimeFormatter.BASIC_ISO_DATE));
+
+		int avisadas = 0;
+
+		for (Long cuenta : new LinkedHashSet<>(destinatarios)) {
 
 			try {
 
@@ -240,19 +251,20 @@ public class ImagenesRedesServiceImpl implements ImagenesRedesService {
 				String titulo = textos.texto(idioma, prefijo + ".titulo");
 				String mensaje = textos.texto(idioma, prefijo + ".texto");
 
-				// La referencia es el viernes del fin de semana (yyyyMMdd): la app abre ese fin de semana, y un
-				// referenciaId positivo es lo que hace que el push se muestre con la app abierta.
-				Long referencia = Long.valueOf(viernes.format(DateTimeFormatter.BASIC_ISO_DATE));
-
 				notificacionAppService.crear(cuenta, TIPO_NOTIFICACION, titulo, mensaje, referencia);
 				fcmPushService.enviarNotificacionAUsuario(cuenta, TIPO_NOTIFICACION, titulo, mensaje, referencia,
 						datos);
+				avisadas++;
 
 			} catch (RuntimeException e) {
-				logger.error("No se ha podido avisar a la cuenta {} de las imágenes para redes: {}", cuenta,
+				logger.error("No se ha podido recordar a la cuenta {} las imágenes para redes: {}", cuenta,
 						e.getMessage(), e);
 			}
 		}
+
+		logger.info("Recordatorio de imágenes para redes {} del {}: avisadas {} cuentas", tipo, viernes, avisadas);
+
+		return avisadas;
 	}
 
 	// ---- utilidades -------------------------------------------------------------------------------
@@ -290,24 +302,8 @@ public class ImagenesRedesServiceImpl implements ImagenesRedesService {
 
 	private void validarAcceso(Long usuarioAppId) {
 
-		if (usuarioAppId == null || usuarioAppId <= 0 || !equipoGestionDao.esCoordinadorOAdmin(usuarioAppId)) {
-			throw new SecurityException("Solo coordinación puede ver las imágenes para redes");
+		if (usuarioAppId == null || usuarioAppId <= 0 || !equipoGestionDao.esRetransmisionOAdmin(usuarioAppId)) {
+			throw new SecurityException("Solo Retransmisión y los administradores de la app pueden gestionar las imágenes para redes");
 		}
-	}
-
-	/** Tras el commit si hay transacción (las imágenes ya están guardadas); si no, al momento. */
-	private static void despuesDelCommit(Runnable tarea) {
-
-		if (TransactionSynchronizationManager.isSynchronizationActive()) {
-			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-				@Override
-				public void afterCommit() {
-					tarea.run();
-				}
-			});
-			return;
-		}
-
-		tarea.run();
 	}
 }

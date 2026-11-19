@@ -97,6 +97,11 @@ public final class EsquemaH2 {
         ejecutar(jdbc, "/h2/solicitudes_familia.sql");
     }
 
+    /** IMAGENES_REDES_FONDOS (sql/2026-11-19_imagenes_redes_fondos.sql), sin permisos ni sinónimos. */
+    public static void crearImagenesRedesFondos(JdbcTemplate jdbc) {
+        ejecutar(jdbc, "/h2/imagenes_redes_fondos.sql");
+    }
+
     /** El script de ajustes tal cual, para compararlo con el de sql/. */
     public static String ajustes() {
         return leer("/h2/ajustes_post_revision.sql");

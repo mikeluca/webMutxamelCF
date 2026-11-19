@@ -22,6 +22,12 @@ public interface EquipoGestionDao {
     /** true si el usuario app tiene el rol COORDINADOR o ADMIN_APP. */
     boolean esCoordinadorOAdmin(Long usuarioAppId);
 
+    /** true si el usuario app tiene el rol RETRANSMISION o ADMIN_APP (imágenes para redes sociales). */
+    boolean esRetransmisionOAdmin(Long usuarioAppId);
+
+    /** Usuarios app activos con rol RETRANSMISION, por ID. */
+    List<Long> obtenerRetransmision();
+
     /** Usuarios app activos con rol ADMIN_APP, por ID. */
     List<Long> obtenerAdministradoresApp();
 

@@ -190,6 +190,7 @@ public class SecurityConfig {
                                                                 "/admin/historial/**",
                                                                 "/admin/categorias-edad/**",
                                                                 "/admin/equipajes/**",
+                                                                "/admin/fondos-carteles/**",
                                                                 "/admin/escudos-rivales/**",
                                                                 "/admin/cuerpo-tecnico/fusionar/**",
                                                                 "/admin/cuerpo-tecnico/fusionar")

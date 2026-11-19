@@ -482,7 +482,7 @@ public class ImagenesRedesRenderer {
         g.drawString(texto, centroX - g.getFontMetrics().stringWidth(texto) / 2, baseY);
     }
 
-    private static void configurar(Graphics2D g) {
+    static void configurar(Graphics2D g) {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
@@ -506,7 +506,7 @@ public class ImagenesRedesRenderer {
         }
     }
 
-    private static Font fuente(String fichero) {
+    static Font fuente(String fichero) {
 
         try (InputStream entrada = ImagenesRedesRenderer.class.getResourceAsStream("/redes/fonts/" + fichero)) {
 
@@ -524,7 +524,7 @@ public class ImagenesRedesRenderer {
         }
     }
 
-    private static BufferedImage imagen(String recurso) {
+    static BufferedImage imagen(String recurso) {
 
         try (InputStream entrada = ImagenesRedesRenderer.class.getResourceAsStream(recurso)) {
 
@@ -540,7 +540,7 @@ public class ImagenesRedesRenderer {
     }
 
     /** Quita el margen transparente de una imagen (el escudo del club viene en un lienzo 16:9). */
-    private static BufferedImage recortarTransparencia(BufferedImage origen) {
+    static BufferedImage recortarTransparencia(BufferedImage origen) {
 
         int minX = origen.getWidth();
         int minY = origen.getHeight();

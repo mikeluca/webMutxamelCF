@@ -18,8 +18,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.google.firebase.FirebaseApp;
-import com.mikedev.mutxamelcf.mvc.web.Patrocinador;
-import com.mikedev.mutxamelcf.mvc.web.PatrocinadoresClub;
+import com.mikedev.mutxamelcf.model.Patrocinador;
+import com.mikedev.mutxamelcf.model.PatrocinadoresClub;
 
 /** La lista única de patrocinadores: endpoint público para la app y pie de página de la web. */
 @SpringBootTest
@@ -70,7 +70,7 @@ class PublicPatrocinadorControllerTest {
         String html = mockMvc.perform(get("/politicaPrivacidad")).andReturn().getResponse()
                 .getContentAsString(StandardCharsets.UTF_8);
 
-        for (Patrocinador p : PatrocinadoresClub.LISTA) {
+        for (Patrocinador p : PatrocinadoresClub.paraWeb()) {
             assertThat(html).contains("alt=\"" + p.nombre() + "\"").contains("src=\"/images/" + p.imagen() + "\"");
 
             if (p.url() != null) {
@@ -92,9 +92,23 @@ class PublicPatrocinadorControllerTest {
     }
 
     @Test
+    void mercuryNoSaleEnLaApiPublicaNiEnElPieDeLaWebPeroSiEnElCartel() throws Exception {
+
+        String json = mockMvc.perform(get("/api/public/patrocinadores")).andReturn().getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+        String html = mockMvc.perform(get("/politicaPrivacidad")).andReturn().getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(json).doesNotContain("Mercury");
+        assertThat(html).doesNotContain("Mercury").doesNotContain("mercury");
+        assertThat(PatrocinadoresClub.paraCartel()).extracting(Patrocinador::nombre).contains("Mercury");
+        assertThat(PatrocinadoresClub.LISTA).extracting(Patrocinador::nombre).contains("Mercury");
+    }
+
+    @Test
     void cadaImagenDeLaListaExisteEnStaticImages() {
 
-        for (Patrocinador p : PatrocinadoresClub.LISTA) {
+        for (Patrocinador p : PatrocinadoresClub.paraWeb()) {
             assertThat(new ClassPathResource("static/images/" + p.imagen()).exists()).as(p.imagen()).isTrue();
         }
     }

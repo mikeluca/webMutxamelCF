@@ -2,6 +2,9 @@ package com.mikedev.mutxamelcf.mvc.web;
 
 import java.util.List;
 
+import com.mikedev.mutxamelcf.model.Patrocinador;
+import com.mikedev.mutxamelcf.model.PatrocinadoresClub;
+
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
@@ -11,6 +14,6 @@ public class PatrocinadoresFooterAdvice {
 
     @ModelAttribute("patrocinadoresFooter")
     public List<Patrocinador> patrocinadoresFooter() {
-        return PatrocinadoresClub.LISTA;
+        return PatrocinadoresClub.paraWeb();
     }
 }

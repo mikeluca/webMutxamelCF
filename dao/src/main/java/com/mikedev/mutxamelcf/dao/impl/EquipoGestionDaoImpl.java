@@ -165,6 +165,26 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
     }
 
     @Override
+    public boolean esRetransmisionOAdmin(Long usuarioAppId) {
+
+        Integer total = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM USUARIOS_APP_ROLES UAR
+                INNER JOIN ROLES_APP R
+                    ON R.ID = UAR.ROL_ID
+                WHERE UAR.USUARIO_APP_ID = ?
+                  AND R.CODIGO IN ('ADMIN_APP', 'RETRANSMISION')
+                """, Integer.class, usuarioAppId);
+
+        return total != null && total > 0;
+    }
+
+    @Override
+    public List<Long> obtenerRetransmision() {
+        return obtenerUsuariosPorRol("RETRANSMISION");
+    }
+
+    @Override
     public List<Long> obtenerAdministradoresApp() {
         return obtenerUsuariosPorRol("ADMIN_APP");
     }

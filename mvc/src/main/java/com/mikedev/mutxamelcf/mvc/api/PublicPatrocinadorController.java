@@ -9,8 +9,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.mikedev.mutxamelcf.mvc.web.Patrocinador;
-import com.mikedev.mutxamelcf.mvc.web.PatrocinadoresClub;
+import com.mikedev.mutxamelcf.model.Patrocinador;
+import com.mikedev.mutxamelcf.model.PatrocinadoresClub;
 
 /**
  * Los patrocinadores del club para la app (docs/api-public-patrocinadores.md). Público, sin datos personales y con
@@ -33,6 +33,6 @@ public class PublicPatrocinadorController {
 
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).cachePublic())
-                .body(PatrocinadoresClub.LISTA.stream().map(PatrocinadorResponse::de).toList());
+                .body(PatrocinadoresClub.paraWeb().stream().map(PatrocinadorResponse::de).toList());
     }
 }
