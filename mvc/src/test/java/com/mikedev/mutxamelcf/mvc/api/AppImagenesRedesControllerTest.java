@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.mikedev.mutxamelcf.model.PartidoPrimerEquipoResponse;
 import com.mikedev.mutxamelcf.model.PartidoPrimerEquipoResponse.TextoPublicacion;
 import com.mikedev.mutxamelcf.service.CartelNoDisponibleException;
+import com.mikedev.mutxamelcf.service.CartelFilialService;
 import com.mikedev.mutxamelcf.service.CartelPrimerEquipoService;
 import com.mikedev.mutxamelcf.service.ImagenesRedesService;
 
@@ -39,6 +40,7 @@ class AppImagenesRedesControllerTest {
 
     private final ImagenesRedesService imagenes = mock(ImagenesRedesService.class);
     private final CartelPrimerEquipoService cartel = mock(CartelPrimerEquipoService.class);
+    private final CartelFilialService filial = mock(CartelFilialService.class);
 
     private MockMvc mockMvc;
     private Authentication usuario;
@@ -49,7 +51,7 @@ class AppImagenesRedesControllerTest {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
                 .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-        mockMvc = MockMvcBuilders.standaloneSetup(new AppImagenesRedesController(imagenes, cartel))
+        mockMvc = MockMvcBuilders.standaloneSetup(new AppImagenesRedesController(imagenes, cartel, filial))
                 .setMessageConverters(new org.springframework.http.converter.ByteArrayHttpMessageConverter(),
                         new org.springframework.http.converter.StringHttpMessageConverter(),
                         new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(mapper))
@@ -206,5 +208,85 @@ class AppImagenesRedesControllerTest {
                 .andExpect(status().isOk());
 
         verify(imagenes).regenerar(7L, "PREVIA", null);
+    }
+
+    // ---- el cartel del Filial: mismas rutas, permisos y códigos ------------------------------------------------
+
+    @Test
+    void lasRutasDelFilialSinSesionDan401() throws Exception {
+
+        mockMvc.perform(get("/api/app/imagenes-redes/partido-filial")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/app/imagenes-redes/partido-filial/png")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void lasRutasDelFilialDan403AQuienNoEsRetransmisionNiAdminIncluidoElCoordinador() throws Exception {
+
+        when(filial.partido(anyLong())).thenThrow(new SecurityException("sin acceso"));
+        when(filial.png(anyLong(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyBoolean(),
+                org.mockito.ArgumentMatchers.anyBoolean(), org.mockito.ArgumentMatchers.anyBoolean()))
+                .thenThrow(new SecurityException("sin acceso"));
+
+        mockMvc.perform(get("/api/app/imagenes-redes/partido-filial").principal(usuario))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/app/imagenes-redes/partido-filial/png").principal(usuario))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void elPartidoDelFilialDevuelveElMismoContratoJson() throws Exception {
+
+        when(filial.partido(7L)).thenReturn(new PartidoPrimerEquipoResponse(true, null, 40L, false, "Pego C.F.", null,
+                LocalDate.of(2026, 11, 22), "19:00", "Les Costeres Gata", "Segona FFCV, Grup 7", null, "LIGA",
+                new TextoPublicacion("texto es", "text ca")));
+
+        mockMvc.perform(get("/api/app/imagenes-redes/partido-filial").principal(usuario)
+                .accept(org.springframework.http.MediaType.APPLICATION_JSON)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.disponible").value(true)).andExpect(jsonPath("$.partidoId").value(40))
+                .andExpect(jsonPath("$.local").value(false)).andExpect(jsonPath("$.dia").value("2026-11-22"))
+                .andExpect(jsonPath("$.textoPublicacion.ca").value("text ca"));
+
+        // Y no ha tocado el servicio del Primer Equipo
+        verify(cartel, org.mockito.Mockito.never()).partido(anyLong());
+    }
+
+    @Test
+    void elPngDelFilialVaSinCacheYPorDefectoPublicacionEspanolConTodo() throws Exception {
+
+        when(filial.png(7L, "PUBLICACION", "es", true, true, true)).thenReturn(PNG);
+
+        mockMvc.perform(get("/api/app/imagenes-redes/partido-filial/png").principal(usuario))
+                .andExpect(status().isOk()).andExpect(header().string("Content-Type", "image/png"))
+                .andExpect(header().string("Cache-Control", "no-store")).andExpect(content().bytes(PNG));
+
+        when(filial.png(7L, "HISTORIA", "ca", false, true, false)).thenReturn(PNG);
+
+        mockMvc.perform(get("/api/app/imagenes-redes/partido-filial/png").principal(usuario)
+                .param("formato", "HISTORIA").param("idioma", "ca").param("racha", "false").param("qr", "true")
+                .param("hashtags", "false")).andExpect(status().isOk()).andExpect(content().bytes(PNG));
+
+        verify(cartel, org.mockito.Mockito.never()).png(anyLong(), anyString(), anyString(),
+                org.mockito.ArgumentMatchers.anyBoolean(), org.mockito.ArgumentMatchers.anyBoolean(),
+                org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    @Test
+    void elPngDelFilialDa409ConElCodigoY400SiUnParametroNoEsValido() throws Exception {
+
+        org.mockito.Mockito.doThrow(new CartelNoDisponibleException("YA_EMPEZADO")).when(filial).png(anyLong(),
+                anyString(), anyString(), org.mockito.ArgumentMatchers.anyBoolean(),
+                org.mockito.ArgumentMatchers.anyBoolean(), org.mockito.ArgumentMatchers.anyBoolean());
+
+        mockMvc.perform(get("/api/app/imagenes-redes/partido-filial/png").principal(usuario))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("YA_EMPEZADO"));
+
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("El formato debe ser PUBLICACION o HISTORIA"))
+                .when(filial).png(anyLong(), eq("CUADRADO"), anyString(), org.mockito.ArgumentMatchers.anyBoolean(),
+                        org.mockito.ArgumentMatchers.anyBoolean(), org.mockito.ArgumentMatchers.anyBoolean());
+
+        mockMvc.perform(get("/api/app/imagenes-redes/partido-filial/png").principal(usuario)
+                .param("formato", "CUADRADO")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/app/imagenes-redes/partido-filial/png").principal(usuario)
+                .param("qr", "quizas")).andExpect(status().isBadRequest());
     }
 }

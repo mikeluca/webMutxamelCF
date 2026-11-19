@@ -110,8 +110,25 @@ Lo que cambia según los parámetros:
   centra con lo que quede y, si no queda nada, no se dibuja.
 - **Sin escudo del rival**: su nombre en grande en su hueco (hasta 3 líneas) y nada debajo.
 - No sale ningún nombre ni foto de jugadores.
-- Cartel `FILIAL`: preparado en el enum `CartelRedes` (y su fondo en la tabla) pero **sin diseño ni ruta pública**.
+- El cartel del **Filial** tiene sus propias rutas (abajo), con el mismo contrato.
 
+
+## Cartel "Próximo partido del Filial"
+
+Mismo contrato, permisos (solo `RETRANSMISION` y `ADMIN_APP`; COORDINADOR 403), parámetros, respuestas (`200`, `409` con
+código `SIN_PARTIDO` | `YA_EMPEZADO`, `400`) y regla de qué partido toca que el del Primer Equipo; solo cambia el equipo
+(el de nombre `Filial`), el diseño y el fondo:
+
+- `GET /api/app/imagenes-redes/partido-filial` → el mismo JSON que `partido-primer-equipo`. El `textoPublicacion` usa
+  "Mutxamel C.F. “B”" como nombre del equipo.
+- `GET /api/app/imagenes-redes/partido-filial/png?formato=PUBLICACION|HISTORIA&idioma=es|ca&racha=&qr=&hashtags=` →
+  `image/png`, `Cache-Control: no-store`.
+
+La racha es la de los últimos 5 partidos del Filial. Diseño, medidas y fondo en `docs/diseno-cartel-filial/`.
+
+Lo común a los dos carteles (elección del partido, campo, lado local/visitante, racha, escudo del rival, fondo de la
+tabla o de resources, texto para publicar y validación) está en `CartelPartidoServiceBase`; cada cartel solo aporta su
+equipo, su renderizador y su fondo por defecto.
 ## Patrocinadores en los carteles
 
 Salen de `PatrocinadoresClub` (la única lista). Ver `docs/api-public-patrocinadores.md`.
@@ -121,7 +138,7 @@ Salen de `PatrocinadoresClub` (la única lista). Ver `docs/api-public-patrocinad
 Administración deportiva → **Fondos de carteles** (`/admin/fondos-carteles`, roles `SUPER` y `ADMIN`, como Equipajes).
 Por cada cartel muestra el fondo actual, deja subir uno nuevo y "Restaurar el de por defecto".
 
-- **Primer Equipo**: editable. **Filial**: aparece como "Próximamente", sin subir.
+- **Primer Equipo** y **Filial**: los dos editables, cada uno con su fondo por defecto (`redes/cartel-primer-equipo/fondo.jpg` y `redes/cartel-filial/fondo.jpg`).
 - Se sube un **JPG o PNG** de **hasta 5 MB** y de **al menos 1080×1350**; se guarda **tal cual** (con su ancho y alto) en
   `IMAGENES_REDES_FONDOS`. El cartel lo escala y recorta al centro ("cover") para cubrir el lienzo.
 - Errores claros: "La imagen pesa más de 5 MB", "La imagen es demasiado pequeña: mide 800×1000 y el mínimo es

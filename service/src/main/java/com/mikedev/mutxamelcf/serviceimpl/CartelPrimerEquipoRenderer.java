@@ -748,7 +748,7 @@ public class CartelPrimerEquipoRenderer {
     }
 
     /** El escudo encajado en su caja (sin deformarlo) con una sombra suave debajo. */
-    private static void dibujarEscudo(Graphics2D g, BufferedImage escudo, Rect caja) {
+    static void dibujarEscudo(Graphics2D g, BufferedImage escudo, Rect caja) {
 
         double escala = Math.min(caja.w() / escudo.getWidth(), caja.h() / escudo.getHeight());
         int ancho = Math.max(1, (int) Math.round(escudo.getWidth() * escala));
@@ -797,7 +797,7 @@ public class CartelPrimerEquipoRenderer {
         return new ConvolveOp(new Kernel(1, lado, datos), ConvolveOp.EDGE_NO_OP, null).filter(horizontal, null);
     }
 
-    private static BufferedImage leerEscudo(byte[] png) {
+    static BufferedImage leerEscudo(byte[] png) {
 
         if (png == null || png.length == 0) {
             return null;
@@ -837,7 +837,7 @@ public class CartelPrimerEquipoRenderer {
         }
 
         if (hayQr) {
-            pintarQr(g, new Rect(x, fila.y() + (fila.h() - m.qr().h()) / 2, m.qr().w(), m.qr().h()), d.textoQr());
+            pintarQr(g, new Rect(x, fila.y() + (fila.h() - m.qr().h()) / 2, m.qr().w(), m.qr().h()), d.textoQr(), medio);
         }
     }
 
@@ -903,7 +903,8 @@ public class CartelPrimerEquipoRenderer {
         };
     }
 
-    private void pintarQr(Graphics2D g, Rect caja, String texto) {
+    /** El QR sobre un cuadrado blanco con esquinas redondeadas y, debajo, el texto con esa fuente. */
+    static void pintarQr(Graphics2D g, Rect caja, String texto, Font fuenteTexto) {
 
         double lado = caja.h() * 0.805;
         double x = caja.cx() - lado / 2;
@@ -917,7 +918,7 @@ public class CartelPrimerEquipoRenderer {
                 null);
 
         double alturaTexto = caja.h() - lado;
-        Font fuente = ajustar(g, medio, 60, caja.w(), alturaTexto * 0.7, texto);
+        Font fuente = ajustar(g, fuenteTexto, 60, caja.w(), alturaTexto * 0.7, texto);
         g.setColor(BLANCO);
         centrarEnPunto(g, fuente, texto, caja.cx(), caja.y() + lado + alturaTexto / 2);
     }
@@ -986,7 +987,7 @@ public class CartelPrimerEquipoRenderer {
     // ---- utilidades de dibujo ----------------------------------------------------------------------
 
     /** La imagen encajada (contain) y centrada en la caja, sin deformarla. */
-    private static void dibujarContenido(Graphics2D g, BufferedImage imagen, Rect caja, double padding) {
+    static void dibujarContenido(Graphics2D g, BufferedImage imagen, Rect caja, double padding) {
 
         double cajaW = caja.w() - padding * 2;
         double cajaH = caja.h() - padding * 2;
@@ -1043,7 +1044,7 @@ public class CartelPrimerEquipoRenderer {
         return actual;
     }
 
-    private static Rectangle2D limites(Graphics2D g, Font fuente, String texto) {
+    static Rectangle2D limites(Graphics2D g, Font fuente, String texto) {
         if (texto == null || texto.isEmpty()) {
             return new Rectangle2D.Double();
         }
@@ -1078,12 +1079,12 @@ public class CartelPrimerEquipoRenderer {
     }
 
     /** Dibuja el texto con el centro de sus límites visuales en el centro de la caja. */
-    private static void centrarEnCaja(Graphics2D g, Font fuente, String texto, Rect caja) {
+    static void centrarEnCaja(Graphics2D g, Font fuente, String texto, Rect caja) {
         centrarEnPunto(g, fuente, texto, caja.cx(), caja.cy());
     }
 
     /** Dibuja el texto con el centro de sus límites visuales en ese punto. */
-    private static void centrarEnPunto(Graphics2D g, Font fuente, String texto, double cx, double cy) {
+    static void centrarEnPunto(Graphics2D g, Font fuente, String texto, double cx, double cy) {
 
         if (texto == null || texto.isEmpty()) {
             return;
@@ -1157,7 +1158,7 @@ public class CartelPrimerEquipoRenderer {
      * Pinta las líneas dentro de la caja. {@code alineacion}: -1 izquierda, 0 centro, 1 derecha;
      * {@code centradoVertical}: el bloque centrado en la caja (si no, pegado arriba).
      */
-    private static void lineas(Graphics2D g, Ajuste ajuste, Rect caja, int alineacion, boolean centradoVertical) {
+    static void lineas(Graphics2D g, Ajuste ajuste, Rect caja, int alineacion, boolean centradoVertical) {
 
         Font fuente = ajuste.fuente();
         double paso = fuente.getSize2D() * ajuste.paso();

@@ -119,12 +119,14 @@ class FondosCartelesServiceImplTest {
     }
 
     @Test
-    void elFilialTodaviaNoSePuedeSubir() throws Exception {
+    void elFilialSePuedeSubirComoElPrimerEquipo() throws Exception {
 
-        assertThatThrownBy(() -> servicio.subir(CartelRedes.FILIAL, imagen(1200, 1500, "png"), "a"))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("aún no está disponible");
+        byte[] png = imagen(1200, 1500, "png");
 
-        verify(dao, never()).guardar(anyString(), any(), anyString(), anyInt(), anyInt(), any());
+        servicio.subir(CartelRedes.FILIAL, png, "admin");
+
+        verify(dao).guardar("FILIAL", png, "image/png", 1200, 1500, "admin");
+        verify(dao, never()).guardar(eq("PRIMER_EQUIPO"), any(), anyString(), anyInt(), anyInt(), any());
     }
 
     // ---- el fondo vigente --------------------------------------------------------------------------------
@@ -172,9 +174,18 @@ class FondosCartelesServiceImplTest {
     }
 
     @Test
-    void elFilialNoTieneFondoPorDefectoNiSePideAlDao() {
+    void elFilialTieneSuPropioFondoPorDefectoYRestaurarLoBorra() {
 
-        assertThat(servicio.actual(CartelRedes.FILIAL)).isNull();
+        var fondo = servicio.actual(CartelRedes.FILIAL);
+
+        assertThat(fondo.personalizado()).isFalse();
+        assertThat(fondo.tipoContenido()).isEqualTo("image/jpeg");
+        assertThat(fondo.ancho()).isEqualTo(1079);
+        assertThat(fondo.alto()).isEqualTo(1350);
         verify(dao).obtener(eq("FILIAL"));
+
+        servicio.restaurar(CartelRedes.FILIAL);
+
+        verify(dao).borrar("FILIAL");
     }
 }

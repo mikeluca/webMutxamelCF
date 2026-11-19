@@ -158,16 +158,11 @@ class FondosCartelesAdminControllerTest {
     }
 
     @Test
-    void sinArchivoElFilialYUnCartelQueNoExisteDanMensajeDeError() throws Exception {
+    void sinArchivoYUnCartelQueNoExisteDanMensajeDeError() throws Exception {
 
         mockMvc.perform(multipart(BASE + "/PRIMER_EQUIPO/subir").file(archivo(new byte[0], "vacio.png", "image/png"))
                 .with(csrf()).with(user("admin").roles("ADMIN")))
                 .andExpect(flash().attribute("error", "Selecciona la imagen del fondo (JPG o PNG)"));
-
-        mockMvc.perform(multipart(BASE + "/FILIAL/subir")
-                .file(archivo(imagen(1200, 1500, "png"), "fondo.png", "image/png")).with(csrf())
-                .with(user("admin").roles("ADMIN")))
-                .andExpect(flash().attribute("error", containsString("aún no está disponible")));
 
         mockMvc.perform(multipart(BASE + "/NOEXISTE/subir")
                 .file(archivo(imagen(1200, 1500, "png"), "fondo.png", "image/png")).with(csrf())
@@ -193,7 +188,7 @@ class FondosCartelesAdminControllerTest {
     // ---- pantalla y vista previa ----------------------------------------------------------------------------
 
     @Test
-    void laPantallaMuestraPrimerEquipoConSuVistaPreviaYElFilialComoProximamente() throws Exception {
+    void laPantallaMuestraLosDosCartelesConSuVistaPreviaYSuFormulario() throws Exception {
 
         mockMvc.perform(get(BASE).with(user("admin").roles("ADMIN"))).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Fondos de carteles")))
@@ -201,9 +196,11 @@ class FondosCartelesAdminControllerTest {
                 .andExpect(content().string(containsString("/admin/fondos-carteles/PRIMER_EQUIPO/imagen")))
                 .andExpect(content().string(containsString("Restaurar el de por defecto")))
                 .andExpect(content().string(containsString("Filial")))
-                .andExpect(content().string(containsString("Próximamente")))
-                // Filial no tiene formulario de subida
-                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("/FILIAL/subir"))));
+                // El Filial funciona igual que el Primer Equipo: vista previa, subir y restaurar (ya no es "Próximamente")
+                .andExpect(content().string(containsString("/admin/fondos-carteles/FILIAL/imagen")))
+                .andExpect(content().string(containsString("/FILIAL/subir")))
+                .andExpect(content().string(containsString("/FILIAL/restaurar")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Próximamente"))));
     }
 
     @Test
@@ -220,7 +217,11 @@ class FondosCartelesAdminControllerTest {
                 .andExpect(status().isOk()).andExpect(header().string("Content-Type", "image/png"))
                 .andExpect(content().bytes(png));
 
+        // El Filial tiene su fondo por defecto (redes/cartel-filial/fondo.jpg)
         mockMvc.perform(get(BASE + "/FILIAL/imagen").with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk()).andExpect(header().string("Content-Type", "image/jpeg"));
+
+        mockMvc.perform(get(BASE + "/NOEXISTE/imagen").with(user("admin").roles("ADMIN")))
                 .andExpect(status().isNotFound());
     }
 

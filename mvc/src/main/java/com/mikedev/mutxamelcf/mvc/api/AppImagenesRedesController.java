@@ -16,12 +16,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.mikedev.mutxamelcf.service.CartelFilialService;
 import com.mikedev.mutxamelcf.service.CartelNoDisponibleException;
 import com.mikedev.mutxamelcf.service.CartelPrimerEquipoService;
 import com.mikedev.mutxamelcf.service.ImagenesRedesService;
 
 /**
- * Imágenes para redes sociales (previa, resultados y cartel del próximo partido del Primer Equipo): solo RETRANSMISION y
+ * Imágenes para redes sociales (previa, resultados y carteles del próximo partido del Primer Equipo y del Filial): solo RETRANSMISION y
  * ADMIN_APP (lo comprueban los servicios). COORDINADOR ya no tiene acceso: recibe 403.
  */
 @RestController
@@ -30,11 +31,13 @@ public class AppImagenesRedesController {
 
     private final ImagenesRedesService imagenesRedesService;
     private final CartelPrimerEquipoService cartelPrimerEquipoService;
+    private final CartelFilialService cartelFilialService;
 
     public AppImagenesRedesController(ImagenesRedesService imagenesRedesService,
-            CartelPrimerEquipoService cartelPrimerEquipoService) {
+            CartelPrimerEquipoService cartelPrimerEquipoService, CartelFilialService cartelFilialService) {
         this.imagenesRedesService = imagenesRedesService;
         this.cartelPrimerEquipoService = cartelPrimerEquipoService;
+        this.cartelFilialService = cartelFilialService;
     }
 
     /** GET /api/app/imagenes-redes?fecha=yyyy-MM-dd : las imágenes del fin de semana y los textos sugeridos. */
@@ -126,6 +129,42 @@ public class AppImagenesRedesController {
         });
     }
 
+
+    /**
+     * GET /api/app/imagenes-redes/partido-filial : el próximo partido del Filial para el cartel (mismo contrato que
+     * {@code partido-primer-equipo}).
+     */
+    @GetMapping("/partido-filial")
+    public ResponseEntity<?> partidoFilial(Authentication authentication) {
+
+        return responder(authentication, "Error al obtener el próximo partido",
+                usuarioId -> ResponseEntity.ok(cartelFilialService.partido(usuarioId)));
+    }
+
+    /**
+     * GET /api/app/imagenes-redes/partido-filial/png?formato=PUBLICACION|HISTORIA&amp;idioma=es|ca&amp;racha=true
+     * &amp;qr=true&amp;hashtags=true : el cartel del Filial, generado al momento (mismos parámetros, 409 y 400 que el del
+     * Primer Equipo).
+     */
+    @GetMapping("/partido-filial/png")
+    public ResponseEntity<?> cartelFilial(
+            @RequestParam(defaultValue = "PUBLICACION") String formato,
+            @RequestParam(defaultValue = "es") String idioma,
+            @RequestParam(defaultValue = "true") boolean racha,
+            @RequestParam(defaultValue = "true") boolean qr,
+            @RequestParam(defaultValue = "true") boolean hashtags,
+            Authentication authentication) {
+
+        return responder(authentication, "Error al generar el cartel", usuarioId -> {
+
+            byte[] png = cartelFilialService.png(usuarioId, formato, idioma, racha, qr, hashtags);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.IMAGE_PNG)
+                    .cacheControl(CacheControl.noStore())
+                    .body(png);
+        });
+    }
     private static LocalDate parsear(String fecha) {
         return fecha == null || fecha.isBlank() ? null : LocalDate.parse(fecha.trim());
     }

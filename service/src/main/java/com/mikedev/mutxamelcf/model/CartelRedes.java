@@ -9,8 +9,8 @@ public enum CartelRedes {
 
     PRIMER_EQUIPO("Primer Equipo", "/redes/cartel-primer-equipo/fondo.jpg"),
 
-    /** Preparado para más adelante: sin fondo por defecto, sin diseño y sin ruta pública. */
-    FILIAL("Filial", null);
+    /** El cartel del Filial: su propio diseño (CartelFilialRenderer) y su ruta; fondo por defecto en redes/cartel-filial. */
+    FILIAL("Filial", "/redes/cartel-filial/fondo.jpg");
 
     private final String nombre;
     private final String fondoPorDefecto;
@@ -24,7 +24,7 @@ public enum CartelRedes {
         return nombre;
     }
 
-    /** El recurso del classpath con el fondo por defecto; null si el cartel aún no existe. */
+    /** El recurso del classpath con el fondo por defecto; null si el cartel aún no existe (ninguno hoy). */
     public String fondoPorDefecto() {
         return fondoPorDefecto;
     }

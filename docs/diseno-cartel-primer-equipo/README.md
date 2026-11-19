@@ -55,10 +55,10 @@ Contrato de las rutas, permisos y fondos del panel: `docs/api-app-imagenes-redes
 
 Todos los textos son blancos. No hay nombres ni fotos de jugadores.
 
-## Cartel de la Filial
-
-Preparado, sin diseño: basta con el valor `FILIAL` del enum `CartelRedes` (ya está) y su fondo en `IMAGENES_REDES_FONDOS`.
-Falta su fondo por defecto, su renderizador y su ruta.
-
 `ejemplos/publicacion-fuera-es-escudo-real.png` usa un escudo de verdad en el lado del rival (el del Mutxamel, porque el
 repositorio no tiene escudos de rivales) para comprobar el tamaño y la sombra.
+
+## Cartel de la Filial
+
+Tiene su propio diseño y su guía en `docs/diseno-cartel-filial/`; comparte con este cartel la elección del partido, el campo, la racha, el QR y el fondo (`CartelPartidoServiceBase`).
+
