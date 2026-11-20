@@ -31,7 +31,7 @@ import com.mikedev.mutxamelcf.service.CartelPrimerEquipoService;
 import com.mikedev.mutxamelcf.service.ImagenesRedesService;
 
 /**
- * Las rutas de imágenes para redes: solo RETRANSMISION y ADMIN_APP (lo comprueban los servicios y el controlador lo
+ * Las rutas de imágenes para redes: solo RRSS y ADMIN_APP (lo comprueban los servicios y el controlador lo
  * traduce a 403), el contrato del cartel del próximo partido y sus códigos de error.
  */
 class AppImagenesRedesControllerTest {
@@ -75,9 +75,9 @@ class AppImagenesRedesControllerTest {
     }
 
     @Test
-    void sinRolDeRetransmisionNiAdminTodasLasRutasDan403IncluidoElCoordinador() throws Exception {
+    void sinRolRrssNiAdminTodasLasRutasDan403IncluidoElCoordinador() throws Exception {
 
-        // Los servicios lanzan SecurityException a quien no tiene RETRANSMISION ni ADMIN_APP (p. ej. COORDINADOR).
+        // Los servicios lanzan SecurityException a quien no tiene RRSS ni ADMIN_APP (p. ej. RETRANSMISION o COORDINADOR).
         when(imagenes.listar(anyLong(), any())).thenThrow(new SecurityException("sin acceso"));
         when(imagenes.descargar(anyLong(), anyLong())).thenThrow(new SecurityException("sin acceso"));
         when(imagenes.regenerar(anyLong(), anyString(), any())).thenThrow(new SecurityException("sin acceso"));
@@ -220,7 +220,7 @@ class AppImagenesRedesControllerTest {
     }
 
     @Test
-    void lasRutasDelFilialDan403AQuienNoEsRetransmisionNiAdminIncluidoElCoordinador() throws Exception {
+    void lasRutasDelFilialDan403AQuienNoEsRrssNiAdminIncluidoElCoordinador() throws Exception {
 
         when(filial.partido(anyLong())).thenThrow(new SecurityException("sin acceso"));
         when(filial.png(anyLong(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyBoolean(),

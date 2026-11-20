@@ -22,7 +22,7 @@ import com.mikedev.mutxamelcf.service.CartelPrimerEquipoService;
 import com.mikedev.mutxamelcf.service.ImagenesRedesService;
 
 /**
- * Imágenes para redes sociales (previa, resultados y carteles del próximo partido del Primer Equipo y del Filial): solo RETRANSMISION y
+ * Imágenes para redes sociales (previa, resultados y carteles del próximo partido del Primer Equipo y del Filial): solo RRSS y
  * ADMIN_APP (lo comprueban los servicios). COORDINADOR ya no tiene acceso: recibe 403.
  */
 @RestController

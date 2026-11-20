@@ -42,7 +42,7 @@ public class ComunicacionesService implements AvisosCuentaEmail {
 
     /** Orden de las secciones por rol en el email de cuenta activada. */
     private static final List<String> SECCIONES_DE_ROL = List.of(
-            "JUGADOR", "FAMILIAR", "ENTRENADOR", "COORDINADOR", "RETRANSMISION", "ADMIN_APP");
+            "JUGADOR", "FAMILIAR", "ENTRENADOR", "COORDINADOR", "RETRANSMISION", "RRSS", "ADMIN_APP");
 
     private final JavaMailSender emailSender;
 

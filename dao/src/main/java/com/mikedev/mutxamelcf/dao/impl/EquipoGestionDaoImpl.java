@@ -165,7 +165,7 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
     }
 
     @Override
-    public boolean esRetransmisionOAdmin(Long usuarioAppId) {
+    public boolean esRrssOAdmin(Long usuarioAppId) {
 
         Integer total = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
@@ -173,15 +173,15 @@ public class EquipoGestionDaoImpl implements EquipoGestionDao {
                 INNER JOIN ROLES_APP R
                     ON R.ID = UAR.ROL_ID
                 WHERE UAR.USUARIO_APP_ID = ?
-                  AND R.CODIGO IN ('ADMIN_APP', 'RETRANSMISION')
+                  AND R.CODIGO IN ('ADMIN_APP', 'RRSS')
                 """, Integer.class, usuarioAppId);
 
         return total != null && total > 0;
     }
 
     @Override
-    public List<Long> obtenerRetransmision() {
-        return obtenerUsuariosPorRol("RETRANSMISION");
+    public List<Long> obtenerRrss() {
+        return obtenerUsuariosPorRol("RRSS");
     }
 
     @Override

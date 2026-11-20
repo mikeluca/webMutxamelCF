@@ -84,8 +84,8 @@ class CartelPrimerEquipoServiceImplTest {
                 Clock.fixed(AHORA, MADRID));
 
         // 7 es Retransmisión, 9 administrador de la app, 5 (un coordinador) no tiene acceso.
-        when(gestion.esRetransmisionOAdmin(7L)).thenReturn(true);
-        when(gestion.esRetransmisionOAdmin(9L)).thenReturn(true);
+        when(gestion.esRrssOAdmin(7L)).thenReturn(true);
+        when(gestion.esRrssOAdmin(9L)).thenReturn(true);
 
         Equipo primerEquipo = new Equipo();
         primerEquipo.setId(1L);

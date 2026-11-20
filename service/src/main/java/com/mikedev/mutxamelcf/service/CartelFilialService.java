@@ -4,7 +4,7 @@ import com.mikedev.mutxamelcf.model.PartidoPrimerEquipoResponse;
 
 /**
  * El cartel "Próximo partido del Filial", generado en el servidor al momento (no se guarda). Mismos permisos, respuestas,
- * códigos y parámetros que {@link CartelPrimerEquipoService}: solo RETRANSMISION y ADMIN_APP.
+ * códigos y parámetros que {@link CartelPrimerEquipoService}: solo RRSS y ADMIN_APP.
  */
 public interface CartelFilialService {
 

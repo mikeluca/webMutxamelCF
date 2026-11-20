@@ -1452,7 +1452,8 @@ public class PartidoEnVivoServiceImpl implements PartidoEnVivoService {
 
     private void validarRolRetransmision(Long usuarioId) {
 
-        if (usuarioId == null || !usuarioAppService.tieneRol(usuarioId.intValue(), "RETRANSMISION")) {
+        if (usuarioId == null || !(usuarioAppService.tieneRol(usuarioId.intValue(), "RETRANSMISION")
+                || usuarioAppService.tieneRol(usuarioId.intValue(), "ADMIN_APP"))) {
 
             throw new SecurityException(
                     "No tienes permiso para enviar avisos del partido en directo");

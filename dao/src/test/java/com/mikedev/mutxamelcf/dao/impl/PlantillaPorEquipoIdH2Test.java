@@ -65,9 +65,9 @@ class PlantillaPorEquipoIdH2Test {
         jugador(12, "Eva", "Infantil A", 2L, false);
         jugador(13, "Baja", "Cadete A", null, true);
 
-        for (int rol = 1; rol <= 5; rol++) {
+        for (int rol = 1; rol <= 6; rol++) {
             jdbc.update("INSERT INTO ROLES_APP VALUES (?, ?)", rol,
-                    new String[] { "", "JUGADOR", "FAMILIAR", "ENTRENADOR", "COORDINADOR", "ADMIN_APP" }[rol]);
+                    new String[] { "", "JUGADOR", "FAMILIAR", "ENTRENADOR", "COORDINADOR", "ADMIN_APP", "RRSS" }[rol]);
         }
         for (int usuario = 100; usuario <= 104; usuario++) {
             jdbc.update("INSERT INTO USUARIOS_APP VALUES (?, 1)", usuario);

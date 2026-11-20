@@ -92,11 +92,11 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
      * jugador/familiar/entrenador, que sí atan la cuenta a una ficha).
      */
     private static final Set<String> TIPOS_VINCULO_SIN_PERSONA = Set.of(
-            "COORDINADOR", "RETRANSMISION");
+            "COORDINADOR", "RETRANSMISION", "RRSS");
 
     /** Los mismos, en el orden en que se ofrecen. */
     private static final List<String> ROLES_SIN_PERSONA_ORDENADOS = List.of(
-            "COORDINADOR", "RETRANSMISION");
+            "COORDINADOR", "RETRANSMISION", "RRSS");
 
     private final UsuarioAppDao usuarioAppDao;
     private final UsuarioAppVinculoDao usuarioAppVinculoDao;
@@ -763,7 +763,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
                     usuarioAppId, vinculo.getPersonaId());
             case "ENTRENADOR" -> usuarioAppVinculoDao.desvincularCuerpoTecnico(
                     usuarioAppId, vinculo.getPersonaId());
-            case "COORDINADOR", "RETRANSMISION" -> {
+            case "COORDINADOR", "RETRANSMISION", "RRSS" -> {
                 /* Sin vínculo a persona: solo se quita el rol, abajo. */
             }
             default -> throw new IllegalArgumentException(
@@ -855,7 +855,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
      * de la lista, ya validada por {@link #validarVinculos}. Devuelve
      * el nombre de la primera persona vinculada (misma persona real
      * independientemente de cuántos vínculos tenga), o null si ninguno
-     * de los vínculos tenía persona (COORDINADOR/RETRANSMISION).
+     * de los vínculos tenía persona (COORDINADOR/RETRANSMISION/RRSS).
      */
     private String aplicarVinculosResueltos(int usuarioAppId, List<VinculoResuelto> resueltos) {
 

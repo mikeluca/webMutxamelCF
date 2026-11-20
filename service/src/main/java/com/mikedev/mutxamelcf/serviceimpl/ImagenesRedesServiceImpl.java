@@ -209,15 +209,15 @@ public class ImagenesRedesServiceImpl implements ImagenesRedesService {
 				rivalPropio);
 	}
 
-	// ---- recordatorio a Retransmisión ------------------------------------------------------------
+	// ---- recordatorio a Redes sociales ------------------------------------------------------------
 
 	/**
-	 * Avisa (bandeja + push, en el idioma de cada cuenta) a las cuentas activas con rol RETRANSMISION o, si no hay
+	 * Avisa (bandeja + push, en el idioma de cada cuenta) a las cuentas activas con rol RRSS o, si no hay
 	 * ninguna, a las de ADMIN_APP. Devuelve a cuántas cuentas ha avisado.
 	 */
 	private int recordar(String tipo, LocalDate viernes) {
 
-		List<Long> destinatarios = equipoGestionDao.obtenerRetransmision();
+		List<Long> destinatarios = equipoGestionDao.obtenerRrss();
 
 		if (destinatarios.isEmpty()) {
 			destinatarios = equipoGestionDao.obtenerAdministradoresApp();
@@ -302,8 +302,8 @@ public class ImagenesRedesServiceImpl implements ImagenesRedesService {
 
 	private void validarAcceso(Long usuarioAppId) {
 
-		if (usuarioAppId == null || usuarioAppId <= 0 || !equipoGestionDao.esRetransmisionOAdmin(usuarioAppId)) {
-			throw new SecurityException("Solo Retransmisión y los administradores de la app pueden gestionar las imágenes para redes");
+		if (usuarioAppId == null || usuarioAppId <= 0 || !equipoGestionDao.esRrssOAdmin(usuarioAppId)) {
+			throw new SecurityException("Solo Redes sociales y los administradores de la app pueden gestionar las imágenes para redes");
 		}
 	}
 }

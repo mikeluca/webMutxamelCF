@@ -4,7 +4,7 @@ import com.mikedev.mutxamelcf.model.PartidoPrimerEquipoResponse;
 
 /**
  * El cartel "Próximo partido del Primer Equipo", generado en el servidor al momento (no se guarda). Solo para
- * RETRANSMISION y ADMIN_APP ({@link SecurityException} al resto, también a COORDINADOR).
+ * RRSS y ADMIN_APP ({@link SecurityException} al resto, también a COORDINADOR).
  */
 public interface CartelPrimerEquipoService {
 

@@ -244,6 +244,28 @@ class PartidoEnVivoServiceImplTest {
     }
 
     @Test
+    void unaCuentaSoloRrssNiCoordinadorNoPuedeUsarElDirecto() {
+        when(usuarioAppService.tieneRol(USUARIO.intValue(), "RETRANSMISION")).thenReturn(false);
+        when(usuarioAppService.tieneRol(USUARIO.intValue(), "ADMIN_APP")).thenReturn(false);
+        when(usuarioAppService.tieneRol(USUARIO.intValue(), "RRSS")).thenReturn(true);
+        when(usuarioAppService.tieneRol(USUARIO.intValue(), "COORDINADOR")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.enviarInicioPartido(USUARIO, PARTIDO))
+                .isInstanceOf(SecurityException.class);
+        assertThatThrownBy(() -> service.obtenerPartidosDisponibles(USUARIO))
+                .isInstanceOf(SecurityException.class);
+    }
+
+    @Test
+    void adminAppPuedeUsarElDirectoSinTenerElRolRetransmision() {
+        when(usuarioAppService.tieneRol(USUARIO.intValue(), "RETRANSMISION")).thenReturn(false);
+        when(usuarioAppService.tieneRol(USUARIO.intValue(), "ADMIN_APP")).thenReturn(true);
+
+        assertThat(service.obtenerPartidosDisponibles(USUARIO)).isNotNull();
+        assertThat(service.enviarInicioPartido(USUARIO, PARTIDO)).isNotNull();
+    }
+
+    @Test
     void unPartidoQueNoExisteEsError() {
         assertThatThrownBy(() -> service.enviarInicioPartido(USUARIO, 999L))
                 .isInstanceOf(IllegalArgumentException.class)

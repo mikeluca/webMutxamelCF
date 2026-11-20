@@ -7,8 +7,8 @@ Todo cuelga de `/api/app/imagenes-redes` (JWT de la app). Hay tres cosas: las im
 ## Permisos
 
 **Todas** las rutas de `/api/app/imagenes-redes/**` (las de previa y resultados y las del cartel) son solo para los roles
-`RETRANSMISION` y `ADMIN_APP`. Cualquier otra cuenta, **también `COORDINADOR`**, recibe **403**; sin sesión, 401. Lo
-comprueban `ImagenesRedesServiceImpl` y `CartelPrimerEquipoServiceImpl` con `EquipoGestionDao.esRetransmisionOAdmin`.
+`RRSS` y `ADMIN_APP`. Cualquier otra cuenta, **también `RETRANSMISION` y `COORDINADOR`**, recibe **403**; sin sesión, 401. Lo
+comprueban `ImagenesRedesServiceImpl` y `CartelPrimerEquipoServiceImpl` con `EquipoGestionDao.esRrssOAdmin`.
 
 ## Previa y resultados
 
@@ -29,7 +29,7 @@ El `ImagenesRedesScheduler` solo recuerda generarlas (Europe/Madrid):
 | Viernes 12:00 | El que empieza ese viernes (PREVIA) | no hay imágenes de PREVIA generadas para ese fin de semana |
 | Lunes 09:00 | El anterior (RESULTADOS) | no hay imágenes de RESULTADOS generadas para ese fin de semana |
 
-El recordatorio es bandeja + push, en el idioma de cada cuenta, para las cuentas activas con rol `RETRANSMISION`; si no
+El recordatorio es bandeja + push, en el idioma de cada cuenta, para las cuentas activas con rol `RRSS` (ya no a `RETRANSMISION`); si no
 hay ninguna, para las de `ADMIN_APP`. Si ya están generadas no se manda nada. Textos y datos del push (`tipo`,
 `pantalla`, `tipoImagen`, `desde`) en `docs/avisos.md`, sección 9.
 
@@ -115,7 +115,7 @@ Lo que cambia según los parámetros:
 
 ## Cartel "Próximo partido del Filial"
 
-Mismo contrato, permisos (solo `RETRANSMISION` y `ADMIN_APP`; COORDINADOR 403), parámetros, respuestas (`200`, `409` con
+Mismo contrato, permisos (solo `RRSS` y `ADMIN_APP`; RETRANSMISION y COORDINADOR 403), parámetros, respuestas (`200`, `409` con
 código `SIN_PARTIDO` | `YA_EMPEZADO`, `400`) y regla de qué partido toca que el del Primer Equipo; solo cambia el equipo
 (el de nombre `Filial`), el diseño y el fondo:
 

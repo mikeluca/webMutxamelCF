@@ -213,7 +213,7 @@ y generarlas a mano no avisa a nadie. Contrato completo en `docs/api-app-imagene
 
 | Clave | Cuándo | A quién | Push distinto |
 | --- | --- | --- | --- |
-| `imagenesRedes.recordatorioPrevia.titulo` / `.texto` | Viernes 12:00 (Europe/Madrid), si para el fin de semana que empieza ese viernes **no hay** imágenes de PREVIA generadas | Cuentas activas con rol `RETRANSMISION`; si no hay ninguna, las de `ADMIN_APP` (bandeja + push, en el idioma de cada cuenta) | No |
+| `imagenesRedes.recordatorioPrevia.titulo` / `.texto` | Viernes 12:00 (Europe/Madrid), si para el fin de semana que empieza ese viernes **no hay** imágenes de PREVIA generadas | Cuentas activas con rol `RRSS` (ya no `RETRANSMISION`); si no hay ninguna, las de `ADMIN_APP` (bandeja + push, en el idioma de cada cuenta) | No |
 | `imagenesRedes.recordatorioResultados.titulo` / `.texto` | Lunes 09:00 (Europe/Madrid), si para el fin de semana anterior **no hay** imágenes de RESULTADOS generadas | Igual | No |
 
 Si ya están generadas no se manda nada. Se respeta la preferencia de comunicaciones de cada cuenta.
@@ -272,7 +272,7 @@ tiene la app): castellano, valenciano e inglés con el separador de siempre.
 | Plantilla (`emails_*.properties`) | Cuándo | Idioma |
 | --- | --- | --- |
 | `invitacion.*` | Se crea o se reenvía la invitación de la cuenta | Los tres, con separador |
-| `cuentaActivada.*`, `rol.*` | La cuenta se activa. Las secciones `rol.*` (JUGADOR, FAMILIAR, ENTRENADOR, COORDINADOR, RETRANSMISION y ADMIN_APP) se añaden según los roles; un ADMIN_APP recibe también la de COORDINADOR | La cuenta (el que manda la app al activar) |
+| `cuentaActivada.*`, `rol.*` | La cuenta se activa. Las secciones `rol.*` (JUGADOR, FAMILIAR, ENTRENADOR, COORDINADOR, RETRANSMISION, RRSS y ADMIN_APP) se añaden según los roles; un ADMIN_APP recibe también la de COORDINADOR | La cuenta (el que manda la app al activar) |
 | `codigoRecuperacion.*` | "¿Has olvidado tu contraseña?" | El que manda la app en la petición; si no, el de la cuenta |
 | `contrasenaCambiada.*` | Se cambia la contraseña | La cuenta |
 | `cuentaSinJugadores.*` | Job diario (ver arriba). Recuerda que se puede pedir acceso a otro jugador desde la app | La cuenta |

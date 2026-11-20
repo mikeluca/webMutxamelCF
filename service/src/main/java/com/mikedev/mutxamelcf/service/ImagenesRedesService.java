@@ -6,7 +6,7 @@ import com.mikedev.mutxamelcf.model.ImagenesRedesResponse;
 
 /**
  * Imágenes para redes sociales (previa y resultados del fin de semana). Los métodos que reciben un usuario son solo
- * para RETRANSMISION y ADMIN_APP ({@link SecurityException} al resto, también a COORDINADOR).
+ * para RRSS y ADMIN_APP ({@link SecurityException} al resto, también a COORDINADOR).
  */
 public interface ImagenesRedesService {
 
@@ -27,7 +27,7 @@ public interface ImagenesRedesService {
 
     /**
      * Si para el fin de semana que empieza el viernes {@code viernes} NO hay imágenes de ese tipo generadas, manda un
-     * recordatorio (bandeja + push) a las cuentas activas con rol RETRANSMISION o, si no hay ninguna, a las de
+     * recordatorio (bandeja + push) a las cuentas activas con rol RRSS o, si no hay ninguna, a las de
      * ADMIN_APP. Si ya están generadas no hace nada. Lo usan los schedulers. Devuelve a cuántas cuentas ha avisado.
      */
     int recordarSiPendiente(String tipo, LocalDate viernes);

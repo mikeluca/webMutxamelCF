@@ -167,4 +167,8 @@ public class UsuarioAppAdminResponse {
     public boolean isTieneRetransmision() {
         return roles != null && roles.contains("RETRANSMISION");
     }
+
+    public boolean isTieneRrss() {
+        return roles != null && roles.contains("RRSS");
+    }
 }

@@ -56,10 +56,10 @@ class ImagenesRedesServiceImplTest {
         servicio = new ImagenesRedesServiceImpl(dao, renderer, equipoGestionDao, notificaciones, push, reloj,
                 new TextosAvisos(), new IdiomasUsuarios(usuarioAppDao), "Primer Equipo");
 
-        // 7 es Retransmisión, 9 es administrador de la app; 5 (p. ej. un coordinador) no tiene ninguno de los dos roles.
-        when(equipoGestionDao.esRetransmisionOAdmin(7L)).thenReturn(true);
-        when(equipoGestionDao.esRetransmisionOAdmin(9L)).thenReturn(true);
-        when(equipoGestionDao.obtenerRetransmision()).thenReturn(List.of(7L, 8L));
+        // 7 es Redes sociales (RRSS), 9 es administrador de la app; 5 (p. ej. un coordinador) no tiene ninguno de los dos roles.
+        when(equipoGestionDao.esRrssOAdmin(7L)).thenReturn(true);
+        when(equipoGestionDao.esRrssOAdmin(9L)).thenReturn(true);
+        when(equipoGestionDao.obtenerRrss()).thenReturn(List.of(7L, 8L));
         when(equipoGestionDao.obtenerAdministradoresApp()).thenReturn(List.of(9L));
         when(equipoGestionDao.obtenerCoordinadores()).thenReturn(List.of(5L));
         when(notificaciones.puedeRecibir(anyLong(), anyString())).thenReturn(true);
@@ -215,7 +215,7 @@ class ImagenesRedesServiceImplTest {
     @Test
     void elRecordatorioEnEspanolUsaElTextoDelEncargo() {
 
-        when(equipoGestionDao.obtenerRetransmision()).thenReturn(List.of(9L));
+        when(equipoGestionDao.obtenerRrss()).thenReturn(List.of(9L));
 
         servicio.recordarSiPendiente("PREVIA", VIERNES);
         servicio.recordarSiPendiente("RESULTADOS", VIERNES);
@@ -252,9 +252,9 @@ class ImagenesRedesServiceImplTest {
     }
 
     @Test
-    void sinNingunaCuentaDeRetransmisionSeAvisaALosAdministradoresDeLaApp() {
+    void sinNingunaCuentaRrssSeAvisaALosAdministradoresDeLaApp() {
 
-        when(equipoGestionDao.obtenerRetransmision()).thenReturn(List.of());
+        when(equipoGestionDao.obtenerRrss()).thenReturn(List.of());
 
         assertThat(servicio.recordarSiPendiente("PREVIA", VIERNES)).isEqualTo(1);
 

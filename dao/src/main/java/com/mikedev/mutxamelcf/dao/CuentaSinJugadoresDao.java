@@ -11,7 +11,7 @@ public interface CuentaSinJugadoresDao {
 
 	/**
 	 * Cuentas no eliminadas con rol FAMILIAR o JUGADOR y ningún otro rol (ENTRENADOR, COORDINADOR, ADMIN_APP,
-	 * RETRANSMISION) cuyos jugadores vinculados, directos o por un familiar, están todos de baja (o no tiene ninguno).
+	 * RETRANSMISION, RRSS) cuyos jugadores vinculados, directos o por un familiar, están todos de baja (o no tiene ninguno).
 	 * Un jugador con una fila PRUEBA en una temporada que no ha terminado en {@code hoy} cuenta como activo aunque esté
 	 * oculto.
 	 */

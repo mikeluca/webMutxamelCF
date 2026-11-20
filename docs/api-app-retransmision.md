@@ -56,7 +56,7 @@ Esta misma lista es la que valida el autor de un gol (`POST /{partidoId}/gol-fav
 
 ### `POST /api/app/partido-en-vivo/{partidoId}/alineacion` (nuevo)
 
-Rol `RETRANSMISION`. El partido tiene que ser del Primer Equipo, de hoy y no estar cancelado.
+Rol `RETRANSMISION` o `ADMIN_APP` (RRSS y el resto, 403). El partido tiene que ser del Primer Equipo, de hoy y no estar cancelado.
 
 ```json
 { "titulares": [12, 10, 15], "suplentes": [11, 20], "formacion": "4-4-2", "avisar": true }
@@ -101,7 +101,7 @@ Errores `400` (texto claro en el cuerpo):
 | Más titulares de los de la modalidad del equipo (F11 11, F8 8, F5 5) | `Hay más titulares de los permitidos (máximo N)` |
 | Partido que no existe / no es del Primer Equipo / no es de hoy / cancelado | el mensaje correspondiente |
 
-`403` si la cuenta no tiene el rol `RETRANSMISION`.
+`403` si la cuenta no tiene el rol `RETRANSMISION` ni `ADMIN_APP` (tampoco `RRSS`, que es solo para las imágenes de redes).
 
 ### `POST /api/app/partido-en-vivo/alineacion` (antiguo, se mantiene)
 
@@ -189,7 +189,7 @@ sale) y `jugadorEntraId`/`jugadorEntra` (el que entra); una tarjeta, el amonesta
 
 ### `POST /api/app/partido-en-vivo/{partidoId}/cambio`
 
-Rol `RETRANSMISION`; partido de hoy, no cancelado. Sin push. Respuesta: el estado.
+Rol `RETRANSMISION` o `ADMIN_APP`; partido de hoy, no cancelado. Sin push. Respuesta: el estado.
 
 ```json
 { "jugadorSaleId": 100, "jugadorEntraId": 111, "minuto": 60 }

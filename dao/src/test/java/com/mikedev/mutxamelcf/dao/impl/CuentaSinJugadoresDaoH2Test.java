@@ -46,7 +46,7 @@ class CuentaSinJugadoresDaoH2Test {
         EsquemaH2.crear(jdbc);
 
         long rol = 1;
-        for (String codigo : new String[] { "FAMILIAR", "JUGADOR", "ENTRENADOR", "COORDINADOR", "ADMIN_APP", "RETRANSMISION" }) {
+        for (String codigo : new String[] { "FAMILIAR", "JUGADOR", "ENTRENADOR", "COORDINADOR", "ADMIN_APP", "RETRANSMISION", "RRSS" }) {
             jdbc.update("INSERT INTO ROLES_APP VALUES (?, ?)", rol++, codigo);
         }
 
@@ -123,6 +123,8 @@ class CuentaSinJugadoresDaoH2Test {
         cuenta(4, "FAMILIAR", "RETRANSMISION");
         cuenta(5, "ENTRENADOR");
         cuenta(6); // sin roles
+        cuenta(7, "FAMILIAR", "RRSS");
+        cuenta(8, "RRSS");
 
         assertThat(ids()).isEmpty();
     }

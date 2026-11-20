@@ -89,7 +89,8 @@
 										data-tiene-jugador=${usuario.tieneJugador},
 										data-tiene-familiar=${usuario.tieneFamiliar},
 										data-tiene-coordinador=${usuario.tieneCoordinador},
-										data-tiene-retransmision=${usuario.tieneRetransmision}"
+										data-tiene-retransmision=${usuario.tieneRetransmision},
+											data-tiene-rrss=${usuario.tieneRrss}"
 									onclick="abrirEditar(this)">
 									<i class="bi bi-pencil"></i>
 								</button>
@@ -156,7 +157,15 @@
 					<i class="bi bi-x-circle"></i>
 				</button>
 			</div>
-			<div th:if="${#lists.isEmpty(usuario.vinculos)} and !${usuario.tieneCoordinador} and !${usuario.tieneRetransmision}"
+			<div th:if="${usuario.tieneRrss}"
+				class="d-flex justify-content-between align-items-center border-bottom py-2">
+				<strong>Redes sociales</strong>
+				<button type="button" class="btn btn-outline-danger btn-sm" title="Quitar este rol"
+					data-tipo="RRSS" onclick="quitarVinculo(this)">
+					<i class="bi bi-x-circle"></i>
+				</button>
+			</div>
+			<div th:if="${#lists.isEmpty(usuario.vinculos)} and !${usuario.tieneCoordinador} and !${usuario.tieneRetransmision} and !${usuario.tieneRrss}"
 				class="text-muted py-2">
 				Esta cuenta no tiene ningún vínculo ni rol de club todavía.
 			</div>
@@ -205,7 +214,13 @@
 								<input class="form-check-input tipo-vinculo-check" type="checkbox" value="RETRANSMISION"
 									id="checkRetransmision" onchange="alternarGrupoVinculo('RETRANSMISION', this)">
 								<label class="form-check-label" for="checkRetransmision">Retransmisión en directo del
-									primer equipo</label>
+									primer equipo (solo directo)</label>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input tipo-vinculo-check" type="checkbox" value="RRSS"
+									id="checkRrss" onchange="alternarGrupoVinculo('RRSS', this)">
+								<label class="form-check-label" for="checkRrss">Redes sociales (imágenes para
+									redes)</label>
 							</div>
 						</div>
 
@@ -347,7 +362,14 @@
 									value="RETRANSMISION" id="checkEditarRetransmision"
 									onchange="alternarGrupoVinculo('RETRANSMISION', this, 'Editar')">
 								<label class="form-check-label" for="checkEditarRetransmision">Retransmisión en
-									directo del primer equipo</label>
+									directo del primer equipo (solo directo)</label>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input tipo-vinculo-check-editar" type="checkbox"
+									value="RRSS" id="checkEditarRrss"
+									onchange="alternarGrupoVinculo('RRSS', this, 'Editar')">
+								<label class="form-check-label" for="checkEditarRrss">Redes sociales (imágenes para
+									redes)</label>
 							</div>
 							<small class="text-muted d-block mt-1">
 								Un tipo ya asignado aparece deshabilitado; quítalo antes si quieres volver a
@@ -399,7 +421,7 @@
 	<script>
 		// Tipos de vínculo que son un rol de club sin persona asociada
 		// (a diferencia de Jugador/Familiar/Entrenador, que sí la piden).
-		const TIPOS_VINCULO_SIN_PERSONA = ['COORDINADOR', 'RETRANSMISION'];
+		const TIPOS_VINCULO_SIN_PERSONA = ['COORDINADOR', 'RETRANSMISION', 'RRSS'];
 
 		function alternarGrupoVinculo(tipo, checkbox, sufijo) {
 			const grupos = {
@@ -609,6 +631,7 @@
 			document.getElementById('checkEditarFamiliar').disabled = boton.getAttribute('data-tiene-familiar') === 'true';
 			document.getElementById('checkEditarCoordinador').disabled = boton.getAttribute('data-tiene-coordinador') === 'true';
 			document.getElementById('checkEditarRetransmision').disabled = boton.getAttribute('data-tiene-retransmision') === 'true';
+			document.getElementById('checkEditarRrss').disabled = boton.getAttribute('data-tiene-rrss') === 'true';
 
 			document.querySelectorAll('#editarForm .persona-select-editar').forEach(select => select.value = '');
 			document.getElementById('grupoEditarJugador').style.display = 'none';

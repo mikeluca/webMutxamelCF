@@ -146,9 +146,9 @@ class CuerpoTecnicoEquipoH2Test {
         equipo(4, "Prebenjamín A", "Prebenjamín");
         equipo(5, "Prebenjamín B", "Prebenjamín");
 
-        for (int rol = 1; rol <= 5; rol++) {
+        for (int rol = 1; rol <= 6; rol++) {
             jdbc.update("INSERT INTO ROLES_APP VALUES (?, ?)", rol,
-                    new String[] { "", "JUGADOR", "FAMILIAR", "ENTRENADOR", "COORDINADOR", "ADMIN_APP" }[rol]);
+                    new String[] { "", "JUGADOR", "FAMILIAR", "ENTRENADOR", "COORDINADOR", "ADMIN_APP", "RRSS" }[rol]);
         }
         for (int usuario : new int[] { 104, 200, 201, 202, 203, 204, 210, 211, 212, 300, 301 }) {
             jdbc.update("INSERT INTO USUARIOS_APP VALUES (?, 1)", usuario);

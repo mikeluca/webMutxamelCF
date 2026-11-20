@@ -480,9 +480,9 @@ abstract class CartelPartidoServiceBase {
 
     private void validarAcceso(Long usuarioAppId) {
 
-        if (usuarioAppId == null || usuarioAppId <= 0 || !equipoGestionDao.esRetransmisionOAdmin(usuarioAppId)) {
+        if (usuarioAppId == null || usuarioAppId <= 0 || !equipoGestionDao.esRrssOAdmin(usuarioAppId)) {
             throw new SecurityException(
-                    "Solo Retransmisión y los administradores de la app pueden gestionar las imágenes para redes");
+                    "Solo Redes sociales y los administradores de la app pueden gestionar las imágenes para redes");
         }
     }
 }

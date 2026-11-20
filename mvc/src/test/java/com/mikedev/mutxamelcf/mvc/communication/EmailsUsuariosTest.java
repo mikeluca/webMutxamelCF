@@ -136,16 +136,20 @@ class EmailsUsuariosTest {
             "COORDINADOR|es|Como coordinador|En «Fin de semana» ves el estado de la jornada",
             "COORDINADOR|es|Como coordinador|Revisas las solicitudes de acceso de las familias.",
             "RETRANSMISION|es|Como responsable de retransmisión|publicas la alineación\\, los goles\\, los cambios y las tarjetas",
+            "RETRANSMISION|es|Como responsable de retransmisión|Este rol es solo para el directo",
+            "RRSS|es|Para las redes sociales del club|«Directo y RRSS › Imágenes para redes» generas la previa y los resultados del fin de semana y los carteles del próximo partido del Primer Equipo y del Filial, listos para publicar.",
             "ADMIN_APP|es|Como administrador de la app|Revisas los mensajes reportados en «Moderación»",
             "FAMILIAR|ca|Com a familiar|Demanar accés a un altre jugador",
             "ENTRENADOR|ca|Com a entrenador|Canvies el dorsal i la posició dels teus jugadors.",
             "COORDINADOR|ca|Com a coordinador|«Coordinació › Tots els equips»",
             "RETRANSMISION|ca|Com a responsable de retransmissió|publiques l'alineació",
+            "RRSS|ca|Per a les xarxes socials del club|«Directe i RRSS › Imatges per a xarxes» generes la previa",
             "ADMIN_APP|ca|Com a administrador de l'app|Revises els missatges reportats a «Moderació»",
             "FAMILIAR|en|As a family member|Ask for access to another player",
             "ENTRENADOR|en|As a coach|You change the shirt number and position of your players.",
             "COORDINADOR|en|As a coordinator|Coordination › All teams",
             "RETRANSMISION|en|As the live broadcast person|lineup",
+            "RRSS|en|For the club's social media|Social media images\" you generate the weekend preview and results",
             "ADMIN_APP|en|As the app administrator|reported messages in" })
     void cadaRolAnadeSuBloqueALaCuentaActivada(String rol, String idioma, String titulo, String frase) {
 
@@ -176,7 +180,7 @@ class EmailsUsuariosTest {
     @Test
     void unRolSinAdminAppNoLlevaElBloqueDeAdministrador() {
 
-        for (String rol : List.of("JUGADOR", "FAMILIAR", "ENTRENADOR", "COORDINADOR", "RETRANSMISION")) {
+        for (String rol : List.of("JUGADOR", "FAMILIAR", "ENTRENADOR", "COORDINADOR", "RETRANSMISION", "RRSS")) {
             assertThat(ComunicacionesService.construirCuentaActivada("Ana", List.of(rol), "es"))
                     .as(rol).doesNotContain("administrador de la app");
         }

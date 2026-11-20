@@ -515,6 +515,50 @@ class UsuarioAppServiceImplTest {
     }
 
     @Test
+    void invitarUsuarioRrssNoRequierePersonaVinculada() {
+        InvitarUsuarioAppRequest request = requestInvitacion("RRSS", null, "rrss@mutxamelcf.es");
+        request.setNombre("Ana");
+
+        when(rolAppDao.obtenerPorCodigo("RRSS")).thenReturn(rol(11, "RRSS"));
+        when(usuarioAppDao.obtenerPorEmail("rrss@mutxamelcf.es")).thenReturn(null);
+        when(usuarioAppDao.guardar(any())).thenReturn(8);
+
+        UsuarioApp creado = new UsuarioApp();
+        creado.setId(8);
+        creado.setActivo(false);
+        when(usuarioAppDao.obtenerPorId(8)).thenReturn(creado);
+        when(rolAppDao.obtenerPorUsuario(8)).thenReturn(List.of());
+
+        InvitacionUsuarioApp invitacion = service.invitarUsuario(request);
+
+        assertThat(invitacion.getNombrePersona()).isEqualTo("Ana");
+        verify(rolAppDao).asignarRol(8, 11);
+        verify(usuarioAppVinculoDao, never()).vincularJugador(anyInt(), any());
+        verify(usuarioAppVinculoDao, never()).vincularFamiliar(anyInt(), any());
+        verify(usuarioAppVinculoDao, never()).vincularCuerpoTecnico(anyInt(), any());
+    }
+
+    @Test
+    void invitarDesdeLaAppConRrssComoRolSinPersona() {
+        comoAdminApp(7);
+        when(rolAppDao.obtenerPorCodigo("RRSS")).thenReturn(rol(11, "RRSS"));
+        when(usuarioAppDao.obtenerPorEmail("rrss@mutxamelcf.es")).thenReturn(null);
+        when(usuarioAppDao.guardar(any())).thenReturn(44);
+
+        UsuarioApp creado = new UsuarioApp();
+        creado.setId(44);
+        when(usuarioAppDao.obtenerPorId(44)).thenReturn(creado);
+        when(rolAppDao.obtenerPorUsuario(44)).thenReturn(List.of());
+
+        InvitacionUsuarioApp invitacion = service.invitarUsuarioDesdeApp(7,
+                invitacionApp("rrss@mutxamelcf.es", "Ana", List.of(), List.of("RRSS")));
+
+        assertThat(invitacion.getNombrePersona()).isEqualTo("Ana");
+        verify(rolAppDao).asignarRol(44, 11);
+        verify(usuarioAppVinculoDao, never()).vincularJugador(anyInt(), any());
+    }
+
+    @Test
     void invitarUsuarioSinFichaExigeNombreYNoCreaNada() {
         InvitarUsuarioAppRequest request = requestInvitacion("COORDINADOR", null, "coordinador@mutxamelcf.es");
         request.setNombre("   ");

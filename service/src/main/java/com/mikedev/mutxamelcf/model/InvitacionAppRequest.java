@@ -5,7 +5,7 @@ import java.util.List;
 /**
  * Invitación desde la app (ADMIN_APP): los mismos datos que la del panel web
  * ({@link InvitarUsuarioAppRequest}) pero con los roles que no salen de un vínculo
- * (COORDINADOR, RETRANSMISION) aparte, en {@code roles}.
+ * (COORDINADOR, RETRANSMISION, RRSS) aparte, en {@code roles}.
  */
 public class InvitacionAppRequest {
 
@@ -16,7 +16,7 @@ public class InvitacionAppRequest {
     /** Personas del club a vincular: tipo JUGADOR, FAMILIAR o ENTRENADOR + personaId. */
     private List<VinculoSolicitado> vinculos;
 
-    /** Roles sin persona: COORDINADOR, RETRANSMISION... */
+    /** Roles sin persona: COORDINADOR, RETRANSMISION, RRSS... */
     private List<String> roles;
 
     public InvitacionAppRequest() {
