@@ -46,4 +46,4 @@ Toda ruta de `/api/app/**` (salvo las de `AccesoCuentaSinRoles.RUTAS_SIN_ROL`) e
 
 ## SQL
 
-`sql/2026-11-20_rol_rrss.sql`: inserta `ROLES_APP` (`CODIGO = 'RRSS'`, `NOMBRE = 'Redes sociales'`). Ejecutarlo antes de desplegar.
+`sql/2026-11-20_rol_rrss.sql`: inserta `ROLES_APP` (`CODIGO = 'RRSS'`, `NOMBRE = 'Redes sociales'`). Ejecutado en DEV y PRO el 20/11/2026.
