@@ -102,6 +102,33 @@ class EstadoAppServiceImplTest {
 	}
 
 	@Test
+	void conLasMinimasActualesIos1_0_14YAndroid1_0_2() {
+		service = new EstadoAppServiceImpl(dao, usuarios, CLOCK, "1.0.2", "1.0.14");
+		when(dao.contarDispositivosPorVersion()).thenReturn(List.of(
+				new DispositivosPorVersion("IOS", "1.0.13", 4),
+				new DispositivosPorVersion("IOS", "1.0.9", 2),
+				new DispositivosPorVersion("IOS", "1.0.14", 6),
+				new DispositivosPorVersion("ANDROID", "1.0.1", 3),
+				new DispositivosPorVersion("ANDROID", "1.0.2", 5),
+				new DispositivosPorVersion("ANDROID", "1.0.13", 1)));
+
+		EstadoAppResponse estado = service.obtenerEstado(1);
+
+		assertThat(estado.versiones()).extracting(
+				EstadoAppResponse.VersionDispositivos::plataforma,
+				EstadoAppResponse.VersionDispositivos::version,
+				EstadoAppResponse.VersionDispositivos::porDebajoMinima)
+				.containsExactlyInAnyOrder(
+						org.assertj.core.groups.Tuple.tuple("IOS", "1.0.14", false),
+						org.assertj.core.groups.Tuple.tuple("IOS", "1.0.13", true),
+						org.assertj.core.groups.Tuple.tuple("IOS", "1.0.9", true),
+						org.assertj.core.groups.Tuple.tuple("ANDROID", "1.0.13", false),
+						org.assertj.core.groups.Tuple.tuple("ANDROID", "1.0.2", false),
+						org.assertj.core.groups.Tuple.tuple("ANDROID", "1.0.1", true));
+		assertThat(estado.dispositivosVersionAntigua()).isEqualTo(4 + 2 + 3);
+	}
+
+	@Test
 	void sinMinimaConfiguradaNingunDispositivoEsAntiguo() {
 		service = new EstadoAppServiceImpl(dao, usuarios, CLOCK, "", null);
 		when(dao.contarDispositivosPorVersion()).thenReturn(List.of(new DispositivosPorVersion("ANDROID", "0.1", 3)));
