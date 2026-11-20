@@ -60,16 +60,41 @@ class AppSolicitudFamiliaControllerTest {
     }
 
     @Test
-    void pedirElAccesoRespetaElLimiteYLosErrores() {
+    void pedirElAccesoTraduceLosErroresDelServicio() {
 
         when(servicio.solicitarConSesion(anyInt(), any())).thenThrow(new IllegalStateException("Ya tienes una solicitud pendiente de revisar"))
                 .thenThrow(new IllegalArgumentException("Indica al menos un hijo o hija"));
 
         assertThat(controller.solicitar(peticion(), sesion).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(controller.solicitar(peticion(), sesion).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
 
-        for (int i = 0; i < 3; i++) {
-            controller.solicitar(peticion(), sesion);
+    @Test
+    void seisEnviosQueFallanPorValidacionNoBloqueanElSeptimoValido() {
+
+        Mia mia = new Mia(1L, "PENDIENTE", "MADRE", null, null, null, List.of());
+        when(servicio.solicitarConSesion(anyInt(), any())).thenThrow(new IllegalArgumentException("El nombre es obligatorio"))
+                .thenThrow(new IllegalArgumentException("El nombre es obligatorio"))
+                .thenThrow(new IllegalArgumentException("El nombre es obligatorio"))
+                .thenThrow(new IllegalArgumentException("El nombre es obligatorio"))
+                .thenThrow(new IllegalArgumentException("El nombre es obligatorio"))
+                .thenThrow(new IllegalArgumentException("El nombre es obligatorio")).thenReturn(mia);
+
+        for (int i = 0; i < 6; i++) {
+            assertThat(controller.solicitar(peticion(), sesion).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        }
+
+        assertThat(controller.solicitar(peticion(), sesion).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    }
+
+    @Test
+    void seisEnviosValidosSeguidosBloqueanElSexto() {
+
+        Mia mia = new Mia(1L, "PENDIENTE", "MADRE", null, null, null, List.of());
+        when(servicio.solicitarConSesion(anyInt(), any())).thenReturn(mia);
+
+        for (int i = 0; i < 5; i++) {
+            assertThat(controller.solicitar(peticion(), sesion).getStatusCode()).isEqualTo(HttpStatus.CREATED);
         }
 
         assertThat(controller.solicitar(peticion(), sesion).getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);

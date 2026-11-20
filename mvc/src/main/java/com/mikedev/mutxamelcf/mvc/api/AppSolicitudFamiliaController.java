@@ -58,13 +58,18 @@ public class AppSolicitudFamiliaController {
 
             int usuarioId = usuarioId(authentication);
 
-            if (!formRateLimiter.permitir("solicitud-familia/sesion/" + usuarioId)) {
+            // Con sesión solo cuentan las solicitudes que se crean: las rechazadas por validación no consumen intento.
+            String clave = "solicitud-familia/sesion/" + usuarioId;
+
+            if (!formRateLimiter.hayCupo(clave)) {
                 return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("codigo",
                         "DEMASIADOS_INTENTOS", "mensaje", PublicSolicitudFamiliaController.MENSAJE_DEMASIADOS_INTENTOS));
             }
 
-            return ResponseEntity.status(HttpStatus.CREATED).body(solicitudFamiliaService.solicitarConSesion(usuarioId,
-                    request));
+            Object creada = solicitudFamiliaService.solicitarConSesion(usuarioId, request);
+            formRateLimiter.registrar(clave);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(creada);
 
         } catch (RuntimeException e) {
             return error(e);

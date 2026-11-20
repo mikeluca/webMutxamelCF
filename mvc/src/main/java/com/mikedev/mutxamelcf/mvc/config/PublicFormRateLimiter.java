@@ -51,6 +51,29 @@ public class PublicFormRateLimiter {
         return ventana.envios <= MAX_ENVIOS;
     }
 
+    /**
+     * Consulta sin consumir: true si a esa clave todavía le quedan envíos en la ventana actual. Se usa junto con
+     * {@link #registrar(String)} cuando solo deben contar los envíos que salen bien (los rechazados por validación no).
+     */
+    public boolean hayCupo(String clave) {
+        purgarObsoletos();
+        Ventana ventana = enviosPorIp.get(clave == null ? "desconocida" : clave);
+
+        return ventana == null || ventana.inicio.plus(VENTANA).isBefore(Instant.now()) || ventana.envios < MAX_ENVIOS;
+    }
+
+    /** Anota un envío para esa clave (el que se acaba de completar), sin comprobar el límite. */
+    public void registrar(String clave) {
+        enviosPorIp.compute(clave == null ? "desconocida" : clave, (k, actual) -> {
+            Instant ahora = Instant.now();
+            if (actual == null || actual.inicio.plus(VENTANA).isBefore(ahora)) {
+                return new Ventana(ahora);
+            }
+            actual.envios++;
+            return actual;
+        });
+    }
+
     private void purgarObsoletos() {
         // N-08: recorrer el mapa entero en cada petición es O(n); basta
         // con hacerlo periódicamente.

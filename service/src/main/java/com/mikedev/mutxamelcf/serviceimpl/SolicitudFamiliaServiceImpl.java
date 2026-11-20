@@ -39,6 +39,8 @@ import com.mikedev.mutxamelcf.model.SolicitudFamiliaResponses.Revision;
 import com.mikedev.mutxamelcf.model.UsuarioApp;
 import com.mikedev.mutxamelcf.model.VinculoSolicitado;
 import com.mikedev.mutxamelcf.service.CuentaAppService;
+import com.mikedev.mutxamelcf.model.PerfilAppResponse;
+import com.mikedev.mutxamelcf.service.PerfilAppService;
 import com.mikedev.mutxamelcf.service.SolicitudFamiliaService;
 import com.mikedev.mutxamelcf.service.UsuarioAppService;
 
@@ -74,6 +76,7 @@ public class SolicitudFamiliaServiceImpl implements SolicitudFamiliaService {
     private final CuentaAppService cuentaAppService;
     private final AvisosSolicitudFamilia avisos;
     private final Clock clock;
+    private final PerfilAppService perfilAppService;
 
     public SolicitudFamiliaServiceImpl(
             SolicitudFamiliaDao dao,
@@ -84,7 +87,8 @@ public class SolicitudFamiliaServiceImpl implements SolicitudFamiliaService {
             EquipoGestionDao equipoGestionDao,
             CuentaAppService cuentaAppService,
             AvisosSolicitudFamilia avisos,
-            Clock clock) {
+            Clock clock,
+            PerfilAppService perfilAppService) {
 
         this.dao = dao;
         this.usuarioAppService = usuarioAppService;
@@ -95,6 +99,7 @@ public class SolicitudFamiliaServiceImpl implements SolicitudFamiliaService {
         this.cuentaAppService = cuentaAppService;
         this.avisos = avisos;
         this.clock = clock;
+        this.perfilAppService = perfilAppService;
     }
 
     // ==================================================================
@@ -246,17 +251,42 @@ public class SolicitudFamiliaServiceImpl implements SolicitudFamiliaService {
     }
 
     /** Con sesión no se pide el email (es el de la cuenta) y el nombre sale de la cuenta si no se escribe. */
-    private static SolicitudFamiliaRequest conDatosDeLaCuenta(SolicitudFamiliaRequest r, UsuarioApp usuario) {
+    private SolicitudFamiliaRequest conDatosDeLaCuenta(SolicitudFamiliaRequest r, UsuarioApp usuario) {
 
         if (r == null) {
             throw new IllegalArgumentException("La petición no puede ser nula");
         }
 
-        String nombre = hayTexto(r.nombre()) ? r.nombre() : usuario.getNombre();
-        String apellidos = hayTexto(r.apellidos()) ? r.apellidos() : usuario.getApellidos();
+        String nombre = r.nombre();
+        String apellidos = r.apellidos();
+
+        if (!hayTexto(nombre)) {
+            // El nombre de la cuenta: el suyo propio, si no el de su ficha (el mismo que Mi perfil) y, como último
+            // recurso, el email. Las cuentas invitadas por el club no tienen nombre propio: sale de la ficha.
+            if (hayTexto(usuario.getNombre())) {
+                nombre = usuario.getNombre();
+                apellidos = hayTexto(apellidos) ? apellidos : usuario.getApellidos();
+            } else {
+                PerfilAppResponse perfil = perfilAppService.obtenerPerfil(usuario.getId());
+
+                if (hayTexto(perfil.getNombre())) {
+                    nombre = perfil.getNombre();
+                    apellidos = hayTexto(apellidos) ? apellidos : perfil.getApellidos();
+                } else {
+                    nombre = recortar(usuario.getEmail(), MAX_NOMBRE);
+                }
+            }
+        }
 
         return new SolicitudFamiliaRequest(nombre, apellidos, usuario.getEmail(), r.telefono(), r.parentesco(),
                 r.hijos(), r.aceptaPrivacidad(), r.declaraRepresentante(), r.idioma());
+    }
+
+    private static String recortar(String texto, int maximo) {
+
+        String limpio = texto == null ? "" : texto.trim();
+
+        return limpio.length() > maximo ? limpio.substring(0, maximo) : limpio;
     }
 
     @Override
@@ -785,8 +815,11 @@ public class SolicitudFamiliaServiceImpl implements SolicitudFamiliaService {
         }
 
         String nombre = obligatorio(r.nombre(), "El nombre es obligatorio", MAX_NOMBRE, "El nombre es demasiado largo");
-        String apellidos = obligatorio(r.apellidos(), "Los apellidos son obligatorios", MAX_APELLIDOS,
-                "Los apellidos son demasiado largos");
+        // Con sesión los apellidos son opcionales (la cuenta puede no tenerlos); en el registro público, obligatorios.
+        String apellidos = pideEmail || hayTexto(r.apellidos())
+                ? obligatorio(r.apellidos(), "Los apellidos son obligatorios", MAX_APELLIDOS,
+                        "Los apellidos son demasiado largos")
+                : "";
 
         String email = normalizarEmail(r.email());
 
@@ -901,7 +934,10 @@ public class SolicitudFamiliaServiceImpl implements SolicitudFamiliaService {
 
     private SolicitudFamilia solicitudNueva(Datos d, long usuarioId, String estado) {
 
-        return new SolicitudFamilia(null, usuarioId, d.nombre, d.apellidos, d.email, d.telefono,
+        // APELLIDOS es NOT NULL y en Oracle la cadena vacía es NULL: sin apellidos se guarda un espacio.
+        String apellidos = d.apellidos.isEmpty() ? " " : d.apellidos;
+
+        return new SolicitudFamilia(null, usuarioId, d.nombre, apellidos, d.email, d.telefono,
                 d.parentesco, estado, null, LocalDateTime.now(clock), null, null, null);
     }
 

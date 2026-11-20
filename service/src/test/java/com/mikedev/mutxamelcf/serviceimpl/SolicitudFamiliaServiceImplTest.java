@@ -72,6 +72,7 @@ class SolicitudFamiliaServiceImplTest {
     private FamiliarJugadorDao familiarJugadorDao;
     private EquipoGestionDao equipoGestionDao;
     private CuentaAppService cuentaAppService;
+    private com.mikedev.mutxamelcf.dao.PerfilAppDao perfilAppDao;
     private AvisosSolicitudFamilia avisos;
     private SolicitudFamiliaServiceImpl service;
 
@@ -252,9 +253,11 @@ class SolicitudFamiliaServiceImplTest {
         equipoGestionDao = mock(EquipoGestionDao.class);
         cuentaAppService = mock(CuentaAppService.class);
         avisos = mock(AvisosSolicitudFamilia.class);
+        perfilAppDao = mock(com.mikedev.mutxamelcf.dao.PerfilAppDao.class);
 
         service = new SolicitudFamiliaServiceImpl(dao, usuarioAppService, vinculoDao, familiarDao,
-                familiarJugadorDao, equipoGestionDao, cuentaAppService, avisos, Clock.fixed(INSTANTE, ZoneOffset.UTC));
+                familiarJugadorDao, equipoGestionDao, cuentaAppService, avisos, Clock.fixed(INSTANTE, ZoneOffset.UTC),
+                new PerfilAppServiceImpl(perfilAppDao, usuarioAppService));
 
         // Cuentas: crear devuelve un id nuevo y deja la cuenta consultable por email.
         when(usuarioAppService.obtenerPorEmail(any())).thenAnswer(i -> cuentas.get(i.getArgument(0)));
@@ -597,6 +600,96 @@ class SolicitudFamiliaServiceImplTest {
     // ==================================================================================================================
     // Con sesión
     // ==================================================================================================================
+
+    /** Una cuenta invitada por el club: sin nombre propio (el nombre sale de su ficha). */
+    private UsuarioApp cuentaSinNombrePropio(int id, String email, String... roles) {
+        UsuarioApp u = cuentaActiva(id, email);
+        u.setNombre(null);
+        u.setApellidos(null);
+        when(usuarioAppService.obtenerRoles(id)).thenReturn(java.util.Arrays.stream(roles).map(c -> {
+            RolApp r = new RolApp();
+            r.setCodigo(c);
+            return r;
+        }).toList());
+        return u;
+    }
+
+    private static SolicitudFamiliaRequest peticionSinNombre() {
+        return new SolicitudFamiliaRequest(null, null, null, null, "MADRE",
+                List.of(hijo("Luis", "Pérez", "Alevín B")), true, true, null);
+    }
+
+    @Test
+    void conSesionUnaCuentaSinNombrePropioUsaElNombreDeSuFichaDeFamiliar() {
+
+        cuentaSinNombrePropio(7, "marta@example.com", "FAMILIAR");
+        Familiar ficha = new Familiar();
+        ficha.setNombre("Marta");
+        ficha.setApellidos("Soler Gil");
+        when(perfilAppDao.obtenerFamiliarPorUsuario(7)).thenReturn(ficha);
+
+        service.solicitarConSesion(7, peticionSinNombre());
+
+        SolicitudFamilia s = dao.solicitudes.values().iterator().next();
+        assertThat(s.nombre()).isEqualTo("Marta");
+        assertThat(s.apellidos()).isEqualTo("Soler Gil");
+    }
+
+    @Test
+    void conSesionUnaCuentaSinNombrePropioUsaElNombreDeSuFichaDeCuerpoTecnico() {
+
+        cuentaSinNombrePropio(7, "luis@example.com", "ENTRENADOR");
+        com.mikedev.mutxamelcf.model.CuerpoTecnico ficha = new com.mikedev.mutxamelcf.model.CuerpoTecnico();
+        ficha.setNombre("Luis");
+        ficha.setApellidos("Mas Ruiz");
+        when(perfilAppDao.obtenerCuerpoTecnicoPorUsuario(7)).thenReturn(List.of(ficha));
+
+        service.solicitarConSesion(7, peticionSinNombre());
+
+        SolicitudFamilia s = dao.solicitudes.values().iterator().next();
+        assertThat(s.nombre()).isEqualTo("Luis");
+        assertThat(s.apellidos()).isEqualTo("Mas Ruiz");
+    }
+
+    @Test
+    void conSesionUnaCuentaSinFichaNiNombreUsaElEmailYSinApellidosNoFalla() {
+
+        cuentaSinNombrePropio(7, "sinficha@example.com");
+
+        service.solicitarConSesion(7, peticionSinNombre());
+
+        SolicitudFamilia s = dao.solicitudes.values().iterator().next();
+        assertThat(s.nombre()).isEqualTo("sinficha@example.com");
+        // APELLIDOS es NOT NULL (y en Oracle la cadena vacia es NULL): sin apellidos se guarda un espacio.
+        assertThat(s.apellidos().trim()).isEmpty();
+    }
+
+    @Test
+    void conSesionUnaCuentaConNombrePropioLoUsa() {
+
+        cuentaActiva(7, "marta@example.com");
+
+        service.solicitarConSesion(7, peticionSinNombre());
+
+        SolicitudFamilia s = dao.solicitudes.values().iterator().next();
+        assertThat(s.nombre()).isEqualTo("Marta");
+        assertThat(s.apellidos()).isEqualTo("Soler");
+        verify(perfilAppDao, never()).obtenerFamiliarPorUsuario(anyInt());
+    }
+
+    @Test
+    void elRegistroPublicoSinNombreOSinApellidosSigueDandoError() {
+
+        SolicitudFamiliaRequest sinNombre = new SolicitudFamiliaRequest(null, null, "ana@example.com", null, "MADRE",
+                List.of(hijo("Luis", "Pérez", null)), true, true, null);
+        assertThatThrownBy(() -> service.registrarPublica(sinNombre)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        SolicitudFamiliaRequest sinApellidos = new SolicitudFamiliaRequest("Ana", " ", "ana@example.com", null, "MADRE",
+                List.of(hijo("Luis", "Pérez", null)), true, true, null);
+        assertThatThrownBy(() -> service.registrarPublica(sinApellidos)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Los apellidos son obligatorios");
+    }
 
     @Test
     void conSesionLaSolicitudNaceYaPendienteSinCrearCuentaNiVerificarEmail() {
