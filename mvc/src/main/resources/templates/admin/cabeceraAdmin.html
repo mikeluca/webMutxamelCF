@@ -33,10 +33,6 @@
 							<li sec:authorize="hasAnyRole('SUPER', 'ADMIN')"><a class="dropdown-item" href="/admin/reparto">Reparto de jugadores</a></li>
 							<li sec:authorize="hasAnyRole('SUPER', 'ADMIN')"><a class="dropdown-item" href="/admin/historial">Historial de temporadas</a></li>
 							<li sec:authorize="hasAnyRole('SUPER', 'ADMIN')"><a class="dropdown-item" href="/admin/categorias-edad">Categorías por edad</a></li>
-							<li sec:authorize="hasAnyRole('SUPER', 'ADMIN')"><a class="dropdown-item" href="/admin/equipajes">Equipajes</a></li>
-							<li sec:authorize="hasAnyRole('SUPER', 'ADMIN')"><a class="dropdown-item" href="/admin/fondos-carteles">Fondos de carteles</a></li>
-							<li sec:authorize="hasAnyRole('SUPER', 'ADMIN')"><a class="dropdown-item" href="/admin/escudos-rivales">Escudos de rivales</a></li>
-							<li sec:authorize="hasAnyRole('SUPER', 'ADMIN')"><a class="dropdown-item" href="/admin/solicitudes-familia">Solicitudes de familia</a></li>
 						</ul>
 					</li>
 					<!-- Control de pagos -->
@@ -53,11 +49,23 @@
 							<li><a class="dropdown-item" href="/admin/pagos/morosidad">Morosidad</a></li>
 						</ul>
 					</li>
+					<!-- Administración de la App -->
+					<li class="nav-item dropdown" sec:authorize="hasAnyRole('SUPER', 'ADMIN')">
+						<a class="nav-link dropdown-toggle" href="#" id="navbarDropdownApp" role="button"
+							aria-expanded="false">
+							Administración de la App
+						</a>
+						<ul class="dropdown-menu lead">
+							<li sec:authorize="hasRole('SUPER')"><a class="dropdown-item" href="/admin/usuarios-app">Usuarios App</a></li>
+							<li><a class="dropdown-item" href="/admin/solicitudes-familia">Solicitudes de familia</a></li>
+							<li><a class="dropdown-item" href="/admin/escudos-rivales">Escudos de rivales</a></li>
+							<li><a class="dropdown-item" href="/admin/fondos-carteles">Fondos de carteles</a></li>
+							<li><a class="dropdown-item" href="/admin/equipajes">Equipajes</a></li>
+						</ul>
+					</li>
 					<li class="nav-item"><a class="nav-link"
 							href="/admin/calendario-resultados">Calendario/Resultados</a></li>
 					<li class="nav-item"><a class="nav-link" href="/admin/noticias">Noticias</a></li>
-					<li class="nav-item" sec:authorize="hasRole('SUPER')"><a class="nav-link"
-							href="/admin/usuarios-app">Usuarios App</a></li>
 				</ul>
 			</div>
 			<div class="social-icons d-flex ms-auto">

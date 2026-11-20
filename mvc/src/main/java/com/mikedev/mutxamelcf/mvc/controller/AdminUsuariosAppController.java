@@ -21,6 +21,8 @@ import com.mikedev.mutxamelcf.model.ActualizarNombreUsuarioAppRequest;
 import com.mikedev.mutxamelcf.model.AnadirVinculosRequest;
 import com.mikedev.mutxamelcf.model.InvitarUsuarioAppRequest;
 import com.mikedev.mutxamelcf.model.PersonasVinculablesResponse;
+import com.mikedev.mutxamelcf.dao.RolAppDao;
+import com.mikedev.mutxamelcf.model.RolApp;
 import com.mikedev.mutxamelcf.model.UsuarioAppAdminResponse;
 import com.mikedev.mutxamelcf.model.VinculoSolicitado;
 import com.mikedev.mutxamelcf.mvc.communication.InvitacionUsuario;
@@ -45,12 +47,16 @@ public class AdminUsuariosAppController {
     private final CuentaActivadaNotifier cuentaActivadaNotifier;
 
     private final ReenvioActivacion reenvioActivacion;
+    private final RolAppDao rolAppDao;
 
     public AdminUsuariosAppController(
             UsuarioAppService usuarioAppService,
             InvitacionUsuario invitacionUsuario,
             CuentaActivadaNotifier cuentaActivadaNotifier,
-            ReenvioActivacion reenvioActivacion) {
+            ReenvioActivacion reenvioActivacion,
+            RolAppDao rolAppDao) {
+
+        this.rolAppDao = rolAppDao;
 
         this.reenvioActivacion = reenvioActivacion;
         this.usuarioAppService = usuarioAppService;
@@ -68,6 +74,14 @@ public class AdminUsuariosAppController {
 
         model.addAttribute("usuarios", usuarios);
         model.addAttribute("personasVinculables", personasVinculables);
+
+        // Los roles de ROLES_APP (en orden) para el filtro y para mostrar el nombre de cada rol en la tabla.
+        List<RolApp> roles = rolAppDao.obtenerTodos();
+        Map<String, String> nombresRol = new java.util.LinkedHashMap<>();
+        roles.forEach(r -> nombresRol.put(r.getCodigo(), r.getNombre()));
+
+        model.addAttribute("roles", roles);
+        model.addAttribute("nombresRol", nombresRol);
 
         logger.debug("Fin listar usuarios app: total={}", usuarios.size());
 

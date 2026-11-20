@@ -35,12 +35,14 @@ class AdminUsuariosAppControllerTest {
     private ComunicacionesService comunicacionesService;
     private CuentaActivadaNotifier cuentaActivadaNotifier;
     private AdminUsuariosAppController controller;
+    private com.mikedev.mutxamelcf.dao.RolAppDao rolAppDao;
 
     @BeforeEach
     void setUp() {
         usuarioAppService = mock(UsuarioAppService.class);
         comunicacionesService = mock(ComunicacionesService.class);
         cuentaActivadaNotifier = mock(CuentaActivadaNotifier.class);
+        rolAppDao = mock(com.mikedev.mutxamelcf.dao.RolAppDao.class);
         controller = new AdminUsuariosAppController(
                 usuarioAppService,
                 new com.mikedev.mutxamelcf.mvc.communication.InvitacionUsuario(usuarioAppService, comunicacionesService),
@@ -48,7 +50,8 @@ class AdminUsuariosAppControllerTest {
                 new com.mikedev.mutxamelcf.mvc.communication.ReenvioActivacion(
                         usuarioAppService, comunicacionesService,
                         new com.mikedev.mutxamelcf.serviceimpl.LimitadorReenvioActivacion(
-                                java.time.Clock.systemUTC())));
+                                java.time.Clock.systemUTC())),
+                rolAppDao);
     }
 
     private static InvitarUsuarioAppRequest request() {
@@ -64,10 +67,17 @@ class AdminUsuariosAppControllerTest {
     @Test
     void listarRellenaElModelo() {
         when(usuarioAppService.listarUsuariosAdmin()).thenReturn(List.of(new UsuarioAppAdminResponse()));
+        com.mikedev.mutxamelcf.model.RolApp rrss = new com.mikedev.mutxamelcf.model.RolApp();
+        rrss.setCodigo("RRSS");
+        rrss.setNombre("Redes sociales");
+        when(rolAppDao.obtenerTodos()).thenReturn(List.of(rrss));
         when(usuarioAppService.obtenerPersonasVinculables()).thenReturn(new PersonasVinculablesResponse());
 
         Model model = new ExtendedModelMap();
         String vista = controller.listar(model);
+
+        assertEquals(1, ((List<?>) model.getAttribute("roles")).size());
+        assertEquals(Map.of("RRSS", "Redes sociales"), model.getAttribute("nombresRol"));
 
         assertEquals("admin/usuarios-app", vista);
         assertEquals(1, ((List<?>) model.getAttribute("usuarios")).size());

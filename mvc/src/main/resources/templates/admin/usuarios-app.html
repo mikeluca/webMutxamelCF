@@ -22,16 +22,41 @@
 		<p>Gestiona quién tiene acceso a la app móvil del club: jugadores, familiares, entrenadores y coordinadores.
 			Una misma cuenta puede combinar varios roles/vínculos a la vez.</p>
 
-		<div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-4">
-			<div>
-				<label for="filtroTexto" class="form-label mb-1">Buscar</label>
-				<input type="text" id="filtroTexto" class="form-control form-control-sm"
-					placeholder="Buscar por email, nombre o rol..." onkeyup="filtrarTabla()">
+		<div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-2">
+			<div class="d-flex flex-column flex-md-row align-items-stretch align-items-md-end gap-3 flex-grow-1">
+				<div>
+					<label for="filtroTexto" class="form-label mb-1">Buscar</label>
+					<input type="text" id="filtroTexto" class="form-control form-control-sm"
+						placeholder="Buscar por nombre o email…" autocomplete="off" oninput="filtrarTabla()">
+				</div>
+				<div>
+					<label for="filtroRol" class="form-label mb-1">Rol</label>
+					<select id="filtroRol" class="form-select form-select-sm" onchange="filtrarTabla()">
+						<option value="">Todos los roles</option>
+						<option th:each="rol : ${roles}" th:value="${rol.codigo}" th:text="${rol.nombre}"></option>
+						<option value="__SIN_ROLES__">Sin roles</option>
+					</select>
+				</div>
+				<div>
+					<label for="filtroEstado" class="form-label mb-1">Estado</label>
+					<select id="filtroEstado" class="form-select form-select-sm" onchange="filtrarTabla()">
+						<option value="">Todos los estados</option>
+						<option value="ACTIVA">Activa</option>
+						<option value="PENDIENTE">Pendiente de activar</option>
+						<option value="CADUCADA">Invitación caducada</option>
+						<option value="DESACTIVADA">Desactivada</option>
+					</select>
+				</div>
+				<div>
+					<button type="button" class="btn btn-outline-secondary btn-sm" id="limpiarFiltros"
+						onclick="limpiarFiltros()">Limpiar filtros</button>
+				</div>
 			</div>
 			<button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#invitarModal">
 				Invitar usuario
 			</button>
 		</div>
+		<p class="text-muted small mb-4" id="contadorCuentas" aria-live="polite"></p>
 
 		<div id="mensajeGeneral" class="alert" style="display:none; margin-bottom: 15px;"></div>
 
@@ -49,7 +74,8 @@
 					</tr>
 				</thead>
 				<tbody>
-					<tr th:each="usuario : ${usuarios}" th:id="'fila-usuario-' + ${usuario.id}">
+					<tr th:each="usuario : ${usuarios}" th:id="'fila-usuario-' + ${usuario.id}"
+						th:attr="data-nombre-email=${usuario.nombreEmailFiltro}, data-roles=${' ' + usuario.rolesFiltro + ' '}, data-estado=${usuario.estado}">
 						<td class="align-middle" th:text="${usuario.email}"></td>
 						<td class="align-middle">
 							<span th:if="${!#lists.isEmpty(usuario.vinculos)}"
@@ -59,7 +85,9 @@
 							<span th:if="${#lists.isEmpty(usuario.vinculos)} and ${usuario.nombreCuenta} == null"
 								class="text-muted">&mdash;</span>
 						</td>
-						<td class="align-middle" th:text="${#strings.listJoin(usuario.roles, ', ')}"></td>
+						<td class="align-middle">
+							<span th:each="rol, it : ${usuario.roles}"><span th:text="${nombresRol.get(rol) ?: rol}"></span><span th:if="${!it.last}">, </span></span>
+						</td>
 						<td class="align-middle">
 							<div th:each="vinculo : ${usuario.vinculos}">
 								<span th:text="${vinculo.tipo}"></span>
@@ -119,6 +147,9 @@
 					</tr>
 					<tr th:if="${#lists.isEmpty(usuarios)}">
 						<td colspan="7" class="text-center">Todavía no hay ninguna cuenta de la app creada.</td>
+					</tr>
+					<tr id="filaSinResultados" style="display:none;">
+						<td colspan="7" class="text-center text-muted py-3">Ninguna cuenta cumple los filtros</td>
 					</tr>
 				</tbody>
 			</table>
@@ -817,14 +848,58 @@
 				});
 		}
 
+		// ---- Filtros (texto, rol y estado): se combinan, se guardan en la URL y se reaplican al recargar ----
+		function sinAcentos(texto) {
+			return (texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+		}
+
 		function filtrarTabla() {
-			const texto = document.getElementById('filtroTexto').value.toLowerCase();
-			const filas = document.querySelectorAll('#tablaUsuariosApp tbody tr');
+			const texto = sinAcentos(document.getElementById('filtroTexto').value);
+			const rol = document.getElementById('filtroRol').value;
+			const estado = document.getElementById('filtroEstado').value;
+			const filas = document.querySelectorAll('#tablaUsuariosApp tbody tr[data-estado]');
+			let visibles = 0;
 
 			filas.forEach(fila => {
-				fila.style.display = fila.textContent.toLowerCase().includes(texto) ? '' : 'none';
+				const roles = (fila.dataset.roles || '').split(' ').filter(r => r);
+				const cumpleTexto = !texto || (fila.dataset.nombreEmail || '').includes(texto);
+				const cumpleRol = !rol || (rol === '__SIN_ROLES__' ? roles.length === 0 : roles.includes(rol));
+				const cumpleEstado = !estado || fila.dataset.estado === estado;
+				const visible = cumpleTexto && cumpleRol && cumpleEstado;
+
+				fila.style.display = visible ? '' : 'none';
+				if (visible) visibles++;
 			});
+
+			const total = filas.length;
+			document.getElementById('contadorCuentas').textContent = 'Mostrando ' + visibles + ' de ' + total + ' cuentas';
+			document.getElementById('filaSinResultados').style.display = total > 0 && visibles === 0 ? '' : 'none';
+
+			const params = new URLSearchParams(window.location.search);
+			const filtrosActivos = { q: document.getElementById('filtroTexto').value.trim(), rol: rol, estado: estado };
+			Object.keys(filtrosActivos).forEach(clave => {
+				const valor = filtrosActivos[clave];
+				if (valor) { params.set(clave, valor); } else { params.delete(clave); }
+			});
+			const consulta = params.toString();
+			history.replaceState(null, '', window.location.pathname + (consulta ? '?' + consulta : '') + window.location.hash);
 		}
+
+		function limpiarFiltros() {
+			document.getElementById('filtroTexto').value = '';
+			document.getElementById('filtroRol').value = '';
+			document.getElementById('filtroEstado').value = '';
+			filtrarTabla();
+		}
+
+		(function iniciarFiltros() {
+			const params = new URLSearchParams(window.location.search);
+			document.getElementById('filtroTexto').value = params.get('q') || '';
+			// Un valor que ya no existe en el desplegable lo deja en "Todos".
+			document.getElementById('filtroRol').value = params.get('rol') || '';
+			document.getElementById('filtroEstado').value = params.get('estado') || '';
+			filtrarTabla();
+		})();
 	</script>
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
 </body>

@@ -171,4 +171,40 @@ public class UsuarioAppAdminResponse {
     public boolean isTieneRrss() {
         return roles != null && roles.contains("RRSS");
     }
+
+    /**
+     * Estado de la cuenta con las mismas reglas que las insignias del panel: ACTIVA, CADUCADA (invitación caducada),
+     * PENDIENTE (pendiente de activar) o DESACTIVADA.
+     */
+    public String getEstado() {
+        if (activo) {
+            return "ACTIVA";
+        }
+
+        if (tokenExpirado) {
+            return "CADUCADA";
+        }
+
+        return tokenPendiente ? "PENDIENTE" : "DESACTIVADA";
+    }
+
+    /** Códigos de rol separados por espacios (vacío si no tiene ninguno), para filtrar en el panel. */
+    public String getRolesFiltro() {
+        return roles == null ? "" : String.join(" ", roles);
+    }
+
+    /** Nombre(s) y email en minúsculas y sin acentos, para buscar en el panel. */
+    public String getNombreEmailFiltro() {
+        StringBuilder texto = new StringBuilder();
+
+        if (vinculos != null) {
+            vinculos.forEach(v -> texto.append(v.getNombreCompleto()).append(' '));
+        }
+
+        String propio = getNombreCuenta();
+        texto.append(propio == null ? "" : propio).append(' ').append(email == null ? "" : email);
+
+        return java.text.Normalizer.normalize(texto.toString(), java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "").toLowerCase(java.util.Locale.ROOT).replaceAll("\\s+", " ").trim();
+    }
 }
