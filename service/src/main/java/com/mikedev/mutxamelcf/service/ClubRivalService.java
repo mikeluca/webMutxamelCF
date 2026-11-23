@@ -20,6 +20,13 @@ public interface ClubRivalService {
     /** Igual, para un nombre de rival de un partido (sin código). Null si es de nuestro club o está vacío. */
     Long asegurarPorNombre(String rival);
 
+    /**
+     * true si para este nombre de equipo (sin código de club) habría que crear un club rival al asegurarlo: no es de
+     * nuestro club, no está vacío y no existe ya un club con ese alias ni con ese nombre. No escribe nada (para las
+     * vistas previas).
+     */
+    boolean necesitaClubNuevo(String nombreEquipo);
+
     /** Enlaza el partido con el club de su rival (null si el rival es nuestro o no tiene nombre). */
     void enlazarPartido(Long partidoId, String rival);
 

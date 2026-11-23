@@ -19,6 +19,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.mikedev.mutxamelcf.model.PrevisualizacionClasificaciones;
 import com.mikedev.mutxamelcf.model.PrevisualizacionFfcv;
+import com.mikedev.mutxamelcf.model.PrevisualizacionVeteranos;
+import com.mikedev.mutxamelcf.model.ResultadoImportacionVeteranos;
+import com.mikedev.mutxamelcf.mvc.controller.ImportacionVeteranosAdminController;
+import com.mikedev.mutxamelcf.service.ImportacionVeteranosService;
 import com.mikedev.mutxamelcf.model.ResultadoImportacionClasificaciones;
 import com.mikedev.mutxamelcf.model.ResultadoImportacionFfcv;
 import com.mikedev.mutxamelcf.mvc.controller.ConfirmarFfcvRequest;
@@ -49,17 +53,124 @@ public class AppAdminFfcvController {
     private final ImportacionClasificacionesService importacionClasificacionesService;
     private final UsuarioAppService usuarioAppService;
     private final PrevisualizacionesClasificacionesApp previas;
+    private final ImportacionVeteranosService importacionVeteranosService;
+    private final PrevisualizacionesVeteranosApp previasVeteranos;
 
     public AppAdminFfcvController(
             ImportacionFfcvService importacionFfcvService,
             ImportacionClasificacionesService importacionClasificacionesService,
             UsuarioAppService usuarioAppService,
-            PrevisualizacionesClasificacionesApp previas) {
+            PrevisualizacionesClasificacionesApp previas,
+            ImportacionVeteranosService importacionVeteranosService,
+            PrevisualizacionesVeteranosApp previasVeteranos) {
 
         this.importacionFfcvService = importacionFfcvService;
         this.importacionClasificacionesService = importacionClasificacionesService;
         this.usuarioAppService = usuarioAppService;
         this.previas = previas;
+        this.importacionVeteranosService = importacionVeteranosService;
+        this.previasVeteranos = previasVeteranos;
+    }
+
+    // ------------------------------------------------------------------
+    // Clasificación de veteranos (LVCA)
+    // ------------------------------------------------------------------
+
+    /**
+     * POST /api/app/admin/ffcv/veteranos/previsualizar (multipart, campo "archivo"): la página
+     * https://ligaveteranosalicante.es/scoretable/ guardada desde el navegador (.html). La vista previa se guarda en el
+     * servidor (una por administrador, 30 minutos) y es la que se confirma.
+     */
+    @PostMapping("/veteranos/previsualizar")
+    public ResponseEntity<?> previsualizarVeteranos(@RequestParam("archivo") MultipartFile archivo,
+            Authentication authentication) {
+
+        Integer usuarioId = usuarioId(authentication);
+
+        if (usuarioId == null) {
+            return error(HttpStatus.UNAUTHORIZED, "Usuario no autenticado");
+        }
+
+        try {
+
+            usuarioAppService.exigirAdminApp(usuarioId, SOLO_ADMIN);
+
+            // Una vista previa nueva sustituye siempre a la anterior.
+            previasVeteranos.descartar(usuarioId);
+
+            String invalido = ImportacionVeteranosAdminController.validarArchivo(archivo);
+
+            if (invalido != null) {
+                return error(HttpStatus.BAD_REQUEST, invalido);
+            }
+
+            PrevisualizacionVeteranos previa = importacionVeteranosService.previsualizar(archivo.getBytes());
+
+            previasVeteranos.guardar(usuarioId, previa);
+
+            return ResponseEntity.ok(previa);
+
+        } catch (SecurityException e) {
+
+            return error(HttpStatus.FORBIDDEN, e.getMessage());
+
+        } catch (IllegalArgumentException e) {
+
+            return error(HttpStatus.BAD_REQUEST, e.getMessage());
+
+        } catch (IOException e) {
+
+            logger.error("No se pudo leer el archivo subido: {}", e.getMessage());
+            return error(HttpStatus.BAD_REQUEST, "No se pudo leer el archivo");
+
+        } catch (Exception e) {
+
+            logger.error("Error al previsualizar la clasificación de veteranos desde la app: {}", e.getMessage(), e);
+            return error(HttpStatus.INTERNAL_SERVER_ERROR, "Error al procesar el archivo");
+        }
+    }
+
+    /** POST /api/app/admin/ffcv/veteranos/confirmar (sin cuerpo): confirma la vista previa guardada. */
+    @PostMapping("/veteranos/confirmar")
+    public ResponseEntity<?> confirmarVeteranos(Authentication authentication) {
+
+        Integer usuarioId = usuarioId(authentication);
+
+        if (usuarioId == null) {
+            return error(HttpStatus.UNAUTHORIZED, "Usuario no autenticado");
+        }
+
+        try {
+
+            usuarioAppService.exigirAdminApp(usuarioId, SOLO_ADMIN);
+
+            PrevisualizacionVeteranos previa = previasVeteranos.vigente(usuarioId);
+
+            if (previa == null) {
+                return error(HttpStatus.BAD_REQUEST, "La vista previa ha caducado: vuelve a subir el archivo");
+            }
+
+            ResultadoImportacionVeteranos resultado = importacionVeteranosService.confirmar(authentication.getName(),
+                    previa);
+
+            // Importada: no se puede confirmar dos veces la misma vista previa.
+            previasVeteranos.descartar(usuarioId);
+
+            return ResponseEntity.ok(resultado);
+
+        } catch (SecurityException e) {
+
+            return error(HttpStatus.FORBIDDEN, e.getMessage());
+
+        } catch (IllegalArgumentException e) {
+
+            return error(HttpStatus.BAD_REQUEST, e.getMessage());
+
+        } catch (Exception e) {
+
+            logger.error("Error al confirmar la clasificación de veteranos desde la app: {}", e.getMessage(), e);
+            return error(HttpStatus.INTERNAL_SERVER_ERROR, "Error al guardar la importación");
+        }
     }
 
     // ------------------------------------------------------------------

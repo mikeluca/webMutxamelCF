@@ -76,6 +76,25 @@ public class ClubRivalServiceImpl implements ClubRivalService {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
+	public boolean necesitaClubNuevo(String nombreEquipo) {
+
+		if (NombreClub.esPropio(nombreEquipo)) {
+			return false;
+		}
+
+		String normalizado = NombreClub.normalizar(nombreEquipo);
+
+		if (normalizado.isEmpty() || clubRivalDao.obtenerPorAlias(normalizado) != null) {
+			return false;
+		}
+
+		ClubRival mismoNombre = clubRivalDao.obtenerPorNombre(NombreClub.nombreVisible(nombreEquipo));
+
+		return mismoNombre == null || !NombreClub.normalizar(mismoNombre.getNombre()).equals(normalizado);
+	}
+
+	@Override
 	@Transactional
 	public Long asegurarPorNombre(String rival) {
 		return asegurarDeClasificacion(null, rival, false, new Contadores());

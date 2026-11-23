@@ -55,6 +55,8 @@ public class ImportacionClasificacionesAdminController {
         PrevisualizacionClasificaciones previa = (PrevisualizacionClasificaciones) sesion.getAttribute(SESION_PREVIA);
 
         model.addAttribute("previa", previa);
+        // El bloque aparte de la clasificación de veteranos (LVCA), con su propia vista previa en la sesión.
+        model.addAttribute("previaVeteranos", sesion.getAttribute(ImportacionVeteranosAdminController.SESION_PREVIA));
 
         return VISTA;
     }

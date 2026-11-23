@@ -12,6 +12,7 @@ import com.mikedev.mutxamelcf.dao.ClasificacionDao;
 import com.mikedev.mutxamelcf.dao.ClubRivalDao;
 import com.mikedev.mutxamelcf.model.ClubRival;
 import com.mikedev.mutxamelcf.model.Clasificacion;
+import com.mikedev.mutxamelcf.model.ClasificacionCompeticionDTO;
 import com.mikedev.mutxamelcf.model.ClasificacionFilaPublicDTO;
 import com.mikedev.mutxamelcf.model.ClasificacionPublicDTO;
 import com.mikedev.mutxamelcf.service.ClasificacionService;
@@ -46,23 +47,48 @@ public class ClasificacionServiceImpl implements ClasificacionService {
 			return null;
 		}
 
-		// La competición, la jornada y la fecha son las de la fila del club;
-		// si faltara, las de la primera fila.
-		Clasificacion referencia = filas.stream().filter(Clasificacion::isEsNuestro).findFirst().orElse(filas.get(0));
+		// Una tabla por competición (los equipos de la FFCV tienen una; Veteranos, la Liga y la Copa). Las filas ya
+		// vienen por posición: dentro de cada competición se conserva ese orden.
+		java.util.Map<String, List<Clasificacion>> porCompeticion = new java.util.LinkedHashMap<>();
+
+		for (Clasificacion fila : filas) {
+			porCompeticion.computeIfAbsent(String.valueOf(fila.getCompeticion()), k -> new java.util.ArrayList<>())
+					.add(fila);
+		}
 
 		EscudosPorAlias porAlias = new EscudosPorAlias();
 
-		List<ClasificacionFilaPublicDTO> tabla = filas.stream()
-				.map(f -> new ClasificacionFilaPublicDTO(f.getPosicion(), f.getNombreEquipo(), f.isEsNuestro(),
-						f.getPuntos(), f.getPj(), f.getPg(), f.getPe(), f.getPp(), f.getGf(), f.getGc(),
-						escudoUrl(f, porAlias),
-						EscudosRivales.esPropioFila(f, codigoClubPropio)))
-				.toList();
+		List<ClasificacionCompeticionDTO> competiciones = new java.util.ArrayList<>();
 
-		logger.debug("Fin obtenerPublicaPorEquipo: filas={}", tabla.size());
+		for (List<Clasificacion> grupo : porCompeticion.values()) {
 
-		return new ClasificacionPublicDTO(
-				referencia.getCompeticion(), referencia.getJornada(), referencia.getFechaImportacion(), tabla);
+			// La competición, la jornada y la fecha son las de la fila del club; si faltara, las de la primera fila.
+			Clasificacion referencia = grupo.stream().filter(Clasificacion::isEsNuestro).findFirst()
+					.orElse(grupo.get(0));
+
+			List<ClasificacionFilaPublicDTO> tabla = grupo.stream()
+					.map(f -> new ClasificacionFilaPublicDTO(f.getPosicion(), f.getNombreEquipo(), f.isEsNuestro(),
+							f.getPuntos(), f.getPj(), f.getPg(), f.getPe(), f.getPp(), f.getGf(), f.getGc(),
+							escudoUrl(f, porAlias),
+							EscudosRivales.esPropioFila(f, codigoClubPropio)))
+					.toList();
+
+			competiciones.add(new ClasificacionCompeticionDTO(referencia.getCompeticion(), referencia.getJornada(),
+					referencia.getFechaImportacion(), tabla));
+		}
+
+		// La principal: la de más equipos (si empatan, la primera por nombre), y va la primera; el resto, por nombre.
+		competiciones.sort(java.util.Comparator
+				.comparingInt((ClasificacionCompeticionDTO c) -> -c.clasificacion().size())
+				.thenComparing(c -> String.valueOf(c.competicion()), String.CASE_INSENSITIVE_ORDER));
+
+		ClasificacionCompeticionDTO principal = competiciones.get(0);
+
+		logger.debug("Fin obtenerPublicaPorEquipo: competiciones={}, filas={}", competiciones.size(),
+				principal.clasificacion().size());
+
+		return new ClasificacionPublicDTO(principal.competicion(), principal.jornada(), principal.fechaImportacion(),
+				principal.clasificacion(), List.copyOf(competiciones));
 	}
 
 

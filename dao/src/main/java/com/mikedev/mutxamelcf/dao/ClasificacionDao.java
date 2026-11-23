@@ -21,6 +21,13 @@ public interface ClasificacionDao {
     /** Borra la tabla guardada del equipo y devuelve las filas borradas. */
     int eliminarPorEquipo(Long equipoId);
 
+    /**
+     * Borra solo la tabla de una competición del equipo (en la temporada activa) y devuelve las filas borradas: las
+     * demás competiciones del equipo no se tocan. Lo usa la importación de la Liga Veteranos, donde un equipo tiene
+     * varias (la Liga y la Copa).
+     */
+    int eliminarPorEquipoYCompeticion(Long equipoId, String competicion);
+
     /** Inserta todas las filas de golpe (el ID lo genera la base de datos). */
     void insertarTodas(List<Clasificacion> filas);
 

@@ -96,6 +96,15 @@ public class ClasificacionDaoImpl implements ClasificacionDao {
 	}
 
 	@Override
+	public int eliminarPorEquipoYCompeticion(Long equipoId, String competicion) {
+		int filas = jdbcTemplate.update(
+				"DELETE FROM CLASIFICACIONES WHERE EQUIPO_ID = ? AND COMPETICION = ? AND TEMPORADA_ID = ?", equipoId,
+				competicion, TemporadaActivaId.obtener(jdbcTemplate));
+		logger.debug("Clasificación de una competición eliminada: equipoId={}, filas={}", equipoId, filas);
+		return filas;
+	}
+
+	@Override
 	public void insertarTodas(List<Clasificacion> filas) {
 		logger.debug("Inicio insertarTodas: total={}", filas.size());
 

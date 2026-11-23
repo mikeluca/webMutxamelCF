@@ -73,6 +73,7 @@ class AppAdminFfcvUsuariosControllerTest {
     private CuentaActivadaNotifier notifier;
     private ImportacionFfcvService ffcv;
     private ImportacionClasificacionesService clasificaciones;
+    private com.mikedev.mutxamelcf.service.ImportacionVeteranosService importacionVeteranos;
     private MutableClock reloj;
     private MockMvc mvc;
 
@@ -109,6 +110,7 @@ class AppAdminFfcvUsuariosControllerTest {
         notifier = mock(CuentaActivadaNotifier.class);
         ffcv = mock(ImportacionFfcvService.class);
         clasificaciones = mock(ImportacionClasificacionesService.class);
+        importacionVeteranos = mock(com.mikedev.mutxamelcf.service.ImportacionVeteranosService.class);
         reloj = new MutableClock();
 
         UsuarioAppServiceImpl usuarios = new UsuarioAppServiceImpl(usuarioAppDao, vinculoDao, rolAppDao,
@@ -118,7 +120,8 @@ class AppAdminFfcvUsuariosControllerTest {
                 new InvitacionUsuario(usuarios, comunicaciones),
                 new ReenvioActivacion(usuarios, comunicaciones, new LimitadorReenvioActivacion(reloj)), notifier);
         AppAdminFfcvController ffcvController = new AppAdminFfcvController(ffcv, clasificaciones, usuarios,
-                new PrevisualizacionesClasificacionesApp(reloj));
+                new PrevisualizacionesClasificacionesApp(reloj),
+                importacionVeteranos, new PrevisualizacionesVeteranosApp(reloj));
 
         mvc = MockMvcBuilders.standaloneSetup(usuariosController, ffcvController)
                 .setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(
@@ -206,6 +209,14 @@ class AppAdminFfcvUsuariosControllerTest {
                 .andExpect(status().isForbidden());
         mvc.perform(post("/api/app/admin/ffcv/clasificaciones/confirmar").with(como(usuario))
                 .contentType(MediaType.APPLICATION_JSON).content(json)).andExpect(status().isForbidden());
+
+        MockMultipartFile html = new MockMultipartFile("archivo", "score-table.html", "text/html", "x".getBytes());
+        mvc.perform(multipart("/api/app/admin/ffcv/veteranos/previsualizar").file(html).with(como(usuario)))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/app/admin/ffcv/veteranos/confirmar").with(como(usuario)))
+                .andExpect(status().isForbidden());
+        verify(importacionVeteranos, never()).previsualizar(any());
+        verify(importacionVeteranos, never()).confirmar(anyString(), any());
 
         verify(ffcv, never()).previsualizar(any());
         verify(clasificaciones, never()).previsualizar(any());
@@ -344,6 +355,70 @@ class AppAdminFfcvUsuariosControllerTest {
         mvc.perform(multipart("/api/app/admin/ffcv/clasificaciones/previsualizar")
                 .file(xlsx("ListadoClasificaciones.xlsx", "basura".getBytes())).with(como(ADMIN)))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("No es un listado válido"));
+    }
+
+    // ---- FFCV: veteranos (LVCA) --------------------------------------------------------------------------------------
+
+    private static com.mikedev.mutxamelcf.model.PrevisualizacionVeteranos previaVeteranos() {
+        return new com.mikedev.mutxamelcf.model.PrevisualizacionVeteranos(9L, "Veteranos", List.of(
+                new com.mikedev.mutxamelcf.model.CompeticionVeteranosPrevia("Liga Veteranos Ciudad de Alicante", 5, 2,
+                        List.of(new com.mikedev.mutxamelcf.model.FilaClasificacionVeteranos(1, "UA VETERANOS", 5, 4, 1,
+                                0, 10, 3, 7, 13, false),
+                                new com.mikedev.mutxamelcf.model.FilaClasificacionVeteranos(2, "MUTXAMEL C.F.V", 5, 3,
+                                        1, 1, 8, 5, 3, 10, true)),
+                        List.of("UA VETERANOS"))),
+                List.of("UA VETERANOS"));
+    }
+
+    private MockMultipartFile html(String nombre, byte[] contenido) {
+        return new MockMultipartFile("archivo", nombre, "text/html", contenido);
+    }
+
+    @Test
+    void veteranosPrevisualizaYConfirmaLaVistaPreviaGuardadaUnaSolaVez() throws Exception {
+
+        byte[] contenido = "<html>".getBytes();
+        when(importacionVeteranos.previsualizar(contenido)).thenReturn(previaVeteranos());
+        when(importacionVeteranos.confirmar(eq(String.valueOf(ADMIN)), any())).thenReturn(
+                new com.mikedev.mutxamelcf.model.ResultadoImportacionVeteranos(1, 2,
+                        List.of("Liga Veteranos Ciudad de Alicante"), List.of("UA VETERANOS")));
+
+        mvc.perform(multipart("/api/app/admin/ffcv/veteranos/previsualizar").file(html("score.html", contenido))
+                .with(como(ADMIN))).andExpect(status().isOk()).andExpect(jsonPath("$.equipoNombre").value("Veteranos"))
+                .andExpect(jsonPath("$.competiciones[0].posicionNuestra").value(2))
+                .andExpect(jsonPath("$.competiciones[0].tabla[1].esNuestro").value(true))
+                .andExpect(jsonPath("$.clubesACrear[0]").value("UA VETERANOS"));
+
+        mvc.perform(post("/api/app/admin/ffcv/veteranos/confirmar").with(como(ADMIN))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.competiciones").value(1)).andExpect(jsonPath("$.clubesCreados[0]")
+                        .value("UA VETERANOS"));
+
+        // Importada: no se confirma dos veces la misma vista previa.
+        mvc.perform(post("/api/app/admin/ffcv/veteranos/confirmar").with(como(ADMIN)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("La vista previa ha caducado: vuelve a subir el archivo"));
+    }
+
+    @Test
+    void veteranosConUnFicheroNoValidoDa400() throws Exception {
+
+        mvc.perform(multipart("/api/app/admin/ffcv/veteranos/previsualizar").file(html("a.html", new byte[0]))
+                .with(como(ADMIN))).andExpect(status().isBadRequest()).andExpect(jsonPath("$.error")
+                        .value("Selecciona la página guardada de la clasificación de la Liga Veteranos"));
+
+        mvc.perform(multipart("/api/app/admin/ffcv/veteranos/previsualizar").file(html("a.csv", "x".getBytes()))
+                .with(como(ADMIN))).andExpect(status().isBadRequest());
+
+        when(importacionVeteranos.previsualizar(any())).thenThrow(new IllegalArgumentException(
+                "No parece la clasificación de la Liga Veteranos Ciudad de Alicante"));
+        mvc.perform(multipart("/api/app/admin/ffcv/veteranos/previsualizar").file(html("a.html", "basura".getBytes()))
+                .with(como(ADMIN))).andExpect(status().isBadRequest()).andExpect(jsonPath("$.error")
+                        .value("No parece la clasificación de la Liga Veteranos Ciudad de Alicante"));
+
+        // Sin vista previa guardada.
+        mvc.perform(post("/api/app/admin/ffcv/veteranos/confirmar").with(como(ADMIN)))
+                .andExpect(status().isBadRequest());
+        verify(importacionVeteranos, never()).confirmar(anyString(), any());
     }
 
     // ---- usuarios ---------------------------------------------------------------------------------------------------
