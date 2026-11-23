@@ -204,7 +204,16 @@ public class UsuarioAppAdminResponse {
         String propio = getNombreCuenta();
         texto.append(propio == null ? "" : propio).append(' ').append(email == null ? "" : email);
 
-        return java.text.Normalizer.normalize(texto.toString(), java.text.Normalizer.Form.NFD)
+        return normalizar(texto.toString());
+    }
+
+    /** Minúsculas, sin acentos y con los espacios colapsados (para buscar por nombre o email). */
+    public static String normalizar(String texto) {
+        if (texto == null) {
+            return "";
+        }
+
+        return java.text.Normalizer.normalize(texto, java.text.Normalizer.Form.NFD)
                 .replaceAll("\\p{M}+", "").toLowerCase(java.util.Locale.ROOT).replaceAll("\\s+", " ").trim();
     }
 }

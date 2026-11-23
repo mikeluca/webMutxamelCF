@@ -958,6 +958,190 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
         }
     }
 
+    // ------------------------------------------------------------------
+    // Administración de usuarios desde la app (ADMIN_APP)
+    // ------------------------------------------------------------------
+
+    private static final java.util.Set<String> ESTADOS_CUENTA = java.util.Set.of(
+            "ACTIVA", "PENDIENTE", "CADUCADA", "DESACTIVADA");
+
+    private static final String MENSAJE_ADMIN_SOLO_PANEL = "El rol ADMIN_APP solo se puede asignar desde el panel web";
+
+    @Override
+    public void exigirAdminApp(int solicitanteId, String mensaje) {
+
+        if (solicitanteId <= 0 || !tieneRol(solicitanteId, "ADMIN_APP")) {
+            throw new SecurityException(mensaje);
+        }
+    }
+
+    private void exigirAdminUsuarios(int solicitanteId) {
+        exigirAdminApp(solicitanteId, "Solo un administrador puede gestionar los usuarios de la app");
+    }
+
+    @Override
+    public List<com.mikedev.mutxamelcf.model.UsuarioAdminApp> listarUsuariosDesdeApp(
+            int solicitanteId, String q, String rol, String estado) {
+
+        exigirAdminUsuarios(solicitanteId);
+
+        String estadoFiltro = estado == null ? "" : estado.trim().toUpperCase(Locale.ROOT);
+
+        if (!estadoFiltro.isEmpty() && !ESTADOS_CUENTA.contains(estadoFiltro)) {
+            throw new IllegalArgumentException("El estado tiene que ser ACTIVA, PENDIENTE, CADUCADA o DESACTIVADA");
+        }
+
+        String rolFiltro = rol == null ? "" : rol.trim().toUpperCase(Locale.ROOT);
+        String texto = UsuarioAppAdminResponse.normalizar(q);
+
+        java.util.Map<String, String> nombresRol = new java.util.HashMap<>();
+        rolAppDao.obtenerTodos().forEach(r -> nombresRol.put(r.getCodigo(), r.getNombre()));
+
+        List<com.mikedev.mutxamelcf.model.UsuarioAdminApp> resultado = new ArrayList<>();
+
+        for (UsuarioAppAdminResponse u : listarUsuariosAdmin()) {
+
+            List<String> roles = u.getRoles() == null ? List.of() : u.getRoles();
+
+            boolean cumple = (texto.isEmpty() || u.getNombreEmailFiltro().contains(texto))
+                    && (rolFiltro.isEmpty()
+                            || ("SIN_ROLES".equals(rolFiltro) ? roles.isEmpty() : roles.contains(rolFiltro)))
+                    && (estadoFiltro.isEmpty() || estadoFiltro.equals(u.getEstado()));
+
+            if (!cumple) {
+                continue;
+            }
+
+            List<VinculoUsuarioApp> vinculos = u.getVinculos() == null ? List.of() : u.getVinculos();
+            String nombre = !vinculos.isEmpty() ? vinculos.get(0).getNombreCompleto() : u.getNombreCuenta();
+
+            resultado.add(new com.mikedev.mutxamelcf.model.UsuarioAdminApp(
+                    u.getId(),
+                    u.getEmail(),
+                    nombre,
+                    u.getEstado(),
+                    u.isActivo(),
+                    roles.stream()
+                            .map(c -> new com.mikedev.mutxamelcf.model.UsuarioAdminApp.Rol(c,
+                                    nombresRol.getOrDefault(c, c)))
+                            .toList(),
+                    vinculos.stream()
+                            .map(v -> new com.mikedev.mutxamelcf.model.UsuarioAdminApp.Vinculo(v.getTipo(),
+                                    v.getPersonaId(), v.getNombreCompleto(), v.getDetalle()))
+                            .toList(),
+                    u.getFechaUltimoAcceso()));
+        }
+
+        return resultado;
+    }
+
+    @Override
+    public com.mikedev.mutxamelcf.model.OpcionesUsuariosApp obtenerOpcionesUsuariosDesdeApp(int solicitanteId) {
+
+        exigirAdminUsuarios(solicitanteId);
+
+        // Los mismos roles sin persona que ofrece el panel (nunca ADMIN_APP), solo si están configurados.
+        List<VinculosDisponiblesResponse.Rol> roles = new ArrayList<>();
+
+        for (String codigo : ROLES_SIN_PERSONA_ORDENADOS) {
+
+            RolApp rol = obtenerRolPorCodigo(codigo);
+
+            if (rol != null) {
+                roles.add(new VinculosDisponiblesResponse.Rol(rol.getCodigo(), rol.getNombre()));
+            }
+        }
+
+        return new com.mikedev.mutxamelcf.model.OpcionesUsuariosApp(roles, obtenerPersonasVinculables());
+    }
+
+    @Override
+    public void actualizarNombreDesdeApp(int solicitanteId, int usuarioAppId, String nombre, String apellidos) {
+
+        exigirAdminUsuarios(solicitanteId);
+        actualizarNombre(usuarioAppId, nombre, apellidos);
+    }
+
+    @Override
+    public void agregarVinculosDesdeApp(int solicitanteId, int usuarioAppId, AnadirVinculosRequest request) {
+
+        exigirAdminUsuarios(solicitanteId);
+
+        if (request != null && request.getVinculos() != null) {
+
+            for (VinculoSolicitado v : request.getVinculos()) {
+
+                if (v != null && v.getTipo() != null && "ADMIN_APP".equalsIgnoreCase(v.getTipo().trim())) {
+                    throw new IllegalArgumentException(MENSAJE_ADMIN_SOLO_PANEL);
+                }
+            }
+        }
+
+        agregarVinculosAUsuarioExistente(usuarioAppId, request);
+    }
+
+    @Override
+    public void quitarVinculoDesdeApp(int solicitanteId, int usuarioAppId, VinculoSolicitado vinculo) {
+
+        exigirAdminUsuarios(solicitanteId);
+
+        // El rol ADMIN_APP solo se gestiona desde el panel web: ni uno mismo ni a otro desde la app.
+        if (vinculo != null && vinculo.getTipo() != null && "ADMIN_APP".equalsIgnoreCase(vinculo.getTipo().trim())) {
+            throw new IllegalArgumentException(
+                    usuarioAppId == solicitanteId ? "No puedes quitarte a ti mismo el rol de administrador"
+                            : "El rol ADMIN_APP solo se puede quitar desde el panel web");
+        }
+
+        if (usuarioAppId != solicitanteId && tieneRol(usuarioAppId, "ADMIN_APP")) {
+            throw new IllegalArgumentException("No se pueden quitar roles a otro administrador");
+        }
+
+        quitarVinculo(usuarioAppId, vinculo);
+    }
+
+    @Override
+    public void activarDesdeApp(int solicitanteId, int usuarioAppId) {
+
+        exigirAdminUsuarios(solicitanteId);
+        activarUsuarioAdmin(usuarioAppId);
+    }
+
+    @Override
+    public void desactivarDesdeApp(int solicitanteId, int usuarioAppId) {
+
+        exigirAdminUsuarios(solicitanteId);
+
+        if (usuarioAppId == solicitanteId) {
+            throw new IllegalArgumentException("No puedes desactivar tu propia cuenta");
+        }
+
+        if (tieneRol(usuarioAppId, "ADMIN_APP")) {
+            throw new IllegalArgumentException("No se puede desactivar a un administrador");
+        }
+
+        desactivarUsuarioAdmin(usuarioAppId);
+    }
+
+    @Override
+    public void eliminarInvitacionDesdeApp(int solicitanteId, int usuarioAppId) {
+
+        exigirAdminUsuarios(solicitanteId);
+
+        if (usuarioAppId == solicitanteId || tieneRol(usuarioAppId, "ADMIN_APP")) {
+            throw new IllegalArgumentException("No se puede eliminar la cuenta de un administrador");
+        }
+
+        eliminarInvitacion(usuarioAppId);
+    }
+
+    @Override
+    public InvitacionUsuarioApp reenviarInvitacionDesdeApp(int solicitanteId, int usuarioAppId) {
+
+        exigirAdminUsuarios(solicitanteId);
+
+        return reenviarInvitacion(usuarioAppId);
+    }
+
     private static int compararFechaAltaDescendente(UsuarioApp a, UsuarioApp b) {
 
         if (a.getFechaAlta() == null || b.getFechaAlta() == null) {

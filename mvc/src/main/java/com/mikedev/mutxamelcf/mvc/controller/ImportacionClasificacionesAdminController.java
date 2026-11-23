@@ -41,7 +41,7 @@ public class ImportacionClasificacionesAdminController {
     private static final String REDIRECCION = "redirect:/admin/ffcv/clasificaciones";
 
     /** El archivo real pesa unos 500 KB (el límite de multipart es 5 MB); esto solo descarta lo absurdo. */
-    static final long TAMANO_MAXIMO_BYTES = 3L * 1024 * 1024;
+    public static final long TAMANO_MAXIMO_BYTES = 3L * 1024 * 1024;
 
     private final ImportacionClasificacionesService importacionService;
 

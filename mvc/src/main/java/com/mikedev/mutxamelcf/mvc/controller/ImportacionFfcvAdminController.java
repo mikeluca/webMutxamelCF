@@ -31,7 +31,7 @@ public class ImportacionFfcvAdminController {
     private static final Logger logger = LoggerFactory.getLogger(ImportacionFfcvAdminController.class);
 
     /** El CSV real ocupa unos pocos KB; esto solo evita archivos absurdos. */
-    static final long TAMANO_MAXIMO_BYTES = 1024 * 1024;
+    public static final long TAMANO_MAXIMO_BYTES = 1024 * 1024;
 
     private final ImportacionFfcvService importacionFfcvService;
 

@@ -89,6 +89,16 @@ public class ReenvioActivacion {
         return reenviar(usuarioAppId, () -> usuarioAppService.reenviarActivacionPendiente(solicitanteId, usuarioAppId));
     }
 
+    /**
+     * App, administración de usuarios: solo un ADMIN_APP y, como en el panel web, cualquier cuenta no activa y no
+     * eliminada (también una desactivada). El mismo límite de un reenvío cada 10 minutos.
+     */
+    public Resultado desdeAppComoPanel(int solicitanteId, int usuarioAppId) {
+        usuarioAppService.exigirAdminApp(solicitanteId);
+
+        return reenviar(usuarioAppId, () -> usuarioAppService.reenviarInvitacionDesdeApp(solicitanteId, usuarioAppId));
+    }
+
     private Resultado reenviar(int usuarioAppId, Supplier<InvitacionUsuarioApp> generar) {
 
         // La marca se pone antes de enviar y de forma atómica.

@@ -125,6 +125,36 @@ public interface UsuarioAppService {
     /** SecurityException si el usuario no tiene el rol ADMIN_APP. */
     void exigirAdminApp(int solicitanteId);
 
+    /** Como {@link #exigirAdminApp(int)}, con el mensaje de la acción que se intentaba (p. ej. importar la FFCV). */
+    void exigirAdminApp(int solicitanteId, String mensaje);
+
+    /*
+     * Administración de usuarios desde la app (ADMIN_APP). Envuelven la lógica del panel web y añaden las reglas de
+     * seguridad: SecurityException si el solicitante no es ADMIN_APP; IllegalArgumentException si intenta desactivarse,
+     * tocar la cuenta de otro ADMIN_APP (desactivarla, eliminarla, quitarle roles) o asignar el rol ADMIN_APP.
+     */
+
+    /** Listado de cuentas con filtros opcionales: q (nombre o email, sin acentos), rol (código o SIN_ROLES) y estado. */
+    List<com.mikedev.mutxamelcf.model.UsuarioAdminApp> listarUsuariosDesdeApp(
+            int solicitanteId, String q, String rol, String estado);
+
+    com.mikedev.mutxamelcf.model.OpcionesUsuariosApp obtenerOpcionesUsuariosDesdeApp(int solicitanteId);
+
+    void actualizarNombreDesdeApp(int solicitanteId, int usuarioAppId, String nombre, String apellidos);
+
+    void agregarVinculosDesdeApp(int solicitanteId, int usuarioAppId, AnadirVinculosRequest request);
+
+    void quitarVinculoDesdeApp(int solicitanteId, int usuarioAppId, VinculoSolicitado vinculo);
+
+    void activarDesdeApp(int solicitanteId, int usuarioAppId);
+
+    void desactivarDesdeApp(int solicitanteId, int usuarioAppId);
+
+    void eliminarInvitacionDesdeApp(int solicitanteId, int usuarioAppId);
+
+    /** Como el panel: reenvía la invitación a cualquier cuenta no activa (código nuevo; el email lo manda quien llama). */
+    InvitacionUsuarioApp reenviarInvitacionDesdeApp(int solicitanteId, int usuarioAppId);
+
     void activarUsuarioAdmin(int usuarioAppId);
 
     /**

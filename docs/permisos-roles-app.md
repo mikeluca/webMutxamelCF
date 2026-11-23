@@ -32,6 +32,8 @@ Toda ruta de `/api/app/**` (salvo las de `AccesoCuentaSinRoles.RUTAS_SIN_ROL`) e
 | Comunicaciones: ver, crear, avisos a equipos y a categorías, mensajes a cualquiera | — | — | ✔ (a sus equipos, sin categorías) | ✔ | — | — | ✔ | `ComunicacionServiceImpl` (`esAdmin`, `esCoordinador`) |
 | Moderación (reportes de mensajes) | — | — | — | — | — | — | ✔ | `ModeracionServiceImpl` |
 | Estado de la app, cuentas pendientes, invitar usuarios desde la app | — | — | — | — | — | — | ✔ | `UsuarioAppService.exigirAdminApp` |
+| Usuarios de la app: listar con filtros, invitar, editar nombre y vínculos, reenviar, activar, desactivar, eliminar invitaciones (`/admin/usuarios/**`, [api-app-admin-usuarios.md](api-app-admin-usuarios.md)) | — | — | — | — | — | — | ✔ | `UsuarioAppService.*DesdeApp` (más reglas: no desactivarse, no tocar a otro ADMIN_APP, no asignar ADMIN_APP) |
+| Importar los datos de la FFCV: partidos y clasificaciones (`/admin/ffcv/**`, [api-app-admin-ffcv.md](api-app-admin-ffcv.md)) | — | — | — | — | — | — | ✔ | `UsuarioAppService.exigirAdminApp` |
 | Mis jugadores, justificar ausencias, responder convocatoria, Mi ficha | (v) | (v) | — | — | — | — | (v) | `UsuarioAppVinculoDao.tieneVinculoConJugador` |
 | Perfil, notificaciones, preferencias, idioma, dispositivos | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | cualquier cuenta con sesión |
 
