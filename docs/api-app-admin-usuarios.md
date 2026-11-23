@@ -79,7 +79,7 @@ Lo que necesita la app para invitar y editar:
 - `invitar` es la misma invitación que `POST /api/app/admin/invitaciones` (ambas llaman a `InvitacionUsuario.desdeApp`);
   `tipo` es `JUGADOR`, `FAMILIAR`, `ENTRENADOR` (con `personaId`) o un rol sin persona (`COORDINADOR`, `RETRANSMISION`,
   `RRSS`). Un rol sin persona sin ficha exige `nombre`. Si el email existe: `409` con
-  `Ya existe una cuenta con ese email. Revisa Cuentas pendientes.` Si la cuenta se crea pero el email no sale,
+  `Ya existe una cuenta con ese email. Búscala en Usuarios.` Si la cuenta se crea pero el email no sale,
   `emailEnviado` es `false` y el mensaje lo dice.
 - `reenviar`: como en el panel, vale para cualquier cuenta que no esté activa (también una desactivada); una activa da 400
   (`La cuenta ya está activa`). Límite de **un reenvío cada 10 minutos por cuenta** (`LimitadorReenvioActivacion`); si falla

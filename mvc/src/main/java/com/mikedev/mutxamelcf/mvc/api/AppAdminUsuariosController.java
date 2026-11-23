@@ -93,7 +93,7 @@ public class AppAdminUsuariosController {
             try {
                 resultado = invitacionUsuario.desdeApp(id, request);
             } catch (EmailYaRegistradoException e) {
-                return mapa(HttpStatus.CONFLICT, "error", "Ya existe una cuenta con ese email. Revisa Cuentas pendientes.");
+                return mapa(HttpStatus.CONFLICT, "error", "Ya existe una cuenta con ese email. Búscala en Usuarios.");
             }
 
             Map<String, Object> respuesta = new LinkedHashMap<>();
