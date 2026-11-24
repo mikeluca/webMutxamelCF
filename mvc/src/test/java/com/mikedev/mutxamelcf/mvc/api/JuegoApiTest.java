@@ -1,5 +1,6 @@
 package com.mikedev.mutxamelcf.mvc.api;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -16,6 +17,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -38,6 +40,7 @@ import com.mikedev.mutxamelcf.dao.JuegoDao;
 import com.mikedev.mutxamelcf.service.JuegoConflictoException;
 import com.mikedev.mutxamelcf.service.JuegoLimiteEnviosException;
 import com.mikedev.mutxamelcf.service.JuegoService;
+import com.mikedev.mutxamelcf.service.JuegoService.EscudoJuego;
 import com.mikedev.mutxamelcf.service.JuegoService.FilaRanking;
 import com.mikedev.mutxamelcf.service.JuegoService.MarcaConPosicion;
 import com.mikedev.mutxamelcf.service.JuegoService.MarcasJuego;
@@ -74,20 +77,82 @@ class JuegoApiTest {
 
     @Test
     void elRankingEsPublicoYSoloLlevaAliasPuntosYFecha() throws Exception {
-        when(juegoService.ranking("PENALTIS", "SEMANA")).thenReturn(List.of(new FilaRanking(1, "Mutxigol10", 14, FECHA),
-                new FilaRanking(2, "Pepe-Gol", 12, FECHA.minusDays(1))));
+        when(juegoService.ranking("ATRAPA", "SEMANA")).thenReturn(List.of(
+                new FilaRanking(1, "Mutxigol10", "PUNTOS", 14, 41_000, FECHA),
+                new FilaRanking(2, "Pepe-Gol", "PUNTOS", 12, 38_000, FECHA.minusDays(1))));
 
-        mockMvc.perform(get("/api/public/juego/ranking").param("juego", "PENALTIS").param("periodo", "SEMANA"))
+        mockMvc.perform(get("/api/public/juego/ranking").param("juego", "ATRAPA").param("periodo", "SEMANA"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].posicion").value(1)).andExpect(jsonPath("$[0].alias").value("Mutxigol10"))
-                .andExpect(jsonPath("$[0].puntos").value(14)).andExpect(jsonPath("$[0].fecha").value("2026-11-24T18:03:12"))
+                .andExpect(jsonPath("$[0].puntos").value(14)).andExpect(jsonPath("$[0].marca").value("PUNTOS"))
+                .andExpect(jsonPath("$[0].tiempoMs").value(41_000)).andExpect(jsonPath("$[0].fecha").value("2026-11-24T18:03:12"))
                 // Nada del nombre real ni de la cuenta
                 .andExpect(jsonPath("$[0].usuarioId").doesNotExist()).andExpect(jsonPath("$[0].email").doesNotExist())
                 .andExpect(jsonPath("$[0].nombre").doesNotExist());
     }
 
-    @Test
-    void elRankingConUnJuegoOPeriodoInvalidoEs400() throws Exception {
+@Test
+void elRankingDeParejasLlevaElTiempoYLaMarcaTiempo() throws Exception {
+    when(juegoService.ranking("PAREJAS", "HISTORICO")).thenReturn(List.of(
+            new FilaRanking(1, "Pepe-Gol", "TIEMPO", 8, 31_400, FECHA)));
+
+    mockMvc.perform(get("/api/public/juego/ranking").param("juego", "PAREJAS").param("periodo", "HISTORICO"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$[0].marca").value("TIEMPO"))
+            .andExpect(jsonPath("$[0].puntos").value(8)).andExpect(jsonPath("$[0].tiempoMs").value(31_400));
+}
+
+@Test
+void losJuegosAntiguosDan400() throws Exception {
+    for (String juego : List.of("PENALTIS", "TOQUES")) {
+        when(juegoService.ranking(juego, null))
+                .thenThrow(new IllegalArgumentException("El juego tiene que ser ATRAPA, REGATEA, CABEZAZOS o PAREJAS"));
+
+        mockMvc.perform(get("/api/public/juego/ranking").param("juego", juego)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("El juego tiene que ser ATRAPA, REGATEA, CABEZAZOS o PAREJAS"));
+    }
+}
+
+// ------------------------------------------------------------------
+// Escudos para Parejas (público)
+// ------------------------------------------------------------------
+
+@Test
+void losEscudosSonPublicosYSoloLlevanIdNombreYUrlDelEscudo() throws Exception {
+    when(juegoService.escudos(null)).thenReturn(List.of(
+            new EscudoJuego(12, "C.D. Alicante", "/api/public/escudos-rivales/12?v=3"),
+            new EscudoJuego(15, "Pego C.F.", "/api/public/escudos-rivales/15?v=1")));
+
+    mockMvc.perform(get("/api/public/juego/escudos")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].id").value(12))
+            .andExpect(jsonPath("$[0].nombre").value("C.D. Alicante"))
+            .andExpect(jsonPath("$[0].escudoUrl").value("/api/public/escudos-rivales/12?v=3"))
+            // Nada más que esos tres campos
+            .andExpect(jsonPath("$[0].length()").value(3))
+            .andExpect(header().string("Cache-Control", containsString("max-age=300")))
+            .andExpect(header().string("Cache-Control", containsString("public")));
+}
+
+@Test
+void losEscudosPasanLaCantidadPedidaAlServicio() throws Exception {
+    when(juegoService.escudos(5)).thenReturn(List.of());
+
+    mockMvc.perform(get("/api/public/juego/escudos").param("cantidad", "5")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(0));
+
+    verify(juegoService).escudos(5);
+}
+
+@Test
+void unaCantidadFueraDeRangoOQueNoEsUnNumeroEs400() throws Exception {
+    when(juegoService.escudos(13)).thenThrow(new IllegalArgumentException("La cantidad tiene que estar entre 2 y 12"));
+
+    mockMvc.perform(get("/api/public/juego/escudos").param("cantidad", "13")).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("La cantidad tiene que estar entre 2 y 12"));
+    mockMvc.perform(get("/api/public/juego/escudos").param("cantidad", "muchos")).andExpect(status().isBadRequest());
+}
+
+@Test
+void elRankingConUnJuegoOPeriodoInvalidoEs400() throws Exception {
         when(juegoService.ranking("AJEDREZ", null)).thenThrow(new IllegalArgumentException("El juego no vale"));
 
         mockMvc.perform(get("/api/public/juego/ranking").param("juego", "AJEDREZ")).andExpect(status().isBadRequest())
@@ -122,13 +187,19 @@ class JuegoApiTest {
     @Test
     void elPerfilDevuelveAliasEquipacionYMarcasConPosicion() throws Exception {
         when(juegoService.perfil(5)).thenReturn(new PerfilJuego("Ana", "ROSA", false,
-                Map.of("PENALTIS", new MarcasJuego(new MarcaConPosicion(8, FECHA, 3), null))));
+                Map.of("ATRAPA", new MarcasJuego("PUNTOS", new MarcaConPosicion(8, 41_000, FECHA, 3), null),
+                        "PAREJAS", new MarcasJuego("TIEMPO", new MarcaConPosicion(8, 31_400, FECHA, 2), null))));
 
         mockMvc.perform(get("/api/app/juego/perfil").with(user("5").roles("JUGADOR"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.alias").value("Ana")).andExpect(jsonPath("$.equipacion").value("ROSA"))
-                .andExpect(jsonPath("$.juegos.PENALTIS.semana.puntos").value(8))
-                .andExpect(jsonPath("$.juegos.PENALTIS.semana.posicion").value(3))
-                .andExpect(jsonPath("$.juegos.PENALTIS.historico").doesNotExist());
+                .andExpect(jsonPath("$.juegos.ATRAPA.marca").value("PUNTOS"))
+                .andExpect(jsonPath("$.juegos.ATRAPA.semana.puntos").value(8))
+                .andExpect(jsonPath("$.juegos.ATRAPA.semana.tiempoMs").value(41_000))
+                .andExpect(jsonPath("$.juegos.ATRAPA.semana.posicion").value(3))
+                .andExpect(jsonPath("$.juegos.ATRAPA.historico").doesNotExist())
+                .andExpect(jsonPath("$.juegos.PAREJAS.marca").value("TIEMPO"))
+                .andExpect(jsonPath("$.juegos.PAREJAS.semana.tiempoMs").value(31_400))
+                .andExpect(jsonPath("$.juegos.PAREJAS.semana.posicion").value(2));
     }
 
     @Test
@@ -165,12 +236,13 @@ class JuegoApiTest {
 
     @Test
     void guardarUnaPuntuacionDevuelve201ConRecordsYPosiciones() throws Exception {
-        when(juegoService.guardarPuntuacion(5, "PENALTIS", 12, 40_000))
-                .thenReturn(new ResultadoPuntuacion("PENALTIS", 12, true, false, 3, 7));
+        when(juegoService.guardarPuntuacion(5, "ATRAPA", 12, 40_000))
+                .thenReturn(new ResultadoPuntuacion("ATRAPA", "PUNTOS", 12, 40_000, true, false, 3, 7));
 
         mockMvc.perform(post("/api/app/juego/puntuacion").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"juego\":\"PENALTIS\",\"puntos\":12,\"duracionMs\":40000}")
+                .content("{\"juego\":\"ATRAPA\",\"puntos\":12,\"duracionMs\":40000}")
                 .with(user("5").roles("JUGADOR")).with(csrf())).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.marca").value("PUNTOS")).andExpect(jsonPath("$.tiempoMs").value(40_000))
                 .andExpect(jsonPath("$.recordSemana").value(true)).andExpect(jsonPath("$.recordHistorico").value(false))
                 .andExpect(jsonPath("$.posicionSemana").value(3)).andExpect(jsonPath("$.posicionHistorico").value(7));
     }
@@ -181,7 +253,7 @@ class JuegoApiTest {
                 new JuegoConflictoException("ALIAS_REQUERIDO", "Elige un alias para guardar tu puntuación"));
 
         mockMvc.perform(post("/api/app/juego/puntuacion").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"juego\":\"TOQUES\",\"puntos\":5,\"duracionMs\":20000}").with(user("5").roles("JUGADOR"))
+                .content("{\"juego\":\"REGATEA\",\"puntos\":5,\"duracionMs\":20000}").with(user("5").roles("JUGADOR"))
                 .with(csrf())).andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("ALIAS_REQUERIDO"));
     }
 
@@ -191,7 +263,7 @@ class JuegoApiTest {
                 .thenThrow(new IllegalArgumentException("La puntuación no es válida para esa duración"));
 
         mockMvc.perform(post("/api/app/juego/puntuacion").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"juego\":\"TOQUES\",\"puntos\":999,\"duracionMs\":3000}").with(user("5").roles("JUGADOR"))
+                .content("{\"juego\":\"REGATEA\",\"puntos\":999,\"duracionMs\":3000}").with(user("5").roles("JUGADOR"))
                 .with(csrf())).andExpect(status().isBadRequest());
     }
 
@@ -201,7 +273,7 @@ class JuegoApiTest {
                 .thenThrow(new JuegoLimiteEnviosException("Vas muy rápido"));
 
         mockMvc.perform(post("/api/app/juego/puntuacion").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"juego\":\"TOQUES\",\"puntos\":5,\"duracionMs\":20000}").with(user("5").roles("JUGADOR"))
+                .content("{\"juego\":\"REGATEA\",\"puntos\":5,\"duracionMs\":20000}").with(user("5").roles("JUGADOR"))
                 .with(csrf())).andExpect(status().isTooManyRequests()).andExpect(jsonPath("$.error").value("Vas muy rápido"));
     }
 
@@ -210,7 +282,7 @@ class JuegoApiTest {
     // ------------------------------------------------------------------
 
     private static JuegoDao.PerfilAdmin perfilAdmin() {
-        return new JuegoDao.PerfilAdmin(7, "Ana", "AZUL", false, "Ana Pérez", "ana@example.com", FECHA, 3, 4, 5, 6);
+        return new JuegoDao.PerfilAdmin(7, "Ana", "AZUL", false, "Ana Pérez", "ana@example.com", FECHA, 3, 4, 5, 6, 83_400);
     }
 
     @Test
@@ -252,7 +324,9 @@ class JuegoApiTest {
         mockMvc.perform(get("/api/app/admin/juego/perfiles").param("alias", "an").with(user("5").roles("ADMIN_APP")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].alias").value("Ana"))
                 .andExpect(jsonPath("$[0].nombre").value("Ana Pérez")).andExpect(jsonPath("$[0].email").value("ana@example.com"))
-                .andExpect(jsonPath("$[0].mejorPenaltis").value(4));
+                .andExpect(jsonPath("$[0].mejorAtrapa").value(4)).andExpect(jsonPath("$[0].mejorRegatea").value(5))
+                .andExpect(jsonPath("$[0].mejorCabezazos").value(6))
+                .andExpect(jsonPath("$[0].mejorParejasMs").value(83_400));
 
         verify(usuarioAppService).exigirAdminApp(eq(5), anyString());
     }

@@ -12,29 +12,52 @@ import com.mikedev.mutxamelcf.dao.JuegoDao;
  */
 public interface JuegoService {
 
-    /** Una fila del ranking público: nunca el nombre real, solo el alias. */
-    record FilaRanking(int posicion, String alias, int puntos, LocalDateTime fecha) {
+    /** Cómo se mide la marca de un juego: los PUNTOS (más es mejor) o el TIEMPO (PAREJAS: menos es mejor). */
+    String MARCA_PUNTOS = "PUNTOS";
+    String MARCA_TIEMPO = "TIEMPO";
+
+    /**
+     * Una fila del ranking público: nunca el nombre real, solo el alias. {@code marca} dice qué mide el juego (PUNTOS o
+     * TIEMPO) y {@code tiempoMs} es el tiempo de esa partida.
+     */
+    record FilaRanking(int posicion, String alias, String marca, int puntos, int tiempoMs, LocalDateTime fecha) {
     }
 
     /** Una mejor marca con la posición que ocupa en el ranking (null si el perfil está oculto). */
-    record MarcaConPosicion(int puntos, LocalDateTime fecha, Integer posicion) {
+    record MarcaConPosicion(int puntos, int tiempoMs, LocalDateTime fecha, Integer posicion) {
     }
 
-    /** La mejor marca de un juego, de la semana y del histórico (null si aún no hay). */
-    record MarcasJuego(MarcaConPosicion semana, MarcaConPosicion historico) {
+    /** La mejor marca de un juego (PUNTOS o TIEMPO), de la semana y del histórico (null si aún no hay). */
+    record MarcasJuego(String marca, MarcaConPosicion semana, MarcaConPosicion historico) {
     }
 
-    /** El perfil de la cuenta con sus marcas por juego (PENALTIS, TOQUES, ATRAPA). */
+    /** El perfil de la cuenta con sus marcas por juego (ATRAPA, REGATEA, CABEZAZOS, PAREJAS). */
     record PerfilJuego(String alias, String equipacion, boolean oculto, Map<String, MarcasJuego> juegos) {
     }
 
-    /** Lo que devuelve guardar una puntuación. */
-    record ResultadoPuntuacion(String juego, int puntos, boolean recordSemana, boolean recordHistorico,
-            Integer posicionSemana, Integer posicionHistorico) {
+    /** Lo que devuelve guardar una puntuación (los récords, en PAREJAS, son de tiempo: menos es mejor). */
+    record ResultadoPuntuacion(String juego, String marca, int puntos, int tiempoMs, boolean recordSemana,
+            boolean recordHistorico, Integer posicionSemana, Integer posicionHistorico) {
     }
 
     /** Los 50 mejores de un juego; periodo SEMANA (por defecto) o HISTORICO. 400 si el juego o el periodo no valen. */
     List<FilaRanking> ranking(String juego, String periodo);
+
+    /** Un club con escudo para las fichas de Parejas: sin datos personales. */
+    record EscudoJuego(long id, String nombre, String escudoUrl) {
+    }
+
+    /** Cantidad de escudos por defecto (8 parejas del tablero 4×4) y sus límites. */
+    int ESCUDOS_POR_DEFECTO = 8;
+    int ESCUDOS_MINIMO = 2;
+    int ESCUDOS_MAXIMO = 12;
+
+    /**
+     * Clubes rivales con escudo, al azar, para las fichas de Parejas. Prioriza los de las clasificaciones de la
+     * temporada actual del Primer Equipo y del Filial, nunca nuestro club. {@code cantidad} null = 8; fuera de 2 a 12
+     * da 400. Si hay menos clubes con escudo que los pedidos, devuelve los que haya.
+     */
+    List<EscudoJuego> escudos(Integer cantidad);
 
     PerfilJuego perfil(int usuarioId);
 

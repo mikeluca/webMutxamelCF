@@ -15,21 +15,29 @@ public interface JuegoDao {
     record Perfil(long usuarioId, String alias, String equipacion, boolean oculto) {
     }
 
-    /** Una marca: los puntos y cuándo se hicieron. */
-    record Marca(int puntos, LocalDateTime fecha) {
+    /**
+     * Una marca: los puntos, el tiempo de la partida y cuándo se hizo. La que cuenta es la de más puntos (todos los
+     * juegos menos PAREJAS) o la de menos tiempo (PAREJAS); ver {@link #JUEGO_DE_TIEMPO}.
+     */
+    record Marca(int puntos, int duracionMs, LocalDateTime fecha) {
     }
 
+    /** El juego cuya marca es el tiempo (menos es mejor); en los demás la marca son los puntos (más es mejor). */
+    String JUEGO_DE_TIEMPO = "PAREJAS";
+
     /** Una fila del ranking (la posición la pone quien lo pide). */
-    record FilaRanking(long usuarioId, String alias, int puntos, LocalDateTime fecha) {
+    record FilaRanking(long usuarioId, String alias, int puntos, int duracionMs, LocalDateTime fecha) {
     }
 
     /** Una partida guardada. */
     record Puntuacion(long id, String juego, int puntos, int duracionMs, LocalDateTime fecha) {
     }
 
-    /** Un perfil para moderar, con la cuenta (nombre y email: solo se enseñan en el panel y a ADMIN_APP). */
+    /** Un perfil para moderar, con la cuenta (nombre y email: solo se enseñan en el panel y a ADMIN_APP). En Parejas la mejor marca es
+     * el menor tiempo en ms (0 si no ha jugado); en los demás, los mejores puntos. */
     record PerfilAdmin(long usuarioId, String alias, String equipacion, boolean oculto, String nombre, String email,
-            LocalDateTime fechaAlta, int partidas, int mejorPenaltis, int mejorToques, int mejorAtrapa) {
+            LocalDateTime fechaAlta, int partidas, int mejorAtrapa, int mejorRegatea, int mejorCabezazos,
+            int mejorParejasMs) {
     }
 
     Optional<Perfil> obtenerPerfil(long usuarioId);
@@ -83,4 +91,19 @@ public interface JuegoDao {
 
     /** Borra el perfil y las partidas de la cuenta (al eliminar la cuenta). */
     void eliminarTodoDeUsuario(long usuarioId);
+
+    // ---- Escudos para Parejas ----
+
+    /** Un club rival con escudo (sin el PNG): para elegir las fichas de Parejas. */
+    record ClubConEscudo(long id, String nombre, Integer codigoFfcv, long escudoVersion) {
+    }
+
+    /** Todos los clubes rivales que tienen escudo. */
+    List<ClubConEscudo> clubesConEscudo();
+
+    /**
+     * Ids de los clubes que salen en las clasificaciones de la temporada activa de los equipos "Primer Equipo" y
+     * "Filial" (por su código de club de la FFCV), sin nuestras propias filas.
+     */
+    java.util.Set<Long> clubesDeLasClasificacionesActuales();
 }

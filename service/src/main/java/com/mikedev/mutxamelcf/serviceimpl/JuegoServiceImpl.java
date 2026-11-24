@@ -11,10 +11,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,14 +53,20 @@ public class JuegoServiceImpl implements JuegoService {
     /** Margen sobre el ritmo máximo de cada juego (20 %), por si la partida es algo mejor de lo previsto. */
     public static final double MARGEN_RITMO = 1.2;
 
-    /** Ritmo máximo por segundo: PENALTIS 1 cada 1,5 s. */
-    public static final double RITMO_MAXIMO_PENALTIS = 1 / 1.5;
+    /** Ritmo máximo por segundo: ATRAPA 6 (balón dorado de 5 puntos y varios balones a la vez). */
+    public static final double RITMO_MAXIMO_ATRAPA = 6;
 
-    /** Ritmo máximo por segundo: TOQUES 5 por segundo. */
-    public static final double RITMO_MAXIMO_TOQUES = 5;
+    /** Ritmo máximo por segundo: REGATEA 4. */
+    public static final double RITMO_MAXIMO_REGATEA = 4;
 
-    /** Ritmo máximo por segundo: ATRAPA 3 por segundo. */
-    public static final double RITMO_MAXIMO_ATRAPA = 3;
+    /** Ritmo máximo por segundo: CABEZAZOS 1 (un punto por tubería). */
+    public static final double RITMO_MAXIMO_CABEZAZOS = 1;
+
+    /** PAREJAS: solo partidas completas, las 8 parejas del tablero 4×4 (los PUNTOS son siempre 8). */
+    public static final int PUNTOS_PAREJAS = 8;
+
+    /** PAREJAS: tiempo mínimo creíble para completar el tablero, 8 segundos. */
+    public static final int DURACION_MINIMA_PAREJAS_MS = 8_000;
 
     // ------------------------------------------------------------------
     // Límite de envíos por cuenta
@@ -72,18 +81,46 @@ public class JuegoServiceImpl implements JuegoService {
     static final String MENSAJE_SIN_ALIAS = "Elige un alias para guardar tu puntuación y salir en el ranking";
     static final String MENSAJE_ALIAS_EN_USO = "Ese alias ya está en uso";
 
-    static final Set<String> JUEGOS = Set.of("PENALTIS", "TOQUES", "ATRAPA");
     static final Set<String> EQUIPACIONES = Set.of("AZUL", "ROSA");
-    static final List<String> ORDEN_JUEGOS = List.of("PENALTIS", "TOQUES", "ATRAPA");
+
+    /** Los juegos válidos y el orden en que salen en las respuestas. */
+    static final List<String> ORDEN_JUEGOS = List.of("ATRAPA", "REGATEA", "CABEZAZOS", JuegoDao.JUEGO_DE_TIEMPO);
+    static final Set<String> JUEGOS = Set.copyOf(ORDEN_JUEGOS);
 
     private final JuegoDao juegoDao;
     private final AliasJuego aliasJuego;
     private final Clock clock;
+    private final int codigoClubPropio;
+    private final Random azar;
 
-    public JuegoServiceImpl(JuegoDao juegoDao, AliasJuego aliasJuego, Clock clock) {
+    @Autowired
+    public JuegoServiceImpl(JuegoDao juegoDao, AliasJuego aliasJuego, Clock clock,
+            @Value("${ffcv.club.codigo:3010}") int codigoClubPropio) {
+        this(juegoDao, aliasJuego, clock, codigoClubPropio, new Random());
+    }
+
+    /** Con el azar a medida (los tests eligen escudos con una semilla fija). */
+    JuegoServiceImpl(JuegoDao juegoDao, AliasJuego aliasJuego, Clock clock, int codigoClubPropio, Random azar) {
         this.juegoDao = juegoDao;
         this.aliasJuego = aliasJuego;
         this.clock = clock;
+        this.codigoClubPropio = codigoClubPropio;
+        this.azar = azar;
+    }
+
+    /** Qué mide cada juego: PAREJAS el tiempo (menos es mejor), los demás los puntos (más es mejor). */
+    static String tipoDeMarca(String juego) {
+        return JuegoDao.JUEGO_DE_TIEMPO.equals(juego) ? MARCA_TIEMPO : MARCA_PUNTOS;
+    }
+
+    /** Si la partida {@code nueva} mejora a la {@code anterior} (sin anterior, siempre que cuente: ver el uso). */
+    private static boolean mejora(String juego, int puntos, int duracionMs, Marca anterior) {
+
+        if (JuegoDao.JUEGO_DE_TIEMPO.equals(juego)) {
+            return anterior == null || duracionMs < anterior.duracionMs();
+        }
+
+        return puntos > (anterior == null ? 0 : anterior.puntos());
     }
 
     // ------------------------------------------------------------------
@@ -103,7 +140,7 @@ public class JuegoServiceImpl implements JuegoService {
         String valor = juego == null ? "" : juego.trim().toUpperCase(Locale.ROOT);
 
         if (!JUEGOS.contains(valor)) {
-            throw new IllegalArgumentException("El juego tiene que ser PENALTIS, TOQUES o ATRAPA");
+            throw new IllegalArgumentException("El juego tiene que ser ATRAPA, REGATEA, CABEZAZOS o PAREJAS");
         }
 
         return valor;
@@ -131,7 +168,8 @@ public class JuegoServiceImpl implements JuegoService {
 
         for (int i = 0; i < filas.size(); i++) {
             JuegoDao.FilaRanking f = filas.get(i);
-            resultado.add(new FilaRanking(i + 1, f.alias(), f.puntos(), f.fecha()));
+            resultado.add(new FilaRanking(i + 1, f.alias(), tipoDeMarca(juegoValido), f.puntos(), f.duracionMs(),
+                    f.fecha()));
         }
 
         return resultado;
@@ -149,7 +187,7 @@ public class JuegoServiceImpl implements JuegoService {
         Integer posicion = oculto ? null
                 : juegoDao.cuentasPorDelante(juego, desde, hasta, usuarioId, marca.get()) + 1;
 
-        return new MarcaConPosicion(marca.get().puntos(), marca.get().fecha(), posicion);
+        return new MarcaConPosicion(marca.get().puntos(), marca.get().duracionMs(), marca.get().fecha(), posicion);
     }
 
     @Override
@@ -163,7 +201,8 @@ public class JuegoServiceImpl implements JuegoService {
 
         for (String juego : ORDEN_JUEGOS) {
             juegos.put(juego,
-                    new MarcasJuego(marcaConPosicion(usuarioId, juego, semana, semana.plusWeeks(1), oculto),
+                    new MarcasJuego(tipoDeMarca(juego),
+                            marcaConPosicion(usuarioId, juego, semana, semana.plusWeeks(1), oculto),
                             marcaConPosicion(usuarioId, juego, null, null, oculto)));
         }
 
@@ -223,12 +262,12 @@ public class JuegoServiceImpl implements JuegoService {
     static int puntosMaximosPlausibles(String juego, int duracionMs) {
 
         double ritmo = switch (juego) {
-        case "PENALTIS" -> RITMO_MAXIMO_PENALTIS;
-        case "TOQUES" -> RITMO_MAXIMO_TOQUES;
+        case "REGATEA" -> RITMO_MAXIMO_REGATEA;
+        case "CABEZAZOS" -> RITMO_MAXIMO_CABEZAZOS;
         default -> RITMO_MAXIMO_ATRAPA;
         };
 
-        // El 1e-9 evita que 0.6666…·x·1.2 se quede un punto corto por redondeo en los casos justos.
+        // El 1e-9 evita que un ritmo justo se quede un punto corto por redondeo en los casos justos.
         double maximo = Math.floor(ritmo * (duracionMs / 1000.0) * MARGEN_RITMO + 1e-9);
 
         return (int) Math.min(maximo, PUNTOS_MAXIMOS);
@@ -258,7 +297,16 @@ public class JuegoServiceImpl implements JuegoService {
             throw new IllegalArgumentException("La duración de la partida no es válida");
         }
 
-        if (puntos > puntosMaximosPlausibles(juegoValido, duracionMs)) {
+        if (JuegoDao.JUEGO_DE_TIEMPO.equals(juegoValido)) {
+            // PAREJAS puntúa por tiempo y solo se guarda la partida completa: siempre las 8 parejas.
+            if (puntos != PUNTOS_PAREJAS || duracionMs < DURACION_MINIMA_PAREJAS_MS) {
+                logger.info("Partida de Parejas rechazada por implausible: usuarioAppId={}, puntos={}, duracionMs={}",
+                        usuarioId, puntos, duracionMs);
+                throw new IllegalArgumentException(puntos != PUNTOS_PAREJAS
+                        ? "En Parejas solo se guardan partidas completas (" + PUNTOS_PAREJAS + " parejas)"
+                        : "La puntuación no es válida para esa duración");
+            }
+        } else if (puntos > puntosMaximosPlausibles(juegoValido, duracionMs)) {
             logger.info("Puntuación del juego rechazada por implausible: usuarioAppId={}, juego={}, puntos={}, "
                     + "duracionMs={}", usuarioId, juegoValido, puntos, duracionMs);
             throw new IllegalArgumentException("La puntuación no es válida para esa duración");
@@ -271,15 +319,17 @@ public class JuegoServiceImpl implements JuegoService {
         LocalDateTime siguiente = semana.plusWeeks(1);
         boolean oculto = perfil.get().oculto();
 
-        int mejorSemana = juegoDao.mejorMarca(usuarioId, juegoValido, semana, siguiente).map(Marca::puntos).orElse(0);
-        int mejorHistorico = juegoDao.mejorMarca(usuarioId, juegoValido, null, null).map(Marca::puntos).orElse(0);
+        Marca mejorSemana = juegoDao.mejorMarca(usuarioId, juegoValido, semana, siguiente).orElse(null);
+        Marca mejorHistorico = juegoDao.mejorMarca(usuarioId, juegoValido, null, null).orElse(null);
 
         juegoDao.insertarPuntuacion(usuarioId, juegoValido, puntos, duracionMs, ahora);
 
         MarcaConPosicion enSemana = marcaConPosicion(usuarioId, juegoValido, semana, siguiente, oculto);
         MarcaConPosicion enHistorico = marcaConPosicion(usuarioId, juegoValido, null, null, oculto);
 
-        return new ResultadoPuntuacion(juegoValido, puntos, puntos > mejorSemana, puntos > mejorHistorico,
+        return new ResultadoPuntuacion(juegoValido, tipoDeMarca(juegoValido), puntos, duracionMs,
+                mejora(juegoValido, puntos, duracionMs, mejorSemana),
+                mejora(juegoValido, puntos, duracionMs, mejorHistorico),
                 enSemana == null ? null : enSemana.posicion(), enHistorico == null ? null : enHistorico.posicion());
     }
 
@@ -294,6 +344,45 @@ public class JuegoServiceImpl implements JuegoService {
         if (juegoDao.contarPuntuacionesDesde(usuarioId, ahora.toLocalDate().atStartOfDay()) >= ENVIOS_MAXIMOS_AL_DIA) {
             throw new JuegoLimiteEnviosException("Has llegado al máximo de partidas guardadas de hoy: vuelve mañana");
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Escudos para Parejas
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<EscudoJuego> escudos(Integer cantidad) {
+
+        int pedidos = cantidad == null ? ESCUDOS_POR_DEFECTO : cantidad;
+
+        if (pedidos < ESCUDOS_MINIMO || pedidos > ESCUDOS_MAXIMO) {
+            throw new IllegalArgumentException(
+                    "La cantidad tiene que estar entre " + ESCUDOS_MINIMO + " y " + ESCUDOS_MAXIMO);
+        }
+
+        // Nunca nuestro club (ni por su código de la FFCV ni por su nombre).
+        List<JuegoDao.ClubConEscudo> candidatos = juegoDao.clubesConEscudo().stream()
+                .filter(c -> c.codigoFfcv() == null || c.codigoFfcv() != codigoClubPropio)
+                .filter(c -> !NombreClub.esPropio(c.nombre()))
+                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+
+        Set<Long> actuales = juegoDao.clubesDeLasClasificacionesActuales();
+
+        // Primero los de las clasificaciones de esta temporada; si no llegan, se completa con los demás.
+        List<JuegoDao.ClubConEscudo> prioritarios = new java.util.ArrayList<>(
+                candidatos.stream().filter(c -> actuales.contains(c.id())).toList());
+        List<JuegoDao.ClubConEscudo> resto = new java.util.ArrayList<>(
+                candidatos.stream().filter(c -> !actuales.contains(c.id())).toList());
+
+        java.util.Collections.shuffle(prioritarios, azar);
+        java.util.Collections.shuffle(resto, azar);
+
+        List<JuegoDao.ClubConEscudo> elegidos = new java.util.ArrayList<>(prioritarios);
+
+        elegidos.addAll(resto);
+
+        return elegidos.stream().limit(pedidos)
+                .map(c -> new EscudoJuego(c.id(), c.nombre(), EscudosRivales.url(c.id(), c.escudoVersion()))).toList();
     }
 
     // ------------------------------------------------------------------

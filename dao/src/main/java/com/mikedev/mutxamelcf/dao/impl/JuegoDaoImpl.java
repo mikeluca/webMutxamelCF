@@ -3,8 +3,10 @@ package com.mikedev.mutxamelcf.dao.impl;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -15,23 +17,30 @@ import com.mikedev.mutxamelcf.dao.JuegoDao;
 @Repository
 public class JuegoDaoImpl implements JuegoDao {
 
+	/** PAREJAS puntúa por tiempo (menos es mejor); los demás juegos, por puntos (más es mejor). */
+	private static boolean esDeTiempo(String juego) {
+		return JUEGO_DE_TIEMPO.equals(juego);
+	}
+
+	/** El orden de la mejor marca (sin desempates): menos tiempo (PAREJAS) o más puntos. */
+	private static String ordenMarca(String juego, String prefijo) {
+		return esDeTiempo(juego) ? prefijo + "DURACION_MS ASC" : prefijo + "PUNTOS DESC";
+	}
+
 	/**
 	 * La mejor marca de cada cuenta visible en el ranking (con alias, no oculta, cuenta activa y no eliminada): una
-	 * fila por cuenta, la de más puntos y, si empata, la más antigua. Los parámetros son juego, desde y hasta
-	 * (cada fecha dos veces: "es null o ...").
-	 */
-	/**
-	 * La mejor marca de cada cuenta visible en el ranking (con alias, no oculta, cuenta activa y no eliminada): una
-	 * fila por cuenta, la de más puntos y, si empata, la más antigua. Añade a {@code args} el juego y las fechas.
+	 * fila por cuenta, la de más puntos (PAREJAS: la de menos tiempo) y, si empata, la más antigua. Añade a
+	 * {@code args} el juego y las fechas.
 	 */
 	private static String mejores(String juego, LocalDateTime desde, LocalDateTime hasta, List<Object> args) {
 		args.add(juego);
 
 		StringBuilder sql = new StringBuilder("""
-				SELECT USUARIO_APP_ID, ALIAS, PUNTOS, FECHA FROM (
-				    SELECT P.USUARIO_APP_ID, F.ALIAS, P.PUNTOS, P.FECHA,
+				SELECT USUARIO_APP_ID, ALIAS, PUNTOS, DURACION_MS, FECHA FROM (
+				    SELECT P.USUARIO_APP_ID, F.ALIAS, P.PUNTOS, P.DURACION_MS, P.FECHA,
 				           ROW_NUMBER() OVER (PARTITION BY P.USUARIO_APP_ID
-				                              ORDER BY P.PUNTOS DESC, P.FECHA ASC, P.ID ASC) AS RN
+				                              ORDER BY\s""" + ordenMarca(juego, "P.") + """
+				, P.FECHA ASC, P.ID ASC) AS RN
 				    FROM JUEGO_PUNTUACIONES P
 				    JOIN JUEGO_PERFILES F ON F.USUARIO_APP_ID = P.USUARIO_APP_ID
 				    JOIN USUARIOS_APP U ON U.ID = P.USUARIO_APP_ID
@@ -65,11 +74,13 @@ public class JuegoDaoImpl implements JuegoDao {
 			       U.NOMBRE, U.APELLIDOS, U.EMAIL,
 			       (SELECT COUNT(*) FROM JUEGO_PUNTUACIONES P WHERE P.USUARIO_APP_ID = F.USUARIO_APP_ID) AS PARTIDAS,
 			       (SELECT COALESCE(MAX(P.PUNTOS), 0) FROM JUEGO_PUNTUACIONES P
-			         WHERE P.USUARIO_APP_ID = F.USUARIO_APP_ID AND P.JUEGO = 'PENALTIS') AS M_PENALTIS,
+			         WHERE P.USUARIO_APP_ID = F.USUARIO_APP_ID AND P.JUEGO = 'ATRAPA') AS M_ATRAPA,
 			       (SELECT COALESCE(MAX(P.PUNTOS), 0) FROM JUEGO_PUNTUACIONES P
-			         WHERE P.USUARIO_APP_ID = F.USUARIO_APP_ID AND P.JUEGO = 'TOQUES') AS M_TOQUES,
+			         WHERE P.USUARIO_APP_ID = F.USUARIO_APP_ID AND P.JUEGO = 'REGATEA') AS M_REGATEA,
 			       (SELECT COALESCE(MAX(P.PUNTOS), 0) FROM JUEGO_PUNTUACIONES P
-			         WHERE P.USUARIO_APP_ID = F.USUARIO_APP_ID AND P.JUEGO = 'ATRAPA') AS M_ATRAPA
+			         WHERE P.USUARIO_APP_ID = F.USUARIO_APP_ID AND P.JUEGO = 'CABEZAZOS') AS M_CABEZAZOS,
+			       (SELECT COALESCE(MIN(P.DURACION_MS), 0) FROM JUEGO_PUNTUACIONES P
+			         WHERE P.USUARIO_APP_ID = F.USUARIO_APP_ID AND P.JUEGO = 'PAREJAS') AS M_PAREJAS
 			FROM JUEGO_PERFILES F
 			JOIN USUARIOS_APP U ON U.ID = F.USUARIO_APP_ID
 			""";
@@ -80,7 +91,8 @@ public class JuegoDaoImpl implements JuegoDao {
 
 		return new PerfilAdmin(rs.getLong("USUARIO_APP_ID"), rs.getString("ALIAS"), rs.getString("EQUIPACION"),
 				rs.getInt("OCULTO") == 1, nombre, rs.getString("EMAIL"), fecha(rs.getTimestamp("FECHA_ALTA")),
-				rs.getInt("PARTIDAS"), rs.getInt("M_PENALTIS"), rs.getInt("M_TOQUES"), rs.getInt("M_ATRAPA"));
+				rs.getInt("PARTIDAS"), rs.getInt("M_ATRAPA"), rs.getInt("M_REGATEA"), rs.getInt("M_CABEZAZOS"),
+				rs.getInt("M_PAREJAS"));
 	};
 
 	private final JdbcTemplate jdbcTemplate;
@@ -151,7 +163,7 @@ public class JuegoDaoImpl implements JuegoDao {
 	public Optional<Marca> mejorMarca(long usuarioId, String juego, LocalDateTime desde, LocalDateTime hasta) {
 		List<Object> args = new ArrayList<>(List.of(usuarioId, juego));
 		StringBuilder sql = new StringBuilder(
-				"SELECT PUNTOS, FECHA FROM JUEGO_PUNTUACIONES WHERE USUARIO_APP_ID = ? AND JUEGO = ?");
+				"SELECT PUNTOS, DURACION_MS, FECHA FROM JUEGO_PUNTUACIONES WHERE USUARIO_APP_ID = ? AND JUEGO = ?");
 
 		if (desde != null) {
 			sql.append(" AND FECHA >= ?");
@@ -163,10 +175,11 @@ public class JuegoDaoImpl implements JuegoDao {
 			args.add(ts(hasta));
 		}
 
-		sql.append(" ORDER BY PUNTOS DESC, FECHA ASC, ID ASC FETCH FIRST 1 ROWS ONLY");
+		sql.append(" ORDER BY " + ordenMarca(juego, "") + ", FECHA ASC, ID ASC FETCH FIRST 1 ROWS ONLY");
 
 		return jdbcTemplate.query(sql.toString(),
-				(rs, n) -> new Marca(rs.getInt("PUNTOS"), fecha(rs.getTimestamp("FECHA"))), args.toArray())
+				(rs, n) -> new Marca(rs.getInt("PUNTOS"), rs.getInt("DURACION_MS"), fecha(rs.getTimestamp("FECHA"))),
+				args.toArray())
 				.stream().findFirst();
 	}
 
@@ -176,10 +189,10 @@ public class JuegoDaoImpl implements JuegoDao {
 		String mejores = mejores(juego, desde, hasta, args);
 
 		return jdbcTemplate.query(
-				"SELECT * FROM (" + mejores + ") MEJORES ORDER BY PUNTOS DESC, FECHA ASC, USUARIO_APP_ID ASC "
-						+ "FETCH FIRST " + Math.max(limite, 0) + " ROWS ONLY",
+				"SELECT * FROM (" + mejores + ") MEJORES ORDER BY " + ordenMarca(juego, "")
+						+ ", FECHA ASC, USUARIO_APP_ID ASC FETCH FIRST " + Math.max(limite, 0) + " ROWS ONLY",
 				(rs, n) -> new FilaRanking(rs.getLong("USUARIO_APP_ID"), rs.getString("ALIAS"), rs.getInt("PUNTOS"),
-						fecha(rs.getTimestamp("FECHA"))),
+						rs.getInt("DURACION_MS"), fecha(rs.getTimestamp("FECHA"))),
 				args.toArray());
 	}
 
@@ -190,10 +203,14 @@ public class JuegoDaoImpl implements JuegoDao {
 		String mejores = mejores(juego, desde, hasta, args);
 		Timestamp f = ts(marca.fecha());
 
-		args.addAll(List.of(usuarioId, marca.puntos(), marca.puntos(), f, f, usuarioId));
+		// Por delante: más puntos (PAREJAS: menos tiempo) o igual marca y antes (y, si es el mismo instante, menor id).
+		int medida = esDeTiempo(juego) ? marca.duracionMs() : marca.puntos();
+		String mejorQue = esDeTiempo(juego) ? "DURACION_MS < ? OR (DURACION_MS = ?" : "PUNTOS > ? OR (PUNTOS = ?";
+
+		args.addAll(List.of(usuarioId, medida, medida, f, f, usuarioId));
 
 		Integer cuentas = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM (" + mejores + ") MEJORES "
-				+ "WHERE USUARIO_APP_ID <> ? AND (PUNTOS > ? OR (PUNTOS = ? AND (FECHA < ? "
+				+ "WHERE USUARIO_APP_ID <> ? AND (" + mejorQue + " AND (FECHA < ? "
 				+ "OR (FECHA = ? AND USUARIO_APP_ID < ?))))", Integer.class, args.toArray());
 
 		return cuentas == null ? 0 : cuentas;
@@ -255,5 +272,28 @@ public class JuegoDaoImpl implements JuegoDao {
 	public void eliminarTodoDeUsuario(long usuarioId) {
 		borrarPuntuacionesDeUsuario(usuarioId);
 		jdbcTemplate.update("DELETE FROM JUEGO_PERFILES WHERE USUARIO_APP_ID = ?", usuarioId);
+	}
+
+	@Override
+	public List<ClubConEscudo> clubesConEscudo() {
+		return jdbcTemplate.query("SELECT ID, NOMBRE, CODIGO_FFCV, ESCUDO_VERSION FROM CLUBES_RIVALES "
+				+ "WHERE ESCUDO IS NOT NULL ORDER BY ID",
+				(rs, n) -> new ClubConEscudo(rs.getLong("ID"), rs.getString("NOMBRE"),
+						rs.getObject("CODIGO_FFCV") == null ? null : rs.getInt("CODIGO_FFCV"),
+						rs.getLong("ESCUDO_VERSION")));
+	}
+
+	@Override
+	public Set<Long> clubesDeLasClasificacionesActuales() {
+		// Solo la temporada activa; sin temporada activa no hay "actuales". Nunca nuestras filas.
+		return new LinkedHashSet<>(jdbcTemplate.queryForList("""
+				SELECT DISTINCT CR.ID
+				FROM CLASIFICACIONES C
+				JOIN EQUIPO E ON E.ID = C.EQUIPO_ID
+				JOIN CLUBES_RIVALES CR ON CR.CODIGO_FFCV = C.CODIGO_CLUB
+				WHERE E.NOMBRE IN ('Primer Equipo', 'Filial')
+				  AND C.TEMPORADA_ID IN (SELECT T.ID FROM TEMPORADAS T WHERE T.ACTIVA = 1)
+				  AND C.ES_NUESTRO = 0
+				""", Long.class));
 	}
 }

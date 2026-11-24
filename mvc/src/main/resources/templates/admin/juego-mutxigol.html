@@ -41,9 +41,10 @@
 					<tr>
 						<th>Alias</th>
 						<th>Cuenta</th>
-						<th class="text-end">Penaltis</th>
-						<th class="text-end">Toques</th>
 						<th class="text-end">Atrapa</th>
+						<th class="text-end">Regatea</th>
+						<th class="text-end">Cabezazos</th>
+						<th class="text-end">Parejas (m:ss,d)</th>
 						<th class="text-end">Partidas</th>
 						<th>Estado</th>
 						<th style="width: 32%;"></th>
@@ -56,9 +57,10 @@
 							<div th:text="${p.nombre()}"></div>
 							<div class="small text-muted" th:text="${p.email()}"></div>
 						</td>
-						<td class="text-end" th:text="${p.mejorPenaltis()}"></td>
-						<td class="text-end" th:text="${p.mejorToques()}"></td>
 						<td class="text-end" th:text="${p.mejorAtrapa()}"></td>
+						<td class="text-end" th:text="${p.mejorRegatea()}"></td>
+						<td class="text-end" th:text="${p.mejorCabezazos()}"></td>
+						<td class="text-end" th:text="${tiempo.f(p.mejorParejasMs())}"></td>
 						<td class="text-end" th:text="${p.partidas()}"></td>
 						<td>
 							<span th:if="${p.oculto()}" class="badge text-bg-secondary">Oculto</span>
@@ -103,7 +105,7 @@
 						</td>
 					</tr>
 					<tr th:if="${#lists.isEmpty(perfiles)}">
-						<td colspan="8" class="text-center text-muted">No hay perfiles del juego que mostrar.</td>
+						<td colspan="10" class="text-center text-muted">No hay perfiles del juego que mostrar.</td>
 					</tr>
 				</tbody>
 			</table>
@@ -118,7 +120,7 @@
 					<tr>
 						<th>Fecha</th>
 						<th>Juego</th>
-						<th class="text-end">Puntos</th>
+						<th class="text-end">Marca</th>
 						<th class="text-end">Duración (s)</th>
 						<th></th>
 					</tr>
@@ -127,7 +129,7 @@
 					<tr th:each="s : ${puntuaciones}">
 						<td th:text="${#temporals.format(s.fecha(), 'dd/MM/yyyy HH:mm:ss')}"></td>
 						<td th:text="${s.juego()}"></td>
-						<td class="text-end" th:text="${s.puntos()}"></td>
+						<td class="text-end" th:text="${s.juego() == 'PAREJAS' ? tiempo.f(s.duracionMs()) : s.puntos()}"></td>
 						<td class="text-end" th:text="${#numbers.formatDecimal(s.duracionMs() / 1000.0, 1, 1)}"></td>
 						<td class="text-end">
 							<form th:action="@{/admin/juego-mutxigol/puntuaciones/{id}/borrar(id=${s.id()})}" method="post"

@@ -53,7 +53,7 @@ class JuegoMutxigolPanelTest {
     private MockMvc mockMvc;
 
     private static PerfilAdmin perfil(long id, String alias, boolean oculto) {
-        return new PerfilAdmin(id, alias, "AZUL", oculto, "Ana Pérez", "ana@example.com", FECHA, 4, 12, 40, 9);
+        return new PerfilAdmin(id, alias, "AZUL", oculto, "Ana Pérez", "ana@example.com", FECHA, 4, 12, 40, 9, 83_450);
     }
 
     private String pagina(String url, String rol) throws Exception {
@@ -116,8 +116,30 @@ class JuegoMutxigolPanelTest {
         assertThat(html).contains("TODAS las puntuaciones");
     }
 
-    @Test
-    void laBusquedaPorAliasLlegaAlServicio() throws Exception {
+@Test
+void laListaTieneLasColumnasDeLosCuatroJuegosYNadaDeLosAntiguos() throws Exception {
+    when(juegoService.listarPerfilesAdmin(any())).thenReturn(List.of(perfil(7, "Mutxigol10", false)));
+
+    String html = pagina("/admin/juego-mutxigol", "ADMIN");
+
+    assertThat(html).contains(">Atrapa<").contains(">Regatea<").contains(">Cabezazos<").contains("Parejas (m:ss,d)")
+            .doesNotContain("Penaltis").doesNotContain("Toques");
+    // Atrapa 12, Regatea 40, Cabezazos 9 y el tiempo de Parejas (83,45 s) como m:ss,d
+    assertThat(html).contains(">12<").contains(">40<").contains(">9<").contains("1:23,4");
+}
+
+@Test
+void sinPartidasDeParejasNoSeEnseñaTiempo() throws Exception {
+    when(juegoService.listarPerfilesAdmin(any())).thenReturn(List.of(new PerfilAdmin(7, "Nuevo", "AZUL", false,
+            "Ana Pérez", "ana@example.com", FECHA, 0, 0, 0, 0, 0)));
+
+    String html = pagina("/admin/juego-mutxigol", "ADMIN");
+
+    assertThat(html).contains("Nuevo").contains("—").doesNotContain("0:00,0");
+}
+
+@Test
+void laBusquedaPorAliasLlegaAlServicio() throws Exception {
         when(juegoService.listarPerfilesAdmin("mutxi")).thenReturn(List.of(perfil(7, "Mutxigol10", false)));
 
         String html = pagina("/admin/juego-mutxigol?q=mutxi", "SUPER");
@@ -131,12 +153,13 @@ class JuegoMutxigolPanelTest {
         when(juegoService.listarPerfilesAdmin(any())).thenReturn(List.of(perfil(7, "Mutxigol10", false)));
         when(juegoService.obtenerPerfilAdmin(7)).thenReturn(perfil(7, "Mutxigol10", false));
         when(juegoService.puntuacionesAdmin(7))
-                .thenReturn(List.of(new Puntuacion(11, "PENALTIS", 12, 40_000, FECHA), new Puntuacion(12, "TOQUES", 40,
-                        20_000, FECHA.minusDays(1))));
+                .thenReturn(List.of(new Puntuacion(11, "ATRAPA", 12, 40_000, FECHA), new Puntuacion(12, "PAREJAS", 8,
+                        65_300, FECHA.minusDays(1))));
 
         String html = pagina("/admin/juego-mutxigol?usuario=7", "ADMIN");
 
-        assertThat(html).contains("Últimas puntuaciones de").contains("PENALTIS").contains("24/11/2026 18:03:12")
+        assertThat(html).contains("1:05,3"); // el tiempo de Parejas, no los 8 puntos
+        assertThat(html).contains("Últimas puntuaciones de").contains("ATRAPA").contains("PAREJAS").contains("24/11/2026 18:03:12")
                 .contains("/admin/juego-mutxigol/puntuaciones/11/borrar")
                 .contains("/admin/juego-mutxigol/puntuaciones/12/borrar").contains("¿Borrar esta puntuación?");
     }

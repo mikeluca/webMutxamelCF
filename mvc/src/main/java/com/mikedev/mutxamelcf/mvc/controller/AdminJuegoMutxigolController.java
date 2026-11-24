@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.mikedev.mutxamelcf.service.JuegoService;
+import com.mikedev.mutxamelcf.serviceimpl.TiempoJuego;
 
 /**
  * Pantalla "Juego Mutxigol" (/admin/juego-mutxigol) de Administración de la App: los perfiles del juego con su cuenta
@@ -43,6 +44,7 @@ public class AdminJuegoMutxigolController {
             Model model) {
 
         model.addAttribute("q", q == null ? "" : q);
+        model.addAttribute("tiempo", TiempoJuego.INSTANCIA);
         model.addAttribute("perfiles", juegoService.listarPerfilesAdmin(q));
 
         if (usuario != null) {

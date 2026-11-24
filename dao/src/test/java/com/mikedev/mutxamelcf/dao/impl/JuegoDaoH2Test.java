@@ -69,14 +69,14 @@ class JuegoDaoH2Test {
         cuenta(2, "Beto");
         cuenta(3, "Cris");
 
-        puntos(1, "PENALTIS", 5, LUNES.plusDays(1));
-        puntos(1, "PENALTIS", 9, LUNES.plusDays(2));
-        puntos(1, "PENALTIS", 7, LUNES.plusDays(3));
-        puntos(2, "PENALTIS", 9, LUNES.plusDays(1)); // empata con Ana pero antes
-        puntos(3, "PENALTIS", 3, LUNES.plusDays(1));
-        puntos(3, "TOQUES", 99, LUNES.plusDays(1)); // otro juego: no cuenta
+        puntos(1, "CABEZAZOS", 5, LUNES.plusDays(1));
+        puntos(1, "CABEZAZOS", 9, LUNES.plusDays(2));
+        puntos(1, "CABEZAZOS", 7, LUNES.plusDays(3));
+        puntos(2, "CABEZAZOS", 9, LUNES.plusDays(1)); // empata con Ana pero antes
+        puntos(3, "CABEZAZOS", 3, LUNES.plusDays(1));
+        puntos(3, "REGATEA", 99, LUNES.plusDays(1)); // otro juego: no cuenta
 
-        List<FilaRanking> filas = dao.ranking("PENALTIS", null, null, 50);
+        List<FilaRanking> filas = dao.ranking("CABEZAZOS", null, null, 50);
 
         assertThat(filas).extracting(FilaRanking::alias).containsExactly("Beto", "Ana", "Cris");
         assertThat(filas).extracting(FilaRanking::puntos).containsExactly(9, 9, 3);
@@ -88,10 +88,10 @@ class JuegoDaoH2Test {
     void elRankingLimitaAlosMejores() {
         for (int i = 1; i <= 5; i++) {
             cuenta(i, "Jugador" + i);
-            puntos(i, "TOQUES", i, LUNES.plusDays(1));
+            puntos(i, "REGATEA", i, LUNES.plusDays(1));
         }
 
-        assertThat(dao.ranking("TOQUES", null, null, 3)).extracting(FilaRanking::alias)
+        assertThat(dao.ranking("REGATEA", null, null, 3)).extracting(FilaRanking::alias)
                 .containsExactly("Jugador5", "Jugador4", "Jugador3");
     }
 
@@ -116,14 +116,14 @@ class JuegoDaoH2Test {
     void laMejorMarcaSemanalIgnoraLasDeOtrasSemanas() {
         cuenta(1, "Ana");
 
-        puntos(1, "PENALTIS", 30, LUNES.minusDays(2));
-        puntos(1, "PENALTIS", 8, LUNES.plusDays(1));
+        puntos(1, "CABEZAZOS", 30, LUNES.minusDays(2));
+        puntos(1, "CABEZAZOS", 8, LUNES.plusDays(1));
 
-        assertThat(dao.ranking("PENALTIS", LUNES, SIGUIENTE_LUNES, 50)).extracting(FilaRanking::puntos).containsExactly(8);
-        assertThat(dao.ranking("PENALTIS", null, null, 50)).extracting(FilaRanking::puntos).containsExactly(30);
-        assertThat(dao.mejorMarca(1, "PENALTIS", LUNES, SIGUIENTE_LUNES)).contains(new Marca(8, LUNES.plusDays(1)));
-        assertThat(dao.mejorMarca(1, "PENALTIS", null, null)).contains(new Marca(30, LUNES.minusDays(2)));
-        assertThat(dao.mejorMarca(1, "TOQUES", null, null)).isEmpty();
+        assertThat(dao.ranking("CABEZAZOS", LUNES, SIGUIENTE_LUNES, 50)).extracting(FilaRanking::puntos).containsExactly(8);
+        assertThat(dao.ranking("CABEZAZOS", null, null, 50)).extracting(FilaRanking::puntos).containsExactly(30);
+        assertThat(dao.mejorMarca(1, "CABEZAZOS", LUNES, SIGUIENTE_LUNES)).contains(new Marca(8, 30_000, LUNES.plusDays(1)));
+        assertThat(dao.mejorMarca(1, "CABEZAZOS", null, null)).contains(new Marca(30, 30_000, LUNES.minusDays(2)));
+        assertThat(dao.mejorMarca(1, "REGATEA", null, null)).isEmpty();
     }
 
     @Test
@@ -135,40 +135,40 @@ class JuegoDaoH2Test {
         cuenta(5, "Borrada");
 
         for (long id = 1; id <= 5; id++) {
-            puntos(id, "PENALTIS", (int) (10 + id), LUNES.plusDays(1));
+            puntos(id, "CABEZAZOS", (int) (10 + id), LUNES.plusDays(1));
         }
 
         dao.actualizarOculto(2, true, AHORA);
         jdbc.update("UPDATE USUARIOS_APP SET ACTIVO = 0 WHERE ID = 4");
         jdbc.update("UPDATE USUARIOS_APP SET FECHA_ELIMINACION = ? WHERE ID = 5", java.sql.Timestamp.valueOf(AHORA));
 
-        assertThat(aliasDelRanking("PENALTIS", null, null)).containsExactly("Ana");
+        assertThat(aliasDelRanking("CABEZAZOS", null, null)).containsExactly("Ana");
 
         // Una vez visible otra vez, vuelve a salir.
         dao.actualizarOculto(2, false, AHORA);
-        assertThat(aliasDelRanking("PENALTIS", null, null)).containsExactly("Oculta", "Ana");
+        assertThat(aliasDelRanking("CABEZAZOS", null, null)).containsExactly("Oculta", "Ana");
     }
 
     @Test
     void cuentasPorDelanteDaLaPosicionTambienFueraDelTopYDesempataPorFecha() {
         for (int i = 1; i <= 60; i++) {
             cuenta(i, "J" + i);
-            puntos(i, "TOQUES", 100 - i, LUNES.plusDays(1));
+            puntos(i, "REGATEA", 100 - i, LUNES.plusDays(1));
         }
 
         // La cuenta 60 tiene 40 puntos: hay 59 por delante; su posición es la 60, fuera del top 50.
-        Marca marca60 = dao.mejorMarca(60, "TOQUES", null, null).orElseThrow();
-        assertThat(dao.cuentasPorDelante("TOQUES", null, null, 60, marca60) + 1).isEqualTo(60);
-        assertThat(dao.ranking("TOQUES", null, null, 50)).hasSize(50);
+        Marca marca60 = dao.mejorMarca(60, "REGATEA", null, null).orElseThrow();
+        assertThat(dao.cuentasPorDelante("REGATEA", null, null, 60, marca60) + 1).isEqualTo(60);
+        assertThat(dao.ranking("REGATEA", null, null, 50)).hasSize(50);
 
-        Marca marca1 = dao.mejorMarca(1, "TOQUES", null, null).orElseThrow();
-        assertThat(dao.cuentasPorDelante("TOQUES", null, null, 1, marca1)).isZero();
+        Marca marca1 = dao.mejorMarca(1, "REGATEA", null, null).orElseThrow();
+        assertThat(dao.cuentasPorDelante("REGATEA", null, null, 1, marca1)).isZero();
 
         // Empate a 99 puntos con la cuenta 1 pero más tarde: queda detrás.
         cuenta(100, "Tarde");
-        puntos(100, "TOQUES", 99, LUNES.plusDays(2));
-        Marca tarde = dao.mejorMarca(100, "TOQUES", null, null).orElseThrow();
-        assertThat(dao.cuentasPorDelante("TOQUES", null, null, 100, tarde) + 1).isEqualTo(2);
+        puntos(100, "REGATEA", 99, LUNES.plusDays(2));
+        Marca tarde = dao.mejorMarca(100, "REGATEA", null, null).orElseThrow();
+        assertThat(dao.cuentasPorDelante("REGATEA", null, null, 100, tarde) + 1).isEqualTo(2);
     }
 
     @Test
@@ -204,9 +204,9 @@ class JuegoDaoH2Test {
     @Test
     void limiteDeEnviosCuentaYUltimaPartida() {
         cuenta(1, "Ana");
-        puntos(1, "PENALTIS", 1, AHORA.minusDays(1));
-        puntos(1, "PENALTIS", 1, AHORA.minusHours(2));
-        puntos(1, "TOQUES", 1, AHORA.minusMinutes(1));
+        puntos(1, "CABEZAZOS", 1, AHORA.minusDays(1));
+        puntos(1, "CABEZAZOS", 1, AHORA.minusHours(2));
+        puntos(1, "REGATEA", 1, AHORA.minusMinutes(1));
 
         assertThat(dao.contarPuntuacionesDesde(1, AHORA.toLocalDate().atStartOfDay())).isEqualTo(2);
         assertThat(dao.ultimaPuntuacion(1)).contains(AHORA.minusMinutes(1));
@@ -218,8 +218,8 @@ class JuegoDaoH2Test {
         cuenta(1, "Ana");
         cuenta(2, "Antonio");
         cuenta(3, "Beto");
-        puntos(1, "PENALTIS", 4, LUNES.plusDays(1));
-        puntos(1, "PENALTIS", 6, LUNES.plusDays(2));
+        puntos(1, "CABEZAZOS", 4, LUNES.plusDays(1));
+        puntos(1, "CABEZAZOS", 6, LUNES.plusDays(2));
         puntos(1, "ATRAPA", 12, LUNES.plusDays(2));
 
         assertThat(dao.listarPerfilesAdmin("", 500)).hasSize(3);
@@ -231,8 +231,8 @@ class JuegoDaoH2Test {
         assertThat(ana.nombre()).isEqualTo("Nombre1 Apellido1");
         assertThat(ana.email()).isEqualTo("u1@b.es");
         assertThat(ana.partidas()).isEqualTo(3);
-        assertThat(ana.mejorPenaltis()).isEqualTo(6);
-        assertThat(ana.mejorToques()).isZero();
+        assertThat(ana.mejorCabezazos()).isEqualTo(6);
+        assertThat(ana.mejorRegatea()).isZero();
         assertThat(ana.mejorAtrapa()).isEqualTo(12);
 
         var ultimas = dao.ultimasPuntuaciones(1, 100);
@@ -248,14 +248,183 @@ class JuegoDaoH2Test {
     void eliminarTodoDeUsuarioBorraPerfilYPuntuacionesSoloDeEsaCuenta() {
         cuenta(1, "Ana");
         cuenta(2, "Beto");
-        puntos(1, "PENALTIS", 4, LUNES.plusDays(1));
-        puntos(2, "PENALTIS", 5, LUNES.plusDays(1));
+        puntos(1, "CABEZAZOS", 4, LUNES.plusDays(1));
+        puntos(2, "CABEZAZOS", 5, LUNES.plusDays(1));
 
         dao.eliminarTodoDeUsuario(1);
 
         assertThat(dao.obtenerPerfil(1)).isEmpty();
-        assertThat(dao.mejorMarca(1, "PENALTIS", null, null)).isEmpty();
+        assertThat(dao.mejorMarca(1, "CABEZAZOS", null, null)).isEmpty();
         assertThat(dao.obtenerPerfil(2)).isPresent();
-        assertThat(aliasDelRanking("PENALTIS", null, null)).containsExactly("Beto");
+        assertThat(aliasDelRanking("CABEZAZOS", null, null)).containsExactly("Beto");
+    }
+
+    // ------------------------------------------------------------------
+    // PAREJAS: la marca es el tiempo (menos es mejor)
+    // ------------------------------------------------------------------
+
+    private void partida(long id, String juego, int puntos, int duracionMs, LocalDateTime fecha) {
+        dao.insertarPuntuacion(id, juego, puntos, duracionMs, fecha);
+    }
+
+    @Test
+    void parejasSeOrdenaPorTiempoAscendenteConLaMejorMarcaDeCadaCuenta() {
+        cuenta(1, "Ana");
+        cuenta(2, "Beto");
+        cuenta(3, "Cris");
+
+        partida(1, "PAREJAS", 8, 50_000, LUNES.plusDays(1));
+        partida(1, "PAREJAS", 8, 31_000, LUNES.plusDays(2)); // la mejor de Ana
+        partida(1, "PAREJAS", 8, 40_000, LUNES.plusDays(3));
+        partida(2, "PAREJAS", 8, 31_000, LUNES.plusDays(1)); // empata con Ana, pero antes
+        partida(3, "PAREJAS", 8, 90_000, LUNES.plusDays(1));
+        partida(3, "ATRAPA", 99, 10_000, LUNES.plusDays(1)); // otro juego: no cuenta
+
+        List<FilaRanking> filas = dao.ranking("PAREJAS", null, null, 50);
+
+        assertThat(filas).extracting(FilaRanking::alias).containsExactly("Beto", "Ana", "Cris");
+        assertThat(filas).extracting(FilaRanking::duracionMs).containsExactly(31_000, 31_000, 90_000);
+        assertThat(filas).extracting(FilaRanking::puntos).containsOnly(8);
+        // La fila de Ana es su menor tiempo (el del día 2), no la última partida.
+        assertThat(filas.get(1).fecha()).isEqualTo(LUNES.plusDays(2));
+    }
+
+    @Test
+    void parejasLaMejorMarcaYLaPosicionSonElMenorTiempo() {
+        cuenta(1, "Ana");
+        cuenta(2, "Beto");
+
+        partida(1, "PAREJAS", 8, 60_000, LUNES.plusDays(1));
+        partida(1, "PAREJAS", 8, 45_000, LUNES.plusDays(2));
+        partida(2, "PAREJAS", 8, 30_000, LUNES.plusDays(1));
+
+        Marca ana = dao.mejorMarca(1, "PAREJAS", null, null).orElseThrow();
+
+        assertThat(ana).isEqualTo(new Marca(8, 45_000, LUNES.plusDays(2)));
+        assertThat(dao.cuentasPorDelante("PAREJAS", null, null, 1, ana) + 1).isEqualTo(2);
+
+        Marca beto = dao.mejorMarca(2, "PAREJAS", null, null).orElseThrow();
+
+        assertThat(dao.cuentasPorDelante("PAREJAS", null, null, 2, beto)).isZero();
+
+        // Si Ana mejora su tiempo, pasa por delante.
+        partida(1, "PAREJAS", 8, 29_000, LUNES.plusDays(3));
+
+        Marca mejorada = dao.mejorMarca(1, "PAREJAS", null, null).orElseThrow();
+
+        assertThat(mejorada.duracionMs()).isEqualTo(29_000);
+        assertThat(dao.cuentasPorDelante("PAREJAS", null, null, 1, mejorada)).isZero();
+        assertThat(dao.cuentasPorDelante("PAREJAS", null, null, 2, beto)).isEqualTo(1);
+    }
+
+    @Test
+    void parejasEmpateDeTiempoDesempataLaMarcaMasAntigua() {
+        cuenta(1, "Ana");
+        cuenta(2, "Beto");
+
+        partida(1, "PAREJAS", 8, 40_000, LUNES.plusDays(2));
+        partida(2, "PAREJAS", 8, 40_000, LUNES.plusDays(1));
+
+        Marca ana = dao.mejorMarca(1, "PAREJAS", null, null).orElseThrow();
+
+        assertThat(aliasDelRanking("PAREJAS", null, null)).containsExactly("Beto", "Ana");
+        assertThat(dao.cuentasPorDelante("PAREJAS", null, null, 1, ana) + 1).isEqualTo(2);
+    }
+
+    @Test
+    void parejasRespetaLaSemanaYLosPerfilesOcultos() {
+        cuenta(1, "Ana");
+        cuenta(2, "Oculta");
+
+        partida(1, "PAREJAS", 8, 20_000, LUNES.minusDays(2)); // semana anterior
+        partida(1, "PAREJAS", 8, 50_000, LUNES.plusDays(1));
+        partida(2, "PAREJAS", 8, 10_000, LUNES.plusDays(1));
+        dao.actualizarOculto(2, true, AHORA);
+
+        assertThat(dao.ranking("PAREJAS", LUNES, SIGUIENTE_LUNES, 50)).extracting(FilaRanking::duracionMs)
+                .containsExactly(50_000);
+        assertThat(dao.ranking("PAREJAS", null, null, 50)).extracting(FilaRanking::duracionMs).containsExactly(20_000);
+    }
+
+    @Test
+    void laModeracionEnseñaLasMarcasDeLosCuatroJuegosYElTiempoDeParejas() {
+        cuenta(1, "Ana");
+
+        partida(1, "ATRAPA", 12, 30_000, LUNES.plusDays(1));
+        partida(1, "REGATEA", 20, 30_000, LUNES.plusDays(1));
+        partida(1, "CABEZAZOS", 6, 30_000, LUNES.plusDays(1));
+        partida(1, "PAREJAS", 8, 65_000, LUNES.plusDays(1));
+        partida(1, "PAREJAS", 8, 41_300, LUNES.plusDays(2));
+
+        var ana = dao.obtenerPerfilAdmin(1).orElseThrow();
+
+        assertThat(ana.mejorAtrapa()).isEqualTo(12);
+        assertThat(ana.mejorRegatea()).isEqualTo(20);
+        assertThat(ana.mejorCabezazos()).isEqualTo(6);
+        assertThat(ana.mejorParejasMs()).isEqualTo(41_300);
+        assertThat(ana.partidas()).isEqualTo(5);
+    }
+
+    // ------------------------------------------------------------------
+    // Escudos para Parejas
+    // ------------------------------------------------------------------
+
+    private void tablasDeEscudos() {
+        jdbc.execute("""
+                CREATE TABLE CLUBES_RIVALES (
+                    ID NUMBER PRIMARY KEY, NOMBRE VARCHAR2(150), ESCUDO BLOB, ESCUDO_VERSION NUMBER DEFAULT 0 NOT NULL,
+                    CODIGO_FFCV NUMBER)""");
+        jdbc.execute("CREATE TABLE EQUIPO (ID NUMBER PRIMARY KEY, NOMBRE VARCHAR2(100))");
+        jdbc.execute("CREATE TABLE TEMPORADAS (ID NUMBER PRIMARY KEY, ACTIVA NUMBER(1))");
+        jdbc.execute("""
+                CREATE TABLE CLASIFICACIONES (
+                    ID NUMBER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY, EQUIPO_ID NUMBER, TEMPORADA_ID NUMBER,
+                    CODIGO_CLUB NUMBER, ES_NUESTRO NUMBER(1) DEFAULT 0 NOT NULL)""");
+    }
+
+    private void club(long id, String nombre, Integer codigo, boolean conEscudo) {
+        jdbc.update("INSERT INTO CLUBES_RIVALES (ID, NOMBRE, ESCUDO, ESCUDO_VERSION, CODIGO_FFCV) VALUES (?, ?, ?, ?, ?)",
+                id, nombre, conEscudo ? new byte[] { 1, 2, 3 } : null, 4, codigo);
+    }
+
+    private void filaDeClasificacion(long equipoId, long temporadaId, int codigoClub, boolean nuestro) {
+        jdbc.update("INSERT INTO CLASIFICACIONES (EQUIPO_ID, TEMPORADA_ID, CODIGO_CLUB, ES_NUESTRO) VALUES (?, ?, ?, ?)",
+                equipoId, temporadaId, codigoClub, nuestro ? 1 : 0);
+    }
+
+    @Test
+    void losClubesConEscudoSoloIncluyenLosQueLoTienenConSuVersion() {
+        tablasDeEscudos();
+        club(1, "C.D. Alicante", 101, true);
+        club(2, "Sin escudo", 102, false);
+        club(3, "Solo por nombre", null, true);
+
+        assertThat(dao.clubesConEscudo()).containsExactly(
+                new com.mikedev.mutxamelcf.dao.JuegoDao.ClubConEscudo(1, "C.D. Alicante", 101, 4),
+                new com.mikedev.mutxamelcf.dao.JuegoDao.ClubConEscudo(3, "Solo por nombre", null, 4));
+    }
+
+    @Test
+    void losClubesDeLasClasificacionesActualesSonLosDelPrimerEquipoYElFilialDeLaTemporadaActiva() {
+        tablasDeEscudos();
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE) VALUES (1, 'Primer Equipo')");
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE) VALUES (2, 'Filial')");
+        jdbc.update("INSERT INTO EQUIPO (ID, NOMBRE) VALUES (3, 'Cadete A')");
+        jdbc.update("INSERT INTO TEMPORADAS (ID, ACTIVA) VALUES (10, 0)");
+        jdbc.update("INSERT INTO TEMPORADAS (ID, ACTIVA) VALUES (11, 1)");
+
+        club(1, "Primer rival", 101, true);
+        club(2, "Rival del Filial", 102, true);
+        club(3, "Rival de la temporada pasada", 103, true);
+        club(4, "Rival de un cadete", 104, true);
+        club(5, "Nosotros", 105, true);
+
+        filaDeClasificacion(1, 11, 101, false);
+        filaDeClasificacion(2, 11, 102, false);
+        filaDeClasificacion(1, 10, 103, false); // temporada no activa
+        filaDeClasificacion(3, 11, 104, false); // otro equipo
+        filaDeClasificacion(1, 11, 105, true); // nuestra fila
+
+        assertThat(dao.clubesDeLasClasificacionesActuales()).containsExactlyInAnyOrder(1L, 2L);
     }
 }
