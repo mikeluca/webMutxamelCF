@@ -20,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.mikedev.mutxamelcf.dao.DispositivoAppDao;
 import com.mikedev.mutxamelcf.dao.NotificacionAppDao;
+import com.mikedev.mutxamelcf.dao.JuegoDao;
 import com.mikedev.mutxamelcf.dao.PreferenciasNotificacionDao;
 import com.mikedev.mutxamelcf.dao.RolAppDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppDao;
@@ -48,6 +49,9 @@ class CuentaAppServiceImplTest {
     private PreferenciasNotificacionDao preferenciasNotificacionDao;
 
     @Mock
+    private JuegoDao juegoDao;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     private CuentaAppServiceImpl service;
@@ -56,7 +60,7 @@ class CuentaAppServiceImplTest {
     void setUp() {
         service = new CuentaAppServiceImpl(
                 usuarioAppDao, usuarioAppVinculoDao, rolAppDao, dispositivoAppDao,
-                notificacionAppDao, preferenciasNotificacionDao, passwordEncoder);
+                notificacionAppDao, preferenciasNotificacionDao, juegoDao, passwordEncoder);
     }
 
     private UsuarioApp usuarioActivo() {
@@ -77,10 +81,12 @@ class CuentaAppServiceImplTest {
 
         InOrder orden = inOrder(
                 dispositivoAppDao, notificacionAppDao, preferenciasNotificacionDao,
+                juegoDao,
                 usuarioAppVinculoDao, rolAppDao, usuarioAppDao);
         orden.verify(dispositivoAppDao).eliminarTodosDeUsuario(5L);
         orden.verify(notificacionAppDao).eliminarTodasDeUsuario(5L);
         orden.verify(preferenciasNotificacionDao).eliminarPorUsuario(5L);
+        orden.verify(juegoDao).eliminarTodoDeUsuario(5L);
         orden.verify(usuarioAppVinculoDao).desvincularTodo(5);
         orden.verify(rolAppDao).eliminarTodosLosRoles(5);
         orden.verify(usuarioAppDao).anonimizar(5, "eliminada-5@cuenta-eliminada.invalid");
@@ -141,10 +147,11 @@ class CuentaAppServiceImplTest {
         service.eliminarCuentaPorSistema(9);
 
         InOrder orden = inOrder(dispositivoAppDao, notificacionAppDao, preferenciasNotificacionDao,
-                usuarioAppVinculoDao, rolAppDao, usuarioAppDao);
+                juegoDao, usuarioAppVinculoDao, rolAppDao, usuarioAppDao);
         orden.verify(dispositivoAppDao).eliminarTodosDeUsuario(9L);
         orden.verify(notificacionAppDao).eliminarTodasDeUsuario(9L);
         orden.verify(preferenciasNotificacionDao).eliminarPorUsuario(9L);
+        orden.verify(juegoDao).eliminarTodoDeUsuario(9L);
         orden.verify(usuarioAppVinculoDao).desvincularTodo(9);
         orden.verify(rolAppDao).eliminarTodosLosRoles(9);
         orden.verify(usuarioAppDao).anonimizar(9, CuentaAppServiceImpl.emailAnonimo(9));

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.mikedev.mutxamelcf.dao.DispositivoAppDao;
+import com.mikedev.mutxamelcf.dao.JuegoDao;
 import com.mikedev.mutxamelcf.dao.NotificacionAppDao;
 import com.mikedev.mutxamelcf.dao.PreferenciasNotificacionDao;
 import com.mikedev.mutxamelcf.dao.RolAppDao;
@@ -28,6 +29,7 @@ public class CuentaAppServiceImpl implements CuentaAppService {
     private final DispositivoAppDao dispositivoAppDao;
     private final NotificacionAppDao notificacionAppDao;
     private final PreferenciasNotificacionDao preferenciasNotificacionDao;
+    private final JuegoDao juegoDao;
     private final PasswordEncoder passwordEncoder;
 
     public CuentaAppServiceImpl(
@@ -37,6 +39,7 @@ public class CuentaAppServiceImpl implements CuentaAppService {
             DispositivoAppDao dispositivoAppDao,
             NotificacionAppDao notificacionAppDao,
             PreferenciasNotificacionDao preferenciasNotificacionDao,
+            JuegoDao juegoDao,
             PasswordEncoder passwordEncoder) {
 
         this.usuarioAppDao = usuarioAppDao;
@@ -45,6 +48,7 @@ public class CuentaAppServiceImpl implements CuentaAppService {
         this.dispositivoAppDao = dispositivoAppDao;
         this.notificacionAppDao = notificacionAppDao;
         this.preferenciasNotificacionDao = preferenciasNotificacionDao;
+        this.juegoDao = juegoDao;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -94,6 +98,8 @@ public class CuentaAppServiceImpl implements CuentaAppService {
         dispositivoAppDao.eliminarTodosDeUsuario(id);
         notificacionAppDao.eliminarTodasDeUsuario(id);
         preferenciasNotificacionDao.eliminarPorUsuario(id);
+        // Juego de Mutxigol: el alias y las puntuaciones del ranking se borran con la cuenta.
+        juegoDao.eliminarTodoDeUsuario(id);
         usuarioAppVinculoDao.desvincularTodo(usuarioAppId);
         rolAppDao.eliminarTodosLosRoles(usuarioAppId);
         usuarioAppDao.anonimizar(usuarioAppId, emailAnonimo(usuarioAppId));

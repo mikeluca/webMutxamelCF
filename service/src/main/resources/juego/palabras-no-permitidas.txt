@@ -1,0 +1,127 @@
+# Palabras no permitidas en los alias del juego de Mutxigol (castellano y valenciano).
+# Una por línea. Las líneas que empiezan por # y las vacías se ignoran. Mayúsculas y acentos dan igual.
+# La comprobación ignora además espacios, guiones y cifras parecidas a letras (0=o, 1=i, 3=e, 4=a, 5=s, 7=t).
+#   - Las palabras de 6 o más letras no pueden aparecer dentro del alias (aunque vayan pegadas a otras).
+#   - Las de menos de 6 letras solo cuentan si son una palabra entera del alias (así no se cuela un falso positivo en "Vergara").
+#
+# Esta lista es la básica. Para ampliarla SIN recompilar, pon más palabras (mismo formato) en un fichero y apunta a él
+# con la propiedad  juego.alias.palabras-extra=/ruta/al/fichero.txt  (o la variable de entorno
+# JUEGO_ALIAS_PALABRAS_EXTRA). Se vuelve a leer solo cuando el fichero cambia, sin reiniciar.
+
+# Insultos
+puta
+puto
+putos
+putas
+gilipollas
+gilipuertas
+capullo
+cabron
+cabrona
+cabronazo
+imbecil
+idiota
+subnormal
+retrasado
+mongolo
+mamon
+mamona
+zorra
+zorro
+marica
+maricon
+bollera
+payaso
+inutil
+asqueroso
+basura
+fill de puta
+fillputa
+collons
+cony
+merda
+mierda
+joder
+jodete
+coño
+cojones
+hostia
+mamada
+chupapollas
+chocho
+cabro
+malparit
+malparido
+mameluco
+
+# Sexo
+sexo
+sexy
+porno
+porn
+pene
+polla
+verga
+pijo
+cipote
+cipotes
+culo
+tetas
+follar
+folla
+follando
+follada
+coño
+vagina
+vulva
+semen
+corrida
+masturbar
+pajero
+pajillero
+mamar
+orgia
+prostituta
+violar
+violador
+pedofilo
+pederasta
+pedofilia
+
+# Odio y violencia
+nazi
+hitler
+facha
+fascista
+terrorista
+asesino
+matar
+muerte
+suicida
+suicidio
+negrata
+sudaca
+maldito
+nigger
+nigga
+racista
+panchito
+
+# Drogas
+cocaina
+heroina
+marihuana
+droga
+
+# Contacto y publicidad
+whatsapp
+telegram
+instagram
+tiktok
+snapchat
+gmail
+hotmail
+outlook
+yahoo
+icloud
+arroba

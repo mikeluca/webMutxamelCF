@@ -73,7 +73,7 @@ class PoliticaPrivacidadTest {
                 "politicaPrivacidad.app.publicacion.oposicion", "politicaPrivacidad.p2", "politicaPrivacidad.p7",
                 "politicaPrivacidad.app.intro", "politicaPrivacidad.app.sinPermisos",
                 "politicaPrivacidad.app.finalidad", "politicaPrivacidad.app.proveedores",
-                "politicaPrivacidad.app.familias" }) {
+                "politicaPrivacidad.app.familias", "politicaPrivacidad.app.juego" }) {
 
             String texto = m.getProperty(clave);
 
@@ -134,6 +134,27 @@ class PoliticaPrivacidadTest {
 
         assertThat(seccion).isGreaterThanOrEqualTo(0);
         assertThat(familias).isGreaterThan(seccion).isLessThan(publica);
+    }
+
+    @ParameterizedTest
+    @CsvSource({ "es,messages_es.properties,alias,ranking", "ca,messages_ca.properties,àlies,rànquing",
+            "en,messages_en.properties,alias,ranking" })
+    void elJuegoDeMutxigolExplicaAliasPuntuacionesRankingYBorrado(String idioma, String fichero, String alias,
+            String ranking) throws Exception {
+
+        String texto = mensajes(fichero).getProperty("politicaPrivacidad.app.juego");
+        String html = pagina(idioma);
+
+        assertThat(texto).contains("Mutxigol").contains(alias).contains(ranking);
+        assertThat(html).contains(escapado(texto));
+
+        // Dentro de la sección de la app (8), después del registro de familias y antes de la información pública.
+        int seccion = html.indexOf("id=\"aplicacion-movil\"");
+        int familias = html.indexOf(escapado(mensajes(fichero).getProperty("politicaPrivacidad.app.familias")));
+        int juego = html.indexOf(escapado(texto));
+        int publica = html.indexOf(escapado(mensajes(fichero).getProperty("politicaPrivacidad.app.publicacion.titulo")));
+
+        assertThat(juego).isGreaterThan(seccion).isGreaterThan(familias).isLessThan(publica);
     }
 
     @Test

@@ -192,6 +192,7 @@ public class SecurityConfig {
                                                                 "/admin/equipajes/**",
                                                                 "/admin/fondos-carteles/**",
                                                                 "/admin/escudos-rivales/**",
+                                                                "/admin/juego-mutxigol/**",
                                                                 "/admin/cuerpo-tecnico/fusionar/**",
                                                                 "/admin/cuerpo-tecnico/fusionar")
                                                 .hasAnyRole("SUPER", "ADMIN")

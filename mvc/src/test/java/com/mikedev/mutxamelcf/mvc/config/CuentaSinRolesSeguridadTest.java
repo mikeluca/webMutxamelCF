@@ -84,6 +84,10 @@ class CuentaSinRolesSeguridadTest {
                 Arguments.of("GET", "/api/app/imagenes-redes"),
                 Arguments.of("GET", "/api/app/admin/cuentas"),
                 Arguments.of("GET", "/api/app/reparto"),
+                Arguments.of("GET", "/api/app/juego/perfil"),
+                Arguments.of("PUT", "/api/app/juego/perfil"),
+                Arguments.of("POST", "/api/app/juego/puntuacion"),
+                Arguments.of("GET", "/api/app/admin/juego/perfiles"),
                 Arguments.of("GET", "/api/app/moderacion"));
     }
 
