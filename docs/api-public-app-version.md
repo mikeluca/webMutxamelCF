@@ -6,10 +6,10 @@ Endpoint público (sin autenticación) que la app consulta al arrancar para sabe
 
 ```json
 {
-  "minimaAndroid": "1.0.2",
+  "minimaAndroid": "1.0.14",
   "minimaIos": "1.0.14",
-  "recomendadaAndroid": "1.0.2",
-  "recomendadaIos": "1.0.14",
+  "recomendadaAndroid": "1.0.15",
+  "recomendadaIos": "1.0.15",
   "urlAndroid": "https://play.google.com/store/apps/details?id=com.mutxamelcf.app",
   "urlIos": "https://apps.apple.com/es/app/mutxamel-cf/id6820570960"
 }
@@ -23,8 +23,8 @@ Endpoint público (sin autenticación) que la app consulta al arrancar para sabe
 
 | Plataforma | Mínima | Recomendada | Nota |
 |---|---|---|---|
-| iOS | 1.0.14 | 1.0.14 | 1.0.14 publicada en la App Store el 20/11/2026 |
-| Android | 1.0.2 | 1.0.2 | Aún no está en producción |
+| iOS | 1.0.14 | 1.0.15 | 1.0.15 publicada en Google Play (producción) y en la App Store el 24/11/2026 |
+| Android | 1.0.14 | 1.0.15 | 1.0.15 publicada en Google Play (producción) y en la App Store el 24/11/2026 |
 
 ## Regla
 

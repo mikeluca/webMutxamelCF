@@ -28,11 +28,11 @@ class PublicAppVersionControllerTest {
     }
 
     /**
-     * Con los valores del application.properties real: iOS 1.0.14 ya publicada en la App Store;
-     * Android sigue en 1.0.2 porque aun no esta en produccion.
+     * Con los valores del application.properties real: minima 1.0.14 y recomendada 1.0.15 en iOS y
+     * Android (1.0.15 ya publicada en Google Play y en la App Store).
      */
     @Test
-    void conLasPropiedadesDelFicheroRealPublicaIos1_0_14YAndroid1_0_2() throws IOException {
+    void conLasPropiedadesDelFicheroRealPublicaMinima1_0_14YRecomendada1_0_15() throws IOException {
         StandardEnvironment env = new StandardEnvironment();
         env.getPropertySources().addLast(new ResourcePropertySource("classpath:application.properties"));
         // Si APP_URL_IOS estuviera definida en la maquina, ganaria sobre el valor por defecto del fichero.
@@ -48,9 +48,9 @@ class PublicAppVersionControllerTest {
 
         assertThat(controller.version())
                 .containsEntry("minimaIos", "1.0.14")
-                .containsEntry("recomendadaIos", "1.0.14")
-                .containsEntry("minimaAndroid", "1.0.2")
-                .containsEntry("recomendadaAndroid", "1.0.2")
+                .containsEntry("recomendadaIos", "1.0.15")
+                .containsEntry("minimaAndroid", "1.0.14")
+                .containsEntry("recomendadaAndroid", "1.0.15")
                 .containsEntry("urlIos", "https://apps.apple.com/es/app/mutxamel-cf/id6820570960")
                 .containsEntry("urlAndroid", "https://play.google.com/store/apps/details?id=com.mutxamelcf.app");
     }
