@@ -26,7 +26,7 @@ public class PublicJuegoController {
     }
 
     /**
-     * GET /api/public/juego/ranking?juego=ATRAPA|REGATEA|CABEZAZOS|PAREJAS&amp;periodo=SEMANA|HISTORICO (por defecto
+     * GET /api/public/juego/ranking?juego=ATRAPA|CABEZAZOS|PAREJAS&amp;periodo=SEMANA|HISTORICO (por defecto
      * SEMANA)
      */
     @GetMapping("/ranking")

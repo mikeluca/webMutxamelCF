@@ -103,12 +103,12 @@ void elRankingDeParejasLlevaElTiempoYLaMarcaTiempo() throws Exception {
 
 @Test
 void losJuegosAntiguosDan400() throws Exception {
-    for (String juego : List.of("PENALTIS", "TOQUES")) {
+    for (String juego : List.of("PENALTIS", "TOQUES", "REGATEA")) {
         when(juegoService.ranking(juego, null))
-                .thenThrow(new IllegalArgumentException("El juego tiene que ser ATRAPA, REGATEA, CABEZAZOS o PAREJAS"));
+                .thenThrow(new IllegalArgumentException("El juego tiene que ser ATRAPA, CABEZAZOS o PAREJAS"));
 
         mockMvc.perform(get("/api/public/juego/ranking").param("juego", juego)).andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("El juego tiene que ser ATRAPA, REGATEA, CABEZAZOS o PAREJAS"));
+                .andExpect(jsonPath("$.error").value("El juego tiene que ser ATRAPA, CABEZAZOS o PAREJAS"));
     }
 }
 
@@ -253,7 +253,7 @@ void elRankingConUnJuegoOPeriodoInvalidoEs400() throws Exception {
                 new JuegoConflictoException("ALIAS_REQUERIDO", "Elige un alias para guardar tu puntuación"));
 
         mockMvc.perform(post("/api/app/juego/puntuacion").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"juego\":\"REGATEA\",\"puntos\":5,\"duracionMs\":20000}").with(user("5").roles("JUGADOR"))
+                .content("{\"juego\":\"CABEZAZOS\",\"puntos\":5,\"duracionMs\":20000}").with(user("5").roles("JUGADOR"))
                 .with(csrf())).andExpect(status().isConflict()).andExpect(jsonPath("$.codigo").value("ALIAS_REQUERIDO"));
     }
 
@@ -263,7 +263,7 @@ void elRankingConUnJuegoOPeriodoInvalidoEs400() throws Exception {
                 .thenThrow(new IllegalArgumentException("La puntuación no es válida para esa duración"));
 
         mockMvc.perform(post("/api/app/juego/puntuacion").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"juego\":\"REGATEA\",\"puntos\":999,\"duracionMs\":3000}").with(user("5").roles("JUGADOR"))
+                .content("{\"juego\":\"CABEZAZOS\",\"puntos\":999,\"duracionMs\":3000}").with(user("5").roles("JUGADOR"))
                 .with(csrf())).andExpect(status().isBadRequest());
     }
 
@@ -273,7 +273,7 @@ void elRankingConUnJuegoOPeriodoInvalidoEs400() throws Exception {
                 .thenThrow(new JuegoLimiteEnviosException("Vas muy rápido"));
 
         mockMvc.perform(post("/api/app/juego/puntuacion").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"juego\":\"REGATEA\",\"puntos\":5,\"duracionMs\":20000}").with(user("5").roles("JUGADOR"))
+                .content("{\"juego\":\"CABEZAZOS\",\"puntos\":5,\"duracionMs\":20000}").with(user("5").roles("JUGADOR"))
                 .with(csrf())).andExpect(status().isTooManyRequests()).andExpect(jsonPath("$.error").value("Vas muy rápido"));
     }
 
@@ -282,7 +282,7 @@ void elRankingConUnJuegoOPeriodoInvalidoEs400() throws Exception {
     // ------------------------------------------------------------------
 
     private static JuegoDao.PerfilAdmin perfilAdmin() {
-        return new JuegoDao.PerfilAdmin(7, "Ana", "AZUL", false, "Ana Pérez", "ana@example.com", FECHA, 3, 4, 5, 6, 83_400);
+        return new JuegoDao.PerfilAdmin(7, "Ana", "AZUL", false, "Ana Pérez", "ana@example.com", FECHA, 3, 4, 6, 83_400);
     }
 
     @Test
@@ -324,7 +324,7 @@ void elRankingConUnJuegoOPeriodoInvalidoEs400() throws Exception {
         mockMvc.perform(get("/api/app/admin/juego/perfiles").param("alias", "an").with(user("5").roles("ADMIN_APP")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].alias").value("Ana"))
                 .andExpect(jsonPath("$[0].nombre").value("Ana Pérez")).andExpect(jsonPath("$[0].email").value("ana@example.com"))
-                .andExpect(jsonPath("$[0].mejorAtrapa").value(4)).andExpect(jsonPath("$[0].mejorRegatea").value(5))
+                .andExpect(jsonPath("$[0].mejorAtrapa").value(4))
                 .andExpect(jsonPath("$[0].mejorCabezazos").value(6))
                 .andExpect(jsonPath("$[0].mejorParejasMs").value(83_400));
 

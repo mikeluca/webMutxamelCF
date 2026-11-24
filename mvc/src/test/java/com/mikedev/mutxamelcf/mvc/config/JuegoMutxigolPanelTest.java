@@ -53,7 +53,7 @@ class JuegoMutxigolPanelTest {
     private MockMvc mockMvc;
 
     private static PerfilAdmin perfil(long id, String alias, boolean oculto) {
-        return new PerfilAdmin(id, alias, "AZUL", oculto, "Ana Pérez", "ana@example.com", FECHA, 4, 12, 40, 9, 83_450);
+        return new PerfilAdmin(id, alias, "AZUL", oculto, "Ana Pérez", "ana@example.com", FECHA, 4, 12, 9, 83_450);
     }
 
     private String pagina(String url, String rol) throws Exception {
@@ -117,21 +117,21 @@ class JuegoMutxigolPanelTest {
     }
 
 @Test
-void laListaTieneLasColumnasDeLosCuatroJuegosYNadaDeLosAntiguos() throws Exception {
+void laListaTieneLasColumnasDeLosTresJuegosYNadaDeLosAntiguos() throws Exception {
     when(juegoService.listarPerfilesAdmin(any())).thenReturn(List.of(perfil(7, "Mutxigol10", false)));
 
     String html = pagina("/admin/juego-mutxigol", "ADMIN");
 
-    assertThat(html).contains(">Atrapa<").contains(">Regatea<").contains(">Cabezazos<").contains("Parejas (m:ss,d)")
-            .doesNotContain("Penaltis").doesNotContain("Toques");
-    // Atrapa 12, Regatea 40, Cabezazos 9 y el tiempo de Parejas (83,45 s) como m:ss,d
-    assertThat(html).contains(">12<").contains(">40<").contains(">9<").contains("1:23,4");
+    assertThat(html).contains(">Atrapa<").contains(">Cabezazos<").contains("Parejas (m:ss,d)")
+            .doesNotContain("Penaltis").doesNotContain("Toques").doesNotContain("Regatea");
+    // Atrapa 12, Cabezazos 9 y el tiempo de Parejas (83,45 s) como m:ss,d
+    assertThat(html).contains(">12<").contains(">9<").contains("1:23,4");
 }
 
 @Test
 void sinPartidasDeParejasNoSeEnseñaTiempo() throws Exception {
     when(juegoService.listarPerfilesAdmin(any())).thenReturn(List.of(new PerfilAdmin(7, "Nuevo", "AZUL", false,
-            "Ana Pérez", "ana@example.com", FECHA, 0, 0, 0, 0, 0)));
+            "Ana Pérez", "ana@example.com", FECHA, 0, 0, 0, 0)));
 
     String html = pagina("/admin/juego-mutxigol", "ADMIN");
 

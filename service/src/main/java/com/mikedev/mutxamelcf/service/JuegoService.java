@@ -31,7 +31,7 @@ public interface JuegoService {
     record MarcasJuego(String marca, MarcaConPosicion semana, MarcaConPosicion historico) {
     }
 
-    /** El perfil de la cuenta con sus marcas por juego (ATRAPA, REGATEA, CABEZAZOS, PAREJAS). */
+    /** El perfil de la cuenta con sus marcas por juego (ATRAPA, CABEZAZOS, PAREJAS). */
     record PerfilJuego(String alias, String equipacion, boolean oculto, Map<String, MarcasJuego> juegos) {
     }
 

@@ -56,9 +56,6 @@ public class JuegoServiceImpl implements JuegoService {
     /** Ritmo máximo por segundo: ATRAPA 6 (balón dorado de 5 puntos y varios balones a la vez). */
     public static final double RITMO_MAXIMO_ATRAPA = 6;
 
-    /** Ritmo máximo por segundo: REGATEA 4. */
-    public static final double RITMO_MAXIMO_REGATEA = 4;
-
     /** Ritmo máximo por segundo: CABEZAZOS 1 (un punto por tubería). */
     public static final double RITMO_MAXIMO_CABEZAZOS = 1;
 
@@ -84,7 +81,7 @@ public class JuegoServiceImpl implements JuegoService {
     static final Set<String> EQUIPACIONES = Set.of("AZUL", "ROSA");
 
     /** Los juegos válidos y el orden en que salen en las respuestas. */
-    static final List<String> ORDEN_JUEGOS = List.of("ATRAPA", "REGATEA", "CABEZAZOS", JuegoDao.JUEGO_DE_TIEMPO);
+    static final List<String> ORDEN_JUEGOS = List.of("ATRAPA", "CABEZAZOS", JuegoDao.JUEGO_DE_TIEMPO);
     static final Set<String> JUEGOS = Set.copyOf(ORDEN_JUEGOS);
 
     private final JuegoDao juegoDao;
@@ -140,7 +137,7 @@ public class JuegoServiceImpl implements JuegoService {
         String valor = juego == null ? "" : juego.trim().toUpperCase(Locale.ROOT);
 
         if (!JUEGOS.contains(valor)) {
-            throw new IllegalArgumentException("El juego tiene que ser ATRAPA, REGATEA, CABEZAZOS o PAREJAS");
+            throw new IllegalArgumentException("El juego tiene que ser ATRAPA, CABEZAZOS o PAREJAS");
         }
 
         return valor;
@@ -262,7 +259,6 @@ public class JuegoServiceImpl implements JuegoService {
     static int puntosMaximosPlausibles(String juego, int duracionMs) {
 
         double ritmo = switch (juego) {
-        case "REGATEA" -> RITMO_MAXIMO_REGATEA;
         case "CABEZAZOS" -> RITMO_MAXIMO_CABEZAZOS;
         default -> RITMO_MAXIMO_ATRAPA;
         };

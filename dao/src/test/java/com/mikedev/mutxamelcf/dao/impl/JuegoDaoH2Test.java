@@ -74,7 +74,7 @@ class JuegoDaoH2Test {
         puntos(1, "CABEZAZOS", 7, LUNES.plusDays(3));
         puntos(2, "CABEZAZOS", 9, LUNES.plusDays(1)); // empata con Ana pero antes
         puntos(3, "CABEZAZOS", 3, LUNES.plusDays(1));
-        puntos(3, "REGATEA", 99, LUNES.plusDays(1)); // otro juego: no cuenta
+        puntos(3, "ATRAPA", 99, LUNES.plusDays(1)); // otro juego: no cuenta
 
         List<FilaRanking> filas = dao.ranking("CABEZAZOS", null, null, 50);
 
@@ -88,10 +88,10 @@ class JuegoDaoH2Test {
     void elRankingLimitaAlosMejores() {
         for (int i = 1; i <= 5; i++) {
             cuenta(i, "Jugador" + i);
-            puntos(i, "REGATEA", i, LUNES.plusDays(1));
+            puntos(i, "ATRAPA", i, LUNES.plusDays(1));
         }
 
-        assertThat(dao.ranking("REGATEA", null, null, 3)).extracting(FilaRanking::alias)
+        assertThat(dao.ranking("ATRAPA", null, null, 3)).extracting(FilaRanking::alias)
                 .containsExactly("Jugador5", "Jugador4", "Jugador3");
     }
 
@@ -123,7 +123,7 @@ class JuegoDaoH2Test {
         assertThat(dao.ranking("CABEZAZOS", null, null, 50)).extracting(FilaRanking::puntos).containsExactly(30);
         assertThat(dao.mejorMarca(1, "CABEZAZOS", LUNES, SIGUIENTE_LUNES)).contains(new Marca(8, 30_000, LUNES.plusDays(1)));
         assertThat(dao.mejorMarca(1, "CABEZAZOS", null, null)).contains(new Marca(30, 30_000, LUNES.minusDays(2)));
-        assertThat(dao.mejorMarca(1, "REGATEA", null, null)).isEmpty();
+        assertThat(dao.mejorMarca(1, "ATRAPA", null, null)).isEmpty();
     }
 
     @Test
@@ -153,22 +153,22 @@ class JuegoDaoH2Test {
     void cuentasPorDelanteDaLaPosicionTambienFueraDelTopYDesempataPorFecha() {
         for (int i = 1; i <= 60; i++) {
             cuenta(i, "J" + i);
-            puntos(i, "REGATEA", 100 - i, LUNES.plusDays(1));
+            puntos(i, "ATRAPA", 100 - i, LUNES.plusDays(1));
         }
 
         // La cuenta 60 tiene 40 puntos: hay 59 por delante; su posición es la 60, fuera del top 50.
-        Marca marca60 = dao.mejorMarca(60, "REGATEA", null, null).orElseThrow();
-        assertThat(dao.cuentasPorDelante("REGATEA", null, null, 60, marca60) + 1).isEqualTo(60);
-        assertThat(dao.ranking("REGATEA", null, null, 50)).hasSize(50);
+        Marca marca60 = dao.mejorMarca(60, "ATRAPA", null, null).orElseThrow();
+        assertThat(dao.cuentasPorDelante("ATRAPA", null, null, 60, marca60) + 1).isEqualTo(60);
+        assertThat(dao.ranking("ATRAPA", null, null, 50)).hasSize(50);
 
-        Marca marca1 = dao.mejorMarca(1, "REGATEA", null, null).orElseThrow();
-        assertThat(dao.cuentasPorDelante("REGATEA", null, null, 1, marca1)).isZero();
+        Marca marca1 = dao.mejorMarca(1, "ATRAPA", null, null).orElseThrow();
+        assertThat(dao.cuentasPorDelante("ATRAPA", null, null, 1, marca1)).isZero();
 
         // Empate a 99 puntos con la cuenta 1 pero más tarde: queda detrás.
         cuenta(100, "Tarde");
-        puntos(100, "REGATEA", 99, LUNES.plusDays(2));
-        Marca tarde = dao.mejorMarca(100, "REGATEA", null, null).orElseThrow();
-        assertThat(dao.cuentasPorDelante("REGATEA", null, null, 100, tarde) + 1).isEqualTo(2);
+        puntos(100, "ATRAPA", 99, LUNES.plusDays(2));
+        Marca tarde = dao.mejorMarca(100, "ATRAPA", null, null).orElseThrow();
+        assertThat(dao.cuentasPorDelante("ATRAPA", null, null, 100, tarde) + 1).isEqualTo(2);
     }
 
     @Test
@@ -206,7 +206,7 @@ class JuegoDaoH2Test {
         cuenta(1, "Ana");
         puntos(1, "CABEZAZOS", 1, AHORA.minusDays(1));
         puntos(1, "CABEZAZOS", 1, AHORA.minusHours(2));
-        puntos(1, "REGATEA", 1, AHORA.minusMinutes(1));
+        puntos(1, "ATRAPA", 1, AHORA.minusMinutes(1));
 
         assertThat(dao.contarPuntuacionesDesde(1, AHORA.toLocalDate().atStartOfDay())).isEqualTo(2);
         assertThat(dao.ultimaPuntuacion(1)).contains(AHORA.minusMinutes(1));
@@ -232,7 +232,6 @@ class JuegoDaoH2Test {
         assertThat(ana.email()).isEqualTo("u1@b.es");
         assertThat(ana.partidas()).isEqualTo(3);
         assertThat(ana.mejorCabezazos()).isEqualTo(6);
-        assertThat(ana.mejorRegatea()).isZero();
         assertThat(ana.mejorAtrapa()).isEqualTo(12);
 
         var ultimas = dao.ultimasPuntuaciones(1, 100);
@@ -347,11 +346,10 @@ class JuegoDaoH2Test {
     }
 
     @Test
-    void laModeracionEnseñaLasMarcasDeLosCuatroJuegosYElTiempoDeParejas() {
+    void laModeracionEnseñaLasMarcasDeLosTresJuegosYElTiempoDeParejas() {
         cuenta(1, "Ana");
 
         partida(1, "ATRAPA", 12, 30_000, LUNES.plusDays(1));
-        partida(1, "REGATEA", 20, 30_000, LUNES.plusDays(1));
         partida(1, "CABEZAZOS", 6, 30_000, LUNES.plusDays(1));
         partida(1, "PAREJAS", 8, 65_000, LUNES.plusDays(1));
         partida(1, "PAREJAS", 8, 41_300, LUNES.plusDays(2));
@@ -359,10 +357,9 @@ class JuegoDaoH2Test {
         var ana = dao.obtenerPerfilAdmin(1).orElseThrow();
 
         assertThat(ana.mejorAtrapa()).isEqualTo(12);
-        assertThat(ana.mejorRegatea()).isEqualTo(20);
         assertThat(ana.mejorCabezazos()).isEqualTo(6);
         assertThat(ana.mejorParejasMs()).isEqualTo(41_300);
-        assertThat(ana.partidas()).isEqualTo(5);
+        assertThat(ana.partidas()).isEqualTo(4);
     }
 
     // ------------------------------------------------------------------

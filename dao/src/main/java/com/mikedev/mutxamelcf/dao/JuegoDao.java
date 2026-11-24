@@ -36,7 +36,7 @@ public interface JuegoDao {
     /** Un perfil para moderar, con la cuenta (nombre y email: solo se enseñan en el panel y a ADMIN_APP). En Parejas la mejor marca es
      * el menor tiempo en ms (0 si no ha jugado); en los demás, los mejores puntos. */
     record PerfilAdmin(long usuarioId, String alias, String equipacion, boolean oculto, String nombre, String email,
-            LocalDateTime fechaAlta, int partidas, int mejorAtrapa, int mejorRegatea, int mejorCabezazos,
+            LocalDateTime fechaAlta, int partidas, int mejorAtrapa, int mejorCabezazos,
             int mejorParejasMs) {
     }
 

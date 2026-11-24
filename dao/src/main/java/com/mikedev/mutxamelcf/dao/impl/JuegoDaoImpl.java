@@ -76,8 +76,6 @@ public class JuegoDaoImpl implements JuegoDao {
 			       (SELECT COALESCE(MAX(P.PUNTOS), 0) FROM JUEGO_PUNTUACIONES P
 			         WHERE P.USUARIO_APP_ID = F.USUARIO_APP_ID AND P.JUEGO = 'ATRAPA') AS M_ATRAPA,
 			       (SELECT COALESCE(MAX(P.PUNTOS), 0) FROM JUEGO_PUNTUACIONES P
-			         WHERE P.USUARIO_APP_ID = F.USUARIO_APP_ID AND P.JUEGO = 'REGATEA') AS M_REGATEA,
-			       (SELECT COALESCE(MAX(P.PUNTOS), 0) FROM JUEGO_PUNTUACIONES P
 			         WHERE P.USUARIO_APP_ID = F.USUARIO_APP_ID AND P.JUEGO = 'CABEZAZOS') AS M_CABEZAZOS,
 			       (SELECT COALESCE(MIN(P.DURACION_MS), 0) FROM JUEGO_PUNTUACIONES P
 			         WHERE P.USUARIO_APP_ID = F.USUARIO_APP_ID AND P.JUEGO = 'PAREJAS') AS M_PAREJAS
@@ -91,7 +89,7 @@ public class JuegoDaoImpl implements JuegoDao {
 
 		return new PerfilAdmin(rs.getLong("USUARIO_APP_ID"), rs.getString("ALIAS"), rs.getString("EQUIPACION"),
 				rs.getInt("OCULTO") == 1, nombre, rs.getString("EMAIL"), fecha(rs.getTimestamp("FECHA_ALTA")),
-				rs.getInt("PARTIDAS"), rs.getInt("M_ATRAPA"), rs.getInt("M_REGATEA"), rs.getInt("M_CABEZAZOS"),
+				rs.getInt("PARTIDAS"), rs.getInt("M_ATRAPA"), rs.getInt("M_CABEZAZOS"),
 				rs.getInt("M_PAREJAS"));
 	};
 

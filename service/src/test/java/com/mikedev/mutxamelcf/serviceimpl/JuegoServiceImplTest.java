@@ -93,11 +93,11 @@ class JuegoServiceImplTest {
     void elDomingoALas2359SigueSiendoLaSemanaYElLunesALas0000EmpiezaOtra() {
         when(dao.ranking(anyString(), any(), any(), anyInt())).thenReturn(List.of());
 
-        servicio(LocalDateTime.of(2026, 11, 29, 23, 59, 59)).ranking("REGATEA", "SEMANA");
-        verify(dao).ranking("REGATEA", LUNES, LUNES.plusWeeks(1), 50);
+        servicio(LocalDateTime.of(2026, 11, 29, 23, 59, 59)).ranking("ATRAPA", "SEMANA");
+        verify(dao).ranking("ATRAPA", LUNES, LUNES.plusWeeks(1), 50);
 
-        servicio(LocalDateTime.of(2026, 11, 30, 0, 0, 0)).ranking("REGATEA", "SEMANA");
-        verify(dao).ranking("REGATEA", LUNES.plusWeeks(1), LUNES.plusWeeks(2), 50);
+        servicio(LocalDateTime.of(2026, 11, 30, 0, 0, 0)).ranking("ATRAPA", "SEMANA");
+        verify(dao).ranking("ATRAPA", LUNES.plusWeeks(1), LUNES.plusWeeks(2), 50);
     }
 
     @Test
@@ -127,7 +127,7 @@ class JuegoServiceImplTest {
     void elRankingRechazaUnJuegoOUnPeriodoQueNoExisten() {
         assertThatThrownBy(() -> service.ranking("AJEDREZ", "SEMANA")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.ranking(null, "SEMANA")).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.ranking("REGATEA", "MES")).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(() -> service.ranking("ATRAPA", "MES")).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("SEMANA o HISTORICO");
     }
 
@@ -145,15 +145,14 @@ class JuegoServiceImplTest {
         assertThat(perfil.alias()).isNull();
         assertThat(perfil.equipacion()).isEqualTo("AZUL");
         assertThat(perfil.oculto()).isFalse();
-        assertThat(perfil.juegos()).containsOnlyKeys("ATRAPA", "REGATEA", "CABEZAZOS", "PAREJAS");
+        assertThat(perfil.juegos()).containsOnlyKeys("ATRAPA", "CABEZAZOS", "PAREJAS");
         // Y salen siempre en este orden, cada uno con lo que mide.
-        assertThat(perfil.juegos().keySet()).containsExactly("ATRAPA", "REGATEA", "CABEZAZOS", "PAREJAS");
+        assertThat(perfil.juegos().keySet()).containsExactly("ATRAPA", "CABEZAZOS", "PAREJAS");
         assertThat(perfil.juegos().get("ATRAPA").marca()).isEqualTo("PUNTOS");
-        assertThat(perfil.juegos().get("REGATEA").marca()).isEqualTo("PUNTOS");
         assertThat(perfil.juegos().get("CABEZAZOS").marca()).isEqualTo("PUNTOS");
         assertThat(perfil.juegos().get("PAREJAS").marca()).isEqualTo("TIEMPO");
-        assertThat(perfil.juegos().get("REGATEA").semana()).isNull();
-        assertThat(perfil.juegos().get("REGATEA").historico()).isNull();
+        assertThat(perfil.juegos().get("ATRAPA").semana()).isNull();
+        assertThat(perfil.juegos().get("ATRAPA").historico()).isNull();
     }
 
     @Test
@@ -179,16 +178,15 @@ class JuegoServiceImplTest {
     @Test
     void unPerfilOcultoNoTienePosicionPeroSiMarcas() {
         conPerfil("Ana", true);
-        when(dao.mejorMarca(5L, "REGATEA", null, null)).thenReturn(Optional.of(new Marca(40, 30_000, LUNES)));
+        when(dao.mejorMarca(5L, "ATRAPA", null, null)).thenReturn(Optional.of(new Marca(40, 30_000, LUNES)));
         when(dao.mejorMarca(5L, "CABEZAZOS", null, null)).thenReturn(Optional.empty());
-        when(dao.mejorMarca(5L, "ATRAPA", null, null)).thenReturn(Optional.empty());
         when(dao.mejorMarca(eq(5L), anyString(), eq(LUNES), any())).thenReturn(Optional.empty());
 
         PerfilJuego perfil = service.perfil(5);
 
         assertThat(perfil.oculto()).isTrue();
-        assertThat(perfil.juegos().get("REGATEA").historico().puntos()).isEqualTo(40);
-        assertThat(perfil.juegos().get("REGATEA").historico().posicion()).isNull();
+        assertThat(perfil.juegos().get("ATRAPA").historico().puntos()).isEqualTo(40);
+        assertThat(perfil.juegos().get("ATRAPA").historico().posicion()).isNull();
         verify(dao, never()).cuentasPorDelante(anyString(), any(), any(), anyLong(), any());
     }
 
@@ -296,10 +294,6 @@ class JuegoServiceImplTest {
             "ATRAPA, 325, 45000, false", //
             "ATRAPA, 21, 3000, true", // 6/s en 3 s: 18, +20 % = 21,6 → 21
             "ATRAPA, 22, 3000, false", //
-            "REGATEA, 216, 45000, true", // 4/s: 180, +20 % = 216
-            "REGATEA, 217, 45000, false", //
-            "REGATEA, 14, 3000, true", // 4/s en 3 s: 12, +20 % = 14,4 → 14
-            "REGATEA, 15, 3000, false", //
             "CABEZAZOS, 54, 45000, true", // 1/s: 45, +20 % = 54
             "CABEZAZOS, 55, 45000, false", //
             "CABEZAZOS, 3, 3000, true", // 1/s en 3 s: 3, +20 % = 3,6 → 3
@@ -312,14 +306,14 @@ class JuegoServiceImplTest {
             "PAREJAS, 0, 60000, false", //
             "PAREJAS, 8, 7200000, true", // 2 h
             "PAREJAS, 8, 7200001, false", //
-            "REGATEA, 999, 7200000, true", // tope de puntos
-            "REGATEA, 1000, 7200000, false", //
-            "REGATEA, -1, 20000, false", //
-            "REGATEA, 0, 20000, true", //
-            "REGATEA, 10, 2999, false", // menos de 3 s
-            "REGATEA, 10, 3000, true", //
-            "REGATEA, 10, 7200001, false", // más de 2 h
-            "REGATEA, 10, 0, false", //
+            "ATRAPA, 999, 7200000, true", // tope de puntos
+            "ATRAPA, 1000, 7200000, false", //
+            "ATRAPA, -1, 20000, false", //
+            "ATRAPA, 0, 20000, true", //
+            "ATRAPA, 10, 2999, false", // menos de 3 s
+            "ATRAPA, 10, 3000, true", //
+            "ATRAPA, 10, 7200001, false", // más de 2 h
+            "ATRAPA, 10, 0, false", //
     })
     void laPuntuacionTieneQueSerPlausible(String juego, int puntos, int duracionMs, boolean plausible) {
         conPerfil("Ana", false);
@@ -344,9 +338,9 @@ class JuegoServiceImplTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.guardarPuntuacion(5, null, 5, 20_000))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.guardarPuntuacion(5, "REGATEA", null, 20_000))
+        assertThatThrownBy(() -> service.guardarPuntuacion(5, "ATRAPA", null, 20_000))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.guardarPuntuacion(5, "REGATEA", 5, null))
+        assertThatThrownBy(() -> service.guardarPuntuacion(5, "ATRAPA", 5, null))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(dao, never()).insertarPuntuacion(anyLong(), anyString(), anyInt(), anyInt(), any());
     }
@@ -356,7 +350,7 @@ class JuegoServiceImplTest {
         conPerfil("Ana", false);
         when(dao.ultimaPuntuacion(5L)).thenReturn(Optional.of(MIERCOLES.minusSeconds(4)));
 
-        assertThatThrownBy(() -> service.guardarPuntuacion(5, "REGATEA", 10, 20_000))
+        assertThatThrownBy(() -> service.guardarPuntuacion(5, "ATRAPA", 10, 20_000))
                 .isInstanceOf(JuegoLimiteEnviosException.class);
         verify(dao, never()).insertarPuntuacion(anyLong(), anyString(), anyInt(), anyInt(), any());
 
@@ -364,9 +358,9 @@ class JuegoServiceImplTest {
         when(dao.ultimaPuntuacion(5L)).thenReturn(Optional.of(MIERCOLES.minusSeconds(5)));
         when(dao.mejorMarca(anyLong(), anyString(), any(), any())).thenReturn(Optional.empty());
 
-        service.guardarPuntuacion(5, "REGATEA", 10, 20_000);
+        service.guardarPuntuacion(5, "ATRAPA", 10, 20_000);
 
-        verify(dao).insertarPuntuacion(eq(5L), eq("REGATEA"), eq(10), eq(20_000), any());
+        verify(dao).insertarPuntuacion(eq(5L), eq("ATRAPA"), eq(10), eq(20_000), any());
     }
 
     @Test
@@ -375,34 +369,34 @@ class JuegoServiceImplTest {
         when(dao.ultimaPuntuacion(5L)).thenReturn(Optional.empty());
         when(dao.contarPuntuacionesDesde(5L, LocalDateTime.of(2026, 11, 25, 0, 0))).thenReturn(300);
 
-        assertThatThrownBy(() -> service.guardarPuntuacion(5, "REGATEA", 10, 20_000))
+        assertThatThrownBy(() -> service.guardarPuntuacion(5, "ATRAPA", 10, 20_000))
                 .isInstanceOf(JuegoLimiteEnviosException.class).hasMessageContaining("hoy");
         verify(dao, never()).insertarPuntuacion(anyLong(), anyString(), anyInt(), anyInt(), any());
 
         when(dao.contarPuntuacionesDesde(5L, LocalDateTime.of(2026, 11, 25, 0, 0))).thenReturn(299);
         when(dao.mejorMarca(anyLong(), anyString(), any(), any())).thenReturn(Optional.empty());
 
-        service.guardarPuntuacion(5, "REGATEA", 10, 20_000);
+        service.guardarPuntuacion(5, "ATRAPA", 10, 20_000);
 
-        verify(dao).insertarPuntuacion(eq(5L), eq("REGATEA"), eq(10), eq(20_000), any());
+        verify(dao).insertarPuntuacion(eq(5L), eq("ATRAPA"), eq(10), eq(20_000), any());
     }
 
     @Test
     void laPrimeraPartidaConPuntosEsRecordDeLaSemanaYDelHistorico() {
         conPerfil("Ana", false);
-        when(dao.mejorMarca(5L, "REGATEA", LUNES, LUNES.plusWeeks(1)))
+        when(dao.mejorMarca(5L, "ATRAPA", LUNES, LUNES.plusWeeks(1)))
                 .thenReturn(Optional.empty(), Optional.of(new Marca(10, 30_000, MIERCOLES)));
-        when(dao.mejorMarca(5L, "REGATEA", null, null)).thenReturn(Optional.empty(), Optional.of(new Marca(10, 30_000, MIERCOLES)));
-        when(dao.cuentasPorDelante(eq("REGATEA"), any(), any(), eq(5L), any())).thenReturn(0, 4);
+        when(dao.mejorMarca(5L, "ATRAPA", null, null)).thenReturn(Optional.empty(), Optional.of(new Marca(10, 30_000, MIERCOLES)));
+        when(dao.cuentasPorDelante(eq("ATRAPA"), any(), any(), eq(5L), any())).thenReturn(0, 4);
 
-        ResultadoPuntuacion r = service.guardarPuntuacion(5, "regatea", 10, 20_000);
+        ResultadoPuntuacion r = service.guardarPuntuacion(5, "atrapa", 10, 20_000);
 
-        assertThat(r.juego()).isEqualTo("REGATEA");
+        assertThat(r.juego()).isEqualTo("ATRAPA");
         assertThat(r.recordSemana()).isTrue();
         assertThat(r.recordHistorico()).isTrue();
         assertThat(r.posicionSemana()).isEqualTo(1);
         assertThat(r.posicionHistorico()).isEqualTo(5);
-        verify(dao).insertarPuntuacion(5L, "REGATEA", 10, 20_000, MIERCOLES);
+        verify(dao).insertarPuntuacion(5L, "ATRAPA", 10, 20_000, MIERCOLES);
     }
 
     @Test
@@ -441,11 +435,11 @@ class JuegoServiceImplTest {
         when(dao.mejorMarca(anyLong(), anyString(), any(), any())).thenReturn(Optional.empty(),
                 Optional.of(new Marca(5, 30_000, MIERCOLES)));
 
-        ResultadoPuntuacion r = service.guardarPuntuacion(5, "REGATEA", 5, 20_000);
+        ResultadoPuntuacion r = service.guardarPuntuacion(5, "ATRAPA", 5, 20_000);
 
         assertThat(r.posicionSemana()).isNull();
         assertThat(r.posicionHistorico()).isNull();
-        verify(dao).insertarPuntuacion(eq(5L), eq("REGATEA"), eq(5), eq(20_000), any());
+        verify(dao).insertarPuntuacion(eq(5L), eq("ATRAPA"), eq(5), eq(20_000), any());
     }
 
     // ------------------------------------------------------------------
@@ -453,8 +447,8 @@ class JuegoServiceImplTest {
     // ------------------------------------------------------------------
 
     private static JuegoDao.PerfilAdmin admin(long id, String aliasPerfil, boolean oculto) {
-        return new JuegoDao.PerfilAdmin(id, aliasPerfil, "AZUL", oculto, "Nombre Apellido", "a@b.es", MIERCOLES, 3, 4, 5,
-                6, 7_000);
+        return new JuegoDao.PerfilAdmin(id, aliasPerfil, "AZUL", oculto, "Nombre Apellido", "a@b.es", MIERCOLES, 3, 4, 6,
+                7_000);
     }
 
     // ------------------------------------------------------------------
@@ -462,12 +456,12 @@ class JuegoServiceImplTest {
     // ------------------------------------------------------------------
 
     @ParameterizedTest
-    @CsvSource({ "PENALTIS", "TOQUES", "AJEDREZ" })
+    @CsvSource({ "PENALTIS", "TOQUES", "REGATEA", "regatea", "AJEDREZ" })
     void losJuegosAntiguosYLosDesconocidosDan400EnTodasLasRutas(String juego) {
         conPerfil("Ana", false);
 
         assertThatThrownBy(() -> service.ranking(juego, "SEMANA")).isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("El juego tiene que ser ATRAPA, REGATEA, CABEZAZOS o PAREJAS");
+                .hasMessage("El juego tiene que ser ATRAPA, CABEZAZOS o PAREJAS");
         assertThatThrownBy(() -> service.guardarPuntuacion(5, juego, 5, 20_000))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(dao, never()).ranking(anyString(), any(), any(), anyInt());
@@ -475,7 +469,7 @@ class JuegoServiceImplTest {
     }
 
     @ParameterizedTest
-    @CsvSource({ "ATRAPA", "REGATEA", "CABEZAZOS", "PAREJAS", "parejas", " Atrapa " })
+    @CsvSource({ "ATRAPA", "CABEZAZOS", "PAREJAS", "parejas", " Atrapa " })
     void losCuatroJuegosNuevosSonValidosSinImportarMayusculas(String juego) {
         when(dao.ranking(anyString(), any(), any(), anyInt())).thenReturn(List.of());
 

@@ -42,7 +42,6 @@
 						<th>Alias</th>
 						<th>Cuenta</th>
 						<th class="text-end">Atrapa</th>
-						<th class="text-end">Regatea</th>
 						<th class="text-end">Cabezazos</th>
 						<th class="text-end">Parejas (m:ss,d)</th>
 						<th class="text-end">Partidas</th>
@@ -58,7 +57,6 @@
 							<div class="small text-muted" th:text="${p.email()}"></div>
 						</td>
 						<td class="text-end" th:text="${p.mejorAtrapa()}"></td>
-						<td class="text-end" th:text="${p.mejorRegatea()}"></td>
 						<td class="text-end" th:text="${p.mejorCabezazos()}"></td>
 						<td class="text-end" th:text="${tiempo.f(p.mejorParejasMs())}"></td>
 						<td class="text-end" th:text="${p.partidas()}"></td>
@@ -105,7 +103,7 @@
 						</td>
 					</tr>
 					<tr th:if="${#lists.isEmpty(perfiles)}">
-						<td colspan="10" class="text-center text-muted">No hay perfiles del juego que mostrar.</td>
+						<td colspan="9" class="text-center text-muted">No hay perfiles del juego que mostrar.</td>
 					</tr>
 				</tbody>
 			</table>
