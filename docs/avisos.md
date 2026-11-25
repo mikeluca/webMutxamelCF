@@ -12,7 +12,7 @@ no hace falta tocar Java.
 | Emails a usuarios de la app | `mvc/src/main/resources/emails/emails_es.properties`, `emails_ca.properties`, `emails_en.properties` |
 
 Los emails internos del club (pedido de la tienda, contacto, recordatorio de importar de la FFCV, reporte de contenido)
-van en castellano y siguen en el código de `ComunicacionesService`.
+van en castellano y siguen en el código (`ComunicacionesService`; el del reporte de contenido lo arma `AppReporteComunicacionController`). El recordatorio de la FFCV dice dónde subir los datos (panel web o Área Club › Administración › Subir datos FFCV) y el reporte termina con «Revísalo en la app: Área Club › Administración › Moderación».
 
 ### Reglas de los ficheros
 

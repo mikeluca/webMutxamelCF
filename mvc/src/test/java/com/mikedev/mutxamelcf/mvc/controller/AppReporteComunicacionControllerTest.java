@@ -113,7 +113,8 @@ class AppReporteComunicacionControllerTest {
                 .contains("reporta@x.es")
                 .contains("autor@x.es")
                 .contains("texto ofensivo")
-                .contains("PRIVADA");
+                .contains("PRIVADA")
+                .endsWith("Revísalo en la app: Área Club › Administración › Moderación.\n");
     }
 
     @Test

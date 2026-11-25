@@ -194,6 +194,7 @@ public class AppReporteComunicacionController {
         }
         cuerpo.append("Fecha: ").append(fecha != null ? fecha.format(FORMATO_FECHA) : "(desconocida)").append('\n');
         cuerpo.append("Texto:\n").append(comunicacion.getContenido()).append('\n');
+        cuerpo.append("\nRevísalo en la app: Área Club › Administración › Moderación.\n");
 
         return cuerpo.toString();
     }

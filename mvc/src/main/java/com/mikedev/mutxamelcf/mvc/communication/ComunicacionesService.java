@@ -100,8 +100,11 @@ public class ComunicacionesService implements AvisosCuentaEmail {
         logger.debug("Inicio enviarRecordatorioImportacionFfcv");
         boolean enviado = enviarEmail(REMITENTE, DESTINATARIO_CONTACTO, null,
                 "Recordatorio: importar los partidos de la jornada",
-                "Recuerda importar los partidos de la jornada desde la intranet de la FFCV\n"
-                        + "Sube también el Excel de clasificaciones (ListadoClasificaciones.xlsx)");
+                "Recuerda importar los partidos de la jornada (LstPartidos.csv de la intranet de la FFCV) "
+                        + "y el Excel de clasificaciones (ListadoClasificaciones.xlsx).\n"
+                        + "Se suben en el panel web o desde la app: Área Club › Administración › Subir datos FFCV.\n"
+                        + "Si hay jornada de Veteranos, sube también la clasificación de la LVCA "
+                        + "(la página guardada de ligaveteranosalicante.es/scoretable) en el mismo sitio.");
         logger.debug("Fin enviarRecordatorioImportacionFfcv: enviado={}", enviado);
         return enviado;
     }

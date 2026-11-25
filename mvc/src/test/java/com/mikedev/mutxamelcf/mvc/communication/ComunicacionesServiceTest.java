@@ -55,7 +55,36 @@ class ComunicacionesServiceTest {
         assertTrue(enviado.getAllRecipients()[0].toString().equals("mutxamelcf.gestion@gmail.com"));
         java.io.ByteArrayOutputStream salida = new java.io.ByteArrayOutputStream();
         enviado.writeTo(salida);
-        assertTrue(salida.toString().contains("Recuerda importar los partidos de la jornada desde la intranet de la FFCV"));
+        // El cuerpo tal cual (sin la codificación MIME de los acentos).
+        String cuerpo = textoPlano(enviado);
+        assertTrue(cuerpo.contains("Recuerda importar los partidos de la jornada (LstPartidos.csv de la intranet de la FFCV) "
+                + "y el Excel de clasificaciones (ListadoClasificaciones.xlsx)."), cuerpo);
+        assertTrue(cuerpo.contains("Se suben en el panel web o desde la app: Área Club › Administración › Subir datos FFCV."),
+                cuerpo);
+        assertTrue(cuerpo.contains("Si hay jornada de Veteranos, sube también la clasificación de la LVCA "
+                + "(la página guardada de ligaveteranosalicante.es/scoretable) en el mismo sitio."), cuerpo);
+        assertTrue(salida.size() > 0);
+    }
+
+    /** El primer texto plano del mensaje, ya decodificado (los mensajes son multipart). */
+    private static String textoPlano(jakarta.mail.Part parte) throws Exception {
+        if (parte.isMimeType("text/plain")) {
+            return parte.getContent().toString();
+        }
+
+        if (parte.isMimeType("multipart/*")) {
+            jakarta.mail.Multipart multi = (jakarta.mail.Multipart) parte.getContent();
+
+            for (int i = 0; i < multi.getCount(); i++) {
+                String texto = textoPlano(multi.getBodyPart(i));
+
+                if (texto != null) {
+                    return texto;
+                }
+            }
+        }
+
+        return null;
     }
 
     @Test

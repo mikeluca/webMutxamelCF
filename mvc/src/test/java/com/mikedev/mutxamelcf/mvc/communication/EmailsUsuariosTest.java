@@ -116,13 +116,13 @@ class EmailsUsuariosTest {
 
         assertThat(texto).contains("• " + linea);
 
-        // Va justo después de la línea de próximos partidos y resultados.
+        // Va después de la línea de próximos partidos y resultados (y de las dos nuevas: Inicio y Mutxigol).
         int resultados = texto.indexOf(idioma.equals("es") ? "Consultar los próximos partidos y resultados."
                 : idioma.equals("ca") ? "Consultar els pròxims partits i resultats."
                         : "Check upcoming matches and results.");
 
         assertThat(texto.indexOf(linea)).isGreaterThan(resultados);
-        assertThat(texto.indexOf(linea) - resultados).isLessThan(110);
+        assertThat(texto.indexOf(linea) - resultados).isLessThan(400);
         assertThat(texto).doesNotContain("{");
     }
 
@@ -138,19 +138,40 @@ class EmailsUsuariosTest {
             "RETRANSMISION|es|Como responsable de retransmisión|publicas la alineación\\, los goles\\, los cambios y las tarjetas",
             "RETRANSMISION|es|Como responsable de retransmisión|Este rol es solo para el directo",
             "RRSS|es|Para las redes sociales del club|«Directo y RRSS › Imágenes para redes» generas la previa y los resultados del fin de semana y los carteles del próximo partido del Primer Equipo y del Filial, listos para publicar.",
-            "ADMIN_APP|es|Como administrador de la app|Revisas los mensajes reportados en «Moderación»",
+            "ADMIN_APP|es|Como administrador de la app|En «Moderación» revisas los mensajes reportados",
             "FAMILIAR|ca|Com a familiar|Demanar accés a un altre jugador",
             "ENTRENADOR|ca|Com a entrenador|Canvies el dorsal i la posició dels teus jugadors.",
             "COORDINADOR|ca|Com a coordinador|«Coordinació › Tots els equips»",
             "RETRANSMISION|ca|Com a responsable de retransmissió|publiques l'alineació",
-            "RRSS|ca|Per a les xarxes socials del club|«Directe i RRSS › Imatges per a xarxes» generes la previa",
-            "ADMIN_APP|ca|Com a administrador de l'app|Revises els missatges reportats a «Moderació»",
+            "RRSS|ca|Per a les xarxes socials del club|«Directe i XXSS › Imatges per a xarxes» generes la previa",
+            "RRSS|ca|Per a les xarxes socials del club|el divendres a les 12:00 la previa no està feta",
+            "ADMIN_APP|ca|Com a administrador de l'app|A «Moderació» revises els missatges reportats",
+            "ENTRENADOR|ca|Com a entrenador|A «Pendents», damunt de l'Àrea Club",
+            "COORDINADOR|ca|Com a coordinador|A «Cap de setmana» veus l'estat de la jornada: partits sense convocatòria",
+            "COORDINADOR|ca|Com a coordinador|A «Seguiment de jugadors» veus qui acumula faltes",
+            "RETRANSMISION|ca|Com a responsable de retransmissió|«Directe i XXSS › Partit en directe»",
+            "ENTRENADOR|es|Como entrenador|En «Pendientes», arriba del Área Club, ves lo que te falta: listas sin pasar, convocatorias sin publicar y resultados sin poner.",
+            "COORDINADOR|es|Como coordinador|partidos sin convocatoria, resultados pendientes y equipos que descansan, y puedes recordárselo a cada entrenador.",
+            "COORDINADOR|es|Como coordinador|En «Seguimiento de jugadores» ves quién acumula faltas o mal comportamiento, y en «Pendientes» lo que queda por hacer en todo el club.",
+            "RETRANSMISION|es|Como responsable de retransmisión|En «Directo y RRSS › Partido en directo» publicas",
+            "RETRANSMISION|es|Como responsable de retransmisión|todo se ve en Inicio y en la ficha del partido",
+            "RRSS|es|Para las redes sociales del club|Si el viernes a las 12:00 la previa no está hecha, o el lunes a las 9:00 los resultados, te llega un recordatorio; también lo verás en «Pendientes».",
+            "ENTRENADOR|en|As a coach|In \"To do\", at the top of the Club Area",
+            "COORDINADOR|en|As a coordinator|In \"Weekend\" you see the status of the matchday: matches without a call-up",
+            "COORDINADOR|en|As a coordinator|In \"Player follow-up\" you see who is piling up absences",
+            "RETRANSMISION|en|As the live broadcast person|\"Live & social media › Live match\"",
+            "RRSS|en|For the club's social media|\"Live & social media › Social media images\"",
+            "RRSS|en|For the club's social media|If the preview is not done by Friday at 12:00",
+            "ADMIN_APP|ca|Com a administrador de l'app|A «Administració › Usuaris» busques i filtres",
+            "ADMIN_APP|ca|Com a administrador de l'app|A «Administració › Pujar dades FFCV»",
+            "ADMIN_APP|es|Como administrador de la app|En «Administración › Subir datos FFCV» importas desde el móvil",
+            "ADMIN_APP|en|As the app administrator|In \"Administration › Upload FFCV data\"",
             "FAMILIAR|en|As a family member|Ask for access to another player",
             "ENTRENADOR|en|As a coach|You change the shirt number and position of your players.",
             "COORDINADOR|en|As a coordinator|Coordination › All teams",
             "RETRANSMISION|en|As the live broadcast person|lineup",
             "RRSS|en|For the club's social media|Social media images\" you generate the weekend preview and results",
-            "ADMIN_APP|en|As the app administrator|reported messages in" })
+            "ADMIN_APP|en|As the app administrator|reported messages and the Mutxigol game aliases" })
     void cadaRolAnadeSuBloqueALaCuentaActivada(String rol, String idioma, String titulo, String frase) {
 
         String texto = ComunicacionesService.construirCuentaActivada("Ana", List.of(rol), idioma);
@@ -165,16 +186,76 @@ class EmailsUsuariosTest {
         String es = ComunicacionesService.construirCuentaActivada("Ana", List.of("ADMIN_APP"), "es");
 
         assertThat(es).contains("Como administrador de la app")
-                .contains("• Revisas los mensajes reportados en «Moderación» y gestionas las cuentas pendientes de activar.")
-                .contains("• Puedes invitar a nuevos usuarios y consultar el estado de la app.")
+                .contains("• Tienes acceso completo a la app, incluidos el Partido en directo y las Imágenes para redes.")
+                .contains("• En «Moderación» revisas los mensajes reportados y los alias del juego de Mutxigol")
                 // Sigue viendo lo mismo que un coordinador.
                 .contains("Como coordinador")
-                .doesNotContain("Como entrenador").doesNotContain("Como jugador").doesNotContain("Como familiar");
+                .doesNotContain("Como entrenador").doesNotContain("Como jugador").doesNotContain("Como familiar")
+                // Retransmisión y RRSS los resume su propio bloque: no se repiten.
+                .doesNotContain("Como responsable de retransmisión")
+                .doesNotContain("Para las redes sociales del club");
 
         for (String idioma : List.of("ca", "en")) {
-            assertThat(ComunicacionesService.construirCuentaActivada("Ana", List.of("ADMIN_APP"), idioma))
-                    .contains(idioma.equals("ca") ? "Com a administrador de l'app" : "As the app administrator");
+            String texto = ComunicacionesService.construirCuentaActivada("Ana", List.of("ADMIN_APP"), idioma);
+
+            assertThat(texto).contains(idioma.equals("ca") ? "Com a administrador de l'app" : "As the app administrator")
+                    .contains(idioma.equals("ca") ? "Com a coordinador" : "As a coordinator")
+                    .doesNotContain(idioma.equals("ca") ? "Com a responsable de retransmissió" : "As the live broadcast person")
+                    .doesNotContain(idioma.equals("ca") ? "Per a les xarxes socials del club"
+                            : "For the club's social media");
         }
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "es|En Inicio, el próximo partido de tus equipos o de tus hijos con su convocatoria: hora y lugar de citación y equipaje.|Jugar con Mutxigol, la mascota del club, y entrar en el ranking con un alias (nunca sale tu nombre).",
+            "ca|A l'Inici, el pròxim partit dels teus equips o dels teus fills amb la seua convocatòria: hora i lloc de citació i equipació.|Jugar amb Mutxigol, la mascota del club, i entrar al rànquing amb un àlies (mai no ix el teu nom).",
+            "en|On Home, the next match of your teams or your children's teams with its call-up: meeting time and place, and kit.|Play Mutxigol, the club mascot, and join the ranking with an alias (your name never appears)." })
+    void laCuentaActivadaMencionaElProximoPartidoYMutxigolDespuesDeLaSegundaLinea(
+            String idioma, String proximo, String mutxigol) {
+
+        String texto = ComunicacionesService.construirCuentaActivada("Ana", List.of("JUGADOR"), idioma);
+        String resultados = idioma.equals("es") ? "Consultar los próximos partidos y resultados."
+                : idioma.equals("ca") ? "Consultar els pròxims partits i resultats."
+                        : "Check upcoming matches and results.";
+        String directo = idioma.equals("es") ? "Seguir en directo"
+                : idioma.equals("ca") ? "Seguir en directe" : "Follow the First Team";
+
+        // Las líneas actuales se quedan; las nuevas van justo después de la segunda y antes de la tercera.
+        assertThat(texto).contains("• " + proximo + "\n• " + mutxigol + "\n");
+        assertThat(texto.indexOf(proximo)).isGreaterThan(texto.indexOf(resultados));
+        assertThat(texto.indexOf(mutxigol)).isLessThan(texto.indexOf(directo));
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "es|pide al club que te reenvíe la invitación (escribe a mutxamelcf.gestion@gmail.com)",
+            "ca|demana al club que et reenvie la invitació (escriu a mutxamelcf.gestion@gmail.com)",
+            "en|ask the club to resend the invitation (write to mutxamelcf.gestion@gmail.com)" })
+    void laInvitacionYaNoMandaALaOficinaSinoAlClubConSuEmail(String idioma, String frase) throws Exception {
+
+        String cuerpo = cargar(idioma).getProperty("invitacion.cuerpo").replace(" \n", " ");
+
+        assertThat(cuerpo.replaceAll("\\s+", " ")).contains(frase);
+        assertThat(cuerpo.toLowerCase()).doesNotContain("oficina").doesNotContain("office");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "es", "ca", "en" })
+    void ningunaClaveNombraPantallasQueYaNoExisten(String idioma) throws Exception {
+
+        // «Cuentas pendientes» ahora es Usuarios; «Retransmisión» no es un menú; «Fin de semana» ya no lleva las imágenes
+        // para redes; y las etiquetas «Directo y RRSS» de la sección se llaman «Directe i XXSS» y «Live & social media».
+        for (String valor : cargar(idioma).stringPropertyNames().stream()
+                .map(cargar(idioma)::getProperty).toList()) {
+            assertThat(valor).doesNotContain("Cuentas pendientes").doesNotContain("Comptes pendents")
+                    .doesNotContain("Pending accounts").doesNotContain("«Retransmisión»")
+                    .doesNotContain("«Retransmissió»").doesNotContain("Directe i RRSS")
+                    .doesNotContain("Live and social media");
+        }
+
+        assertThat(cargar(idioma).getProperty("rol.COORDINADOR"))
+                .doesNotContain("imágenes").doesNotContain("imatges").doesNotContain("images");
     }
 
     @Test
@@ -190,8 +271,13 @@ class EmailsUsuariosTest {
     void elBloqueDelAdministradorTieneElFormatoPedido() throws Exception {
 
         assertThat(cargar("es").getProperty("rol.ADMIN_APP")).isEqualTo("\nComo administrador de la app\n"
-                + "• Revisas los mensajes reportados en «Moderación» y gestionas las cuentas pendientes de activar.\n"
-                + "• Puedes invitar a nuevos usuarios y consultar el estado de la app.\n");
+                + "• Tienes acceso completo a la app, incluidos el Partido en directo y las Imágenes para redes.\n"
+                + "• En «Administración › Usuarios» buscas y filtras todas las cuentas, invitas a personas nuevas, "
+                + "cambias sus vínculos y roles, reenvías invitaciones y activas o desactivas cuentas.\n"
+                + "• En «Administración › Subir datos FFCV» importas desde el móvil los partidos y las clasificaciones "
+                + "de la Federación y la clasificación de veteranos (LVCA).\n"
+                + "• En «Moderación» revisas los mensajes reportados y los alias del juego de Mutxigol, "
+                + "y en «Estado de la app» ves cómo se está usando.\n");
     }
 
     // ---- registro de familias: aprobación, rechazo, caducidad ------------------------------------------------------------
