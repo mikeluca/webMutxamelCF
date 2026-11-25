@@ -161,6 +161,45 @@ public class PerfilAppDaoImpl implements PerfilAppDao {
         return jugadores;
     }
 
+    @Override
+    public List<Jugador> obtenerJugadoresPropiosActivos(int usuarioAppId) {
+
+        return jdbcTemplate.query(
+                """
+                        SELECT DISTINCT
+                            j.ID, j.NOMBRE, j.APELLIDOS, j.CATEGORIA, j.DEPORTE,
+                            e.NOMBRE AS EQUIPO, e.ID AS EQUIPO_ID, j.DORSAL, j.POSICION
+                        FROM JUGADORES j
+                        LEFT JOIN EQUIPO e ON e.ID = j.EQUIPO_ID
+                        INNER JOIN USUARIOS_APP_JUGADORES uaj ON uaj.JUGADOR_ID = j.ID
+                        WHERE uaj.USUARIO_APP_ID = ?
+                          AND j.FECHA_BAJA IS NULL
+                        ORDER BY j.NOMBRE, j.APELLIDOS
+                        """,
+                JUGADOR_ROW_MAPPER,
+                usuarioAppId);
+    }
+
+    @Override
+    public List<Jugador> obtenerHijosActivos(int usuarioAppId) {
+
+        return jdbcTemplate.query(
+                """
+                        SELECT DISTINCT
+                            j.ID, j.NOMBRE, j.APELLIDOS, j.CATEGORIA, j.DEPORTE,
+                            e.NOMBRE AS EQUIPO, e.ID AS EQUIPO_ID, j.DORSAL, j.POSICION
+                        FROM JUGADORES j
+                        LEFT JOIN EQUIPO e ON e.ID = j.EQUIPO_ID
+                        INNER JOIN FAMILIARES_JUGADOR fj ON fj.JUGADOR_ID = j.ID
+                        INNER JOIN USUARIOS_APP_FAMILIARES uaf ON uaf.FAMILIAR_ID = fj.FAMILIAR_ID
+                        WHERE uaf.USUARIO_APP_ID = ?
+                          AND j.FECHA_BAJA IS NULL
+                        ORDER BY j.NOMBRE, j.APELLIDOS
+                        """,
+                JUGADOR_ROW_MAPPER,
+                usuarioAppId);
+    }
+
     // ============================================================
     // CUERPO TÉCNICO
     // ============================================================

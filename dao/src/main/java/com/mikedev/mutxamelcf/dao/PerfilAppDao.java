@@ -36,4 +36,16 @@ public interface PerfilAppDao {
      * del usuario.
      */
     List<Equipo> obtenerEquiposPorUsuario(int usuarioAppId);
+
+    /**
+     * Los jugadores activos (sin fecha de baja) a los que la cuenta está vinculada directamente
+     * (USUARIOS_APP_JUGADORES): ella misma como jugador.
+     */
+    List<Jugador> obtenerJugadoresPropiosActivos(int usuarioAppId);
+
+    /**
+     * Los jugadores activos (sin fecha de baja) de los que la cuenta es familiar (USUARIOS_APP_FAMILIARES ->
+     * FAMILIARES_JUGADOR): sus hijos.
+     */
+    List<Jugador> obtenerHijosActivos(int usuarioAppId);
 }

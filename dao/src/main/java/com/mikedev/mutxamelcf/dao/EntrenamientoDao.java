@@ -46,6 +46,13 @@ public interface EntrenamientoDao {
     /** Marca AVISO_LISTA_ENVIADO = 1: un solo aviso por sesión. */
     void marcarAvisoListaEnviado(Long id);
 
+    /**
+     * Entrenamientos con la lista sin revisar y con sesión del calendario, con fecha entre las dos (incluidas), de
+     * todos los equipos, por fecha. Una sola consulta (la pantalla "Pendientes" filtra por equipo).
+     */
+    List<com.mikedev.mutxamelcf.model.ListaSinRevisar> obtenerListasSinRevisar(
+            java.time.LocalDate desde, java.time.LocalDate hasta);
+
     boolean existe(Long id);
 
     void eliminar(Long id);

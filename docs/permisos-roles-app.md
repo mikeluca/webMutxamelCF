@@ -37,6 +37,7 @@ Toda ruta de `/api/app/**` (salvo las de `AccesoCuentaSinRoles.RUTAS_SIN_ROL`) e
 | Juego de Mutxigol: perfil, alias, equipación y guardar puntuaciones (`/juego/**`, [api-app-juego.md](api-app-juego.md)); el ranking `/api/public/juego/ranking` es público | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | cualquier cuenta con algún rol (`AccesoCuentaSinRoles`); el ranking, sin sesión |
 | Moderar el juego de Mutxigol: perfiles con nombre y email, cambiar alias, ocultar del ranking, borrar puntuaciones (`/admin/juego/**`, y en el panel web `/admin/juego-mutxigol`, SUPER y ADMIN) | — | — | — | — | — | — | ✔ | `UsuarioAppService.exigirAdminApp` |
 | Mis jugadores, justificar ausencias, responder convocatoria, Mi ficha | (v) | (v) | — | — | — | — | (v) | `UsuarioAppVinculoDao.tieneVinculoConJugador` |
+| Inicio: "Tu próximo partido" (`/inicio/proximos-partidos`) y Pendientes (`/pendientes`), [api-app-inicio-pendientes.md](api-app-inicio-pendientes.md) | ✔ (v) | ✔ (v) | ✔ (eq) | ✔ | ✔ | ✔ | ✔ | cualquier cuenta con algún rol; cada grupo de Pendientes solo sale si el rol lo permite (`PendientesServiceImpl`: jugador y familia, lista vacía) y el próximo partido es solo el de la propia cuenta y sus hijos (`InicioAppServiceImpl`); coordinación solo recibe los equipos que entrena |
 | Perfil, notificaciones, preferencias, idioma, dispositivos | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | cualquier cuenta con sesión |
 
 ## Dónde se trata RRSS como rol "con acceso" o "que mantiene la cuenta"

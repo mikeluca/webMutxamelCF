@@ -31,4 +31,7 @@ public interface ImagenesRedesService {
      * ADMIN_APP. Si ya están generadas no hace nada. Lo usan los schedulers. Devuelve a cuántas cuentas ha avisado.
      */
     int recordarSiPendiente(String tipo, LocalDate viernes);
+
+    /** true si ya hay imágenes de ese tipo generadas para el fin de semana que empieza ese viernes (sin comprobar permisos). */
+    boolean hayGeneradas(String tipo, LocalDate viernes);
 }

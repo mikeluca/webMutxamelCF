@@ -134,14 +134,21 @@ public class ImagenesRedesServiceImpl implements ImagenesRedesService {
 
 		String tipoNormalizado = normalizarTipo(tipo);
 
-		boolean generadas = imagenRedesDao.listar(viernes).stream().anyMatch(i -> tipoNormalizado.equals(i.tipo()));
-
-		if (generadas) {
+		if (hayGeneradas(tipoNormalizado, viernes)) {
 			logger.info("Imágenes para redes {} del {}: ya están generadas, no se recuerda", tipoNormalizado, viernes);
 			return 0;
 		}
 
 		return recordar(tipoNormalizado, viernes);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public boolean hayGeneradas(String tipo, LocalDate viernes) {
+
+		String tipoNormalizado = normalizarTipo(tipo);
+
+		return imagenRedesDao.listar(viernes).stream().anyMatch(i -> tipoNormalizado.equals(i.tipo()));
 	}
 
 	// ---- generación -------------------------------------------------------------------------------

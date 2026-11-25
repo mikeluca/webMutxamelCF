@@ -346,6 +346,31 @@ public class EntrenamientoDaoImpl implements EntrenamientoDao {
         }
 
         @Override
+        public List<com.mikedev.mutxamelcf.model.ListaSinRevisar> obtenerListasSinRevisar(
+                        LocalDate desde, LocalDate hasta) {
+
+                return jdbcTemplate.query(
+                                """
+                                                SELECT E.ID, E.EQUIPO_ID, E.SESION_ENTRENAMIENTO_ID, E.FECHA, S.HORA, S.ESTADO
+                                                FROM ENTRENAMIENTOS E
+                                                INNER JOIN SESIONES_ENTRENAMIENTO S
+                                                    ON S.ID = E.SESION_ENTRENAMIENTO_ID
+                                                WHERE E.LISTA_REVISADA = 0
+                                                  AND E.FECHA BETWEEN ? AND ?
+                                                ORDER BY E.FECHA, S.HORA, E.ID
+                                                """,
+                                (rs, n) -> new com.mikedev.mutxamelcf.model.ListaSinRevisar(
+                                                rs.getLong("ID"),
+                                                rs.getLong("EQUIPO_ID"),
+                                                rs.getLong("SESION_ENTRENAMIENTO_ID"),
+                                                rs.getDate("FECHA").toLocalDate(),
+                                                rs.getString("HORA"),
+                                                rs.getString("ESTADO")),
+                                Date.valueOf(desde),
+                                Date.valueOf(hasta));
+        }
+
+        @Override
         public void marcarAvisoListaEnviado(Long id) {
 
                 jdbcTemplate.update(
