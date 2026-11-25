@@ -197,12 +197,13 @@ public class PendientesServiceImpl implements PendientesService {
                 continue;
             }
 
-            elementos.add(new Elemento(lista.sesionId(),
+            elementos.add(new Elemento(lista.entrenamientoId(),
                     textos.texto(c.idioma, "pendientes.listas.item",
                             "equipo", misEquipos.get(lista.equipoId()),
                             "fecha", textos.fecha(c.idioma, lista.fecha()),
                             "hora", hora != null ? textos.hora(hora) : ""),
-                    lista.fecha(), "PASAR_LISTA:" + lista.sesionId(), null));
+                    lista.fecha(), "PASAR_LISTA:" + lista.entrenamientoId(), null,
+                    lista.equipoId(), misEquipos.get(lista.equipoId()), null, lista.hora()));
         }
 
         c.anadir(LISTAS_SIN_PASAR, "pendientes.listas.titulo", elementos);
@@ -226,13 +227,13 @@ public class PendientesServiceImpl implements PendientesService {
             boolean empezado = !CriterioResultadoPartido.inicio(p.dia(), p.hora()).isAfter(c.ahora);
 
             if (!p.conConvocatoria() && !empezado) {
-                sinConvocatoria.add(elementoConvocatoria(c, p.equipo(), p.partidoId(), p.rival(), p.dia(), p.hora()));
+                sinConvocatoria.add(elementoConvocatoria(c, p.equipoId(), p.equipo(), p.partidoId(), p.rival(), p.dia(), p.hora()));
             }
 
             if (!p.dia().isAfter(c.hoy())
                     && !CriterioResultadoPartido.tieneResultado(p.golesFavor(), p.resultado())
                     && CriterioResultadoPartido.haTerminado(p.dia(), p.hora(), c.ahora)) {
-                sinResultado.add(elementoResultado(c, p.equipo(), p.partidoId(), p.rival(), p.dia(), p.hora(),
+                sinResultado.add(elementoResultado(c, p.equipoId(), p.equipo(), p.partidoId(), p.rival(), p.dia(), p.hora(),
                         (int) ChronoUnit.DAYS.between(p.dia(), c.hoy())));
             }
         }
@@ -265,11 +266,11 @@ public class PendientesServiceImpl implements PendientesService {
         FinDeSemanaResponse panel = coordinacionService.obtenerFinDeSemana(c.usuarioId, null);
 
         c.anadir(CONVOCATORIAS_SIN_PUBLICAR, "pendientes.convocatorias.titulo", panel.sinConvocatoria().stream()
-                .map(p -> elementoConvocatoria(c, p.equipo(), p.partidoId(), p.rival(), p.dia(), p.hora()))
+                .map(p -> elementoConvocatoria(c, p.equipoId(), p.equipo(), p.partidoId(), p.rival(), p.dia(), p.hora()))
                 .toList());
 
         c.anadir(RESULTADOS_PENDIENTES, "pendientes.resultados.titulo", panel.resultadosPendientes().stream()
-                .map(p -> elementoResultado(c, p.equipo(), p.partidoId(), p.rival(), p.dia(), p.hora(),
+                .map(p -> elementoResultado(c, p.equipoId(), p.equipo(), p.partidoId(), p.rival(), p.dia(), p.hora(),
                         p.diasDeRetraso()))
                 .toList());
     }
@@ -387,22 +388,23 @@ public class PendientesServiceImpl implements PendientesService {
     // ---- común ---------------------------------------------------------------------------------------------------
 
     private Elemento elementoConvocatoria(
-            Contexto c, String equipo, Long partidoId, String rival, LocalDate dia, String hora) {
+            Contexto c, Long equipoId, String equipo, Long partidoId, String rival, LocalDate dia, String hora) {
 
         return new Elemento(partidoId,
                 textos.texto(c.idioma, "pendientes.convocatorias.item",
                         "equipo", nvl(equipo), "rival", nvl(rival),
                         "fecha", textos.fecha(c.idioma, dia), "hora", nvl(hora)),
-                dia, "CONVOCATORIA_NUEVA:" + partidoId, null);
+                dia, "CONVOCATORIA_NUEVA:" + partidoId, null, equipoId, nvl(equipo), nvl(rival), hora);
     }
 
     private Elemento elementoResultado(
-            Contexto c, String equipo, Long partidoId, String rival, LocalDate dia, String hora, int diasRetraso) {
+            Contexto c, Long equipoId, String equipo, Long partidoId, String rival, LocalDate dia, String hora,
+            int diasRetraso) {
 
         return new Elemento(partidoId,
                 textos.texto(c.idioma, "pendientes.resultados.item",
                         "equipo", nvl(equipo), "rival", nvl(rival), "fecha", textos.fecha(c.idioma, dia)),
-                dia, "RESULTADO:" + partidoId, diasRetraso);
+                dia, "RESULTADO:" + partidoId, diasRetraso, equipoId, nvl(equipo), nvl(rival), hora);
     }
 
     private static String nvl(String texto) {

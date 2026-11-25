@@ -107,8 +107,8 @@ total. `titulo` y `texto` van en el idioma de la cuenta (`es`, `ca` o `en`).
       "titulo": "Listas sin pasar",
       "cantidad": 7,
       "elementos": [
-        { "id": 501, "texto": "Alevín A: entrenamiento del lunes 23/11 a las 18:00", "fecha": "2026-11-23",
-          "destino": "PASAR_LISTA:501", "diasRetraso": null }
+        { "id": 12, "texto": "Alevín A: entrenamiento del lunes 23/11 a las 18:00", "fecha": "2026-11-23",
+          "destino": "PASAR_LISTA:12", "diasRetraso": null }
       ]
     },
     {
@@ -128,7 +128,7 @@ total. `titulo` y `texto` van en el idioma de la cuenta (`es`, `ca` o `en`).
 
 | Rol | Grupo (`codigo`) | Qué cuenta | `destino` |
 | --- | --- | --- | --- |
-| `ENTRENADOR` (equipos que entrena) | `LISTAS_SIN_PASAR` | entrenamientos de los **últimos 14 días** que ya han empezado, no cancelados, con la lista sin revisar (`id` = sesión) | `PASAR_LISTA:sesionId` |
+| `ENTRENADOR` (equipos que entrena) | `LISTAS_SIN_PASAR` | entrenamientos de los **últimos 14 días** que ya han empezado, no cancelados, con la lista sin revisar (`id` = entrenamiento, el mismo id que el push de pasar lista) | `PASAR_LISTA:entrenamientoId` |
 | | `CONVOCATORIAS_SIN_PUBLICAR` | partidos de los **próximos 7 días**, sin empezar, no cancelados y sin convocatoria (`id` = partido) | `CONVOCATORIA_NUEVA:partidoId` |
 | | `RESULTADOS_PENDIENTES` | partidos de hasta 10 días atrás, terminados (2 h tras el inicio) y sin resultado; con `diasRetraso` | `RESULTADO:partidoId` |
 | | `SOLICITUDES_FAMILIA` | solicitudes de familia sin revisar de sus equipos | `SOLICITUDES_FAMILIA` |
@@ -145,6 +145,10 @@ total. `titulo` y `texto` van en el idioma de la cuenta (`es`, `ca` o `en`).
 Una cuenta con varios roles recibe la unión de sus grupos y un mismo código no se repite: un coordinador que también
 entrena recibe los grupos de Fin de semana (todos los equipos), y además sus listas sin pasar y los jugadores a liberar.
 Las horas son de Madrid y la regla de RRSS es la de los recordatorios (`ImagenesRedesScheduler`).
+
+Los elementos de `LISTAS_SIN_PASAR`, `CONVOCATORIAS_SIN_PUBLICAR` y `RESULTADOS_PENDIENTES` llevan además `equipoId`,
+`equipo`, `rival` (no en las listas) y `hora`: lo que la app necesita para abrir el formulario sin pedir nada más (en los
+demás grupos van a `null`).
 
 El `id` de los elementos de imágenes es `null` (el destino lleva la fecha). `diasRetraso` solo viene en
 `RESULTADOS_PENDIENTES` (en el resto, `null`).

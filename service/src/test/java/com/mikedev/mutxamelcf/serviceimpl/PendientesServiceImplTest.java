@@ -188,8 +188,8 @@ class PendientesServiceImplTest {
 
         assertThat(g.titulo()).isEqualTo("Listas sin pasar");
         assertThat(g.cantidad()).isEqualTo(2);
-        assertThat(g.elementos()).extracting(e -> e.id()).containsExactly(501L, 505L);
-        assertThat(g.elementos()).extracting(e -> e.destino()).containsExactly("PASAR_LISTA:501", "PASAR_LISTA:505");
+        assertThat(g.elementos()).extracting(e -> e.id()).containsExactly(1L, 5L);
+        assertThat(g.elementos()).extracting(e -> e.destino()).containsExactly("PASAR_LISTA:1", "PASAR_LISTA:5");
         assertThat(g.elementos().get(0).fecha()).isEqualTo(HOY.minusDays(2));
         assertThat(g.elementos().get(0).texto()).contains("Alevín A");
     }
@@ -242,6 +242,10 @@ class PendientesServiceImplTest {
         assertThat(convocatorias.cantidad()).isEqualTo(1);
         assertThat(convocatorias.elementos().get(0).id()).isEqualTo(30L);
         assertThat(convocatorias.elementos().get(0).destino()).isEqualTo("CONVOCATORIA_NUEVA:30");
+        assertThat(convocatorias.elementos().get(0).equipoId()).isEqualTo(10L);
+        assertThat(convocatorias.elementos().get(0).equipo()).isEqualTo("Alevín A");
+        assertThat(convocatorias.elementos().get(0).rival()).isEqualTo("Rival 30");
+        assertThat(convocatorias.elementos().get(0).hora()).isEqualTo("11:00");
 
         Grupo resultados = grupo(r, "RESULTADOS_PENDIENTES");
         assertThat(resultados.cantidad()).isEqualTo(1);

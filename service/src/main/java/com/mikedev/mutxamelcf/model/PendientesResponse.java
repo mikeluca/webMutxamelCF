@@ -18,8 +18,15 @@ public record PendientesResponse(List<Grupo> grupos) {
 
     /**
      * {@code destino} es un código que la app sabe abrir (PASAR_LISTA:12...); {@code diasRetraso} solo en los
-     * resultados pendientes.
+     * resultados pendientes; {@code equipoId}, {@code equipo}, {@code rival} y {@code hora} solo en listas,
+     * convocatorias y resultados (lo que la app necesita para abrir el formulario).
      */
-    public record Elemento(Long id, String texto, LocalDate fecha, String destino, Integer diasRetraso) {
+    public record Elemento(Long id, String texto, LocalDate fecha, String destino, Integer diasRetraso,
+            Long equipoId, String equipo, String rival, String hora) {
+
+        /** Sin los datos del partido ni del equipo (solicitudes, invitaciones, moderacion...). */
+        public Elemento(Long id, String texto, LocalDate fecha, String destino, Integer diasRetraso) {
+            this(id, texto, fecha, destino, diasRetraso, null, null, null, null);
+        }
     }
 }
