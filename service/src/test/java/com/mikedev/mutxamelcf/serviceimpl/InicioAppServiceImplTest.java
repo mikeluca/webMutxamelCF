@@ -376,6 +376,7 @@ class InicioAppServiceImplTest {
         });
         assertThat(entradas.get(0).convocatoria().estado()).isEqualTo("PUBLICADA");
         assertThat(entradas.get(0).convocatoria().numeroConvocados()).isEqualTo(3);
+        assertThat(entradas.get(0).convocatoria().convocatoriaId()).isEqualTo(5L);
         assertThat(entradas.get(1).convocatoria().estado()).isEqualTo("SIN_CONVOCATORIA");
     }
 

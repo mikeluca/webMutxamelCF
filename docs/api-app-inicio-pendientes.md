@@ -1,4 +1,4 @@
-# Inicio y Pendientes de la app (contrato para la app 1.0.16)
+| `PUBLICADA` | entrenador | hay convocatoria: `convocatoriaId` (para abrirla y editarla), `numeroConvocados` y la citación |# Inicio y Pendientes de la app (contrato para la app 1.0.16)
 
 Dos rutas de **solo lectura** que reutilizan lo que ya existe (calendario del jugador, convocatorias, partidos, sesiones
 de entrenamiento, panel de Fin de semana, solicitudes de familia, invitaciones, moderación, cuentas pendientes e imágenes
@@ -49,7 +49,8 @@ Por cada **persona y equipo** de la cuenta, su próximo partido que **aún no ha
         "equipaje": { "id": 1, "nombre": "Verde", "camiseta": "verde", "pantalon": "negro", "medias": "verde", "colorHex": "#00AA00" },
         "equipajeMochila": { "id": 2, "nombre": "Blanca", "camiseta": "blanca", "pantalon": "blanco", "medias": "blanca", "colorHex": "#FFFFFF" },
         "equipoInvita": null,
-        "numeroConvocados": null
+        "numeroConvocados": null,
+        "convocatoriaId": null
       }
     },
     {
@@ -57,7 +58,7 @@ Por cada **persona y equipo** de la cuenta, su próximo partido que **aún no ha
       "descansa": false,
       "partido": { "id": 31, "equipo": "Benjamín", "rival": "UD Otro", "hora": "10:00" },
       "convocatoria": { "estado": "PUBLICADA", "horaCitacion": "09:15", "lugarCitacion": "Els Oms", "equipaje": null,
-                        "equipajeMochila": null, "equipoInvita": null, "numeroConvocados": 14 }
+                        "equipajeMochila": null, "equipoInvita": null, "numeroConvocados": 14, "convocatoriaId": 5 }
     },
     {
       "tipo": "JUGADOR", "jugadorId": 100, "nombreJugador": "Ana Pérez", "equipoId": 11, "nombreEquipo": "Infantil",

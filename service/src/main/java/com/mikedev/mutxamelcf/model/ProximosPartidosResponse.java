@@ -37,6 +37,7 @@ public record ProximosPartidosResponse(List<Entrada> entradas) {
      *
      * @param equipoInvita    solo INVITADO: el equipo que lo invita
      * @param numeroConvocados solo PUBLICADA (entrenador): cuántos van convocados
+     * @param convocatoriaId   solo PUBLICADA (entrenador): para abrirla y editarla
      */
     public record EstadoConvocatoria(
             String estado,
@@ -45,7 +46,8 @@ public record ProximosPartidosResponse(List<Entrada> entradas) {
             EquipacionResponse equipaje,
             EquipacionResponse equipajeMochila,
             String equipoInvita,
-            Integer numeroConvocados) {
+            Integer numeroConvocados,
+            Long convocatoriaId) {
 
         public static final String SIN_CONVOCATORIA = "SIN_CONVOCATORIA";
         public static final String CONVOCADO = "CONVOCADO";
@@ -55,7 +57,7 @@ public record ProximosPartidosResponse(List<Entrada> entradas) {
         public static final String PUBLICADA = "PUBLICADA";
 
         public static EstadoConvocatoria de(String estado) {
-            return new EstadoConvocatoria(estado, null, null, null, null, null, null);
+            return new EstadoConvocatoria(estado, null, null, null, null, null, null, null);
         }
     }
 }

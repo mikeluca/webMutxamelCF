@@ -178,11 +178,11 @@ public class InicioAppServiceImpl implements InicioAppService {
             var detalle = convocatoriaPartidoService.obtenerParaJugador(p.usuarioId(), partido.getId(), jugadorId);
 
             return new EstadoConvocatoria(estado, detalle.horaCitacion(), detalle.lugarCitacion(),
-                    detalle.equipacion(), detalle.equipacionMochila(), equipoInvita, null);
+                    detalle.equipacion(), detalle.equipacionMochila(), equipoInvita, null, null);
 
         } catch (NoSuchElementException e) {
 
-            return new EstadoConvocatoria(estado, null, null, null, null, equipoInvita, null);
+            return new EstadoConvocatoria(estado, null, null, null, null, equipoInvita, null, null);
         }
     }
 
@@ -205,7 +205,8 @@ public class InicioAppServiceImpl implements InicioAppService {
                 ? EstadoConvocatoria.de(EstadoConvocatoria.SIN_CONVOCATORIA)
                 : new EstadoConvocatoria(EstadoConvocatoria.PUBLICADA, convocatoria.getHoraConvocatoria(),
                         convocatoria.getLugarConvocatoria(), null, null, null,
-                        convocatoriaJugadorDao.obtenerPorConvocatoria(convocatoria.getId()).size());
+                        convocatoriaJugadorDao.obtenerPorConvocatoria(convocatoria.getId()).size(),
+                        convocatoria.getId());
 
         return Optional.of(new Entrada(ProximosPartidosResponse.TIPO_ENTRENADOR, null, null, equipo.getId(),
                 equipo.getNombre(), proximo, estado, false));
