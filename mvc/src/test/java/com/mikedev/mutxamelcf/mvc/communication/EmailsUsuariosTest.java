@@ -143,8 +143,8 @@ class EmailsUsuariosTest {
             "ENTRENADOR|ca|Com a entrenador|Canvies el dorsal i la posició dels teus jugadors.",
             "COORDINADOR|ca|Com a coordinador|«Coordinació › Tots els equips»",
             "RETRANSMISION|ca|Com a responsable de retransmissió|publiques l'alineació",
-            "RRSS|ca|Per a les xarxes socials del club|«Directe i XXSS › Imatges per a xarxes» generes la previa",
-            "RRSS|ca|Per a les xarxes socials del club|el divendres a les 12:00 la previa no està feta",
+            "RRSS|ca|Per a les xarxes socials del club|«Directe i XXSS › Imatges per a xarxes» generes la prèvia",
+            "RRSS|ca|Per a les xarxes socials del club|el divendres a les 12:00 la prèvia no està feta",
             "ADMIN_APP|ca|Com a administrador de l'app|A «Moderació» revises els missatges reportats",
             "ENTRENADOR|ca|Com a entrenador|A «Pendents», damunt de l'Àrea Club",
             "COORDINADOR|ca|Com a coordinador|A «Cap de setmana» veus l'estat de la jornada: partits sense convocatòria",
@@ -203,6 +203,53 @@ class EmailsUsuariosTest {
                     .doesNotContain(idioma.equals("ca") ? "Com a responsable de retransmissió" : "As the live broadcast person")
                     .doesNotContain(idioma.equals("ca") ? "Per a les xarxes socials del club"
                             : "For the club's social media");
+        }
+    }
+
+    private static String titulo(String idioma, String rol) {
+        return switch (idioma) {
+            case "ca" -> rol.equals("COORDINADOR") ? "Com a coordinador" : "Com a responsable de retransmissió";
+            case "en" -> rol.equals("COORDINADOR") ? "As a coordinator" : "As the live broadcast person";
+            default -> rol.equals("COORDINADOR") ? "Como coordinador" : "Como responsable de retransmisión";
+        };
+    }
+
+    @Test
+    void unAdminConRetransmisionYRrssSoloLlevaSusBloquesYElDeCoordinacion() {
+
+        for (String idioma : List.of("es", "ca", "en")) {
+            String texto = ComunicacionesService.construirCuentaActivada(
+                    "Ana", List.of("ADMIN_APP", "RETRANSMISION", "RRSS"), idioma);
+
+            assertThat(texto).as(idioma)
+                    .contains(titulo(idioma, "COORDINADOR"))
+                    .contains(idioma.equals("es") ? "Como administrador de la app"
+                            : idioma.equals("ca") ? "Com a administrador de l'app" : "As the app administrator")
+                    .doesNotContain(titulo(idioma, "RETRANSMISION"))
+                    .doesNotContain(idioma.equals("es") ? "Para las redes sociales del club"
+                            : idioma.equals("ca") ? "Per a les xarxes socials del club" : "For the club's social media");
+        }
+    }
+
+    @Test
+    void unaCuentaSoloRrssLlevaSuBloqueYNadaMas() {
+
+        for (String idioma : List.of("es", "ca", "en")) {
+            String texto = ComunicacionesService.construirCuentaActivada("Ana", List.of("RRSS"), idioma);
+
+            assertThat(texto).as(idioma)
+                    .contains(idioma.equals("es") ? "Para las redes sociales del club"
+                            : idioma.equals("ca") ? "Per a les xarxes socials del club" : "For the club's social media")
+                    .doesNotContain(titulo(idioma, "COORDINADOR"))
+                    .doesNotContain(titulo(idioma, "RETRANSMISION"));
+        }
+    }
+
+    @Test
+    void elValencianoEscribePrevisaConAcentoEnTodosSusTextos() throws Exception {
+
+        for (String clave : cargar("ca").stringPropertyNames()) {
+            assertThat(cargar("ca").getProperty(clave)).as(clave).doesNotContainPattern("(?i)\\bprevia\\b");
         }
     }
 

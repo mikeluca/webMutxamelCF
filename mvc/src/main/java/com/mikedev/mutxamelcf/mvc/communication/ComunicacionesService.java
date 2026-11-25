@@ -129,8 +129,12 @@ public class ComunicacionesService implements AvisosCuentaEmail {
         Set<String> codigos = roles == null ? new HashSet<>() : new HashSet<>(roles);
 
         // ADMIN_APP ve lo mismo que un coordinador.
+        // Su bloque ya dice que tiene el Partido en directo y las Imágenes para redes: aunque también tenga los roles
+        // RETRANSMISION y RRSS, no se repiten sus bloques.
         if (codigos.contains("ADMIN_APP")) {
             codigos.add("COORDINADOR");
+            codigos.remove("RETRANSMISION");
+            codigos.remove("RRSS");
         }
 
         String secciones = SECCIONES_DE_ROL.stream()
