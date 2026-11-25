@@ -75,7 +75,7 @@ public class DispositivoAppDaoImpl implements DispositivoAppDao {
                                                   AND TOKEN_FCM = ?
                                                 """,
                                 Timestamp.valueOf(LocalDateTime.now()),
-                                versionApp,
+                                SqlTipado.texto(versionApp),
                                 usuarioAppId,
                                 tokenFcm);
         }

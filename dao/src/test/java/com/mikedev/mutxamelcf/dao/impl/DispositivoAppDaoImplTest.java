@@ -48,7 +48,7 @@ class DispositivoAppDaoImplTest {
 
         dao.actualizarAcceso(1L, "token-abc", "1.0.10");
 
-        verify(jdbcTemplate).update(anyString(), any(Timestamp.class), eq("1.0.10"), eq(1L), eq("token-abc"));
+        verify(jdbcTemplate).update(anyString(), any(Timestamp.class), org.mockito.ArgumentMatchers.argThat((Object a) -> a instanceof org.springframework.jdbc.core.SqlParameterValue p && "1.0.10".equals(p.getValue())), eq(1L), eq("token-abc"));
     }
 
     @Test

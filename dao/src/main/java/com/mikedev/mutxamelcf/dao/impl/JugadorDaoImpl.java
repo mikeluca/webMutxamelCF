@@ -105,8 +105,8 @@ public class JugadorDaoImpl implements JugadorDao {
 				+ "NOMBRE_RETRANSMISION = ?, FOTO = ? WHERE ID = ? ";
 
 		boolean actualizado = jdbcTemplate.update(sql, jugador.getNombre(), jugador.getApellidos(), jugador.getDorsal(),
-				jugador.getPosicion(), jugador.getEquipo(), jugador.getEquipoId(), jugador.getCategoria(),
-				jugador.getDeporte(), jugador.getAnioNacimiento(), jugador.getNombreRetransmision(), jugador.getFoto(),
+				jugador.getPosicion(), SqlTipado.texto(jugador.getEquipo()), jugador.getEquipoId(),
+				SqlTipado.texto(jugador.getCategoria()), SqlTipado.texto(jugador.getDeporte()), jugador.getAnioNacimiento(), jugador.getNombreRetransmision(), jugador.getFoto(),
 				jugador.getId()) == 1;
 		logger.debug("Fin actualizarJugador: id={}, actualizado={}", jugador.getId(), actualizado);
 		return actualizado;
@@ -227,7 +227,7 @@ public class JugadorDaoImpl implements JugadorDao {
 	public boolean activarSinEquipo(Long id, String categoria) {
 		return jdbcTemplate.update(
 				"UPDATE JUGADORES SET FECHA_BAJA = NULL, EQUIPO_ID = NULL, CATEGORIA = COALESCE(?, CATEGORIA) WHERE ID = ?",
-				categoria, id) == 1;
+				SqlTipado.texto(categoria), id) == 1;
 	}
 
 	@Override
@@ -236,7 +236,8 @@ public class JugadorDaoImpl implements JugadorDao {
 		return jdbcTemplate.update(
 				"UPDATE JUGADORES SET EQUIPO_ID = ?, EQUIPO = COALESCE(?, EQUIPO), CATEGORIA = COALESCE(?, CATEGORIA),"
 						+ " DEPORTE = COALESCE(?, DEPORTE), DORSAL = ? WHERE ID = ?",
-				equipoId, equipoNombre, categoria, deporte, dorsal, id) == 1;
+				equipoId, SqlTipado.texto(equipoNombre), SqlTipado.texto(categoria), SqlTipado.texto(deporte), dorsal,
+				id) == 1;
 	}
 
 	@Override

@@ -46,7 +46,74 @@ class JuegoDaoH2Test {
                     JUEGO VARCHAR2(20) NOT NULL, PUNTOS NUMBER NOT NULL, DURACION_MS NUMBER NOT NULL,
                     FECHA TIMESTAMP NOT NULL)""");
 
-        dao = new JuegoDaoImpl(jdbc);
+        // El DAO usa un JdbcTemplate estricto (falla con un null sin tipo); el resto del test, el normal.
+        dao = new JuegoDaoImpl(new JdbcTemplateEstricto(jdbc.getDataSource()));
+    }
+
+    @Test
+    void actualizarPerfilConSoloElAliasNoTocaLaEquipacion() {
+        dao.crearPerfil(1, null, null, "ROSA", AHORA);
+
+        dao.actualizarPerfil(1, "Ana", "ANA", null, AHORA.plusMinutes(1));
+
+        var perfil = dao.obtenerPerfil(1).orElseThrow();
+
+        assertThat(perfil.alias()).isEqualTo("Ana");
+        assertThat(perfil.equipacion()).isEqualTo("ROSA");
+    }
+
+    @Test
+    void actualizarPerfilConSoloLaEquipacionNoTocaElAlias() {
+        dao.crearPerfil(1, "Ana", "ANA", "AZUL", AHORA);
+
+        dao.actualizarPerfil(1, null, null, "ROSA", AHORA.plusMinutes(1));
+
+        var perfil = dao.obtenerPerfil(1).orElseThrow();
+
+        assertThat(perfil.alias()).isEqualTo("Ana");
+        assertThat(perfil.equipacion()).isEqualTo("ROSA");
+        assertThat(jdbc.queryForObject("SELECT ALIAS_NORMALIZADO FROM JUEGO_PERFILES WHERE USUARIO_APP_ID = 1",
+                String.class)).isEqualTo("ANA");
+    }
+
+    @Test
+    void actualizarPerfilConAliasYEquipacion() {
+        dao.crearPerfil(1, null, null, "AZUL", AHORA);
+
+        dao.actualizarPerfil(1, "Ana", "ANA", "ROSA", AHORA.plusMinutes(1));
+
+        var perfil = dao.obtenerPerfil(1).orElseThrow();
+
+        assertThat(perfil.alias()).isEqualTo("Ana");
+        assertThat(perfil.equipacion()).isEqualTo("ROSA");
+    }
+
+    @Test
+    void crearPerfilConSoloLaEquipacionDejaElAliasVacio() {
+        dao.crearPerfil(1, null, null, "ROSA", AHORA);
+
+        var perfil = dao.obtenerPerfil(1).orElseThrow();
+
+        assertThat(perfil.alias()).isNull();
+        assertThat(perfil.equipacion()).isEqualTo("ROSA");
+    }
+
+    @Test
+    void elEstrictoDetectaUnNullSinTipo() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> new JdbcTemplateEstricto(jdbc.getDataSource())
+                        .update("UPDATE JUEGO_PERFILES SET ALIAS = ? WHERE USUARIO_APP_ID = ?", (Object) null, 1L))
+                .isInstanceOf(AssertionError.class);
+    }
+
+    @Test
+    void elListadoDeModeracionSinFiltroIncluyePerfilesSinAlias() {
+        cuenta(1, "Ana");
+        cuenta(2, null);
+
+        assertThat(dao.listarPerfilesAdmin(null, 50)).hasSize(2);
+        assertThat(dao.listarPerfilesAdmin("", 50)).hasSize(2);
+        assertThat(dao.listarPerfilesAdmin("AN", 50)).hasSize(1);
     }
 
     private void cuenta(long id, String alias) {

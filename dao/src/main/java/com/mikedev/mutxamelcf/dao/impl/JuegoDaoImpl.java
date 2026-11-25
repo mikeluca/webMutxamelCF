@@ -120,18 +120,34 @@ public class JuegoDaoImpl implements JuegoDao {
 				INSERT INTO JUEGO_PERFILES (USUARIO_APP_ID, ALIAS, ALIAS_NORMALIZADO, EQUIPACION, OCULTO, FECHA_ALTA,
 				                            FECHA_MODIFICACION)
 				VALUES (?, ?, ?, ?, 0, ?, ?)
-				""", usuarioId, alias, aliasNorm, equipacion, ts(ahora), ts(ahora));
+				""", usuarioId, SqlTipado.texto(alias), SqlTipado.texto(aliasNorm),
+				SqlTipado.texto(equipacion), SqlTipado.fecha(ts(ahora)), SqlTipado.fecha(ts(ahora)));
 	}
 
 	@Override
 	public void actualizarPerfil(long usuarioId, String alias, String aliasNorm, String equipacion,
 			LocalDateTime ahora) {
-		jdbcTemplate.update("""
-				UPDATE JUEGO_PERFILES
-				SET ALIAS = COALESCE(?, ALIAS), ALIAS_NORMALIZADO = COALESCE(?, ALIAS_NORMALIZADO),
-				    EQUIPACION = COALESCE(?, EQUIPACION), FECHA_MODIFICACION = ?
-				WHERE USUARIO_APP_ID = ?
-				""", alias, aliasNorm, equipacion, ts(ahora), usuarioId);
+		// Solo las columnas que llegan, sin COALESCE(?, COLUMNA): Oracle no deduce el tipo de un null ahí (ORA-17004).
+		StringBuilder sql = new StringBuilder("UPDATE JUEGO_PERFILES SET FECHA_MODIFICACION = ?");
+		List<Object> args = new ArrayList<>();
+
+		args.add(SqlTipado.fecha(ts(ahora)));
+
+		if (alias != null) {
+			sql.append(", ALIAS = ?, ALIAS_NORMALIZADO = ?");
+			args.add(SqlTipado.texto(alias));
+			args.add(SqlTipado.texto(aliasNorm));
+		}
+
+		if (equipacion != null) {
+			sql.append(", EQUIPACION = ?");
+			args.add(SqlTipado.texto(equipacion));
+		}
+
+		sql.append(" WHERE USUARIO_APP_ID = ?");
+		args.add(usuarioId);
+
+		jdbcTemplate.update(sql.toString(), args.toArray());
 	}
 
 	@Override
@@ -233,9 +249,13 @@ public class JuegoDaoImpl implements JuegoDao {
 	public List<PerfilAdmin> listarPerfilesAdmin(String aliasNormContiene, int limite) {
 		String filtro = aliasNormContiene == null ? "" : aliasNormContiene.replace("%", "").replace("_", "");
 
-		return jdbcTemplate.query(PERFIL_ADMIN_SELECT + "WHERE (? = '' OR F.ALIAS_NORMALIZADO LIKE ?) "
+		// Sin filtro no hay WHERE (en Oracle '' es null, así que "? = ''" nunca se cumple); con filtro, un solo argumento con tipo.
+		String donde = filtro.isEmpty() ? "" : "WHERE F.ALIAS_NORMALIZADO LIKE ? ";
+		Object[] args = filtro.isEmpty() ? new Object[0] : new Object[] { SqlTipado.texto("%" + filtro + "%") };
+
+		return jdbcTemplate.query(PERFIL_ADMIN_SELECT + donde
 				+ "ORDER BY F.FECHA_ALTA DESC, F.USUARIO_APP_ID DESC FETCH FIRST " + Math.max(limite, 0)
-				+ " ROWS ONLY", PERFIL_ADMIN, filtro, "%" + filtro + "%");
+				+ " ROWS ONLY", PERFIL_ADMIN, args);
 	}
 
 	@Override

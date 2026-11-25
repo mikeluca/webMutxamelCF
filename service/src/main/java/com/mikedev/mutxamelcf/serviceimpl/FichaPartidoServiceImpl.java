@@ -177,6 +177,7 @@ public class FichaPartidoServiceImpl implements FichaPartidoService {
                 EscudosRivales.url(partido.getClubRivalId(), partido.getEscudoRivalVersion()),
                 NombreClub.esPropio(partido.getRival()),
                 partido.isLocal(),
+                CampoCartel.enCasaElsOms(partido.isLocal(), partido.getCampo()),
                 goleadores(partido.getId(), fase != null, eventos, jugadores, idioma),
                 partido.getCampo(),
                 partido.getJornada());

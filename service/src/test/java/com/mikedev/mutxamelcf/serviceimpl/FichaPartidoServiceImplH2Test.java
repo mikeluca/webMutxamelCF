@@ -176,6 +176,20 @@ class FichaPartidoServiceImplH2Test {
     }
 
     @Test
+    void enCasaElsOmsSoloEsTrueSiEsLocalYElCampoEsElsOms() {
+        assertThat(ficha().cabecera().enCasaElsOms()).isTrue();
+
+        jdbc.update("UPDATE PARTIDOS SET CAMPO = ? WHERE ID = ?", "Hogar Provincial", PARTIDO);
+        assertThat(ficha().cabecera().enCasaElsOms()).isFalse();
+
+        jdbc.update("UPDATE PARTIDOS SET CAMPO = ? WHERE ID = ?", "Camp Municipal Els Oms", PARTIDO);
+        assertThat(ficha().cabecera().enCasaElsOms()).isTrue();
+
+        jdbc.update("UPDATE PARTIDOS SET ES_LOCAL = 0 WHERE ID = ?", PARTIDO);
+        assertThat(ficha().cabecera().enCasaElsOms()).isFalse();
+    }
+
+    @Test
     void mutxamelLocalDiceQueLadoEsNuestroYElNombreParaLaApp109SigueSiendoMutxamelCfSinPuntos() {
         FichaPartidoDTO local = ficha();
         assertThat(local.cabecera().mutxamelLocal()).isTrue();
