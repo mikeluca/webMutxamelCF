@@ -1035,6 +1035,17 @@ class CartelPrimerEquipoServiceImplTest {
     }
 
     @Test
+    void enCasaEnElHogarProvincialConGuionPegadoElCampoSaleConGuionSeparado() {
+
+        unico().setCampo("Hogar Provincial -Diputacion de Alicante- F-11");
+
+        servicio.png(7L, "PUBLICACION", "es", true, true, true);
+
+        assertThat(datosDelUltimoRender().campo()).isEqualTo("HOGAR PROVINCIAL - DIPUTACION DE ALICANTE");
+        assertThat(servicio.partido(7L).campo()).isEqualTo("Hogar Provincial - Diputacion de Alicante");
+    }
+
+    @Test
     void enCasaEnElHogarProvincialElCampoEsElDelPartidoRecortado() {
 
         unico().setCampo("Campo Mpal. Hogar Provincial F-11");

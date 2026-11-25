@@ -32,6 +32,9 @@ public final class CampoCartel {
     private static final Pattern SEPARADORES_EXTREMOS = Pattern.compile("^[\\s\\-–,.:;/]+|[\\s\\-–,:;/]+$");
     private static final Pattern ESPACIOS = Pattern.compile("\\s{2,}");
 
+    // Un guion con espacio solo a un lado (" -Diputacion", "Alicante- ") es un separador mal escrito: pasa a " - ".
+    private static final Pattern GUION_PEGADO = Pattern.compile("\\s+-(?=[^\\s-])|(?<=[^\\s-])-\\s+");
+
     // "olmos" u "oms" como palabra completa, sobre el texto normalizado.
     private static final Pattern ELS_OMS = Pattern.compile("(?<![a-z0-9])(?:olmos|oms)(?![a-z0-9])");
     private static final Pattern MARCAS = Pattern.compile("\\p{M}+");
@@ -61,6 +64,8 @@ public final class CampoCartel {
 
         texto = TERRENO.matcher(texto).replaceAll(" ");
         texto = SEPARADORES_EXTREMOS.matcher(texto).replaceAll("");
+        texto = ESPACIOS.matcher(texto).replaceAll(" ").trim();
+        texto = GUION_PEGADO.matcher(texto).replaceAll(" - ");
         texto = ESPACIOS.matcher(texto).replaceAll(" ").trim();
 
         return texto.isEmpty() ? original : texto;

@@ -35,6 +35,28 @@ class CampoCartelTest {
         assertThat(CampoCartel.enCasaElsOms(false, "Camp Municipal Els Oms")).isFalse();
     }
 
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "Hogar Provincial -Diputacion de Alicante- F-11|Hogar Provincial - Diputacion de Alicante",
+            "Hogar Provincial - Diputacion de Alicante - F-11|Hogar Provincial - Diputacion de Alicante",
+            "Hogar Provincial- Diputacion de Alicante F-11|Hogar Provincial - Diputacion de Alicante",
+            "Sant Joan d''Alacant F-11|Sant Joan d''Alacant",
+            "Campo Mpal. Les Costeres F-11 Gata|Les Costeres Gata",
+            "Ciudad Deportiva Alcoy-Zona Sur F-8|Ciudad Deportiva Alcoy-Zona Sur" })
+    void arreglaElGuionPegadoAUnaSolaPalabra(String original, String esperado) {
+        assertThat(CampoCartel.recortar(original)).isEqualTo(esperado);
+    }
+
+    @Test
+    void elHogarProvincialConGuionSaleBienEnElTextoYEnElCartel() {
+        String campo = "Hogar Provincial -Diputacion de Alicante- F-11";
+
+        assertThat(CampoCartel.paraTexto(true, campo)).isEqualTo("Hogar Provincial - Diputacion de Alicante");
+        assertThat(CampoCartel.paraTexto(false, campo)).isEqualTo("Hogar Provincial - Diputacion de Alicante");
+        assertThat(CampoCartel.paraCartel(true, campo)).isEqualTo("HOGAR PROVINCIAL - DIPUTACION DE ALICANTE");
+        assertThat(CampoCartel.paraCartel(false, campo)).isEqualTo("HOGAR PROVINCIAL - DIPUTACION DE ALICANTE");
+    }
+
     @Test
     void enCasaPeroEnOtroCampoSeTrataComoFuera() {
         assertThat(CampoCartel.paraCartel(true, "Hogar Provincial")).isEqualTo("HOGAR PROVINCIAL");
