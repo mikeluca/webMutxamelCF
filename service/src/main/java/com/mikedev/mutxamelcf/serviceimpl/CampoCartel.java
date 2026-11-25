@@ -1,10 +1,11 @@
 package com.mikedev.mutxamelcf.serviceimpl;
 
+import java.text.Normalizer;
 import java.util.regex.Pattern;
 
 /**
- * El campo tal como sale en el cartel "Próximo partido": en casa siempre el Camp Nou Los Olmos; fuera, el del partido
- * recortado (sin "Campo Municipal", "Camp de Futbol"... ni identificadores de terreno como F-11, F-8 o C.A.).
+ * El campo tal como sale en el cartel "Próximo partido": en casa y jugando en Els Oms ({@link #esElsOms}), el Camp Nou
+ * Los Olmos; si no (fuera, o en casa pero en otro campo, p. ej. el Hogar Provincial), el del partido recortado (sin "Campo Municipal", "Camp de Futbol"... ni identificadores de terreno como F-11, F-8 o C.A.).
  */
 public final class CampoCartel {
 
@@ -30,6 +31,10 @@ public final class CampoCartel {
 
     private static final Pattern SEPARADORES_EXTREMOS = Pattern.compile("^[\\s\\-–,.:;/]+|[\\s\\-–,:;/]+$");
     private static final Pattern ESPACIOS = Pattern.compile("\\s{2,}");
+
+    // "olmos" u "oms" como palabra completa, sobre el texto normalizado.
+    private static final Pattern ELS_OMS = Pattern.compile("(?<![a-z0-9])(?:olmos|oms)(?![a-z0-9])");
+    private static final Pattern MARCAS = Pattern.compile("\\p{M}+");
 
     private CampoCartel() {
     }
@@ -61,10 +66,33 @@ public final class CampoCartel {
         return texto.isEmpty() ? original : texto;
     }
 
+    /**
+     * true si el partido se juega en Els Oms: campo vacío o nulo (partidos antiguos o sin campo) o que, normalizado
+     * (minúsculas, sin acentos, sin puntos y con los espacios simplificados), contiene la palabra completa "olmos" u
+     * "oms". "Hogar Provincial" o "Campo Mpal. de Mutxamel" no.
+     */
+    public static boolean esElsOms(String campo) {
+
+        if (campo == null || campo.isBlank()) {
+            return true;
+        }
+
+        String texto = Normalizer.normalize(campo.toLowerCase(java.util.Locale.ROOT), Normalizer.Form.NFD);
+        texto = MARCAS.matcher(texto).replaceAll("").replace('.', ' ');
+        texto = ESPACIOS.matcher(texto).replaceAll(" ").trim();
+
+        return ELS_OMS.matcher(texto).find();
+    }
+
+    /** true si el Mutxamel juega en casa y en Els Oms (el campo enCasaElsOms de las respuestas). */
+    public static boolean enCasaElsOms(boolean local, String campo) {
+        return local && esElsOms(campo);
+    }
+
     /** Lo que se escribe en el cartel: las líneas fijas de casa o el campo recortado en mayúsculas. */
     public static String paraCartel(boolean local, String campo) {
 
-        if (local) {
+        if (enCasaElsOms(local, campo)) {
             return CASA_LINEAS;
         }
 
@@ -73,6 +101,6 @@ public final class CampoCartel {
 
     /** Lo que se escribe en el texto de la publicación (una sola línea, con las mayúsculas originales). */
     public static String paraTexto(boolean local, String campo) {
-        return local ? CASA : recortar(campo);
+        return enCasaElsOms(local, campo) ? CASA : recortar(campo);
     }
 }

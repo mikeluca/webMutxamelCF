@@ -1094,6 +1094,8 @@ public class ConvocatoriaServiceImpl implements ConvocatoriaService {
                                                 : partidoDao.obtenerPorId(convocatoria.getPartidoId());
 
                 response.setLocal(partidoVinculado == null || partidoVinculado.isLocal());
+                response.setEnCasaElsOms(partidoVinculado == null
+                                || CampoCartel.enCasaElsOms(partidoVinculado.isLocal(), partidoVinculado.getCampo()));
 
                 response.setPartidoConResultado(
                                 partidoVinculado != null && CriterioResultadoPartido.tieneResultado(partidoVinculado));

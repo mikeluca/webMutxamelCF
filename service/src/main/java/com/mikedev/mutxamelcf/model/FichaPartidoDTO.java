@@ -29,6 +29,7 @@ public record FichaPartidoDTO(
      * @param rivalEsPropio true si el rival es un equipo de nuestro club (la app pone nuestro escudo)
      * @param mutxamelLocal true si el Mutxamel juega en casa. La app nueva decide el lado con este campo y no con el
      *                      texto de equipoLocal
+     * @param enCasaElsOms true si es local y se juega en Els Oms (CampoCartel.esElsOms)
      * @param goleadores nuestros goleadores, en orden del primer gol (retransmisión) o de más a menos goles
      *                   (estadísticas guardadas); vacía sin datos
      * @param campo el campo del partido tal cual; null si no hay

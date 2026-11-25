@@ -759,6 +759,7 @@ public class PartidoServiceImpl implements PartidoService {
 		resultado.setHora(partido.getHora());
 		resultado.setCampo(partido.getCampo());
 		resultado.setLocal(partido.isLocal());
+		resultado.setEnCasaElsOms(CampoCartel.enCasaElsOms(partido.isLocal(), partido.getCampo()));
 		resultado.setPendienteResultado(pendienteResultado(partido));
 
 		aplicarDirecto(resultado, partido, idioma);
@@ -1092,6 +1093,7 @@ public class PartidoServiceImpl implements PartidoService {
 		dto.setHora(partido.getHora());
 		dto.setCampo(partido.getCampo());
 		dto.setLocal(partido.isLocal());
+		dto.setEnCasaElsOms(CampoCartel.enCasaElsOms(partido.isLocal(), partido.getCampo()));
 		dto.setCancelado(partido.isCancelado());
 
 		return dto;
@@ -1130,6 +1132,7 @@ public class PartidoServiceImpl implements PartidoService {
 		dto.setHora(partido.getHora());
 		dto.setCampo(partido.getCampo());
 		dto.setLocal(partido.isLocal());
+		dto.setEnCasaElsOms(CampoCartel.enCasaElsOms(partido.isLocal(), partido.getCampo()));
 
 		return dto;
 	}

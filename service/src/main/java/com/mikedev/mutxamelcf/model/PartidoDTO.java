@@ -217,6 +217,17 @@ public class PartidoDTO {
 	}
 
 
+	/** true si es local y se juega en Els Oms (CampoCartel.esElsOms). */
+	private boolean enCasaElsOms = true;
+
+	public boolean isEnCasaElsOms() {
+		return enCasaElsOms;
+	}
+
+	public void setEnCasaElsOms(boolean enCasaElsOms) {
+		this.enCasaElsOms = enCasaElsOms;
+	}
+
 	public boolean isLocal() {
 		return local;
 	}

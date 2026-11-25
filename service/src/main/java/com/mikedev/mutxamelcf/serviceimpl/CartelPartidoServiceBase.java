@@ -162,7 +162,7 @@ abstract class CartelPartidoServiceBase {
      * @param campoLineas    el campo para el cartel: en casa las tres líneas fijas, fuera el campo recortado en mayúsculas
      * @param racha          G, E o P del más antiguo al más reciente
      */
-    record Comun(boolean local, String nombreRival, byte[] escudoRival, boolean rivalPropio, Competicion competicion,
+    record Comun(boolean local, boolean enCasaElsOms, String nombreRival, byte[] escudoRival, boolean rivalPropio, Competicion competicion,
             Integer jornada, String diaSemana, String fecha, String hora, String campoLineas, List<String> racha,
             boolean ca) {
     }
@@ -279,7 +279,7 @@ abstract class CartelPartidoServiceBase {
 
         LocalTime hora = hora(p.getHora());
 
-        return new Comun(p.isLocal(), p.getRival() == null ? "" : p.getRival().trim().toUpperCase(Locale.ROOT),
+        return new Comun(p.isLocal(), CampoCartel.enCasaElsOms(p.isLocal(), p.getCampo()), p.getRival() == null ? "" : p.getRival().trim().toUpperCase(Locale.ROOT),
                 escudo, rivalPropio, competicion(tipoDe(p), competicionFfcv(p.getEquipoId(), dia), ca),
                 p.getJornada(), nombreDia(dia, ca), dia.format(FECHA),
                 hora == null ? "" : hora.format(HORA_TEXTO) + "H", CampoCartel.paraCartel(p.isLocal(), p.getCampo()),

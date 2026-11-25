@@ -43,7 +43,7 @@ Contrato de las rutas, permisos y fondos del panel: `docs/api-app-imagenes-redes
 3. **Título**: "PRÓXIMO PARTIDO" / "PRÒXIM PARTIT" en Latin Modern Roman comprimido en horizontal (factor 0,56),
    centrado y con el mayor tamaño que ocupa el ancho de la caja sin salirse.
 4. **Fila de datos** (Inter Light, mayúsculas): día de la semana y `dd/MM/yyyy` en dos líneas alineadas a la derecha;
-   `HH:mmH` en el centro; el campo a la izquierda en hasta 3 líneas. En casa siempre `CAMP NOU / LOS OLMOS /
+   `HH:mmH` en el centro; el campo a la izquierda en hasta 3 líneas. En casa y en Els Oms (ver abajo) `CAMP NOU / LOS OLMOS /
    (MUTXAMEL)`; fuera, el campo del partido sin prefijos ("Campo Mpal.", "Camp de Futbol"...) ni identificadores de
    terreno (F-11, F-8, C.A., césped...): `Campo Mpal. Les Costeres F-11 Gata` → `LES COSTERES GATA`. Se reparte por
    palabras y se reduce el tamaño si no cabe.
@@ -62,3 +62,11 @@ repositorio no tiene escudos de rivales) para comprobar el tamaño y la sombra.
 
 Tiene su propio diseño y su guía en `docs/diseno-cartel-filial/`; comparte con este cartel la elección del partido, el campo, la racha, el QR y el fondo (`CartelPartidoServiceBase`).
 
+
+## Campo en casa: solo si se juega en Els Oms
+
+El campo fijo de casa (`CAMP NOU / LOS OLMOS / (MUTXAMEL)` en el cartel, `Camp Nou Los Olmos (Mutxamel)` en el texto
+y `CAMP NOU LOS OLMOS` en el cartel del Filial) solo se usa si el partido es local **y** `CampoCartel.esElsOms(campo)`
+(campo vacío, o que contiene la palabra completa "olmos" u "oms" tras normalizar: minúsculas, sin acentos ni puntos).
+Si es local pero se juega en otro campo (p. ej. `Hogar Provincial`), se trata como fuera de casa: el campo del partido
+recortado con las mismas reglas. Detalle de la regla y ejemplos en `docs/api-app-como-llegar-local.md`.

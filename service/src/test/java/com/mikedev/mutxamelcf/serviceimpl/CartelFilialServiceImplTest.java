@@ -111,7 +111,7 @@ class CartelFilialServiceImplTest {
         p.setRival("C.D. Salesianos");
         p.setDia(Date.valueOf(dia));
         p.setHora(hora);
-        p.setCampo("Campo Mpal. Les Costeres F-11 Gata");
+        p.setCampo("Camp Nou Los Olmos Mutxamel F-11");
         p.setTipo("LIGA");
         p.setLocal(true);
         p.setClubRivalId(40L);
@@ -272,6 +272,7 @@ class CartelFilialServiceImplTest {
     void fueraElRivalVaDeLocalEnElTexto() {
 
         unico().setLocal(false);
+        unico().setCampo("Campo Mpal. Les Costeres F-11 Gata");
 
         assertThat(servicio.partido(7L).textoPublicacion().es()).startsWith(
                 "Próximo partido: C.D. Salesianos – Mutxamel C.F. “B”. Domingo 22/11 a las 19:00, Les Costeres Gata.");
@@ -339,9 +340,24 @@ class CartelFilialServiceImplTest {
     }
 
     @Test
+    void enCasaEnElHogarProvincialElCampoEsElDelPartidoRecortado() {
+
+        unico().setCampo("Campo Mpal. Hogar Provincial F-11");
+
+        servicio.png(7L, "PUBLICACION", "es", true, true, true);
+
+        Datos d = datosDelUltimoRender();
+
+        assertThat(d.local()).isTrue();
+        assertThat(d.campo()).isEqualTo("HOGAR PROVINCIAL");
+        assertThat(servicio.partido(7L).campo()).isEqualTo("Hogar Provincial");
+    }
+
+    @Test
     void fueraElMutxamelVaALaDerechaYElCampoSeRecorta() {
 
         unico().setLocal(false);
+        unico().setCampo("Campo Mpal. Les Costeres F-11 Gata");
 
         servicio.png(7L, "PUBLICACION", "es", true, true, true);
 

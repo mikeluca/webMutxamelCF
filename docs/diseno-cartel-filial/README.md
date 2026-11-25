@@ -45,7 +45,7 @@ Referencias en esta carpeta (no van en `resources`):
    centrada. Se reduce el tamaño hasta que quepa en 1000 px; si con el 70 % del tamaño aún no cabe, se parte por el guion
    en dos líneas: el local en la primera y "- visitante" en la segunda.
 5. **Debajo, centrados, en Inter Bold y mayúsculas:** `{DÍA} dd/MM/yyyy` (mismos días en es y ca que el Primer Equipo),
-   `HH:mmH` y el campo en una línea (en casa "CAMP NOU LOS OLMOS"; fuera, recortado con `CampoCartel` y reduciendo la
+   `HH:mmH` y el campo en una línea (en casa y en Els Oms "CAMP NOU LOS OLMOS"; si no, recortado con `CampoCartel` y reduciendo la
    letra si no cabe).
 6. **Opcionales.**
    - *Publicación:* racha abajo a la izquierda, QR con "Descarga la app" abajo a la derecha y los hashtags en una línea

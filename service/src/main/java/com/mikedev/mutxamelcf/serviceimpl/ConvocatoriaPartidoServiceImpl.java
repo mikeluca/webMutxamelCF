@@ -129,6 +129,7 @@ public class ConvocatoriaPartidoServiceImpl implements ConvocatoriaPartidoServic
                 partido.getHora(),
                 partido.getCampo(),
                 partido.isLocal(),
+                CampoCartel.enCasaElsOms(partido.isLocal(), partido.getCampo()),
                 convocatoria.getHoraConvocatoria(),
                 convocatoria.getLugarConvocatoria(),
                 ids.contains(jugadorId),

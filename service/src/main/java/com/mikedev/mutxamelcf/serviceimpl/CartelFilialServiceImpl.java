@@ -58,7 +58,7 @@ public class CartelFilialServiceImpl extends CartelPartidoServiceBase implements
         boolean ca = c.ca();
 
         // El campo en una sola línea: "CAMP NOU LOS OLMOS" en casa; fuera, el campo del partido recortado.
-        String campo = c.local() ? CAMPO_CASA : c.campoLineas();
+        String campo = c.enCasaElsOms() ? CAMPO_CASA : c.campoLineas();
 
         Datos datos = new Datos(c.local(), NOMBRE_FILIAL.toUpperCase(java.util.Locale.ROOT), c.nombreRival(),
                 c.escudoRival(), c.rivalPropio(), c.competicion().logo(), c.competicion().texto(),

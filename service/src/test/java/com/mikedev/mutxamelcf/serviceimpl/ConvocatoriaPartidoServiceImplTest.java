@@ -89,6 +89,23 @@ class ConvocatoriaPartidoServiceImplTest {
     }
 
     @Test
+    void enCasaElsOmsDependeDelCampoDelPartidoLocal() {
+        Partido partido = partidoDao.obtenerPorId(PARTIDO);
+        partido.setLocal(true);
+        convocatoria(100L);
+        when(partidoLiveEventoDao.obtenerJugadoresBasicos(List.of(100L)))
+                .thenReturn(List.of(new JugadorBasico(100L, 9, "Pablo", "Gil")));
+
+        partido.setCampo("Camp Municipal Els Oms");
+        assertThat(service.obtenerParaJugador(USUARIO, PARTIDO, JUGADOR).enCasaElsOms()).isTrue();
+
+        partido.setCampo("Hogar Provincial");
+        ConvocatoriaPartidoResponse r = service.obtenerParaJugador(USUARIO, PARTIDO, JUGADOR);
+        assertThat(r.local()).isTrue();
+        assertThat(r.enCasaElsOms()).isFalse();
+    }
+
+    @Test
     void devuelveElDetalleSinDatosDeContactoYOrdenadoPorDorsal() {
         convocatoria(100L, 101L, 102L);
         when(partidoLiveEventoDao.obtenerJugadoresBasicos(List.of(100L, 101L, 102L))).thenReturn(List.of(
@@ -103,6 +120,7 @@ class ConvocatoriaPartidoServiceImplTest {
         assertThat(respuesta.hora()).isEqualTo("11:00");
         assertThat(respuesta.campo()).isEqualTo("Municipal");
         assertThat(respuesta.local()).isFalse();
+        assertThat(respuesta.enCasaElsOms()).isFalse();
         assertThat(respuesta.horaCitacion()).isEqualTo("09:30");
         assertThat(respuesta.lugarCitacion()).isEqualTo("Vestuarios");
         assertThat(respuesta.convocado()).isTrue();

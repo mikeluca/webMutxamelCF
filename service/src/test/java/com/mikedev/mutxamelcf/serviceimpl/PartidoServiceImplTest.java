@@ -178,6 +178,21 @@ class PartidoServiceImplTest {
     }
 
     @Test
+    void crearInformaEnCasaElsOmsSegunElCampo() {
+        when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
+        when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);
+        when(partidoDao.crear(any(Partido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Local por defecto: "Campo Municipal" no es Els Oms
+        assertThat(service.crear(1L, requestValido()).isLocal()).isTrue();
+        assertThat(service.crear(1L, requestValido()).isEnCasaElsOms()).isFalse();
+
+        PartidoGuardarRequest elsOms = new PartidoGuardarRequest(1L, "Rival CF", LocalDate.of(2026, 3, 1), "18:00",
+                "Camp Municipal Els Oms", null);
+        assertThat(service.crear(1L, elsOms).isEnCasaElsOms()).isTrue();
+    }
+
+    @Test
     void crearAceptaResultadoConFormatoValido() {
         when(equipoGestionDao.existeEquipo(1L)).thenReturn(true);
         when(equipoGestionDao.puedeGestionarEquipo(1L, 1L)).thenReturn(true);

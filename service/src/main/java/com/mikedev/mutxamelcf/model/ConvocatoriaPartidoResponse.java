@@ -7,6 +7,7 @@ import java.util.List;
  * Detalle de la convocatoria de un partido para un jugador o un familiar suyo. Sin
  * datos de contacto ni motivos de ausencias: solo lo que necesita la familia.
  *
+ * @param enCasaElsOms true si es local y se juega en Els Oms (CampoCartel.esElsOms)
  * @param convocado si el jugador por el que se pregunta está en la convocatoria
  * @param convocados los convocados, ordenados por dorsal
  * @param equipacion equipaje con el que van vestidos al partido (null si no se ha indicado)
@@ -19,6 +20,7 @@ public record ConvocatoriaPartidoResponse(
         String hora,
         String campo,
         boolean local,
+        boolean enCasaElsOms,
         String horaCitacion,
         String lugarCitacion,
         boolean convocado,

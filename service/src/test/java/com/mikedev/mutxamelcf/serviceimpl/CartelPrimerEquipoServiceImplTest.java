@@ -113,7 +113,7 @@ class CartelPrimerEquipoServiceImplTest {
         p.setRival("C.D. Salesianos Alicante");
         p.setDia(Date.valueOf(dia));
         p.setHora(hora);
-        p.setCampo("Campo Mpal. Les Costeres F-11 Gata");
+        p.setCampo("Camp Nou Los Olmos Mutxamel F-11");
         p.setTipo("LIGA");
         p.setJornada(11);
         p.setLocal(true);
@@ -423,6 +423,7 @@ class CartelPrimerEquipoServiceImplTest {
 
         Partido fuera = unico();
         fuera.setLocal(false);
+        fuera.setCampo("Campo Mpal. Les Costeres F-11 Gata");
         fuera.setClubRivalId(null);
         fuera.setEscudoRivalVersion(null);
 
@@ -448,6 +449,7 @@ class CartelPrimerEquipoServiceImplTest {
     void textoDeLaPublicacionFueraPoneAlRivalDeLocalYElCampoRecortado() {
 
         unico().setLocal(false);
+        unico().setCampo("Campo Mpal. Les Costeres F-11 Gata");
 
         var texto = servicio.partido(7L).textoPublicacion();
 
@@ -573,6 +575,7 @@ class CartelPrimerEquipoServiceImplTest {
         assertThat(contarMagenta(casa, 174, 474, 262, 262)).isZero();
 
         unico().setLocal(false);
+        unico().setCampo("Campo Mpal. Les Costeres F-11 Gata");
         org.mockito.Mockito.clearInvocations(renderer);
 
         BufferedImage fuera = leer(servicio.png(7L, "PUBLICACION", "es", false, false, false));
@@ -778,6 +781,7 @@ class CartelPrimerEquipoServiceImplTest {
         assertThat(Math.abs(primeraFilaCampo - primeraFilaFecha)).isLessThan(20);
 
         unico().setLocal(true);
+        unico().setCampo("Camp Nou Los Olmos Mutxamel F-11");
 
         BufferedImage casa = leer(servicio.png(7L, "PUBLICACION", "es", false, false, false));
 
@@ -1031,6 +1035,29 @@ class CartelPrimerEquipoServiceImplTest {
     }
 
     @Test
+    void enCasaEnElHogarProvincialElCampoEsElDelPartidoRecortado() {
+
+        unico().setCampo("Campo Mpal. Hogar Provincial F-11");
+
+        servicio.png(7L, "PUBLICACION", "es", true, true, true);
+
+        assertThat(datosDelUltimoRender().campo()).isEqualTo("HOGAR PROVINCIAL");
+        assertThat(servicio.partido(7L).campo()).isEqualTo("Hogar Provincial");
+        assertThat(servicio.partido(7L).local()).isTrue();
+    }
+
+    @Test
+    void enCasaEnElsOmsElCampoEsElFijo() {
+
+        unico().setCampo("Camp Municipal Els Oms");
+
+        servicio.png(7L, "PUBLICACION", "es", true, true, true);
+
+        assertThat(datosDelUltimoRender().campo()).isEqualTo("CAMP NOU\nLOS OLMOS\n(MUTXAMEL)");
+        assertThat(servicio.partido(7L).campo()).isEqualTo("Camp Nou Los Olmos (Mutxamel)");
+    }
+
+    @Test
     void losTextosCambianDeIdioma() {
 
         servicio.png(7L, "PUBLICACION", "es", true, true, true);
@@ -1073,6 +1100,7 @@ class CartelPrimerEquipoServiceImplTest {
 
         Partido p = unico();
         p.setLocal(false);
+        p.setCampo("Campo Mpal. Les Costeres F-11 Gata");
         p.setHora(null);
 
         servicio.png(7L, "PUBLICACION", "es", true, true, true);

@@ -77,7 +77,7 @@ El **próximo partido del Primer Equipo** (el primero por fecha y hora). Se salt
 | `local` | `true` si el Mutxamel juega en casa |
 | `escudoRivalUrl` | Ruta relativa del escudo del rival (como en la ficha), o `null` si no tiene (o el rival es un filial nuestro) |
 | `hora` | `HH:mm` tal como está en el partido; puede ser `null` |
-| `campo` | En casa siempre `Camp Nou Los Olmos (Mutxamel)`; fuera, el campo del partido recortado (`Les Costeres Gata`) |
+| `campo` | En casa y jugando en Els Oms (`CampoCartel.esElsOms`), `Camp Nou Los Olmos (Mutxamel)`; si no (fuera o en casa en otro campo, p. ej. `Hogar Provincial`), el campo del partido recortado (`Les Costeres Gata`) |
 | `competicion` | `La Nostra Copa`, `Amistoso`, `Torneo` o, en liga, la competición del Primer Equipo en la FFCV (`null` si no se conoce) |
 | `jornada` | Solo si el partido tiene jornada (importada de la FFCV) |
 | `tipo` | `LIGA`, `COPA`, `AMISTOSO` o `TORNEO` |
