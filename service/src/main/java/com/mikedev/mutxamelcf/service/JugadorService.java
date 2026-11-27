@@ -24,6 +24,9 @@ public interface JugadorService {
 
 	List<JugadorDTO> obtenerActivos();
 
+	/** Jugadores activos (sin baja) de cada equipo, por id de equipo: el contador de la plantilla en el panel. */
+	java.util.Map<Long, Integer> contarActivosPorEquipo();
+
 	List<JugadorDTO> obtenerBajas();
 
 	JugadorDTO obtenerJugadorPorId(Long id);

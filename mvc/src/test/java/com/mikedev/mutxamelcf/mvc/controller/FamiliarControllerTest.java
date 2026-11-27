@@ -37,7 +37,7 @@ class FamiliarControllerTest {
         familiarService = mock(FamiliarService.class);
         familiarJugadorService = mock(FamiliarJugadorService.class);
         jugadorService = mock(JugadorService.class);
-        controller = new FamiliarController(familiarService, familiarJugadorService, jugadorService);
+        controller = new FamiliarController(familiarService, familiarJugadorService, jugadorService, mock(com.mikedev.mutxamelcf.service.EquipoService.class));
     }
 
     private static FamiliarDTO familiarConContacto() {

@@ -168,6 +168,15 @@ public class FamiliarJugadorServiceImpl implements FamiliarJugadorService {
         return tieneJugadores;
     }
 
+    @Override
+    public java.util.Map<Long, List<com.mikedev.mutxamelcf.model.JugadorDeFamiliar>> obtenerJugadoresDeTodosLosFamiliares() {
+        java.util.Map<Long, List<com.mikedev.mutxamelcf.model.JugadorDeFamiliar>> porFamiliar = new java.util.HashMap<>();
+        for (com.mikedev.mutxamelcf.model.JugadorDeFamiliar j : familiarJugadorDao.obtenerJugadoresDeTodosLosFamiliares()) {
+            porFamiliar.computeIfAbsent(j.familiarId(), k -> new ArrayList<>()).add(j);
+        }
+        return porFamiliar;
+    }
+
     private void enriquecerDTO(FamiliarJugadorDTO dto) {
         if (dto == null) {
             return;

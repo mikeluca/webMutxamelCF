@@ -34,12 +34,22 @@
 
 		<!-- Botones y búsqueda -->
 		<div class="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-3">
-			<!-- Buscador en tiempo real -->
-			<div>
-				<label for="filtroTexto" class="form-label mb-1">Buscar</label>
-				<input type="text" id="filtroTexto" class="form-control form-control-sm" placeholder="Buscar familiar..." onkeyup="filtrarTabla()">
+			<div class="d-flex align-items-end gap-2 flex-wrap">
+				<!-- Buscador en tiempo real -->
+				<div>
+					<label for="filtroTexto" class="form-label mb-1">Buscar</label>
+					<input type="text" id="filtroTexto" class="form-control form-control-sm" placeholder="Buscar familiar..."
+						oninput="filtrarConRetardo()" th:value="${param.q != null ? param.q[0] : ''}">
+				</div>
+				<div>
+					<label for="filtroCategoria" class="form-label mb-1">Categoría</label>
+					<select id="filtroCategoria" class="form-select form-select-sm" onchange="filtrarTabla()">
+						<option value="">Todas</option>
+						<option th:each="categoria : ${categorias}" th:value="${categoria}" th:text="${categoria}"
+							th:selected="${param.categoria != null and param.categoria[0] == categoria}"></option>
+					</select>
+				</div>
 			</div>
-
 			<!-- Nuevo Familiar -->
 			<button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#familiarModal" onclick="prepararNuevoFamiliar()">
 				<i class="bi bi-person-plus-fill me-1"></i> Nuevo Familiar
@@ -51,26 +61,28 @@
 			<table class="table table-striped w-100" id="tablaFamiliares">
 				<thead>
 					<tr>
-						<th style="width: 30%;">Nombre y Apellidos</th>
-						<th style="width: 20%;">Teléfono</th>
-						<th style="width: 25%;">Email</th>
-						<th style="width: 10%;" class="text-center">Info Club</th>
-						<th style="width: 10%;" class="text-center">WhatsApp</th>
-						<th style="width: 5%;" class="text-center">Acciones</th>
+						<th style="width: 20%;">Nombre y Apellidos</th>
+						<th style="width: 12%;">Teléfono</th>
+						<th style="width: 20%;">Email</th>
+						<th style="width: 20%;">Jugador/es asociado/s</th>
+						<th style="width: 20%;">Equipo / Categoría</th>
+						<th style="width: 8%;" class="text-center">Acciones</th>
 					</tr>
 				</thead>
 				<tbody>
-					<tr th:each="familiar : ${familiares}">
+					<tr th:each="familiar : ${familiares}" th:with="jugs=${jugadoresPorFamiliar[familiar.id]}"
+						th:attr="data-categorias=${'|' + (jugs == null ? '' : #strings.listJoin(jugs.?[categoria != null].![categoria], '|')) + '|'}">
 						<td class="align-middle fw-semibold" th:text="${familiar.nombre} + ' ' + ${familiar.apellidos}"></td>
 						<td class="align-middle" th:text="${familiar.telefono} != null and ${familiar.telefono} != '' ? ${familiar.telefono} : '-'"></td>
 						<td class="align-middle" th:text="${familiar.email} != null and ${familiar.email} != '' ? ${familiar.email} : '-'"></td>
-						<td class="align-middle text-center">
-							<span th:if="${familiar.recibeInfoClub == 1}" class="badge text-bg-success" title="Recibe información"><i class="bi bi-check-lg"></i> Sí</span>
-							<span th:unless="${familiar.recibeInfoClub == 1}" class="badge text-bg-secondary" title="No recibe información"><i class="bi bi-x-lg"></i> No</span>
+						<td class="align-middle">
+							<span th:if="${#lists.isEmpty(jugs)}" class="text-muted">—</span>
+							<div th:each="j : ${jugs}" class="jugador-asociado" th:text="${j.nombreCompleto}"></div>
 						</td>
-						<td class="align-middle text-center">
-							<span th:if="${familiar.whatsappActivo == 1}" class="badge text-bg-success" title="WhatsApp activo"><i class="bi bi-whatsapp"></i> Sí</span>
-							<span th:unless="${familiar.whatsappActivo == 1}" class="badge text-bg-secondary" title="WhatsApp no activo"><i class="bi bi-x-lg"></i> No</span>
+						<td class="align-middle">
+							<span th:if="${#lists.isEmpty(jugs)}" class="text-muted">—</span>
+							<div th:each="j : ${jugs}" class="equipo-asociado"
+								th:text="${j.deBaja} ? 'Sin equipo' : (${j.equipo} + ' · ' + ${j.categoria})"></div>
 						</td>
 						<td class="align-middle text-center">
 							<div class="d-flex justify-content-center align-items-center gap-2">
@@ -267,30 +279,53 @@
 			}
 		});
 
-		function filtrarTabla() {
-			const input = document.getElementById('filtroTexto');
-			const filter = input.value.toLowerCase();
-			const table = document.getElementById('tablaFamiliares');
-			const tr = table.getElementsByTagName('tr');
-
-			for (let i = 1; i < tr.length; i++) {
-				const tdNombre = tr[i].getElementsByTagName('td')[0];
-				const tdTel = tr[i].getElementsByTagName('td')[1];
-				const tdEmail = tr[i].getElementsByTagName('td')[2];
-				if (tdNombre || tdTel || tdEmail) {
-					const txtNombre = tdNombre ? (tdNombre.textContent || tdNombre.innerText) : '';
-					const txtTel = tdTel ? (tdTel.textContent || tdTel.innerText) : '';
-					const txtEmail = tdEmail ? (tdEmail.textContent || tdEmail.innerText) : '';
-					if (txtNombre.toLowerCase().indexOf(filter) > -1 ||
-						txtTel.toLowerCase().indexOf(filter) > -1 ||
-						txtEmail.toLowerCase().indexOf(filter) > -1) {
-						tr[i].style.display = '';
-					} else {
-						tr[i].style.display = 'none';
-					}
-				}
-			}
+		// Los filtros (q, categoria) viven solo en la URL: sobreviven a recargar y a guardar, vincular o borrar.
+		function urlConFiltros() {
+			const params = new URLSearchParams();
+			const categoria = document.getElementById('filtroCategoria').value;
+			const texto = document.getElementById('filtroTexto').value.trim();
+			if (texto) params.set('q', texto);
+			if (categoria) params.set('categoria', categoria);
+			const consulta = params.toString();
+			return '/admin/familiares' + (consulta ? '?' + consulta : '');
 		}
+
+		let temporizadorFiltro = null;
+
+		// El texto se aplica con un pequeno retardo, para no filtrar (ni tocar la URL) en cada tecla
+		function filtrarConRetardo() {
+			clearTimeout(temporizadorFiltro);
+			temporizadorFiltro = setTimeout(filtrarTabla, 250);
+		}
+
+		function filtrarTabla() {
+			clearTimeout(temporizadorFiltro);
+			const texto = document.getElementById('filtroTexto').value.trim().toLowerCase();
+			const categoria = document.getElementById('filtroCategoria').value;
+
+			document.querySelectorAll('#tablaFamiliares tbody tr').forEach(fila => {
+				// La fila de "No hay familiares" no se filtra
+				if (fila.dataset.categorias === undefined) return;
+				// El texto se busca en el familiar, sus datos de contacto, sus jugadores y los equipos de estos
+				const coincideTexto = fila.textContent.toLowerCase().includes(texto);
+				// Sale si CUALQUIERA de sus jugadores es de esa categoria
+				const coincideCategoria = !categoria || fila.dataset.categorias.includes('|' + categoria + '|');
+				fila.style.display = (coincideTexto && coincideCategoria) ? '' : 'none';
+			});
+			history.replaceState(null, '', urlConFiltros());
+		}
+
+		// Los filtros de la URL (?q=...&categoria=...) se ponen al cargar y se aplican
+		(function aplicarFiltrosDeLaUrl() {
+			const params = new URLSearchParams(window.location.search);
+			const selectCategoria = document.getElementById('filtroCategoria');
+			const categoria = params.get('categoria');
+			if (categoria && Array.from(selectCategoria.options).some(o => o.value === categoria)) {
+				selectCategoria.value = categoria;
+			}
+			document.getElementById('filtroTexto').value = params.get('q') || '';
+			filtrarTabla();
+		})();
 
 		function prepararNuevoFamiliar() {
 			document.getElementById('familiarForm').reset();

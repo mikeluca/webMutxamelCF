@@ -26,6 +26,7 @@ import jakarta.validation.Valid;
 import com.mikedev.mutxamelcf.model.FamiliarDTO;
 import com.mikedev.mutxamelcf.model.FamiliarJugadorDTO;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
+import com.mikedev.mutxamelcf.service.EquipoService;
 import com.mikedev.mutxamelcf.service.FamiliarJugadorService;
 import com.mikedev.mutxamelcf.service.FamiliarService;
 import com.mikedev.mutxamelcf.service.JugadorService;
@@ -42,11 +43,14 @@ public class FamiliarController {
 
     private final JugadorService jugadorService;
 
+    private final EquipoService equipoService;
+
     public FamiliarController(FamiliarService familiarService, FamiliarJugadorService familiarJugadorService,
-            JugadorService jugadorService) {
+            JugadorService jugadorService, EquipoService equipoService) {
         this.familiarService = familiarService;
         this.familiarJugadorService = familiarJugadorService;
         this.jugadorService = jugadorService;
+        this.equipoService = equipoService;
     }
 
 
@@ -61,6 +65,10 @@ public class FamiliarController {
 
         model.addAttribute("familiares", familiares);
         model.addAttribute("listaJugadores", jugadores);
+        // Los jugadores de cada familiar (con su equipo y categoría), en una sola consulta para todo el listado
+        model.addAttribute("jugadoresPorFamiliar", familiarJugadorService.obtenerJugadoresDeTodosLosFamiliares());
+        // Las mismas categorías, y en el mismo orden, que el filtro de Jugadores
+        model.addAttribute("categorias", equipoService.obtenerCategorias());
 
         logger.debug("Fin listarFamiliares: totalFamiliares={}, totalJugadores={}",
                 familiares.size(), jugadores.size());

@@ -16,6 +16,12 @@ public interface FamiliarJugadorDao {
 
     List<FamiliarJugador> obtenerJugadoresDeFamiliar(Long familiarId);
 
+    /**
+     * Los jugadores vinculados de TODOS los familiares, con su equipo y categoría actuales, en una sola consulta (el
+     * listado del panel no hace una por familiar). Por familiar y, dentro, por apellidos y nombre del jugador.
+     */
+    List<com.mikedev.mutxamelcf.model.JugadorDeFamiliar> obtenerJugadoresDeTodosLosFamiliares();
+
     FamiliarJugador obtenerPrincipalDeJugador(Long jugadorId);
 
     boolean existeRelacion(Long familiarId, Long jugadorId);

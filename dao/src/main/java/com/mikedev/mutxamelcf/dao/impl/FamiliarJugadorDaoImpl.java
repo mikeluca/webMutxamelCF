@@ -199,6 +199,27 @@ public class FamiliarJugadorDaoImpl implements FamiliarJugadorDao {
     }
 
     @Override
+    public List<com.mikedev.mutxamelcf.model.JugadorDeFamiliar> obtenerJugadoresDeTodosLosFamiliares() {
+        logger.debug("Inicio obtenerJugadoresDeTodosLosFamiliares");
+        // Una sola consulta para todo el listado: el equipo y la categoría salen de EQUIPO por EQUIPO_ID (un jugador de
+        // baja no tiene equipo)
+        String sql = """
+                SELECT FJ.FAMILIAR_ID, J.ID AS JUGADOR_ID, J.NOMBRE, J.APELLIDOS, J.FECHA_BAJA,
+                       E.NOMBRE AS EQUIPO, E.CATEGORIA AS EQUIPO_CATEGORIA
+                FROM FAMILIARES_JUGADOR FJ
+                JOIN JUGADORES J ON J.ID = FJ.JUGADOR_ID
+                LEFT JOIN EQUIPO E ON E.ID = J.EQUIPO_ID
+                ORDER BY FJ.FAMILIAR_ID, J.APELLIDOS, J.NOMBRE, J.ID
+                """;
+        List<com.mikedev.mutxamelcf.model.JugadorDeFamiliar> lista = jdbcTemplate.query(sql,
+                (rs, n) -> new com.mikedev.mutxamelcf.model.JugadorDeFamiliar(rs.getLong("FAMILIAR_ID"),
+                        rs.getLong("JUGADOR_ID"), rs.getString("NOMBRE"), rs.getString("APELLIDOS"),
+                        rs.getString("EQUIPO"), rs.getString("EQUIPO_CATEGORIA"), rs.getDate("FECHA_BAJA") != null));
+        logger.debug("Fin obtenerJugadoresDeTodosLosFamiliares: total={}", lista.size());
+        return lista;
+    }
+
+    @Override
     public void eliminar(Long id) {
         logger.debug("Inicio eliminar: id={}", id);
         String sql = "DELETE FROM FAMILIARES_JUGADOR WHERE ID = ?";

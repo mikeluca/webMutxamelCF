@@ -355,6 +355,11 @@ public class JugadorServiceImpl implements JugadorService {
 	}
 
 	@Override
+	public java.util.Map<Long, Integer> contarActivosPorEquipo() {
+		return jugadorDao.contarActivosPorEquipo();
+	}
+
+	@Override
 	public List<JugadorDTO> obtenerBajas() {
 		return toDTOList(jugadorDao.obtenerBajas());
 	}

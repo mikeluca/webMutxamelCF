@@ -51,6 +51,9 @@ public interface JugadorDao {
 	 */
 	List<Jugador> bloquearActivosDelEquipo(Long equipoId);
 
+	/** Cuántos jugadores activos (sin baja) tiene cada equipo, por EQUIPO_ID; un equipo sin jugadores no sale. */
+	java.util.Map<Long, Integer> contarActivosPorEquipo();
+
 	/** Solo DORSAL y POSICION (nulos = vacío). */
 	boolean actualizarDorsalPosicion(Long id, Integer dorsal, String posicion);
 

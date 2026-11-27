@@ -64,8 +64,14 @@ public class JugadorAdminController {
 	}
 
 	// Método para listar jugadores
+	/** Sin filtro de equipo en la URL. */
+	public String listarJugadores(String estado, Model model) {
+		return listarJugadores(estado, null, model);
+	}
+
 	@GetMapping("/jugadores")
-	public String listarJugadores(@RequestParam(name = "estado", defaultValue = "activos") String estado, Model model) {
+	public String listarJugadores(@RequestParam(name = "estado", defaultValue = "activos") String estado,
+			@RequestParam(name = "equipo", required = false) Long equipoFiltro, Model model) {
 		logger.debug("Inicio listarJugadores: estado={}", estado);
 		List<EquipoDTO> listaEquipos = equiposService.obtenerTodos(); // Obtener todos los equipos
 		model.addAttribute("listaEquipos", listaEquipos);
@@ -80,6 +86,13 @@ public class JugadorAdminController {
 		default -> jugadoresService.obtenerActivos();
 		};
 		model.addAttribute("estado", filtro);
+		// Jugadores activos por equipo (el contador del filtro de equipo), como JSON {"7":12,...}: solo ids y números
+		Map<Long, Integer> conteo = jugadoresService.contarActivosPorEquipo();
+		model.addAttribute("conteoEquiposJson", conteoComoJson(conteo));
+		// El contador del equipo del filtro (?equipo=...), ya escrito en la página; el navegador lo recalcula al filtrar
+		model.addAttribute("contadorEquipoTexto", equipoFiltro == null ? null
+				: listaEquipos.stream().filter(e -> equipoFiltro.equals(e.getId())).findFirst()
+						.map(e -> textoContador(conteo.getOrDefault(equipoFiltro, 0), e.getNombre())).orElse(null));
 
 		List<String> categorias = equiposService.obtenerCategorias();
 		List<FamiliarDTO> listaFamiliares = familiarService.obtenerTodos();
@@ -90,6 +103,19 @@ public class JugadorAdminController {
 
 		logger.debug("Fin listarJugadores: total={}", jugadores.size());
 		return "admin/jugadores"; // Retornar la vista para listar jugadores
+	}
+
+	/** "12 jugadores en Alevín B" / "1 jugador en Alevín B": los activos del equipo, sin bajas. */
+	static String textoContador(int total, String equipo) {
+		return (total == 1 ? "1 jugador" : total + " jugadores") + " en " + equipo;
+	}
+
+	static String conteoComoJson(Map<Long, Integer> conteo) {
+		if (conteo == null) {
+			return "{}";
+		}
+		return conteo.entrySet().stream().map(e -> "\"" + e.getKey() + "\":" + e.getValue())
+				.collect(java.util.stream.Collectors.joining(",", "{", "}"));
 	}
 
 	// Método para guardar un nuevo jugador
@@ -291,10 +317,10 @@ public class JugadorAdminController {
 	/**
 	 * Resumen de una accion en bloque. {@code correctos}: hechos sin mas; {@code conAviso}: hechos con una salvedad (p. ej.
 	 * movido sin dorsal); {@code saltados}: no hacia falta o no se puede mover (ya de baja...); {@code errores}: no se ha
-	 * podido, con su motivo.
+	 * podido, con su motivo. {@code conteoEquipos}: jugadores activos de cada equipo DESPUÉS de la acción (el contador del panel).
 	 */
 	public record ResumenBloque(List<JugadorResumen> correctos, List<JugadorResumen> conAviso,
-			List<JugadorResumen> saltados, List<JugadorResumen> errores) {
+			List<JugadorResumen> saltados, List<JugadorResumen> errores, Map<Long, Integer> conteoEquipos) {
 	}
 
 	public record IdsRequest(List<Long> ids) {
@@ -309,8 +335,8 @@ public class JugadorAdminController {
 		final List<JugadorResumen> saltados = new ArrayList<>();
 		final List<JugadorResumen> errores = new ArrayList<>();
 
-		ResumenBloque resumen() {
-			return new ResumenBloque(correctos, conAviso, saltados, errores);
+		ResumenBloque resumen(Map<Long, Integer> conteoEquipos) {
+			return new ResumenBloque(correctos, conAviso, saltados, errores, conteoEquipos);
 		}
 	}
 
@@ -365,7 +391,7 @@ public class JugadorAdminController {
 			}
 		}
 		logger.debug("Fin borrarMultiple: borrados={}, errores={}", bloque.correctos.size(), bloque.errores.size());
-		return ResponseEntity.ok(bloque.resumen());
+		return ResponseEntity.ok(bloque.resumen(jugadoresService.contarActivosPorEquipo()));
 	}
 
 	/** Da de baja a cada jugador con la misma regla que la baja individual; los que ya lo estan se saltan. */
@@ -399,7 +425,7 @@ public class JugadorAdminController {
 		}
 		logger.debug("Fin darDeBajaMultiple: ok={}, saltados={}, errores={}", bloque.correctos.size(),
 				bloque.saltados.size(), bloque.errores.size());
-		return ResponseEntity.ok(bloque.resumen());
+		return ResponseEntity.ok(bloque.resumen(jugadoresService.contarActivosPorEquipo()));
 	}
 
 	/** Cambia de equipo a cada jugador con lo mismo que el guardado de su ficha ({@link JugadorService#cambiarEquipo}). */
@@ -448,6 +474,6 @@ public class JugadorAdminController {
 		}
 		logger.debug("Fin cambiarEquipoMultiple: movidos={}, sinDorsal={}, saltados={}, errores={}",
 				bloque.correctos.size(), bloque.conAviso.size(), bloque.saltados.size(), bloque.errores.size());
-		return ResponseEntity.ok(bloque.resumen());
+		return ResponseEntity.ok(bloque.resumen(jugadoresService.contarActivosPorEquipo()));
 	}
 }

@@ -23,4 +23,7 @@ public interface FamiliarJugadorService {
     boolean existeRelacion(Long familiarId, Long jugadorId);
 
     boolean tieneJugadores(Long familiarId);
+
+    /** Los jugadores vinculados de cada familiar (por id de familiar) con su equipo y categoría, en una sola consulta. */
+    java.util.Map<Long, java.util.List<com.mikedev.mutxamelcf.model.JugadorDeFamiliar>> obtenerJugadoresDeTodosLosFamiliares();
 }

@@ -62,6 +62,15 @@
 						<option value="todos" th:selected="${estado == 'todos'}">Todos</option>
 					</select>
 				</div>
+				<div>
+					<label for="filtroEquipo" class="form-label mb-1">Equipo</label>
+					<select id="filtroEquipo" class="form-select form-select-sm" onchange="filtrarTabla()">
+						<option value="">Todos</option>
+						<option th:each="equipo : ${listaEquipos}" th:value="${equipo.id}" th:text="${equipo.nombre}"
+							th:attr="data-categoria=${equipo.categoria}"
+							th:selected="${param.equipo != null and param.equipo[0] == #strings.toString(equipo.id)}"></option>
+					</select>
+				</div>
 			</div>
 
 			<!-- Nuevo Jugador -->
@@ -69,6 +78,11 @@
 				Nuevo Jugador
 			</button>
 		</div>
+
+		<!-- Plantilla del equipo elegido: activos sin bajas, aunque otros filtros oculten alguno -->
+		<p id="contadorEquipo" class="fw-bold mb-3" role="status" aria-live="polite"
+			th:text="${contadorEquipoTexto}" th:style="${contadorEquipoTexto != null} ? 'display:block;' : 'display:none;'"
+			th:attr="data-conteo=${conteoEquiposJson}"></p>
 
 		<!-- Resultado de una acción en bloque -->
 		<div id="resumenBloque" class="alert" style="display:none; margin-bottom: 20px;" tabindex="-1"></div>
@@ -101,14 +115,16 @@
 							<input type="checkbox" class="form-check-input" id="selTodos"
 								aria-label="Seleccionar todos los jugadores visibles" onchange="marcarVisibles(this.checked)">
 						</th>
-						<th style="width: 18%;">Deporte</th>
-						<th style="width: 48%;">Nombre completo</th>
-						<th style="width: 25%;">Equipo</th>
-						<th style="width: 5%;"></th>
+						<th style="width: 24%;">Nombre completo</th>
+						<th style="width: 14%;">Categoría</th>
+						<th style="width: 18%;">Equipo</th>
+						<th style="width: 8%;">Dorsal</th>
+						<th style="width: 14%;">Posición</th>
+						<th style="width: 10%;">Acciones</th>
 					</tr>
 				</thead>
 				<tbody>
-					<tr th:each="jugador : ${jugadores}" th:attr="data-categoria=${jugador.categoria}"
+					<tr th:each="jugador : ${jugadores}" th:attr="data-categoria=${jugador.categoria}, data-equipo-id=${jugador.equipoId}"
 						th:classappend="${jugador.deBaja} ? 'text-muted'">
 						<td class="align-middle">
 							<input type="checkbox" class="form-check-input sel-jugador"
@@ -116,15 +132,15 @@
 									aria-label=${'Seleccionar a ' + jugador.nombre + ' ' + jugador.apellidos}"
 								onchange="actualizarSeleccion()">
 						</td>
-						<td class="align-middle"
-							th:text="${jugador.deporte} == 'F' ? 'Fútbol' : (${jugador.deporte} == 'FS' ? 'Fútbol Sala' : '')">
-						</td>
 						<td class="align-middle">
 							<span th:text="${jugador.nombre} + ' ' + ${jugador.apellidos}"></span>
 							<span class="badge text-bg-secondary ms-1" th:if="${jugador.deBaja}"
 								th:text="'Baja ' + ${#temporals.format(jugador.fechaBaja, 'dd/MM/yyyy')}"></span>
 						</td>
-						<td class="align-middle" th:text="${jugador.deBaja} ? 'Sin equipo' : ${jugador.equipo}"></td>
+						<td class="align-middle col-categoria" th:text="${jugador.categoria}"></td>
+						<td class="align-middle col-equipo" th:text="${jugador.deBaja} ? 'Sin equipo' : ${jugador.equipo}"></td>
+						<td class="align-middle col-dorsal" th:text="${jugador.deBaja} ? '' : ${jugador.dorsal}"></td>
+						<td class="align-middle col-posicion" th:text="${jugador.posicion}"></td>
 						<td class="align-middle">
 							<div class="d-flex justify-content-center align-items-center gap-2">
 								<!-- Botón Editar -->
@@ -500,18 +516,20 @@
 				.catch(err => console.error('Error al cargar el historial:', err));
 		}
 
-		// Los filtros (estado, categoria, q) viven solo en la URL: asi sobreviven a recargar, a volver atras y a cualquier accion.
+		// Los filtros (estado, categoria, equipo, q) viven solo en la URL: asi sobreviven a recargar, a volver atras y a cualquier accion.
 		function urlConFiltros(estado) {
 			const params = new URLSearchParams();
 			params.set('estado', estado || document.getElementById('filtroEstado').value);
 			const categoria = document.getElementById('filtroCategoria').value;
 			const texto = document.getElementById('filtroTexto').value.trim();
+			const equipo = document.getElementById('filtroEquipo').value;
 			if (categoria) params.set('categoria', categoria);
+			if (equipo) params.set('equipo', equipo);
 			if (texto) params.set('q', texto);
 			return '/admin/jugadores?' + params.toString();
 		}
 
-		// Cambiar el estado recarga la pagina (el servidor decide a quien lista) conservando categoria y texto
+		// Cambiar el estado recarga la pagina (el servidor decide a quien lista) conservando categoria, equipo y texto
 		function cambiarEstado(estado) {
 			window.location.href = urlConFiltros(estado);
 		}
@@ -808,6 +826,44 @@
 
 		let temporizadorFiltro = null;
 
+		// Jugadores activos por equipo (id de equipo -> total): lo manda el servidor al cargar y tras cada accion en bloque
+		let conteoEquipos = {};
+		try { conteoEquipos = JSON.parse(document.getElementById('contadorEquipo').dataset.conteo || '{}'); } catch (e) { conteoEquipos = {}; }
+
+		// Todas las opciones de equipo (menos "Todos"): el desplegable solo ensena las de la categoria elegida
+		const opcionesDeEquipo = Array.from(document.querySelectorAll('#filtroEquipo option')).filter(o => o.value !== '');
+
+		function sincronizarEquipos() {
+			const select = document.getElementById('filtroEquipo');
+			const categoria = document.getElementById('filtroCategoria').value;
+			const elegido = select.value;
+			Array.from(select.options).forEach(o => { if (o.value !== '') o.remove(); });
+			opcionesDeEquipo
+				.filter(o => !categoria || o.dataset.categoria === categoria)
+				.forEach(o => select.appendChild(o));
+			// Si el equipo elegido no es de esa categoria, vuelve a "Todos"
+			select.value = Array.from(select.options).some(o => o.value === elegido) ? elegido : '';
+		}
+
+		// "12 jugadores en Alevin B": activos sin bajas del equipo, vea lo que vea la tabla
+		function actualizarContadorEquipo() {
+			const contador = document.getElementById('contadorEquipo');
+			const select = document.getElementById('filtroEquipo');
+			if (!select.value) {
+				contador.style.display = 'none';
+				contador.textContent = '';
+				return;
+			}
+			const total = conteoEquipos[select.value] || 0;
+			const nombre = select.options[select.selectedIndex].textContent.trim();
+			const mostrando = Array.from(document.querySelectorAll('#tablaJugadores tbody tr'))
+				.filter(f => f.dataset.equipoId === select.value && f.style.display !== 'none').length;
+			let texto = (total === 1 ? '1 jugador' : total + ' jugadores') + ' en ' + nombre;
+			if (mostrando !== total) texto += ' (mostrando ' + mostrando + ')';
+			contador.textContent = texto;
+			contador.style.display = 'block';
+		}
+
 		// El texto se aplica con un pequeno retardo, para no filtrar (ni tocar la URL) en cada tecla
 		function filtrarConRetardo() {
 			clearTimeout(temporizadorFiltro);
@@ -816,15 +872,18 @@
 
 		function filtrarTabla() {
 			clearTimeout(temporizadorFiltro);
+			sincronizarEquipos();
 			const texto = document.getElementById('filtroTexto').value.trim().toLowerCase();
 			const categoria = document.getElementById('filtroCategoria').value;
+			const equipo = document.getElementById('filtroEquipo').value;
 			const filas = document.querySelectorAll('#tablaJugadores tbody tr');
 
 			filas.forEach(fila => {
-				// El texto se busca en el nombre y el equipo, no en las casillas ni en los botones
+				// El texto se busca en el nombre, la categoria, el equipo, el dorsal y la posicion, no en las casillas
 				const coincideTexto = fila.textContent.toLowerCase().includes(texto);
 				const coincideCategoria = !categoria || fila.dataset.categoria === categoria;
-				const visible = coincideTexto && coincideCategoria;
+				const coincideEquipo = !equipo || fila.dataset.equipoId === equipo;
+				const visible = coincideTexto && coincideCategoria && coincideEquipo;
 				fila.style.display = visible ? '' : 'none';
 				// Una fila oculta nunca queda marcada
 				if (!visible) {
@@ -833,6 +892,7 @@
 				}
 			});
 			actualizarSeleccion();
+			actualizarContadorEquipo();
 			history.replaceState(null, '', urlConFiltros());
 		}
 
@@ -902,6 +962,7 @@
 
 		// Pinta el resumen de la accion; las filas se actualizan sin recargar, asi que sigue a la vista
 		function mostrarResumen(titulosOk, resumen, ayudaErrores) {
+			if (resumen.conteoEquipos) conteoEquipos = resumen.conteoEquipos;
 			const caja = document.getElementById('resumenBloque');
 			const partes = [];
 			const hechos = resumen.correctos.length + resumen.conAviso.length;
@@ -991,12 +1052,14 @@
 		// La fila pasa a verse como la de un jugador de baja (lo que pintaria el servidor al recargar)
 		function marcarFilaDeBaja(fila) {
 			fila.classList.add('text-muted');
-			const celdas = fila.children; // casilla, deporte, nombre, equipo, acciones
+			const celdas = fila.children; // casilla, nombre, categoria, equipo, dorsal, posicion, acciones
 			const insignia = document.createElement('span');
 			insignia.className = 'badge text-bg-secondary ms-1';
 			insignia.textContent = 'Baja ' + new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-			celdas[2].appendChild(insignia);
+			celdas[1].appendChild(insignia);
 			celdas[3].textContent = 'Sin equipo';
+			celdas[4].textContent = '';
+			delete fila.dataset.equipoId;
 
 			const editar = fila.querySelector('button[title="Editar jugador"]');
 			if (editar) { editar.dataset.baja = 'true'; editar.removeAttribute('data-equipo-id'); }
@@ -1049,21 +1112,21 @@
 				.catch(err => { console.error(err); if (modal) modal.hide(); mostrarErrorBloque('Error al cambiar de equipo.'); });
 		}
 
-		// Lo que cambia en la fila al cambiar de equipo: equipo, categoria, deporte y (si choca) el dorsal
+		// Lo que cambia en la fila al cambiar de equipo: equipo, categoria y (si choca) el dorsal
 		function moverFila(fila, opcion, conservaDorsal) {
 			if (!fila) return;
-			const deporte = opcion.dataset.deporte;
+			fila.dataset.equipoId = opcion.value;
 			fila.dataset.categoria = opcion.dataset.categoria || '';
-			fila.children[1].textContent = deporte === 'F' ? 'Fútbol' : (deporte === 'FS' ? 'Fútbol Sala' : '');
+			fila.children[2].textContent = opcion.dataset.categoria || '';
 			fila.children[3].textContent = opcion.textContent.trim();
 			const editar = fila.querySelector('button[title="Editar jugador"]');
 			if (editar) {
 				editar.dataset.equipoId = opcion.value;
-				if (!conservaDorsal) editar.dataset.dorsal = 'null';
+				if (!conservaDorsal) { editar.dataset.dorsal = 'null'; fila.children[4].textContent = ''; }
 			}
 		}
 
-		// Los filtros de la URL (?estado=...&categoria=...&q=...) se ponen al cargar y se aplican
+		// Los filtros de la URL (?estado=...&categoria=...&equipo=...&q=...) se ponen al cargar y se aplican
 		(function aplicarFiltrosDeLaUrl() {
 			const params = new URLSearchParams(window.location.search);
 			const selectCategoria = document.getElementById('filtroCategoria');
@@ -1072,6 +1135,10 @@
 				selectCategoria.value = categoria;
 			}
 			document.getElementById('filtroTexto').value = params.get('q') || '';
+			const selectEquipo = document.getElementById('filtroEquipo');
+			sincronizarEquipos();
+			const equipo = params.get('equipo');
+			if (equipo && Array.from(selectEquipo.options).some(o => o.value === equipo)) selectEquipo.value = equipo;
 			filtrarTabla();
 		})();
 	</script>

@@ -34,8 +34,12 @@ public class JugadorDaoImpl implements JugadorDao {
 			LEFT JOIN EQUIPO E ON E.ID = J.EQUIPO_ID
 			""";
 
-	/** De la categoría menor a la mayor (EQUIPO.ORDEN); sin equipo, al final (NULLS LAST: H2 y Oracle no ordenan igual). */
-	private static final String ORDEN_POR_EQUIPO = "E.ORDEN NULLS LAST, E.NOMBRE NULLS LAST, J.APELLIDOS, J.NOMBRE, J.ID";
+	/**
+	 * De la categoría menor a la mayor (EQUIPO.ORDEN), el equipo por nombre y el dorsal de menor a mayor (sin dorsal, al
+	 * final, por apellidos); sin equipo (bajas), al final por apellidos (NULLS LAST: H2 y Oracle no ordenan igual).
+	 */
+	private static final String ORDEN_POR_EQUIPO = "E.ORDEN NULLS LAST, E.NOMBRE NULLS LAST, "
+			+ "(CASE WHEN E.ID IS NULL THEN NULL ELSE J.DORSAL END) NULLS LAST, J.APELLIDOS, J.NOMBRE, J.ID";
 
 	private static final RowMapper<Jugador> JUGADOR_ROW_MAPPER = JugadorDaoImpl::mapRow;
 
@@ -243,6 +247,15 @@ public class JugadorDaoImpl implements JugadorDao {
 	@Override
 	public boolean actualizarAnioNacimiento(Long id, Integer anioNacimiento) {
 		return jdbcTemplate.update("UPDATE JUGADORES SET ANIO_NACIMIENTO = ? WHERE ID = ?", anioNacimiento, id) == 1;
+	}
+
+	@Override
+	public java.util.Map<Long, Integer> contarActivosPorEquipo() {
+		java.util.Map<Long, Integer> conteo = new java.util.LinkedHashMap<>();
+		jdbcTemplate.query("SELECT EQUIPO_ID, COUNT(*) AS TOTAL FROM JUGADORES WHERE FECHA_BAJA IS NULL"
+				+ " AND EQUIPO_ID IS NOT NULL GROUP BY EQUIPO_ID ORDER BY EQUIPO_ID",
+				rs -> { conteo.put(rs.getLong("EQUIPO_ID"), rs.getInt("TOTAL")); });
+		return conteo;
 	}
 
 	@Override
