@@ -19,13 +19,16 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import jakarta.validation.Valid;
 
+import com.mikedev.mutxamelcf.model.EquipoDTO;
 import com.mikedev.mutxamelcf.model.FamiliarDTO;
 import com.mikedev.mutxamelcf.model.FamiliarJugadorDTO;
 import com.mikedev.mutxamelcf.model.JugadorDTO;
+import com.mikedev.mutxamelcf.model.JugadorDeFamiliar;
 import com.mikedev.mutxamelcf.service.EquipoService;
 import com.mikedev.mutxamelcf.service.FamiliarJugadorService;
 import com.mikedev.mutxamelcf.service.FamiliarService;
@@ -57,16 +60,37 @@ public class FamiliarController {
     /**
      * Mostrar listado de familiares
      */
-    @GetMapping("/familiares")
     public String listarFamiliares(Model model) {
-        logger.debug("Inicio listarFamiliares");
+        return listarFamiliares(null, model);
+    }
+
+    /**
+     * Mostrar listado de familiares; con {@code equipo} (el filtro de la URL) también el contador de ese equipo.
+     */
+    @GetMapping("/familiares")
+    public String listarFamiliares(@RequestParam(name = "equipo", required = false) Long equipoFiltro, Model model) {
+        logger.debug("Inicio listarFamiliares: equipo={}", equipoFiltro);
         List<FamiliarDTO> familiares = familiarService.obtenerTodos();
         List<JugadorDTO> jugadores = jugadorService.obtenerTodos();
 
         model.addAttribute("familiares", familiares);
         model.addAttribute("listaJugadores", jugadores);
         // Los jugadores de cada familiar (con su equipo y categoría), en una sola consulta para todo el listado
-        model.addAttribute("jugadoresPorFamiliar", familiarJugadorService.obtenerJugadoresDeTodosLosFamiliares());
+        Map<Long, List<JugadorDeFamiliar>> jugadoresPorFamiliar =
+                familiarJugadorService.obtenerJugadoresDeTodosLosFamiliares();
+        model.addAttribute("jugadoresPorFamiliar", jugadoresPorFamiliar);
+        // El filtro de Equipo (los equipos activos), el mismo que el de Jugadores
+        List<EquipoDTO> listaEquipos = equipoService.obtenerTodos();
+        model.addAttribute("listaEquipos", listaEquipos);
+        // "12 familiares de jugadores de Alevín B": los que tienen al menos un jugador activo en ese equipo, ya escrito
+        // en la página; el navegador lo recalcula al filtrar
+        model.addAttribute("contadorEquipoTexto", equipoFiltro == null ? null
+                : listaEquipos.stream().filter(e -> equipoFiltro.equals(e.getId())).findFirst()
+                        .map(e -> ContadorFiltro.texto(
+                                (int) jugadoresPorFamiliar.values().stream()
+                                        .filter(js -> js.stream().anyMatch(j -> equipoFiltro.equals(j.equipoId()))).count(),
+                                "familiar", "familiares", "de jugadores de", e.getNombre()))
+                        .orElse(null));
         // Las mismas categorías, y en el mismo orden, que el filtro de Jugadores
         model.addAttribute("categorias", equipoService.obtenerCategorias());
 

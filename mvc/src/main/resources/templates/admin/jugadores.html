@@ -62,15 +62,7 @@
 						<option value="todos" th:selected="${estado == 'todos'}">Todos</option>
 					</select>
 				</div>
-				<div>
-					<label for="filtroEquipo" class="form-label mb-1">Equipo</label>
-					<select id="filtroEquipo" class="form-select form-select-sm" onchange="filtrarTabla()">
-						<option value="">Todos</option>
-						<option th:each="equipo : ${listaEquipos}" th:value="${equipo.id}" th:text="${equipo.nombre}"
-							th:attr="data-categoria=${equipo.categoria}"
-							th:selected="${param.equipo != null and param.equipo[0] == #strings.toString(equipo.id)}"></option>
-					</select>
-				</div>
+				<div th:replace="~{admin/filtrosPanel :: filtroEquipo(${listaEquipos})}"></div>
 			</div>
 
 			<!-- Nuevo Jugador -->
@@ -408,6 +400,7 @@
 	<!-- Incluir el footer -->
 	<div th:replace="~{admin/footerAdmin.html}"></div>
 
+	<script th:src="@{/js/filtros-panel.js}"></script>
 	<script>
 		const jugadorModal = document.getElementById('jugadorModal');
 
@@ -516,17 +509,13 @@
 				.catch(err => console.error('Error al cargar el historial:', err));
 		}
 
-		// Los filtros (estado, categoria, equipo, q) viven solo en la URL: asi sobreviven a recargar, a volver atras y a cualquier accion.
 		function urlConFiltros(estado) {
-			const params = new URLSearchParams();
-			params.set('estado', estado || document.getElementById('filtroEstado').value);
-			const categoria = document.getElementById('filtroCategoria').value;
-			const texto = document.getElementById('filtroTexto').value.trim();
-			const equipo = document.getElementById('filtroEquipo').value;
-			if (categoria) params.set('categoria', categoria);
-			if (equipo) params.set('equipo', equipo);
-			if (texto) params.set('q', texto);
-			return '/admin/jugadores?' + params.toString();
+			return FiltrosPanel.url('/admin/jugadores', {
+				estado: estado || document.getElementById('filtroEstado').value,
+				categoria: document.getElementById('filtroCategoria').value,
+				equipo: document.getElementById('filtroEquipo').value,
+				q: document.getElementById('filtroTexto').value.trim()
+			});
 		}
 
 		// Cambiar el estado recarga la pagina (el servidor decide a quien lista) conservando categoria, equipo y texto
@@ -830,20 +819,10 @@
 		let conteoEquipos = {};
 		try { conteoEquipos = JSON.parse(document.getElementById('contadorEquipo').dataset.conteo || '{}'); } catch (e) { conteoEquipos = {}; }
 
-		// Todas las opciones de equipo (menos "Todos"): el desplegable solo ensena las de la categoria elegida
-		const opcionesDeEquipo = Array.from(document.querySelectorAll('#filtroEquipo option')).filter(o => o.value !== '');
-
-		function sincronizarEquipos() {
-			const select = document.getElementById('filtroEquipo');
-			const categoria = document.getElementById('filtroCategoria').value;
-			const elegido = select.value;
-			Array.from(select.options).forEach(o => { if (o.value !== '') o.remove(); });
-			opcionesDeEquipo
-				.filter(o => !categoria || o.dataset.categoria === categoria)
-				.forEach(o => select.appendChild(o));
-			// Si el equipo elegido no es de esa categoria, vuelve a "Todos"
-			select.value = Array.from(select.options).some(o => o.value === elegido) ? elegido : '';
-		}
+		// El desplegable de Equipo solo ofrece los de la categoria elegida (compartido con Familiares: filtros-panel.js)
+		const selectorDeEquipos = FiltrosPanel.crearSelectorDeEquipos(
+			document.getElementById('filtroEquipo'), document.getElementById('filtroCategoria'));
+		const sincronizarEquipos = () => selectorDeEquipos.sincronizar();
 
 		// "12 jugadores en Alevin B": activos sin bajas del equipo, vea lo que vea la tabla
 		function actualizarContadorEquipo() {
@@ -858,8 +837,7 @@
 			const nombre = select.options[select.selectedIndex].textContent.trim();
 			const mostrando = Array.from(document.querySelectorAll('#tablaJugadores tbody tr'))
 				.filter(f => f.dataset.equipoId === select.value && f.style.display !== 'none').length;
-			let texto = (total === 1 ? '1 jugador' : total + ' jugadores') + ' en ' + nombre;
-			if (mostrando !== total) texto += ' (mostrando ' + mostrando + ')';
+			const texto = FiltrosPanel.textoContador(total, 'jugador', 'jugadores', 'en', nombre, mostrando);
 			contador.textContent = texto;
 			contador.style.display = 'block';
 		}
@@ -1129,16 +1107,10 @@
 		// Los filtros de la URL (?estado=...&categoria=...&equipo=...&q=...) se ponen al cargar y se aplican
 		(function aplicarFiltrosDeLaUrl() {
 			const params = new URLSearchParams(window.location.search);
-			const selectCategoria = document.getElementById('filtroCategoria');
-			const categoria = params.get('categoria');
-			if (categoria && Array.from(selectCategoria.options).some(o => o.value === categoria)) {
-				selectCategoria.value = categoria;
-			}
+			FiltrosPanel.elegirSiExiste(document.getElementById('filtroCategoria'), params.get('categoria'));
 			document.getElementById('filtroTexto').value = params.get('q') || '';
-			const selectEquipo = document.getElementById('filtroEquipo');
-			sincronizarEquipos();
-			const equipo = params.get('equipo');
-			if (equipo && Array.from(selectEquipo.options).some(o => o.value === equipo)) selectEquipo.value = equipo;
+			selectorDeEquipos.sincronizar();
+			FiltrosPanel.elegirSiExiste(document.getElementById('filtroEquipo'), params.get('equipo'));
 			filtrarTabla();
 		})();
 	</script>

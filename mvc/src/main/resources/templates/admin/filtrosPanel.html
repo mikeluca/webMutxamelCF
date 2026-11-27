@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+	<!-- Filtro de Equipo de los listados del panel (Jugadores y Familiares): "Todos" y los equipos activos -->
+	<div th:fragment="filtroEquipo(equipos)">
+		<label for="filtroEquipo" class="form-label mb-1">Equipo</label>
+		<select id="filtroEquipo" class="form-select form-select-sm" onchange="filtrarTabla()">
+			<option value="">Todos</option>
+			<option th:each="equipo : ${equipos}" th:value="${equipo.id}" th:text="${equipo.nombre}"
+				th:attr="data-categoria=${equipo.categoria}"
+				th:selected="${param.equipo != null and param.equipo[0] == #strings.toString(equipo.id)}"></option>
+		</select>
+	</div>
+
+</body>
+</html>

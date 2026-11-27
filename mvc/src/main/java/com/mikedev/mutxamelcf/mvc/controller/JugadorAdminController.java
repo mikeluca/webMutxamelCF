@@ -92,7 +92,8 @@ public class JugadorAdminController {
 		// El contador del equipo del filtro (?equipo=...), ya escrito en la página; el navegador lo recalcula al filtrar
 		model.addAttribute("contadorEquipoTexto", equipoFiltro == null ? null
 				: listaEquipos.stream().filter(e -> equipoFiltro.equals(e.getId())).findFirst()
-						.map(e -> textoContador(conteo.getOrDefault(equipoFiltro, 0), e.getNombre())).orElse(null));
+						.map(e -> ContadorFiltro.texto(conteo.getOrDefault(equipoFiltro, 0), "jugador", "jugadores", "en",
+								e.getNombre())).orElse(null));
 
 		List<String> categorias = equiposService.obtenerCategorias();
 		List<FamiliarDTO> listaFamiliares = familiarService.obtenerTodos();
@@ -103,11 +104,6 @@ public class JugadorAdminController {
 
 		logger.debug("Fin listarJugadores: total={}", jugadores.size());
 		return "admin/jugadores"; // Retornar la vista para listar jugadores
-	}
-
-	/** "12 jugadores en Alevín B" / "1 jugador en Alevín B": los activos del equipo, sin bajas. */
-	static String textoContador(int total, String equipo) {
-		return (total == 1 ? "1 jugador" : total + " jugadores") + " en " + equipo;
 	}
 
 	static String conteoComoJson(Map<Long, Integer> conteo) {

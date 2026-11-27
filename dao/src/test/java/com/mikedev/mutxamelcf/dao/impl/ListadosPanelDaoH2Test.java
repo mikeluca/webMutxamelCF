@@ -147,12 +147,14 @@ class ListadosPanelDaoH2Test {
         JugadorDeFamiliar de101 = relaciones.get(0);
         assertThat(de101.nombreCompleto()).isEqualTo("Eva Pérez");
         assertThat(de101.equipo()).isEqualTo("Alevín B");
+        assertThat(de101.equipoId()).isEqualTo(1L);
         assertThat(de101.categoria()).isEqualTo("Alevín");
         assertThat(de101.deBaja()).isFalse();
         // Del 102: primero Sanz (activo) y luego la baja (Última), que no tiene equipo ni categoría
         JugadorDeFamiliar baja = relaciones.get(2);
         assertThat(baja.deBaja()).isTrue();
         assertThat(baja.equipo()).isNull();
+        assertThat(baja.equipoId()).isNull();
         assertThat(baja.categoria()).isNull();
     }
 }

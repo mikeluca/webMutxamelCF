@@ -49,12 +49,17 @@
 							th:selected="${param.categoria != null and param.categoria[0] == categoria}"></option>
 					</select>
 				</div>
+				<div th:replace="~{admin/filtrosPanel :: filtroEquipo(${listaEquipos})}"></div>
 			</div>
 			<!-- Nuevo Familiar -->
 			<button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#familiarModal" onclick="prepararNuevoFamiliar()">
 				<i class="bi bi-person-plus-fill me-1"></i> Nuevo Familiar
 			</button>
 		</div>
+
+		<!-- Familiares con algun jugador activo en el equipo elegido, aunque otros filtros oculten alguno -->
+		<p id="contadorEquipo" class="fw-bold mb-3" role="status" aria-live="polite"
+			th:text="${contadorEquipoTexto}" th:style="${contadorEquipoTexto != null} ? 'display:block;' : 'display:none;'"></p>
 
 		<!-- Tabla de familiares -->
 		<div class="admin-list-panel">
@@ -65,13 +70,14 @@
 						<th style="width: 12%;">Teléfono</th>
 						<th style="width: 20%;">Email</th>
 						<th style="width: 20%;">Jugador/es asociado/s</th>
-						<th style="width: 20%;">Equipo / Categoría</th>
+						<th style="width: 20%;">Equipo</th>
 						<th style="width: 8%;" class="text-center">Acciones</th>
 					</tr>
 				</thead>
 				<tbody>
 					<tr th:each="familiar : ${familiares}" th:with="jugs=${jugadoresPorFamiliar[familiar.id]}"
-						th:attr="data-categorias=${'|' + (jugs == null ? '' : #strings.listJoin(jugs.?[categoria != null].![categoria], '|')) + '|'}">
+						th:attr="data-categorias=${'|' + (jugs == null ? '' : #strings.listJoin(jugs.?[categoria != null].![categoria], '|')) + '|'},
+						         data-equipos=${'|' + (jugs == null ? '' : #strings.listJoin(jugs.?[equipoId != null].![equipoId], '|')) + '|'}">
 						<td class="align-middle fw-semibold" th:text="${familiar.nombre} + ' ' + ${familiar.apellidos}"></td>
 						<td class="align-middle" th:text="${familiar.telefono} != null and ${familiar.telefono} != '' ? ${familiar.telefono} : '-'"></td>
 						<td class="align-middle" th:text="${familiar.email} != null and ${familiar.email} != '' ? ${familiar.email} : '-'"></td>
@@ -82,7 +88,7 @@
 						<td class="align-middle">
 							<span th:if="${#lists.isEmpty(jugs)}" class="text-muted">—</span>
 							<div th:each="j : ${jugs}" class="equipo-asociado"
-								th:text="${j.deBaja} ? 'Sin equipo' : (${j.equipo} + ' · ' + ${j.categoria})"></div>
+								th:text="${j.deBaja} ? 'Sin equipo' : ${j.equipo}"></div>
 						</td>
 						<td class="align-middle text-center">
 							<div class="d-flex justify-content-center align-items-center gap-2">
@@ -265,6 +271,7 @@
 	<!-- Incluir el footer -->
 	<div th:replace="~{admin/footerAdmin.html}"></div>
 
+	<script th:src="@{/js/filtros-panel.js}"></script>
 	<script>
 		const csrfToken = document.getElementById('csrfToken').value;
 
@@ -279,16 +286,18 @@
 			}
 		});
 
-		// Los filtros (q, categoria) viven solo en la URL: sobreviven a recargar y a guardar, vincular o borrar.
+		// Los filtros (q, categoria, equipo) viven solo en la URL: sobreviven a recargar y a guardar, vincular o borrar.
 		function urlConFiltros() {
-			const params = new URLSearchParams();
-			const categoria = document.getElementById('filtroCategoria').value;
-			const texto = document.getElementById('filtroTexto').value.trim();
-			if (texto) params.set('q', texto);
-			if (categoria) params.set('categoria', categoria);
-			const consulta = params.toString();
-			return '/admin/familiares' + (consulta ? '?' + consulta : '');
+			return FiltrosPanel.url('/admin/familiares', {
+				q: document.getElementById('filtroTexto').value.trim(),
+				categoria: document.getElementById('filtroCategoria').value,
+				equipo: document.getElementById('filtroEquipo').value
+			});
 		}
+
+		// El desplegable de Equipo solo ofrece los de la categoria elegida (compartido con Jugadores: filtros-panel.js)
+		const selectorDeEquipos = FiltrosPanel.crearSelectorDeEquipos(
+			document.getElementById('filtroEquipo'), document.getElementById('filtroCategoria'));
 
 		let temporizadorFiltro = null;
 
@@ -298,32 +307,51 @@
 			temporizadorFiltro = setTimeout(filtrarTabla, 250);
 		}
 
+		// "12 familiares de jugadores de Alevin B": los que tienen algun jugador activo en el equipo, vea lo que vea la tabla
+		function actualizarContadorEquipo(filas) {
+			const contador = document.getElementById('contadorEquipo');
+			const select = document.getElementById('filtroEquipo');
+			if (!select.value) {
+				contador.style.display = 'none';
+				contador.textContent = '';
+				return;
+			}
+			const delEquipo = filas.filter(f => f.dataset.equipos.includes('|' + select.value + '|'));
+			const mostrando = delEquipo.filter(f => f.style.display !== 'none').length;
+			contador.textContent = FiltrosPanel.textoContador(delEquipo.length, 'familiar', 'familiares', 'de jugadores de',
+				select.options[select.selectedIndex].textContent.trim(), mostrando);
+			contador.style.display = 'block';
+		}
+
 		function filtrarTabla() {
 			clearTimeout(temporizadorFiltro);
+			selectorDeEquipos.sincronizar();
 			const texto = document.getElementById('filtroTexto').value.trim().toLowerCase();
 			const categoria = document.getElementById('filtroCategoria').value;
+			const equipo = document.getElementById('filtroEquipo').value;
 
-			document.querySelectorAll('#tablaFamiliares tbody tr').forEach(fila => {
-				// La fila de "No hay familiares" no se filtra
-				if (fila.dataset.categorias === undefined) return;
+			// La fila de "No hay familiares" no se filtra
+			const filas = Array.from(document.querySelectorAll('#tablaFamiliares tbody tr'))
+				.filter(f => f.dataset.categorias !== undefined);
+			filas.forEach(fila => {
 				// El texto se busca en el familiar, sus datos de contacto, sus jugadores y los equipos de estos
 				const coincideTexto = fila.textContent.toLowerCase().includes(texto);
-				// Sale si CUALQUIERA de sus jugadores es de esa categoria
+				// Sale si CUALQUIERA de sus jugadores es de esa categoria o de ese equipo
 				const coincideCategoria = !categoria || fila.dataset.categorias.includes('|' + categoria + '|');
-				fila.style.display = (coincideTexto && coincideCategoria) ? '' : 'none';
+				const coincideEquipo = !equipo || fila.dataset.equipos.includes('|' + equipo + '|');
+				fila.style.display = (coincideTexto && coincideCategoria && coincideEquipo) ? '' : 'none';
 			});
+			actualizarContadorEquipo(filas);
 			history.replaceState(null, '', urlConFiltros());
 		}
 
-		// Los filtros de la URL (?q=...&categoria=...) se ponen al cargar y se aplican
+		// Los filtros de la URL (?q=...&categoria=...&equipo=...) se ponen al cargar y se aplican
 		(function aplicarFiltrosDeLaUrl() {
 			const params = new URLSearchParams(window.location.search);
-			const selectCategoria = document.getElementById('filtroCategoria');
-			const categoria = params.get('categoria');
-			if (categoria && Array.from(selectCategoria.options).some(o => o.value === categoria)) {
-				selectCategoria.value = categoria;
-			}
+			FiltrosPanel.elegirSiExiste(document.getElementById('filtroCategoria'), params.get('categoria'));
 			document.getElementById('filtroTexto').value = params.get('q') || '';
+			selectorDeEquipos.sincronizar();
+			FiltrosPanel.elegirSiExiste(document.getElementById('filtroEquipo'), params.get('equipo'));
 			filtrarTabla();
 		})();
 

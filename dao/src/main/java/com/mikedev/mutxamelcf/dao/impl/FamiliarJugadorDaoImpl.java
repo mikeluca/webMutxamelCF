@@ -197,6 +197,10 @@ public class FamiliarJugadorDaoImpl implements FamiliarJugadorDao {
         logger.debug("Fin obtenerJugadoresDeFamiliar: total={}", lista.size());
         return lista;
     }
+    private static Long equipoId(ResultSet rs) throws SQLException {
+        long id = rs.getLong("EQUIPO_ID");
+        return rs.wasNull() ? null : id;
+    }
 
     @Override
     public List<com.mikedev.mutxamelcf.model.JugadorDeFamiliar> obtenerJugadoresDeTodosLosFamiliares() {
@@ -205,7 +209,7 @@ public class FamiliarJugadorDaoImpl implements FamiliarJugadorDao {
         // baja no tiene equipo)
         String sql = """
                 SELECT FJ.FAMILIAR_ID, J.ID AS JUGADOR_ID, J.NOMBRE, J.APELLIDOS, J.FECHA_BAJA,
-                       E.NOMBRE AS EQUIPO, E.CATEGORIA AS EQUIPO_CATEGORIA
+                       E.ID AS EQUIPO_ID, E.NOMBRE AS EQUIPO, E.CATEGORIA AS EQUIPO_CATEGORIA
                 FROM FAMILIARES_JUGADOR FJ
                 JOIN JUGADORES J ON J.ID = FJ.JUGADOR_ID
                 LEFT JOIN EQUIPO E ON E.ID = J.EQUIPO_ID
@@ -213,7 +217,7 @@ public class FamiliarJugadorDaoImpl implements FamiliarJugadorDao {
                 """;
         List<com.mikedev.mutxamelcf.model.JugadorDeFamiliar> lista = jdbcTemplate.query(sql,
                 (rs, n) -> new com.mikedev.mutxamelcf.model.JugadorDeFamiliar(rs.getLong("FAMILIAR_ID"),
-                        rs.getLong("JUGADOR_ID"), rs.getString("NOMBRE"), rs.getString("APELLIDOS"),
+                        rs.getLong("JUGADOR_ID"), rs.getString("NOMBRE"), rs.getString("APELLIDOS"), equipoId(rs),
                         rs.getString("EQUIPO"), rs.getString("EQUIPO_CATEGORIA"), rs.getDate("FECHA_BAJA") != null));
         logger.debug("Fin obtenerJugadoresDeTodosLosFamiliares: total={}", lista.size());
         return lista;
