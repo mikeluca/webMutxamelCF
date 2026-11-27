@@ -1,13 +1,16 @@
 package com.mikedev.mutxamelcf.mvc.controller;
 
 import java.time.Year;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -18,11 +21,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.mikedev.mutxamelcf.model.AnioNacimiento;
+import com.mikedev.mutxamelcf.model.CambioEquipoJugador;
 import com.mikedev.mutxamelcf.model.EquipoDTO;
 import com.mikedev.mutxamelcf.model.DorsalRepetidoException;
 import com.mikedev.mutxamelcf.model.PosicionJugador;
@@ -269,5 +274,180 @@ public class JugadorAdminController {
 			logger.debug("Fin borrarJugador: id={}, resultado=ERROR", id);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
+	}
+
+	// ---------------------------------------------------------------------------------------------------------------
+	// Acciones en bloque. Cada jugador se procesa en su propia transaccion (cada llamada al servicio es una): si uno
+	// falla, los demas siguen.
+	// ---------------------------------------------------------------------------------------------------------------
+
+	/** Maximo de ids por peticion en bloque. */
+	static final int MAXIMO_IDS_BLOQUE = 200;
+
+	/** Un jugador del resumen; {@code motivo} solo si hay algo que contar (por que no, o el aviso). */
+	public record JugadorResumen(Long id, String nombre, String motivo) {
+	}
+
+	/**
+	 * Resumen de una accion en bloque. {@code correctos}: hechos sin mas; {@code conAviso}: hechos con una salvedad (p. ej.
+	 * movido sin dorsal); {@code saltados}: no hacia falta o no se puede mover (ya de baja...); {@code errores}: no se ha
+	 * podido, con su motivo.
+	 */
+	public record ResumenBloque(List<JugadorResumen> correctos, List<JugadorResumen> conAviso,
+			List<JugadorResumen> saltados, List<JugadorResumen> errores) {
+	}
+
+	public record IdsRequest(List<Long> ids) {
+	}
+
+	public record CambiarEquipoRequest(List<Long> ids, Long equipoId) {
+	}
+
+	private static final class Bloque {
+		final List<JugadorResumen> correctos = new ArrayList<>();
+		final List<JugadorResumen> conAviso = new ArrayList<>();
+		final List<JugadorResumen> saltados = new ArrayList<>();
+		final List<JugadorResumen> errores = new ArrayList<>();
+
+		ResumenBloque resumen() {
+			return new ResumenBloque(correctos, conAviso, saltados, errores);
+		}
+	}
+
+	/** Los ids sin repetidos ni nulos; null si la lista esta vacia o pasa de {@link #MAXIMO_IDS_BLOQUE}. */
+	private static List<Long> idsValidos(List<Long> ids) {
+		if (ids == null) {
+			return null;
+		}
+		List<Long> limpios = ids.stream().filter(Objects::nonNull).distinct().toList();
+		return limpios.isEmpty() || limpios.size() > MAXIMO_IDS_BLOQUE ? null : limpios;
+	}
+
+	private static ResponseEntity<Map<String, String>> idsNoValidos() {
+		return ResponseEntity.badRequest()
+				.body(Map.of("error", "Hay que indicar entre 1 y " + MAXIMO_IDS_BLOQUE + " jugadores."));
+	}
+
+	private String nombreDe(Long id) {
+		JugadorDTO jugador = jugadoresService.obtenerJugadorPorId(id);
+		return jugador == null ? null : (jugador.getNombre() + " " + jugador.getApellidos()).trim();
+	}
+
+	private static String motivo(Exception e) {
+		return e.getMessage() == null || e.getMessage().isBlank() ? "error inesperado" : e.getMessage();
+	}
+
+	/** Borra a cada jugador con la misma regla que el borrado individual; los que no se pueden borrar se cuentan aparte. */
+	@PostMapping("/jugadores/borrar-multiple")
+	@ResponseBody
+	public ResponseEntity<?> borrarMultiple(@RequestBody IdsRequest peticion) {
+		List<Long> ids = idsValidos(peticion == null ? null : peticion.ids());
+		if (ids == null) {
+			return idsNoValidos();
+		}
+		logger.debug("Inicio borrarMultiple: total={}", ids.size());
+		Bloque bloque = new Bloque();
+		for (Long id : ids) {
+			String nombre = nombreDe(id);
+			if (nombre == null) {
+				bloque.errores.add(new JugadorResumen(id, "Jugador " + id, "el jugador no existe"));
+				continue;
+			}
+			try {
+				jugadoresService.eliminarJugador(id);
+				bloque.correctos.add(new JugadorResumen(id, nombre, null));
+			} catch (IllegalStateException e) {
+				logger.warn("No se ha podido borrar el jugador id={}: {}", id, e.getMessage());
+				bloque.errores.add(new JugadorResumen(id, nombre, motivo(e)));
+			} catch (Exception e) {
+				logger.error("Error al borrar el jugador id={}: {}", id, e.getMessage(), e);
+				bloque.errores.add(new JugadorResumen(id, nombre, "No se ha podido eliminar el jugador."));
+			}
+		}
+		logger.debug("Fin borrarMultiple: borrados={}, errores={}", bloque.correctos.size(), bloque.errores.size());
+		return ResponseEntity.ok(bloque.resumen());
+	}
+
+	/** Da de baja a cada jugador con la misma regla que la baja individual; los que ya lo estan se saltan. */
+	@PostMapping("/jugadores/baja-multiple")
+	@ResponseBody
+	public ResponseEntity<?> darDeBajaMultiple(@RequestBody IdsRequest peticion) {
+		List<Long> ids = idsValidos(peticion == null ? null : peticion.ids());
+		if (ids == null) {
+			return idsNoValidos();
+		}
+		logger.debug("Inicio darDeBajaMultiple: total={}", ids.size());
+		Bloque bloque = new Bloque();
+		for (Long id : ids) {
+			String nombre = nombreDe(id);
+			if (nombre == null) {
+				bloque.errores.add(new JugadorResumen(id, "Jugador " + id, "el jugador no existe"));
+				continue;
+			}
+			try {
+				jugadoresService.darDeBaja(id);
+				bloque.correctos.add(new JugadorResumen(id, nombre, null));
+			} catch (IllegalStateException e) {
+				// Ya estaba de baja: no es un error
+				bloque.saltados.add(new JugadorResumen(id, nombre, motivo(e)));
+			} catch (IllegalArgumentException e) {
+				bloque.errores.add(new JugadorResumen(id, nombre, motivo(e)));
+			} catch (Exception e) {
+				logger.error("Error al dar de baja al jugador id={}: {}", id, e.getMessage(), e);
+				bloque.errores.add(new JugadorResumen(id, nombre, "No se ha podido dar de baja."));
+			}
+		}
+		logger.debug("Fin darDeBajaMultiple: ok={}, saltados={}, errores={}", bloque.correctos.size(),
+				bloque.saltados.size(), bloque.errores.size());
+		return ResponseEntity.ok(bloque.resumen());
+	}
+
+	/** Cambia de equipo a cada jugador con lo mismo que el guardado de su ficha ({@link JugadorService#cambiarEquipo}). */
+	@PostMapping("/jugadores/cambiar-equipo-multiple")
+	@ResponseBody
+	public ResponseEntity<?> cambiarEquipoMultiple(@RequestBody CambiarEquipoRequest peticion) {
+		List<Long> ids = idsValidos(peticion == null ? null : peticion.ids());
+		if (ids == null) {
+			return idsNoValidos();
+		}
+		EquipoDTO equipo = null;
+		if (peticion.equipoId() != null) {
+			try {
+				equipo = equiposService.obtenerEquipoPorId(peticion.equipoId());
+			} catch (EmptyResultDataAccessException e) {
+				equipo = null;
+			}
+		}
+		if (equipo == null) {
+			return ResponseEntity.badRequest().body(Map.of("error", "El equipo seleccionado no existe."));
+		}
+		logger.debug("Inicio cambiarEquipoMultiple: total={}, equipoId={}", ids.size(), equipo.getId());
+		Bloque bloque = new Bloque();
+		for (Long id : ids) {
+			String nombre = nombreDe(id);
+			if (nombre == null) {
+				bloque.errores.add(new JugadorResumen(id, "Jugador " + id, "el jugador no existe"));
+				continue;
+			}
+			try {
+				CambioEquipoJugador cambio = jugadoresService.cambiarEquipo(id, equipo.getId());
+				switch (cambio.resultado()) {
+				case MOVIDO -> bloque.correctos.add(new JugadorResumen(id, nombre, null));
+				case MOVIDO_SIN_DORSAL -> bloque.conAviso.add(new JugadorResumen(id, nombre, cambio.detalle()));
+				case SALTADO -> bloque.saltados.add(new JugadorResumen(id, nombre, cambio.detalle()));
+				}
+			} catch (DorsalRepetidoException | IllegalArgumentException e) {
+				bloque.errores.add(new JugadorResumen(id, nombre, motivo(e)));
+			} catch (IllegalStateException e) {
+				// De baja: no se mueve, hay que reactivarlo
+				bloque.saltados.add(new JugadorResumen(id, nombre, motivo(e)));
+			} catch (Exception e) {
+				logger.error("Error al cambiar de equipo al jugador id={}: {}", id, e.getMessage(), e);
+				bloque.errores.add(new JugadorResumen(id, nombre, "No se ha podido cambiar de equipo."));
+			}
+		}
+		logger.debug("Fin cambiarEquipoMultiple: movidos={}, sinDorsal={}, saltados={}, errores={}",
+				bloque.correctos.size(), bloque.conAviso.size(), bloque.saltados.size(), bloque.errores.size());
+		return ResponseEntity.ok(bloque.resumen());
 	}
 }

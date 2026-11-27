@@ -43,13 +43,15 @@
 				<div>
 					<label for="filtroTexto" class="form-label mb-1">Buscar</label>
 					<input type="text" id="filtroTexto" class="form-control form-control-sm"
-						placeholder="Buscar jugador..." onkeyup="filtrarTabla()">
+						placeholder="Buscar jugador..." oninput="filtrarConRetardo()"
+							th:value="${param.q != null ? param.q[0] : ''}">
 				</div>
 				<div>
 					<label for="filtroCategoria" class="form-label mb-1">Categoría</label>
 					<select id="filtroCategoria" class="form-select form-select-sm" onchange="filtrarTabla()">
 						<option value="">Todas</option>
-						<option th:each="categoria : ${categorias}" th:value="${categoria}" th:text="${categoria}"></option>
+						<option th:each="categoria : ${categorias}" th:value="${categoria}" th:text="${categoria}"
+								th:selected="${param.categoria != null and param.categoria[0] == categoria}"></option>
 					</select>
 				</div>
 				<div>
@@ -68,13 +70,39 @@
 			</button>
 		</div>
 
+		<!-- Resultado de una acción en bloque -->
+		<div id="resumenBloque" class="alert" style="display:none; margin-bottom: 20px;" tabindex="-1"></div>
+
+		<!-- Barra de selección: solo con alguna fila marcada -->
+		<div id="barraSeleccion" class="alert alert-primary align-items-center flex-wrap gap-2 py-2 sticky-top"
+			style="display:none; top: 0;" role="region" aria-label="Acciones sobre los jugadores seleccionados">
+			<strong id="textoSeleccion" role="status" aria-live="polite" aria-atomic="true">0 seleccionados</strong>
+			<button type="button" class="btn btn-sm btn-danger" id="btnBorrarSeleccion" onclick="borrarSeleccionados()">
+				<i class="bi bi-trash"></i> Eliminar seleccionados
+			</button>
+			<button type="button" class="btn btn-sm btn-outline-secondary" id="btnBajaSeleccion"
+				onclick="darDeBajaSeleccionados()">
+				<i class="bi bi-person-dash"></i> Dar de baja seleccionados
+			</button>
+			<button type="button" class="btn btn-sm btn-outline-primary" id="btnEquipoSeleccion"
+				onclick="abrirCambiarEquipo()">
+				<i class="bi bi-arrow-left-right"></i> Cambiar equipo
+			</button>
+			<button type="button" class="btn btn-sm btn-link ms-auto" id="btnQuitarSeleccion"
+				onclick="quitarSeleccion()">Quitar selección</button>
+		</div>
+
 		<!-- Tabla de jugadores -->
 		<div class="admin-list-panel">
 			<table class="table table-striped w-100" id="tablaJugadores">
 				<thead>
 					<tr>
-						<th style="width: 20%;">Deporte</th>
-						<th style="width: 50%;">Nombre completo</th>
+						<th style="width: 4%;">
+							<input type="checkbox" class="form-check-input" id="selTodos"
+								aria-label="Seleccionar todos los jugadores visibles" onchange="marcarVisibles(this.checked)">
+						</th>
+						<th style="width: 18%;">Deporte</th>
+						<th style="width: 48%;">Nombre completo</th>
 						<th style="width: 25%;">Equipo</th>
 						<th style="width: 5%;"></th>
 					</tr>
@@ -82,6 +110,12 @@
 				<tbody>
 					<tr th:each="jugador : ${jugadores}" th:attr="data-categoria=${jugador.categoria}"
 						th:classappend="${jugador.deBaja} ? 'text-muted'">
+						<td class="align-middle">
+							<input type="checkbox" class="form-check-input sel-jugador"
+								th:attr="data-id=${jugador.id}, data-nombre=${jugador.nombre + ' ' + jugador.apellidos},
+									aria-label=${'Seleccionar a ' + jugador.nombre + ' ' + jugador.apellidos}"
+								onchange="actualizarSeleccion()">
+						</td>
 						<td class="align-middle"
 							th:text="${jugador.deporte} == 'F' ? 'Fútbol' : (${jugador.deporte} == 'FS' ? 'Fútbol Sala' : '')">
 						</td>
@@ -328,6 +362,33 @@
 		</div>
 	</div>
 
+	<!-- Modal Cambiar equipo (en bloque): solo el equipo de destino -->
+	<div class="modal fade lead" id="cambiarEquipoModal" tabindex="-1" aria-labelledby="cambiarEquipoTitulo" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 class="modal-title lead" id="cambiarEquipoTitulo">Cambiar equipo</h3>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+				</div>
+				<div class="modal-body">
+					<p id="cambiarEquipoResumen" class="fw-bold"></p>
+					<label for="cambiarEquipoDestino">Equipo de destino <span class="text-danger">*</span>:</label>
+					<select id="cambiarEquipoDestino" class="form-control">
+						<option th:each="equipo : ${listaEquipos}" th:value="${equipo.id}" th:text="${equipo.nombre}"
+							th:attr="data-categoria=${equipo.categoria}, data-deporte=${equipo.deporte}"></option>
+					</select>
+					<small class="form-text text-muted">Se conserva el dorsal salvo que ya lo tenga otro jugador del equipo
+						de destino; entonces pasa a no tener dorsal. Los jugadores de baja no se mueven.</small>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+					<button type="button" class="btn btn-primary" id="btnConfirmarCambioEquipo"
+						onclick="cambiarEquipoSeleccionados()">Cambiar equipo</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<!-- Incluir el footer -->
 	<div th:replace="~{admin/footerAdmin.html}"></div>
 
@@ -439,8 +500,20 @@
 				.catch(err => console.error('Error al cargar el historial:', err));
 		}
 
+		// Los filtros (estado, categoria, q) viven solo en la URL: asi sobreviven a recargar, a volver atras y a cualquier accion.
+		function urlConFiltros(estado) {
+			const params = new URLSearchParams();
+			params.set('estado', estado || document.getElementById('filtroEstado').value);
+			const categoria = document.getElementById('filtroCategoria').value;
+			const texto = document.getElementById('filtroTexto').value.trim();
+			if (categoria) params.set('categoria', categoria);
+			if (texto) params.set('q', texto);
+			return '/admin/jugadores?' + params.toString();
+		}
+
+		// Cambiar el estado recarga la pagina (el servidor decide a quien lista) conservando categoria y texto
 		function cambiarEstado(estado) {
-			window.location.href = '/admin/jugadores?estado=' + encodeURIComponent(estado);
+			window.location.href = urlConFiltros(estado);
 		}
 
 		function postJson(url, formData, alerta, okMensajeRecargar) {
@@ -692,7 +765,8 @@
 						msg.textContent = data.mensaje;
 						msg.style.display = 'block';
 
-						setTimeout(() => window.location.href = '/admin/jugadores', 1000);
+						// reload() vuelve a la misma URL, con sus filtros
+						setTimeout(() => window.location.reload(), 1000);
 					}
 				})
 				.catch(console.error);
@@ -732,17 +806,274 @@
 				});
 		}
 
+		let temporizadorFiltro = null;
+
+		// El texto se aplica con un pequeno retardo, para no filtrar (ni tocar la URL) en cada tecla
+		function filtrarConRetardo() {
+			clearTimeout(temporizadorFiltro);
+			temporizadorFiltro = setTimeout(filtrarTabla, 250);
+		}
+
 		function filtrarTabla() {
-			const texto = document.getElementById('filtroTexto').value.toLowerCase();
+			clearTimeout(temporizadorFiltro);
+			const texto = document.getElementById('filtroTexto').value.trim().toLowerCase();
 			const categoria = document.getElementById('filtroCategoria').value;
 			const filas = document.querySelectorAll('#tablaJugadores tbody tr');
 
 			filas.forEach(fila => {
+				// El texto se busca en el nombre y el equipo, no en las casillas ni en los botones
 				const coincideTexto = fila.textContent.toLowerCase().includes(texto);
 				const coincideCategoria = !categoria || fila.dataset.categoria === categoria;
-				fila.style.display = (coincideTexto && coincideCategoria) ? '' : 'none';
+				const visible = coincideTexto && coincideCategoria;
+				fila.style.display = visible ? '' : 'none';
+				// Una fila oculta nunca queda marcada
+				if (!visible) {
+					const casilla = fila.querySelector('.sel-jugador');
+					if (casilla) casilla.checked = false;
+				}
 			});
+			actualizarSeleccion();
+			history.replaceState(null, '', urlConFiltros());
 		}
+
+		// ---- Seleccion ----------------------------------------------------------------------------------------------
+		const casillas = () => Array.from(document.querySelectorAll('#tablaJugadores .sel-jugador'));
+		const casillasVisibles = () => casillas().filter(c => c.closest('tr').style.display !== 'none');
+		const seleccionadas = () => casillas().filter(c => c.checked);
+
+		function marcarVisibles(marcar) {
+			casillasVisibles().forEach(c => c.checked = marcar);
+			actualizarSeleccion();
+		}
+
+		function quitarSeleccion() {
+			casillas().forEach(c => c.checked = false);
+			actualizarSeleccion();
+		}
+
+		function actualizarSeleccion() {
+			const n = seleccionadas().length;
+			const visibles = casillasVisibles();
+			const todas = document.getElementById('selTodos');
+			todas.checked = visibles.length > 0 && visibles.every(c => c.checked);
+			todas.indeterminate = n > 0 && !todas.checked;
+
+			const barra = document.getElementById('barraSeleccion');
+			barra.style.display = n > 0 ? 'flex' : 'none';
+			document.getElementById('textoSeleccion').textContent = n === 1 ? '1 seleccionado' : n + ' seleccionados';
+		}
+
+		// Mientras se procesa, ni se repite la accion ni se cambia la seleccion
+		function bloquearBarra(bloquear) {
+			['btnBorrarSeleccion', 'btnBajaSeleccion', 'btnEquipoSeleccion', 'btnQuitarSeleccion', 'btnConfirmarCambioEquipo']
+				.forEach(id => document.getElementById(id).disabled = bloquear);
+			document.getElementById('barraSeleccion').setAttribute('aria-busy', bloquear ? 'true' : 'false');
+			document.getElementById('selTodos').disabled = bloquear;
+			casillas().forEach(c => c.disabled = bloquear);
+		}
+
+		const filaDe = (id) => {
+			const c = casillas().find(x => x.dataset.id === String(id));
+			return c ? c.closest('tr') : null;
+		};
+
+		// ---- Acciones en bloque -------------------------------------------------------------------------------------
+		function enviarBloque(url, cuerpo) {
+			const token = document.querySelector('input[name="_csrf"]').value;
+			bloquearBarra(true);
+			return fetch(url, {
+				method: 'POST',
+				headers: { 'X-CSRF-TOKEN': token, 'Content-Type': 'application/json' },
+				body: JSON.stringify(cuerpo)
+			})
+				.then(response => response.json().then(data => ({ status: response.status, body: data })))
+				.finally(() => bloquearBarra(false));
+		}
+
+		function listaDeNombres(items) {
+			return items.map(i => '<li>' + escapeHtml(i.nombre)
+				+ (i.motivo ? ': <span class="text-muted">' + escapeHtml(i.motivo) + '</span>' : '') + '</li>').join('');
+		}
+
+		function bloqueDesplegable(titulo, items) {
+			return '<details class="mt-2"><summary>' + escapeHtml(titulo) + '</summary><ul class="mb-0">'
+				+ listaDeNombres(items) + '</ul></details>';
+		}
+
+		// Pinta el resumen de la accion; las filas se actualizan sin recargar, asi que sigue a la vista
+		function mostrarResumen(titulosOk, resumen, ayudaErrores) {
+			const caja = document.getElementById('resumenBloque');
+			const partes = [];
+			const hechos = resumen.correctos.length + resumen.conAviso.length;
+			let cabecera = titulosOk + ': ' + hechos + '.';
+			if (resumen.conAviso.length) cabecera += ' Movidos sin dorsal: ' + resumen.conAviso.length + '.';
+			if (resumen.saltados.length) cabecera += ' Saltados: ' + resumen.saltados.length + '.';
+			if (resumen.errores.length) cabecera += ' No se han podido procesar: ' + resumen.errores.length + '.';
+			partes.push('<strong>' + escapeHtml(cabecera) + '</strong>');
+			if (resumen.conAviso.length) partes.push(bloqueDesplegable('Movidos sin dorsal', resumen.conAviso));
+			if (resumen.saltados.length) partes.push(bloqueDesplegable('Saltados', resumen.saltados));
+			if (resumen.errores.length) {
+				partes.push(bloqueDesplegable('No procesados', resumen.errores));
+				if (ayudaErrores) partes.push('<div class="mt-2 small">' + escapeHtml(ayudaErrores) + '</div>');
+			}
+			caja.className = resumen.errores.length ? 'alert alert-warning' : 'alert alert-success';
+			caja.innerHTML = partes.join('');
+			caja.style.display = 'block';
+			caja.focus({ preventScroll: true });
+			caja.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+		}
+
+		function mostrarErrorBloque(mensaje) {
+			const caja = document.getElementById('resumenBloque');
+			caja.className = 'alert alert-danger';
+			caja.textContent = mensaje;
+			caja.style.display = 'block';
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+		}
+
+		// Tras la accion se desmarca todo menos lo que ha fallado (para poder reintentarlo con otra accion)
+		function dejarMarcadosLosErrores(resumen) {
+			const fallidos = new Set(resumen.errores.map(e => String(e.id)));
+			casillas().forEach(c => c.checked = fallidos.has(c.dataset.id));
+			actualizarSeleccion();
+		}
+
+		function borrarSeleccionados() {
+			const marcadas = seleccionadas();
+			if (marcadas.length === 0) return;
+			const nombres = marcadas.map(c => c.dataset.nombre).join(', ');
+			const plural = marcadas.length === 1 ? '1 jugador' : marcadas.length + ' jugadores';
+			if (!confirm(`Se eliminarán ${plural}: ${nombres}.\n\nEsta acción no se puede deshacer.`)) return;
+
+			enviarBloque('/admin/jugadores/borrar-multiple', { ids: marcadas.map(c => Number(c.dataset.id)) })
+				.then(result => {
+					if (result.status !== 200) {
+						mostrarErrorBloque(result.body.error || 'No se han podido eliminar los jugadores.');
+						return;
+					}
+					const resumen = result.body;
+					resumen.correctos.forEach(j => { const fila = filaDe(j.id); if (fila) fila.remove(); });
+					mostrarResumen('Eliminados', resumen,
+						'Los que tienen historial (familiares, cuotas, convocatorias...) no se pueden eliminar: usa "Dar de baja" con ellos.');
+					dejarMarcadosLosErrores(resumen);
+					filtrarTabla();
+				})
+				.catch(err => { console.error(err); mostrarErrorBloque('Error al eliminar los jugadores.'); });
+		}
+
+		function darDeBajaSeleccionados() {
+			const marcadas = seleccionadas();
+			if (marcadas.length === 0) return;
+			const nombres = marcadas.map(c => c.dataset.nombre).join(', ');
+			const plural = marcadas.length === 1 ? '1 jugador' : marcadas.length + ' jugadores';
+			if (!confirm(`¿Dar de baja a ${plural}: ${nombres}? Dejarán de aparecer en su equipo, convocatorias y avisos, pero se conserva todo su historial.`)) return;
+
+			enviarBloque('/admin/jugadores/baja-multiple', { ids: marcadas.map(c => Number(c.dataset.id)) })
+				.then(result => {
+					if (result.status !== 200) {
+						mostrarErrorBloque(result.body.error || 'No se ha podido dar de baja a los jugadores.');
+						return;
+					}
+					const resumen = result.body;
+					const soloActivos = document.getElementById('filtroEstado').value === 'activos';
+					resumen.correctos.forEach(j => {
+						const fila = filaDe(j.id);
+						if (!fila) return;
+						if (soloActivos) fila.remove(); else marcarFilaDeBaja(fila);
+					});
+					mostrarResumen('Dados de baja', resumen, null);
+					dejarMarcadosLosErrores(resumen);
+					filtrarTabla();
+				})
+				.catch(err => { console.error(err); mostrarErrorBloque('Error al dar de baja a los jugadores.'); });
+		}
+
+		// La fila pasa a verse como la de un jugador de baja (lo que pintaria el servidor al recargar)
+		function marcarFilaDeBaja(fila) {
+			fila.classList.add('text-muted');
+			const celdas = fila.children; // casilla, deporte, nombre, equipo, acciones
+			const insignia = document.createElement('span');
+			insignia.className = 'badge text-bg-secondary ms-1';
+			insignia.textContent = 'Baja ' + new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+			celdas[2].appendChild(insignia);
+			celdas[3].textContent = 'Sin equipo';
+
+			const editar = fila.querySelector('button[title="Editar jugador"]');
+			if (editar) { editar.dataset.baja = 'true'; editar.removeAttribute('data-equipo-id'); }
+
+			const baja = fila.querySelector('button[title="Dar de baja"]');
+			if (baja) {
+				const reactivar = document.createElement('button');
+				reactivar.type = 'button';
+				reactivar.className = 'btn btn-outline-success btn-sm';
+				reactivar.title = 'Reactivar';
+				reactivar.dataset.id = baja.dataset.id;
+				reactivar.dataset.nombre = baja.dataset.nombre;
+				reactivar.setAttribute('onclick', 'abrirReactivar(this)');
+				reactivar.innerHTML = '<i class="bi bi-person-check"></i>';
+				baja.replaceWith(reactivar);
+			}
+		}
+
+		function abrirCambiarEquipo() {
+			const n = seleccionadas().length;
+			if (n === 0) return;
+			document.getElementById('cambiarEquipoResumen').textContent =
+				n === 1 ? 'Se cambiará de equipo a 1 jugador.' : `Se cambiará de equipo a ${n} jugadores.`;
+			new bootstrap.Modal(document.getElementById('cambiarEquipoModal')).show();
+		}
+
+		function cambiarEquipoSeleccionados() {
+			const marcadas = seleccionadas();
+			const destino = document.getElementById('cambiarEquipoDestino');
+			if (marcadas.length === 0 || !destino.value) return;
+			const opcion = destino.options[destino.selectedIndex];
+			const modal = bootstrap.Modal.getInstance(document.getElementById('cambiarEquipoModal'));
+
+			enviarBloque('/admin/jugadores/cambiar-equipo-multiple',
+				{ ids: marcadas.map(c => Number(c.dataset.id)), equipoId: Number(destino.value) })
+				.then(result => {
+					if (modal) modal.hide();
+					if (result.status !== 200) {
+						mostrarErrorBloque(result.body.error || 'No se ha podido cambiar de equipo a los jugadores.');
+						return;
+					}
+					const resumen = result.body;
+					resumen.correctos.forEach(j => moverFila(filaDe(j.id), opcion, true));
+					resumen.conAviso.forEach(j => moverFila(filaDe(j.id), opcion, false));
+					mostrarResumen('Movidos a ' + opcion.textContent.trim(), resumen,
+						'Los de baja no se mueven: reactívalos desde su fila.');
+					dejarMarcadosLosErrores(resumen);
+					filtrarTabla();
+				})
+				.catch(err => { console.error(err); if (modal) modal.hide(); mostrarErrorBloque('Error al cambiar de equipo.'); });
+		}
+
+		// Lo que cambia en la fila al cambiar de equipo: equipo, categoria, deporte y (si choca) el dorsal
+		function moverFila(fila, opcion, conservaDorsal) {
+			if (!fila) return;
+			const deporte = opcion.dataset.deporte;
+			fila.dataset.categoria = opcion.dataset.categoria || '';
+			fila.children[1].textContent = deporte === 'F' ? 'Fútbol' : (deporte === 'FS' ? 'Fútbol Sala' : '');
+			fila.children[3].textContent = opcion.textContent.trim();
+			const editar = fila.querySelector('button[title="Editar jugador"]');
+			if (editar) {
+				editar.dataset.equipoId = opcion.value;
+				if (!conservaDorsal) editar.dataset.dorsal = 'null';
+			}
+		}
+
+		// Los filtros de la URL (?estado=...&categoria=...&q=...) se ponen al cargar y se aplican
+		(function aplicarFiltrosDeLaUrl() {
+			const params = new URLSearchParams(window.location.search);
+			const selectCategoria = document.getElementById('filtroCategoria');
+			const categoria = params.get('categoria');
+			if (categoria && Array.from(selectCategoria.options).some(o => o.value === categoria)) {
+				selectCategoria.value = categoria;
+			}
+			document.getElementById('filtroTexto').value = params.get('q') || '';
+			filtrarTabla();
+		})();
 	</script>
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
 </body>

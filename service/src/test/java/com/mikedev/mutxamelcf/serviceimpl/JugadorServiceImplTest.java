@@ -436,4 +436,136 @@ class JugadorServiceImplTest {
         when(equipoDao.obtenerEquipoPorNombre("Fantasma")).thenReturn(null);
         assertThat(jugadorService.plantillaEnPreparacion("Fantasma")).isFalse();
     }
+
+    // ---- cambiarEquipo (acciones en bloque del panel) ----
+
+    private static Equipo equipoDestino() {
+        return new Equipo(7L, "Juvenil", "A", "1", "Juvenil A", "F");
+    }
+
+    private static Jugador jugadorConTodo() {
+        Jugador j = jugadorEnEquipo();
+        j.setApellidos("García López");
+        j.setPosicion("Defensa");
+        j.setAnioNacimiento(2009);
+        j.setNombreRetransmision("Pablito");
+        j.setFoto(new byte[] { 1, 2, 3 });
+        j.setDeporte("F");
+        return j;
+    }
+
+    private Jugador guardado() {
+        ArgumentCaptor<Jugador> captor = ArgumentCaptor.forClass(Jugador.class);
+        verify(jugadorDao).guardarJugador(captor.capture());
+        return captor.getValue();
+    }
+
+    @Test
+    void cambiarEquipoMueveYConservaElDorsalYNoTocaOtrosDatos() {
+        when(jugadorDao.obtenerPorId(10L)).thenReturn(jugadorConTodo());
+        when(equipoDao.obtenerEquipoPorId(7L)).thenReturn(equipoDestino());
+        when(jugadorDao.bloquearActivosDelEquipo(7L)).thenReturn(List.of());
+        when(jugadorDao.guardarJugador(any(Jugador.class))).thenReturn(true);
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(null);
+
+        var cambio = jugadorService.cambiarEquipo(10L, 7L);
+
+        assertThat(cambio.resultado()).isEqualTo(com.mikedev.mutxamelcf.model.CambioEquipoJugador.Resultado.MOVIDO);
+        Jugador j = guardado();
+        assertThat(j.getEquipoId()).isEqualTo(7L);
+        assertThat(j.getEquipo()).isEqualTo("Juvenil A");
+        assertThat(j.getCategoria()).isEqualTo("Juvenil");
+        assertThat(j.getDeporte()).isEqualTo("F");
+        assertThat(j.getDorsal()).isEqualTo(9);
+        // Nada más cambia
+        assertThat(j.getNombre()).isEqualTo("Pablo");
+        assertThat(j.getApellidos()).isEqualTo("García López");
+        assertThat(j.getPosicion()).isEqualTo("Defensa");
+        assertThat(j.getAnioNacimiento()).isEqualTo(2009);
+        assertThat(j.getNombreRetransmision()).isEqualTo("Pablito");
+        assertThat(j.getFoto()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    void cambiarEquipoConDorsalQueChocaLoMueveSinDorsalYLoAvisa() {
+        Jugador otro = new Jugador();
+        otro.setId(99L);
+        otro.setNombre("Juan");
+        otro.setApellidos("López Ruiz");
+        otro.setDorsal(9);
+        when(jugadorDao.obtenerPorId(10L)).thenReturn(jugadorConTodo());
+        when(equipoDao.obtenerEquipoPorId(7L)).thenReturn(equipoDestino());
+        when(jugadorDao.bloquearActivosDelEquipo(7L)).thenReturn(List.of(otro));
+        when(jugadorDao.guardarJugador(any(Jugador.class))).thenReturn(true);
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(null);
+
+        var cambio = jugadorService.cambiarEquipo(10L, 7L);
+
+        assertThat(cambio.resultado())
+                .isEqualTo(com.mikedev.mutxamelcf.model.CambioEquipoJugador.Resultado.MOVIDO_SIN_DORSAL);
+        assertThat(cambio.detalle()).isEqualTo("movido sin dorsal, el 9 ya lo tiene Juan López");
+        Jugador j = guardado();
+        assertThat(j.getEquipoId()).isEqualTo(7L);
+        assertThat(j.getDorsal()).isNull();
+    }
+
+    @Test
+    void cambiarEquipoActualizaElHistorialDeLaTemporadaActivaComoElGuardadoIndividual() {
+        Jugador movido = jugadorConTodo();
+        movido.setEquipoId(7L);
+        movido.setEquipo("Juvenil A");
+        movido.setCategoria("Juvenil");
+        // Antes de guardar, el jugador está en su equipo; después, en el nuevo
+        when(jugadorDao.obtenerPorId(10L)).thenReturn(jugadorConTodo(), jugadorConTodo(), movido);
+        when(equipoDao.obtenerEquipoPorId(7L)).thenReturn(equipoDestino());
+        when(jugadorDao.bloquearActivosDelEquipo(7L)).thenReturn(List.of());
+        when(jugadorDao.guardarJugador(any(Jugador.class))).thenReturn(true);
+        when(temporadaDao.obtenerTemporadaActiva()).thenReturn(temporadaActiva());
+
+        jugadorService.cambiarEquipo(10L, 7L);
+
+        ArgumentCaptor<JugadorTemporada> fila = ArgumentCaptor.forClass(JugadorTemporada.class);
+        verify(jugadorTemporadaDao).guardar(fila.capture());
+        assertThat(fila.getValue().getTemporadaId()).isEqualTo(3L);
+        assertThat(fila.getValue().getEquipoId()).isEqualTo(7L);
+        assertThat(fila.getValue().getEquipoNombre()).isEqualTo("Juvenil A");
+        assertThat(fila.getValue().getCategoria()).isEqualTo("Juvenil");
+        assertThat(fila.getValue().getDorsal()).isEqualTo(9);
+        assertThat(fila.getValue().isBaja()).isFalse();
+    }
+
+    @Test
+    void cambiarEquipoNoMueveAUnJugadorDeBaja() {
+        Jugador deBaja = jugadorConTodo();
+        deBaja.setEquipoId(null);
+        deBaja.setFechaBaja(LocalDate.of(2026, 9, 1));
+        when(jugadorDao.obtenerPorId(10L)).thenReturn(deBaja);
+
+        assertThatThrownBy(() -> jugadorService.cambiarEquipo(10L, 7L)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("reactivar");
+        verify(jugadorDao, never()).guardarJugador(any());
+    }
+
+    @Test
+    void cambiarEquipoSaltaAlQueYaEstaEnEseEquipo() {
+        when(jugadorDao.obtenerPorId(10L)).thenReturn(jugadorConTodo());
+        when(equipoDao.obtenerEquipoPorId(5L)).thenReturn(new Equipo(5L, "Cadete", "A", "1", "Cadete A", "F"));
+
+        var cambio = jugadorService.cambiarEquipo(10L, 5L);
+
+        assertThat(cambio.resultado()).isEqualTo(com.mikedev.mutxamelcf.model.CambioEquipoJugador.Resultado.SALTADO);
+        verify(jugadorDao, never()).guardarJugador(any());
+    }
+
+    @Test
+    void cambiarEquipoConEquipoOJugadorInexistenteFalla() {
+        when(jugadorDao.obtenerPorId(10L)).thenReturn(jugadorConTodo());
+        when(equipoDao.obtenerEquipoPorId(404L))
+                .thenThrow(new org.springframework.dao.EmptyResultDataAccessException(1));
+        when(jugadorDao.obtenerPorId(11L)).thenReturn(null);
+
+        assertThatThrownBy(() -> jugadorService.cambiarEquipo(10L, 404L)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> jugadorService.cambiarEquipo(11L, 7L)).isInstanceOf(IllegalArgumentException.class);
+        verify(jugadorDao, never()).guardarJugador(any());
+    }
 }

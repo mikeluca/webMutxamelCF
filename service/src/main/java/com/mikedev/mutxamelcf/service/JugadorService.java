@@ -36,6 +36,16 @@ public interface JugadorService {
 	/** Quita la baja y lo asigna al equipo elegido. */
 	void reactivar(Long id, Long equipoId);
 
+	/**
+	 * Cambia de equipo a un jugador activo con lo mismo que el guardado de su ficha (categoría, deporte, historial de la
+	 * temporada activa, regla del dorsal); no toca ningún otro dato. Si su dorsal choca con el de un jugador activo del
+	 * equipo de destino, se mueve sin dorsal. Una transacción por llamada.
+	 *
+	 * @throws IllegalArgumentException si el jugador o el equipo no existen
+	 * @throws IllegalStateException    si el jugador está de baja
+	 */
+	com.mikedev.mutxamelcf.model.CambioEquipoJugador cambiarEquipo(Long jugadorId, Long equipoId);
+
 	/** Temporada, equipo, categoría, dorsal y baja de cada temporada del jugador, la más reciente primero. */
 	List<HistorialJugadorDTO> obtenerHistorial(Long jugadorId);
 

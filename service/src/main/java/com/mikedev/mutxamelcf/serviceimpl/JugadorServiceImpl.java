@@ -26,6 +26,7 @@ import com.mikedev.mutxamelcf.dao.PartidoEstadisticaJugadorDao;
 import com.mikedev.mutxamelcf.dao.PartidoLiveEventoDao;
 import com.mikedev.mutxamelcf.dao.TemporadaDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
+import com.mikedev.mutxamelcf.model.CambioEquipoJugador;
 import com.mikedev.mutxamelcf.model.Equipo;
 import com.mikedev.mutxamelcf.model.HistorialJugadorDTO;
 import com.mikedev.mutxamelcf.model.Jugador;
@@ -155,6 +156,54 @@ public class JugadorServiceImpl implements JugadorService {
 		sincronizarTemporadaActiva(jugadorDao.obtenerPorId(id), Boolean.FALSE);
 		logger.info("Jugador reactivado: id={}, equipoId={}", id, equipoId);
 		logger.debug("Fin reactivar: id={}", id);
+	}
+
+	@Override
+	@Transactional
+	public CambioEquipoJugador cambiarEquipo(Long id, Long equipoId) {
+		logger.debug("Inicio cambiarEquipo: id={}, equipoId={}", id, equipoId);
+		Jugador jugador = jugadorDao.obtenerPorId(id);
+		if (jugador == null) {
+			throw new IllegalArgumentException("El jugador no existe.");
+		}
+		if (jugador.estaDeBaja()) {
+			throw new IllegalStateException("Está de baja: hay que reactivarlo para asignarle un equipo.");
+		}
+		Equipo equipo = equipoId == null ? null : buscarEquipo(equipoId);
+		if (equipo == null) {
+			throw new IllegalArgumentException("El equipo seleccionado no existe.");
+		}
+		if (equipo.getId().equals(jugador.getEquipoId())) {
+			return new CambioEquipoJugador(CambioEquipoJugador.Resultado.SALTADO, "ya está en ese equipo");
+		}
+
+		// Un dorsal que choca no impide el cambio: se mueve sin dorsal y se avisa.
+		Integer dorsal = jugador.getDorsal();
+		String detalle = "";
+		CambioEquipoJugador.Resultado resultado = CambioEquipoJugador.Resultado.MOVIDO;
+		if (dorsal != null) {
+			for (Jugador otro : jugadorDao.bloquearActivosDelEquipo(equipo.getId())) {
+				if (dorsal.equals(otro.getDorsal()) && !id.equals(otro.getId())) {
+					detalle = "movido sin dorsal, el " + dorsal + " ya lo tiene " + ReglaDorsal.nombreCorto(otro);
+					resultado = CambioEquipoJugador.Resultado.MOVIDO_SIN_DORSAL;
+					dorsal = null;
+					break;
+				}
+			}
+		}
+
+		// Igual que el guardado de la ficha: el enlace es el ID y el texto, la categoría y el deporte se copian del equipo.
+		JugadorDTO dto = toDTO(jugador);
+		dto.setEquipoId(equipo.getId());
+		dto.setEquipo(equipo.getNombre());
+		dto.setCategoria(equipo.getCategoria());
+		dto.setDeporte(equipo.getDeporte());
+		dto.setDorsal(dorsal);
+		if (!guardarJugador(dto)) {
+			throw new IllegalArgumentException("No se ha podido guardar el cambio de equipo.");
+		}
+		logger.info("Jugador cambiado de equipo: id={}, equipoId={}, resultado={}", id, equipoId, resultado);
+		return new CambioEquipoJugador(resultado, detalle);
 	}
 
 	private Equipo buscarEquipo(Long equipoId) {
