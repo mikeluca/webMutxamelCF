@@ -228,6 +228,14 @@ public class AppAdminUsuariosController {
             logger.warn("Administración de usuarios desde la app: {}", e.getMessage());
             return mapa(HttpStatus.BAD_REQUEST, "error", e.getMessage());
 
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+
+            // Con el constraint real en el log (getMostSpecificCause lo trae: ORA-02292 ... (USER.FK_...)).
+            logger.error("Restricción de integridad en la administración de usuarios desde la app: {}",
+                    e.getMostSpecificCause().getMessage(), e);
+            return mapa(HttpStatus.CONFLICT, "error", "No se puede eliminar la invitación porque la cuenta tiene "
+                    + "datos asociados. Desactívala en vez de eliminarla.");
+
         } catch (Exception e) {
 
             logger.error("Error en la administración de usuarios desde la app: {}", e.getMessage(), e);

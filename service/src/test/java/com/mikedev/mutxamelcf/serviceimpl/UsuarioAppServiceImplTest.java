@@ -64,7 +64,7 @@ class UsuarioAppServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new UsuarioAppServiceImpl(
-                usuarioAppDao, usuarioAppVinculoDao, rolAppDao, passwordEncoder, jwtService, CLOCK);
+                usuarioAppDao, usuarioAppVinculoDao, rolAppDao, org.mockito.Mockito.mock(com.mikedev.mutxamelcf.dao.LimpiezaCuentaAppDao.class), passwordEncoder, jwtService, CLOCK);
     }
 
     private UsuarioApp usuarioActivo() {

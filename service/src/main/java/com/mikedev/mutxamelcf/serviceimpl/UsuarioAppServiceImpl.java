@@ -1,5 +1,6 @@
 package com.mikedev.mutxamelcf.serviceimpl;
 
+import com.mikedev.mutxamelcf.dao.LimpiezaCuentaAppDao;
 import com.mikedev.mutxamelcf.dao.RolAppDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppDao;
 import com.mikedev.mutxamelcf.dao.UsuarioAppVinculoDao;
@@ -36,6 +37,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -101,6 +103,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
     private final UsuarioAppDao usuarioAppDao;
     private final UsuarioAppVinculoDao usuarioAppVinculoDao;
     private final RolAppDao rolAppDao;
+    private final LimpiezaCuentaAppDao limpiezaCuentaAppDao;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final Clock clock;
@@ -109,6 +112,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
             UsuarioAppDao usuarioAppDao,
             UsuarioAppVinculoDao usuarioAppVinculoDao,
             RolAppDao rolAppDao,
+            LimpiezaCuentaAppDao limpiezaCuentaAppDao,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             Clock clock) {
@@ -116,6 +120,7 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
         this.usuarioAppDao = usuarioAppDao;
         this.usuarioAppVinculoDao = usuarioAppVinculoDao;
         this.rolAppDao = rolAppDao;
+        this.limpiezaCuentaAppDao = limpiezaCuentaAppDao;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.clock = clock;
@@ -1304,12 +1309,25 @@ public class UsuarioAppServiceImpl implements UsuarioAppService {
                             + "Desactívala si quieres revocarle el acceso.");
         }
 
+        // La actividad del club no se borra: antes de tocar nada, si la hay, la cuenta se queda como está.
+        Map<String, Integer> actividad = limpiezaCuentaAppDao.contarActividad(usuarioAppId);
+
+        if (!actividad.isEmpty()) {
+            logger.warn("Eliminación de invitación rechazada por actividad: usuarioAppId={}, actividad={}",
+                    usuarioAppId, actividad);
+            throw new IllegalStateException("Esta cuenta tiene actividad registrada ("
+                    + String.join(", ", actividad.keySet())
+                    + "). Desactívala en vez de eliminarla.");
+        }
+
+        Map<String, Integer> borradas = limpiezaCuentaAppDao.borrarDatosPropios(usuarioAppId);
+
         usuarioAppVinculoDao.desvincularTodo(usuarioAppId);
         rolAppDao.eliminarTodosLosRoles(usuarioAppId);
         usuarioAppDao.eliminar(usuarioAppId);
 
         // Privacidad: se registra el id, no el email.
-        logger.info("Invitación de app eliminada: usuarioAppId={}", usuarioAppId);
+        logger.info("Invitación de app eliminada: usuarioAppId={}, filasBorradas={}", usuarioAppId, borradas);
     }
 
     @Override

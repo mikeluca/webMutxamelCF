@@ -113,7 +113,7 @@ class AppAdminFfcvUsuariosControllerTest {
         importacionVeteranos = mock(com.mikedev.mutxamelcf.service.ImportacionVeteranosService.class);
         reloj = new MutableClock();
 
-        UsuarioAppServiceImpl usuarios = new UsuarioAppServiceImpl(usuarioAppDao, vinculoDao, rolAppDao,
+        UsuarioAppServiceImpl usuarios = new UsuarioAppServiceImpl(usuarioAppDao, vinculoDao, rolAppDao, mock(com.mikedev.mutxamelcf.dao.LimpiezaCuentaAppDao.class),
                 mock(PasswordEncoder.class), mock(JwtService.class), reloj);
 
         AppAdminUsuariosController usuariosController = new AppAdminUsuariosController(usuarios,

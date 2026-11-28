@@ -54,7 +54,7 @@ class UsuarioAppServiceAdminDesdeAppTest {
         usuarioAppDao = mock(UsuarioAppDao.class);
         vinculoDao = mock(UsuarioAppVinculoDao.class);
         rolAppDao = mock(RolAppDao.class);
-        service = new UsuarioAppServiceImpl(usuarioAppDao, vinculoDao, rolAppDao, mock(PasswordEncoder.class),
+        service = new UsuarioAppServiceImpl(usuarioAppDao, vinculoDao, rolAppDao, mock(com.mikedev.mutxamelcf.dao.LimpiezaCuentaAppDao.class), mock(PasswordEncoder.class),
                 mock(JwtService.class), CLOCK);
 
         roles(ADMIN, "ADMIN_APP");

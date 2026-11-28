@@ -315,6 +315,15 @@ public class AdminUsuariosAppController {
             response.put("error", e.getMessage());
             return ResponseEntity.badRequest().body(response);
 
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+
+            // Con el constraint real en el log (getMostSpecificCause lo trae: ORA-02292 ... (USER.FK_...)).
+            logger.error("No se puede eliminar la invitación {}: restricción de integridad: {}", id,
+                    e.getMostSpecificCause().getMessage(), e);
+            response.put("error", "No se puede eliminar la invitación porque la cuenta tiene datos asociados. "
+                    + "Desactívala en vez de eliminarla.");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+
         } catch (Exception e) {
 
             logger.error("Error al eliminar la invitación: {}", e.getMessage(), e);

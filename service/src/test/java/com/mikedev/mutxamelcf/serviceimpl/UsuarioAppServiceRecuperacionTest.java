@@ -57,7 +57,7 @@ class UsuarioAppServiceRecuperacionTest {
     @BeforeEach
     void setUp() {
         service = new UsuarioAppServiceImpl(
-                usuarioAppDao, usuarioAppVinculoDao, rolAppDao, passwordEncoder, jwtService,
+                usuarioAppDao, usuarioAppVinculoDao, rolAppDao, org.mockito.Mockito.mock(com.mikedev.mutxamelcf.dao.LimpiezaCuentaAppDao.class), passwordEncoder, jwtService,
                 Clock.fixed(AHORA, ZoneOffset.UTC));
     }
 
