@@ -43,7 +43,7 @@ class PublicSolicitudFamiliaControllerTest {
         usuarioAppService = mock(UsuarioAppService.class);
         comunicaciones = mock(ComunicacionesService.class);
         controller = new PublicSolicitudFamiliaController(solicitudes, usuarioAppService, comunicaciones,
-                new PublicFormRateLimiter());
+                new PublicFormRateLimiter(), true);
     }
 
     private static MockHttpServletRequest http(String ip) {

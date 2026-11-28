@@ -4,6 +4,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +38,9 @@ public class PublicSolicitudFamiliaController {
 
     static final String MENSAJE_DEMASIADOS_INTENTOS = "Demasiados intentos. Inténtalo de nuevo en unos minutos.";
 
+    static final String MENSAJE_REGISTRO_NO_DISPONIBLE = "El registro de familias estará disponible próximamente. "
+            + "Mientras tanto, pide la invitación a tu entrenador o al club.";
+
     /** Cuerpo de POST /verificar. */
     public record VerificarRequest(String email, String codigo, String password, String idioma) {
     }
@@ -50,10 +54,15 @@ public class PublicSolicitudFamiliaController {
     private final ComunicacionesService comunicacionesService;
     private final PublicFormRateLimiter formRateLimiter;
 
+    /** Interruptor app.registro-familias.habilitado (APP_REGISTRO_FAMILIAS): con false no se crea ninguna solicitud. */
+    private final boolean registroHabilitado;
+
     public PublicSolicitudFamiliaController(SolicitudFamiliaService solicitudFamiliaService,
             UsuarioAppService usuarioAppService, ComunicacionesService comunicacionesService,
-            PublicFormRateLimiter formRateLimiter) {
+            PublicFormRateLimiter formRateLimiter,
+            @Value("${app.registro-familias.habilitado:false}") boolean registroHabilitado) {
 
+        this.registroHabilitado = registroHabilitado;
         this.solicitudFamiliaService = solicitudFamiliaService;
         this.usuarioAppService = usuarioAppService;
         this.comunicacionesService = comunicacionesService;
@@ -64,11 +73,19 @@ public class PublicSolicitudFamiliaController {
      * POST /api/public/solicitudes-familia. Crea la cuenta sin roles y manda el código de 6 dígitos por email. 200 con
      * {@code estado}: CODIGO_ENVIADO, CUENTA_EXISTENTE (que inicie sesión y pida el acceso desde dentro) o
      * INVITACION_PENDIENTE (que use "Activar cuenta" con el código recibido). 400 con el mensaje si algo no vale, 429 si
-     * supera el límite y 503 si el email no ha salido.
+     * supera el límite y 503 si el email no ha salido. 403 {@code REGISTRO_NO_DISPONIBLE} si el interruptor
+     * app.registro-familias.habilitado está a false (no se crea nada).
      */
     @PostMapping
     public ResponseEntity<?> solicitar(@RequestBody(required = false) SolicitudFamiliaRequest request,
             HttpServletRequest http) {
+
+        // Antes de nada: ni cuenta, ni solicitud, ni email, ni consumir el límite de intentos. /verificar y
+        // /reenviar-codigo siguen abiertos para no dejar colgadas las solicitudes que ya estaban a medias.
+        if (!registroHabilitado) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("estado", "REGISTRO_NO_DISPONIBLE",
+                    "mensaje", MENSAJE_REGISTRO_NO_DISPONIBLE));
+        }
 
         String email = request == null ? null : request.email();
 

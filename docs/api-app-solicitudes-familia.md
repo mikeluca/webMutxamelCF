@@ -190,3 +190,7 @@ límite de intentos va en memoria.
 
 `/admin/solicitudes-familia` (menú de administración, SUPER y ADMIN): pendientes con sus coincidencias, aprobar
 (eligiendo jugador, con buscador por nombre), rechazar con motivo y el histórico de los últimos 7 días.
+
+## Interruptor del registro sin sesión
+
+`POST /api/public/solicitudes-familia` solo funciona con `app.registro-familias.habilitado=true` (variable `APP_REGISTRO_FAMILIAS`, por defecto `false`); si no, responde 403 `{"estado":"REGISTRO_NO_DISPONIBLE","mensaje":...}`. `/verificar` y `/reenviar-codigo` no dependen de él. Detalles y cómo activarlo: `docs/api-public-app-version.md`.
